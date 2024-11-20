@@ -13,7 +13,8 @@ use pyo3::{
         PyAttributeError, PyEnvironmentError, PyException, PyKeyError, PyNotImplementedError,
         PyValueError,
     },
-    types::{IntoPyDict, PyDict, PyType},
+    types::{IntoPyDict, PyDict, PyNotImplemented, PyType},
+    BoundObject, IntoPyObject,
 };
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
@@ -154,27 +155,36 @@ impl Player {
         })
     }
 
-    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp, py: Python<'_>) -> PyObject {
+    fn __richcmp__<'py>(
+        &self,
+        other: &Bound<'py, PyAny>,
+        op: CompareOp,
+        py: Python<'py>,
+    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
         match op {
             CompareOp::Eq => {
                 if let Ok(other_player) = other.extract::<Self>() {
-                    (self.steam_id == other_player.steam_id).into_py(py)
+                    Ok((self.steam_id == other_player.steam_id)
+                        .into_pyobject(py)?
+                        .into_any())
                 } else if let Ok(steam_id) = other.extract::<i64>() {
-                    (self.steam_id == steam_id).into_py(py)
+                    Ok((self.steam_id == steam_id).into_pyobject(py)?.into_any())
                 } else {
-                    false.into_py(py)
+                    Ok(false.into_pyobject(py)?.into_any())
                 }
             }
             CompareOp::Ne => {
                 if let Ok(other_player) = other.extract::<Self>() {
-                    (self.steam_id != other_player.steam_id).into_py(py)
+                    Ok((self.steam_id != other_player.steam_id)
+                        .into_pyobject(py)?
+                        .into_any())
                 } else if let Ok(steam_id) = other.extract::<i64>() {
-                    (self.steam_id != steam_id).into_py(py)
+                    Ok((self.steam_id != steam_id).into_pyobject(py)?.into_any())
                 } else {
-                    true.into_py(py)
+                    Ok(true.into_pyobject(py)?.into_any())
                 }
             }
-            _ => py.NotImplemented(),
+            _ => Ok(PyNotImplemented::get(py).into_any()),
         }
     }
 
@@ -225,7 +235,7 @@ impl Player {
             ));
         }
 
-        Ok(parse_variables(&self.user_info).into_py_dict_bound(py))
+        parse_variables(&self.user_info).into_py_dict(py)
     }
 
     #[setter(cvars)]
@@ -678,7 +688,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(pos.into_py(py)),
+            None => Ok(pos.into_pyobject(py)?.into_any().unbind()),
             Some(py_kwargs) => {
                 let x = match py_kwargs.get_item("x")? {
                     None => pos.0,
@@ -693,7 +703,8 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_position(py, self.id, Vector3(x, y, z)).map(|value| value.into_py(py))
+                pyshinqlx_set_position(py, self.id, Vector3(x, y, z))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
             }
         }
     }
@@ -715,7 +726,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(vel.into_py(py)),
+            None => Ok(vel.into_pyobject(py)?.into_any().unbind()),
             Some(py_kwargs) => {
                 let x = match py_kwargs.get_item("x")? {
                     None => vel.0,
@@ -730,7 +741,8 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_velocity(py, self.id, Vector3(x, y, z)).map(|value| value.into_py(py))
+                pyshinqlx_set_velocity(py, self.id, Vector3(x, y, z))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
             }
         }
     }
@@ -752,7 +764,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(weaps.into_py(py)),
+            None => Ok(weaps.into_pyobject(py)?.into_any().unbind()),
             Some(py_kwargs) => {
                 let g = match py_kwargs.get_item("g")? {
                     None => weaps.0,
@@ -822,7 +834,7 @@ impl Player {
                         g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                     ),
                 )
-                .map(|value| value.into_py(py))
+                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
             }
         }
     }
@@ -835,7 +847,7 @@ impl Player {
                 Some(state) => state.weapon,
             };
 
-            return Ok(weapon.into_py(py));
+            return Ok(weapon.into_pyobject(py)?.into_any().unbind());
         };
 
         let Ok(converted_weapon) = (match weapon.extract::<i32>(py) {
@@ -848,7 +860,8 @@ impl Player {
             return Err(PyValueError::new_err("invalid new_weapon"));
         };
 
-        pyshinqlx_set_weapon(py, self.id, converted_weapon as i32).map(|value| value.into_py(py))
+        pyshinqlx_set_weapon(py, self.id, converted_weapon as i32)
+            .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
@@ -868,7 +881,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(ammos.into_py(py)),
+            None => Ok(ammos.into_pyobject(py)?.into_any().unbind()),
             Some(py_kwargs) => {
                 let g = match py_kwargs.get_item("g")? {
                     None => ammos.0,
@@ -938,7 +951,7 @@ impl Player {
                         g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                     ),
                 )
-                .map(|value| value.into_py(py))
+                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
             }
         }
     }
@@ -960,7 +973,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(powerups.into_py(py)),
+            None => Ok(powerups.into_pyobject(py)?.into_any().unbind()),
             Some(py_kwargs) => {
                 let quad = match py_kwargs.get_item("quad")? {
                     None => powerups.0,
@@ -988,7 +1001,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_powerups(py, self.id, Powerups(quad, bs, haste, invis, regen, invul))
-                    .map(|value| value.into_py(py))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
             }
         }
     }
@@ -1641,8 +1654,8 @@ mod pyshinqlx_player_tests {
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert(shinqlx.Player(42, player_info) == shinqlx.Player(42, player_info))
 assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == False)
@@ -1653,7 +1666,8 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
                         ("player_info", player_info.into_py(py)),
                         ("player_info2", player_info2.into_py(py)),
                     ]
-                    .into_py_dict_bound(py),
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             )
         });
@@ -1669,15 +1683,19 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert(shinqlx.Player(42, player_info) == 1234567890)
 assert((shinqlx.Player(42, player_info) == 1234567891) == False)
 assert((shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
-                Some(&[("player_info", player_info.into_py(py))].into_py_dict_bound(py)),
+                Some(
+                    &[("player_info", player_info.into_py(py))]
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
+                ),
             )
         });
         assert!(result.is_ok());
@@ -1697,8 +1715,8 @@ assert((shinqlx.Player(42, player_info) == "asdf") == False)
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert((shinqlx.Player(42, player_info) != shinqlx.Player(42, player_info)) == False)
 assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
@@ -1709,7 +1727,8 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
                         ("player_info", player_info.into_py(py)),
                         ("player_info2", player_info2.into_py(py)),
                     ]
-                    .into_py_dict_bound(py),
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             )
         });
@@ -1725,15 +1744,19 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
             ..default_test_player_info()
         };
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert((shinqlx.Player(42, player_info) != 1234567890) == False)
 assert(shinqlx.Player(42, player_info) != 1234567891)
 assert(shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
-                Some(&[("player_info", player_info.into_py(py))].into_py_dict_bound(py)),
+                Some(
+                    &[("player_info", player_info.into_py(py))]
+                        .into_py_dict(py)
+                        .expect("this hsould not happen"),
+                ),
             )
         });
         assert!(result.is_ok());
@@ -1754,8 +1777,8 @@ assert(shinqlx.Player(42, player_info) != "asdf")
         };
 
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
             "#,
@@ -1765,7 +1788,8 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                         ("player_info", player_info.into_py(py)),
                         ("player_info2", player_info2.into_py(py)),
                     ]
-                    .into_py_dict_bound(py),
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
@@ -1864,13 +1888,17 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
         };
 
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 player.update()
 assert(player._valid)
             "#,
                 None,
-                Some(&[("player", player.into_py(py))].into_py_dict_bound(py)),
+                Some(
+                    &[("player", player.into_py(py))]
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
+                ),
             )
         });
         assert!(result.is_ok());
@@ -2010,7 +2038,9 @@ assert(player._valid)
             let result = Python::with_gil(|py| {
                 player.set_cvars(
                     py,
-                    [("asdf", "qwertz"), ("name", "UnnamedPlayer")].into_py_dict_bound(py),
+                    [("asdf", "qwertz"), ("name", "UnnamedPlayer")]
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                 )
             });
             assert!(result.is_ok());
@@ -3642,7 +3672,11 @@ assert(player._valid)
                 let result = player.position(
                     py,
                     false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    Some(
+                        &[("x", 4), ("y", 5), ("z", 6)]
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
+                    ),
                 );
                 assert_eq!(
                     result
@@ -3686,7 +3720,11 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.position(py, true, Some(&position.into_py_dict_bound(py)));
+                let result = player.position(
+                    py,
+                    true,
+                    Some(&position.into_py_dict(py).expect("this should not happen")),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -3718,7 +3756,11 @@ assert(player._valid)
                 let result = player.position(
                     py,
                     false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    Some(
+                        &[("x", 4), ("y", 5), ("z", 6)]
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
+                    ),
                 );
                 assert_eq!(
                     result
@@ -3844,7 +3886,11 @@ assert(player._valid)
                 let result = player.velocity(
                     py,
                     false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    Some(
+                        &[("x", 4), ("y", 5), ("z", 6)]
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
+                    ),
                 );
                 assert_eq!(
                     result
@@ -3888,7 +3934,11 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.velocity(py, true, Some(&velocity.into_py_dict_bound(py)));
+                let result = player.velocity(
+                    py,
+                    true,
+                    Some(&velocity.into_py_dict(py).expect("this should not happen")),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -3920,7 +3970,11 @@ assert(player._valid)
                 let result = player.velocity(
                     py,
                     false,
-                    Some(&[("x", 4), ("y", 5), ("z", 6)].into_py_dict_bound(py)),
+                    Some(
+                        &[("x", 4), ("y", 5), ("z", 6)]
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
+                    ),
                 );
                 assert_eq!(
                     result
@@ -4064,7 +4118,8 @@ assert(player._valid)
                             ("hmg", false),
                             ("hands", true),
                         ]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -4121,7 +4176,11 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.weapons(py, true, Some(&weapons.into_py_dict_bound(py)));
+                let result = player.weapons(
+                    py,
+                    true,
+                    Some(&weapons.into_py_dict(py).expect("this should not happen")),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -4171,7 +4230,8 @@ assert(player._valid)
                             ("hmg", false),
                             ("hands", true),
                         ]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -4546,7 +4606,8 @@ assert(player._valid)
                             ("hmg", 14),
                             ("hands", 15),
                         ]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -4603,7 +4664,11 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.ammo(py, true, Some(&ammos.into_py_dict_bound(py)));
+                let result = player.ammo(
+                    py,
+                    true,
+                    Some(&ammos.into_py_dict(py).expect("this should not happen")),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -4653,7 +4718,8 @@ assert(player._valid)
                             ("hmg", 14),
                             ("hands", 15),
                         ]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -4789,7 +4855,8 @@ assert(player._valid)
                             ("regeneration", 2.125),
                             ("invulnerability", 1.0),
                         ]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -4837,7 +4904,11 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.powerups(py, true, Some(&powerups.into_py_dict_bound(py)));
+                let result = player.powerups(
+                    py,
+                    true,
+                    Some(&powerups.into_py_dict(py).expect("this should not happen")),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -4878,7 +4949,8 @@ assert(player._valid)
                             ("regeneration", 2),
                             ("invulnerability", 1),
                         ]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -5238,7 +5310,8 @@ assert(player._valid)
                     false,
                     Some(
                         &[("fuel", 5), ("max_fuel", 6), ("thrust", 7), ("refuel", 8)]
-                            .into_py_dict_bound(py),
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -5330,7 +5403,15 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.flight(py, true, Some(&flight_opts.into_py_dict_bound(py)));
+                let result = player.flight(
+                    py,
+                    true,
+                    Some(
+                        &flight_opts
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
+                    ),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -5364,7 +5445,8 @@ assert(player._valid)
                     false,
                     Some(
                         &[("fuel", 5), ("max_fuel", 6), ("refuel", 8), ("thrust", 7)]
-                            .into_py_dict_bound(py),
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -6610,7 +6692,11 @@ assert(player._valid)
                 let result = player.tell(
                     py,
                     "These are four lines",
-                    Some(&[("limit", 5)].into_py_dict_bound(py)),
+                    Some(
+                        &[("limit", 5)]
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
+                    ),
                 );
                 assert!(result.is_ok());
 
@@ -6672,7 +6758,8 @@ assert(player._valid)
                     "These_are_four_lines",
                     Some(
                         &[("limit", 5.into_py(py)), ("delimiter", "_".into_py(py))]
-                            .into_py_dict_bound(py),
+                            .into_py_dict(py)
+                            .expect("this should not happen"),
                     ),
                 );
                 assert!(result.is_ok());
@@ -7056,7 +7143,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
             let all_players =
-                Python::with_gil(|py| Player::all_players(&py.get_type_bound::<Player>(), py));
+                Python::with_gil(|py| Player::all_players(&py.get_type::<Player>(), py));
             assert_eq!(
                 all_players.expect("result was not ok"),
                 vec![
@@ -7153,7 +7240,7 @@ impl AbstractDummyPlayer {
     }
 
     #[getter(channel)]
-    fn get_channel(&self) -> PyResult<&PyAny> {
+    fn get_channel(&self) -> PyResult<PyObject> {
         Err(PyNotImplementedError::new_err(
             "channel property needs to be implemented.",
         ))
@@ -7164,7 +7251,7 @@ impl AbstractDummyPlayer {
         &self,
         #[allow(unused_variables)] msg: &str,
         #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<&PyAny> {
+    ) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "tell() needs to be implemented.",
         ))
@@ -7182,8 +7269,8 @@ mod pyshinqlx_abstract_dummy_player_tests {
     #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
             "#,
@@ -7198,8 +7285,8 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 shinqlx.AbstractDummyPlayer().id
             "#,
@@ -7214,8 +7301,8 @@ shinqlx.AbstractDummyPlayer().id
     #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 shinqlx.AbstractDummyPlayer().steam_id
             "#,
@@ -7230,8 +7317,8 @@ shinqlx.AbstractDummyPlayer().steam_id
     #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 shinqlx.AbstractDummyPlayer().update()
             "#,
@@ -7246,8 +7333,8 @@ shinqlx.AbstractDummyPlayer().update()
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 shinqlx.AbstractDummyPlayer().channel
             "#,
@@ -7262,8 +7349,8 @@ shinqlx.AbstractDummyPlayer().channel
     #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 shinqlx.AbstractDummyPlayer().tell("asdf")
             "#,
@@ -7344,8 +7431,8 @@ mod pyshinqlx_rcon_dummy_player_tests {
     #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.Player))
 assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))

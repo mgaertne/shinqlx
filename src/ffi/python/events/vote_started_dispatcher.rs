@@ -29,7 +29,7 @@ impl VoteStartedDispatcher {
         let pyany_event_dispatcher = slf.borrow().into_super().into_py(slf.py());
         let event_dispatcher_instance = pyany_event_dispatcher.bind(slf.py()).downcast()?;
 
-        let args_tuple = PyTuple::new_bound(slf.py(), [player, vote.into_py(slf.py()), args]);
+        let args_tuple = PyTuple::new(slf.py(), [player, vote.into_py(slf.py()), args])?;
 
         Ok(EventDispatcher::dispatch(
             event_dispatcher_instance,

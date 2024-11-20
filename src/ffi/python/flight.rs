@@ -99,8 +99,8 @@ mod flight_tests {
     #[cfg_attr(miri, ignore)]
     fn flight_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let flight_constructor = py.run_bound(
-                r#"
+            let flight_constructor = py.run(
+                cr#"
 import shinqlx
 flight = shinqlx.Flight((0, 1, 2, 3))
             "#,
@@ -119,8 +119,8 @@ flight = shinqlx.Flight((0, 1, 2, 3))
     #[cfg_attr(miri, ignore)]
     fn flight_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let flight_constructor = py.run_bound(
-                r#"
+            let flight_constructor = py.run(
+                cr#"
 import shinqlx
 flight = shinqlx.Flight((0, 1, 2))
             "#,
@@ -135,8 +135,8 @@ flight = shinqlx.Flight((0, 1, 2))
     #[cfg_attr(miri, ignore)]
     fn flight_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let flight_constructor = py.run_bound(
-                r#"
+            let flight_constructor = py.run(
+                cr#"
 import shinqlx
 flight = shinqlx.Flight((0, 1, 2, 3, 4))
             "#,
@@ -151,8 +151,8 @@ flight = shinqlx.Flight((0, 1, 2, 3, 4))
     #[cfg_attr(miri, ignore)]
     fn flight_py_constructor_with_non_numeric_values(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let flight_constructor = py.run_bound(
-                r#"
+            let flight_constructor = py.run(
+                cr#"
 import shinqlx
 flight = shinqlx.Flight(("asdf", True, (1, 2, 3), []))
             "#,
@@ -167,8 +167,8 @@ flight = shinqlx.Flight(("asdf", True, (1, 2, 3), []))
     #[cfg_attr(miri, ignore)]
     fn flight_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert(shinqlx.Flight((0, 1, 2, 3)) == shinqlx.Flight((0, 1, 2, 3)))
             "#,
@@ -183,8 +183,8 @@ assert(shinqlx.Flight((0, 1, 2, 3)) == shinqlx.Flight((0, 1, 2, 3)))
     #[cfg_attr(miri, ignore)]
     fn flight_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            py.run_bound(
-                r#"
+            py.run(
+                cr#"
 import shinqlx
 assert(shinqlx.Flight((0, 1, 2, 3)) != shinqlx.Flight((3, 2, 1, 0)))
             "#,
@@ -199,8 +199,8 @@ assert(shinqlx.Flight((0, 1, 2, 3)) != shinqlx.Flight((3, 2, 1, 0)))
     #[cfg_attr(miri, ignore)]
     fn flight_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 assert(shinqlx.Flight((0, 1, 2, 3)) < shinqlx.Flight((3, 2, 1, 0)))
             "#,
@@ -224,8 +224,8 @@ assert(shinqlx.Flight((0, 1, 2, 3)) < shinqlx.Flight((3, 2, 1, 0)))
     #[cfg_attr(miri, ignore)]
     fn flight_to_str_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 assert(str(shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
             "#,
@@ -249,8 +249,8 @@ assert(str(shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3
     #[cfg_attr(miri, ignore)]
     fn flight_repr_in_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 assert(repr(shinqlx.Flight((1, 2, 3, 4))) == "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)")
             "#,

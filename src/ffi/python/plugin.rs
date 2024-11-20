@@ -87,7 +87,7 @@ impl Plugin {
         let plugin_name = Self::get_name(slf)?;
         let Ok(db_class) = slf
             .py()
-            .get_type_bound::<Plugin>()
+            .get_type::<Plugin>()
             .getattr(intern!(slf.py(), "database"))
         else {
             let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
@@ -119,7 +119,7 @@ impl Plugin {
     #[getter(plugins)]
     fn get_plugins<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let loaded_plugins = py
-            .get_type_bound::<Plugin>()
+            .get_type::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))?
             .extract::<Bound<'_, PyDict>>()?;
 
@@ -269,7 +269,7 @@ impl Plugin {
     ) -> PyResult<()> {
         let py_channels = channels.unwrap_or(slf.py().None());
         let py_exclude_channels =
-            exclude_channels.unwrap_or(PyTuple::empty_bound(slf.py()).into_py(slf.py()));
+            exclude_channels.unwrap_or(PyTuple::empty(slf.py()).into_py(slf.py()));
 
         let new_command = Command::py_new(
             slf.py(),
@@ -463,27 +463,27 @@ impl Plugin {
                     }),
             },
             "list" => match cvar_string {
-                None => Ok(PyList::empty_bound(cls.py()).into_py(cls.py())),
+                None => Ok(PyList::empty(cls.py()).into_py(cls.py())),
                 Some(value) => {
                     let items: Vec<&str> = value.split(',').collect();
-                    let returned = PyList::new_bound(cls.py(), items);
+                    let returned = PyList::new(cls.py(), items)?;
                     Ok(returned.into_py(cls.py()))
                 }
             },
             "set" => match cvar_string {
-                None => PySet::empty_bound(cls.py()).map(|set| set.into_py(cls.py())),
+                None => PySet::empty(cls.py()).map(|set| set.into_py(cls.py())),
                 Some(value) => {
                     let items: Vec<String> =
                         value.split(',').map(|item| item.to_string()).collect();
-                    let returned = PySet::new_bound::<String>(cls.py(), &items);
+                    let returned = PySet::new::<String>(cls.py(), items);
                     returned.map(|set| set.into_py(cls.py()))
                 }
             },
             "tuple" => match cvar_string {
-                None => Ok(PyTuple::empty_bound(cls.py()).into_py(cls.py())),
+                None => Ok(PyTuple::empty(cls.py()).into_py(cls.py())),
                 Some(value) => {
                     let items: Vec<&str> = value.split(',').collect();
-                    let returned = PyTuple::new_bound(cls.py(), items);
+                    let returned = PyTuple::new(cls.py(), items)?;
                     Ok(returned.into_py(cls.py()))
                 }
             },
@@ -619,7 +619,7 @@ impl Plugin {
     /// Get a list of all the players on the server.
     #[classmethod]
     fn players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
-        Player::all_players(&cls.py().get_type_bound::<Player>(), cls.py())
+        Player::all_players(&cls.py().get_type::<Player>(), cls.py())
     }
 
     /// Get a Player instance from the name, client ID,
@@ -697,7 +697,7 @@ impl Plugin {
                 let bound_channel = channel.bind(cls.py());
                 if bound_channel
                     .get_type()
-                    .is_subclass(&cls.py().get_type_bound::<AbstractChannel>())
+                    .is_subclass(&cls.py().get_type::<AbstractChannel>())
                     .unwrap_or(false)
                 {
                     return bound_channel
@@ -845,7 +845,7 @@ impl Plugin {
     ) -> PyResult<Bound<'py, PyDict>> {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        let result = PyDict::new_bound(cls.py());
+        let result = PyDict::new(cls.py());
 
         for team_str in [
             intern!(cls.py(), "free"),
@@ -1277,7 +1277,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1300,9 +1300,7 @@ mod plugin_tests {
                     )
                     .expect("this should not happen");
 
-                    let result = py
-                        .import_bound("gc")
-                        .and_then(|gc| gc.call_method0("collect"));
+                    let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
                     assert!(result.is_ok());
                 });
             });
@@ -1327,7 +1325,7 @@ mod plugin_tests {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
 
-            let _ = py.get_type_bound::<Plugin>().delattr("database");
+            let _ = py.get_type::<Plugin>().delattr("database");
 
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
@@ -1343,8 +1341,7 @@ mod plugin_tests {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
 
-            py.get_type_bound::<Plugin>()
-                .setattr("database", py.None())?;
+            py.get_type::<Plugin>().setattr("database", py.None())?;
 
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
@@ -1360,8 +1357,8 @@ mod plugin_tests {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
 
-            let redis_type = py.get_type_bound::<Redis>();
-            py.get_type_bound::<Plugin>()
+            let redis_type = py.get_type::<Redis>();
+            py.get_type::<Plugin>()
                 .setattr("database", redis_type.as_ref().into_py(py))?;
 
             let plugin_instance = extended_plugin.call0()?;
@@ -1391,11 +1388,11 @@ mod plugin_tests {
         let res: PyResult<()> = Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
 
-            let loaded_plugins = PyDict::new_bound(py);
+            let loaded_plugins = PyDict::new(py);
             loaded_plugins.set_item("asdf", "asdfplugin")?;
             loaded_plugins.set_item("qwertz", "qwertzplugin")?;
             let _ = py
-                .get_type_bound::<Plugin>()
+                .get_type::<Plugin>()
                 .setattr("_loaded_plugins", &loaded_plugins);
 
             let plugin_instance = extended_plugin.call0()?;
@@ -1487,7 +1484,7 @@ mod plugin_tests {
     fn get_logger(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let logger_type = py
-                .import_bound("logging")?
+                .import("logging")?
                 .getattr("Logger")
                 .expect("could not get logging.Logger");
 
@@ -1552,7 +1549,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1607,7 +1604,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1705,7 +1702,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1788,7 +1785,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1852,7 +1849,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1912,14 +1909,14 @@ mod plugin_tests {
     #[serial]
     fn add_command_adds_a_new_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code_bound(
+            let command_handler = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("could not get module from code")
             .getattr("handler")
@@ -1976,14 +1973,14 @@ def handler():
     #[serial]
     fn add_command_stores_command_in_plugin(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code_bound(
+            let command_handler = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("could not get module from code")
             .getattr("handler")
@@ -2033,14 +2030,14 @@ def handler():
     #[serial]
     fn remove_command_removes_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code_bound(
+            let command_handler = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("could not get module from code")
             .getattr("handler")
@@ -2099,14 +2096,14 @@ def handler():
     #[serial]
     fn remove_command_removes_command_with_other_cmd_left_in_place(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code_bound(
+            let command_handler = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("could not get module from code")
             .getattr("handler")
@@ -2186,14 +2183,14 @@ def handler():
     #[serial]
     fn remove_command_for_list_of_command_names(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code_bound(
+            let command_handler = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("could not get module from code")
             .getattr("handler")
@@ -2253,14 +2250,14 @@ def handler():
     #[serial]
     fn remove_command_removes_command_in_plugin_instance(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code_bound(
+            let command_handler = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("could not get module from code")
             .getattr("handler")
@@ -2316,7 +2313,7 @@ def handler():
     #[serial]
     fn get_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "sv_maxclients", None);
+            let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "sv_maxclients", None);
             assert!(result.is_ok_and(|value| value.is_none(py)));
         });
     }
@@ -2329,7 +2326,7 @@ def handler():
             .with_find_cvar(|cmd| cmd == "asdf", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "asdf", None);
+                    let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "asdf", None);
                     assert!(result.expect("result was not OK").is_none(py));
                 });
             });
@@ -2353,8 +2350,7 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let result =
-                        Plugin::get_cvar(&py.get_type_bound::<Plugin>(), "sv_maxclients", None);
+                    let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "sv_maxclients", None);
                     assert!(result
                         .expect("result was not OK")
                         .extract::<String>(py)
@@ -2381,9 +2377,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyString>();
+                    let py_str_type = py.get_type::<PyString>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2403,9 +2399,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyString>();
+                    let py_str_type = py.get_type::<PyString>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2432,9 +2428,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyInt>();
+                    let py_str_type = py.get_type::<PyInt>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2464,9 +2460,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyInt>();
+                    let py_str_type = py.get_type::<PyInt>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2483,9 +2479,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyInt>();
+                    let py_str_type = py.get_type::<PyInt>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2512,9 +2508,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyFloat>();
+                    let py_str_type = py.get_type::<PyFloat>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2544,9 +2540,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyFloat>();
+                    let py_str_type = py.get_type::<PyFloat>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2563,9 +2559,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyFloat>();
+                    let py_str_type = py.get_type::<PyFloat>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2592,9 +2588,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyBool>();
+                    let py_str_type = py.get_type::<PyBool>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2615,9 +2611,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyBool>();
+                    let py_str_type = py.get_type::<PyBool>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2649,9 +2645,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyBool>();
+                    let py_str_type = py.get_type::<PyBool>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2679,9 +2675,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyList>();
+                    let py_str_type = py.get_type::<PyList>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2704,9 +2700,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyList>();
+                    let py_str_type = py.get_type::<PyList>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2740,9 +2736,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PySet>();
+                    let py_str_type = py.get_type::<PySet>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2765,9 +2761,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PySet>();
+                    let py_str_type = py.get_type::<PySet>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2801,9 +2797,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyTuple>();
+                    let py_str_type = py.get_type::<PyTuple>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2826,9 +2822,9 @@ def handler():
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyTuple>();
+                    let py_str_type = py.get_type::<PyTuple>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     )
@@ -2862,9 +2858,9 @@ def handler():
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let py_str_type = py.get_type_bound::<PyDate>();
+                    let py_str_type = py.get_type::<PyDate>();
                     let result = Plugin::get_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
@@ -2880,7 +2876,7 @@ def handler():
     fn set_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::set_cvar(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "sv_maxclients",
                 "64".into_py(py),
                 0,
@@ -2908,7 +2904,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         "64".into_py(py),
                         cvar_flags::CVAR_ROM as i32,
@@ -2936,7 +2932,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         "64".into_py(py),
                         cvar_flags::CVAR_ROM as i32,
@@ -2952,7 +2948,7 @@ def handler():
     fn set_cvar_limit_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_limit(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "sv_maxclients",
                 64i32.into_py(py),
                 1i32.into_py(py),
@@ -2984,7 +2980,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar_limit(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         64i32.into_py(py),
                         1i32.into_py(py),
@@ -3002,7 +2998,7 @@ def handler():
     fn set_cvar_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_once(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "sv_maxclients",
                 "64".into_py(py),
                 0,
@@ -3030,7 +3026,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar_once(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         64i32.into_py(py),
                         cvar_flags::CVAR_ROM as i32,
@@ -3059,7 +3055,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar_once(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         "64".into_py(py),
                         cvar_flags::CVAR_ROM as i32,
@@ -3076,7 +3072,7 @@ def handler():
     fn set_cvar_limit_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::set_cvar_limit_once(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "sv_maxclients",
                 "64".into_py(py),
                 "1".into_py(py),
@@ -3108,7 +3104,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar_limit_once(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         "64".into_py(py),
                         "1".into_py(py),
@@ -3138,7 +3134,7 @@ def handler():
             .run(|| {
                 let result = Python::with_gil(|py| {
                     Plugin::set_cvar_limit_once(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "sv_maxclients",
                         "64".into_py(py),
                         "1".into_py(py),
@@ -3218,8 +3214,7 @@ def handler():
         });
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
-            let all_players =
-                Python::with_gil(|py| Plugin::players(&py.get_type_bound::<Plugin>()));
+            let all_players = Python::with_gil(|py| Plugin::players(&py.get_type::<Plugin>()));
             assert_eq!(
                 all_players.expect("result was not ok"),
                 vec![
@@ -3265,7 +3260,7 @@ def handler():
     fn player_for_provided_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 default_test_player().clone().into_py(py),
                 None,
             );
@@ -3314,7 +3309,7 @@ def handler():
             });
 
         Python::with_gil(|py| {
-            let result = Plugin::player(&py.get_type_bound::<Plugin>(), 42i32.into_py(py), None);
+            let result = Plugin::player(&py.get_type::<Plugin>(), 42i32.into_py(py), None);
             assert!(result
                 .expect("result was not ok")
                 .is_some_and(|player| player
@@ -3350,7 +3345,7 @@ def handler():
                 ..default_test_player()
             };
             let result = Plugin::player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 1234.into_py(py),
                 Some(vec![player.clone()]),
             );
@@ -3365,7 +3360,7 @@ def handler():
     fn player_for_provided_steam_id_not_in_provided_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 4321.into_py(py),
                 Some(vec![default_test_player()]),
             );
@@ -3386,7 +3381,7 @@ def handler():
                 ..default_test_player()
             };
             let result = Plugin::player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "Mocked Player".into_py(py),
                 Some(vec![player.clone()]),
             );
@@ -3401,7 +3396,7 @@ def handler():
     fn player_for_provided_name_not_in_provided_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "disconnected".into_py(py),
                 Some(vec![default_test_player()]),
             );
@@ -3414,7 +3409,7 @@ def handler():
     fn msg_for_invalid_channel(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::msg(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "asdf",
                 Some("asdf".into_py(py)),
                 None,
@@ -3443,7 +3438,7 @@ def handler():
                 .into(),
             ));
 
-            let result = Plugin::msg(&py.get_type_bound::<Plugin>(), "asdf", None, None);
+            let result = Plugin::msg(&py.get_type::<Plugin>(), "asdf", None, None);
             assert!(result.is_ok());
             run_all_frame_tasks(py).expect("running frame tasks returned an error");
         });
@@ -3470,12 +3465,13 @@ def handler():
             ));
 
             let result = Plugin::msg(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "asdf qwertz",
                 Some("chat".into_py(py)),
                 Some(
                     &[("limit", 23i32.into_py(py)), ("delimiter", "_".into_py(py))]
-                        .into_py_dict_bound(py),
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                 ),
             );
             assert!(result.is_ok());
@@ -3547,7 +3543,7 @@ def handler():
                 ));
 
                 let result = Plugin::msg(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     "asdf qwertz",
                     Some("red_team_chat".into_py(py)),
                     None,
@@ -3622,7 +3618,7 @@ def handler():
                 ));
 
                 let result = Plugin::msg(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     "asdf qwertz",
                     Some("blue_team_chat".into_py(py)),
                     None,
@@ -3651,7 +3647,7 @@ def handler():
             ));
 
             let result = Plugin::msg(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "asdf",
                 Some("console".into_py(py)),
                 None,
@@ -3692,7 +3688,7 @@ def handler():
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::msg(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     "asdf qwertz",
                     Some(
                         Py::new(py, channel)
@@ -3718,7 +3714,7 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let result = Plugin::console(&py.get_type_bound::<Plugin>(), "asdf".into_py(py));
+            let result = Plugin::console(&py.get_type::<Plugin>(), "asdf".into_py(py));
             assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
         });
     }
@@ -3727,10 +3723,8 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn clean_text_cleans_text_from_color_tags(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::clean_text(
-                &py.get_type_bound::<Plugin>(),
-                "^0a^1b^2c^3d^4e^5f^6g^7h^8i^9j",
-            );
+            let result =
+                Plugin::clean_text(&py.get_type::<Plugin>(), "^0a^1b^2c^3d^4e^5f^6g^7h^8i^9j");
             assert_eq!(result, "abcdefgh^8i^9j");
         });
     }
@@ -3743,8 +3737,7 @@ def handler():
                 name: "Mocked Player".into(),
                 ..default_test_player()
             };
-            let result =
-                Plugin::colored_name(&py.get_type_bound::<Plugin>(), player.into_py(py), None);
+            let result = Plugin::colored_name(&py.get_type::<Plugin>(), player.into_py(py), None);
             assert_eq!(result.expect("result was none"), "Mocked Player");
         });
     }
@@ -3758,7 +3751,7 @@ def handler():
                 ..default_test_player()
             };
             let result = Plugin::colored_name(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "Mocked Player".into_py(py),
                 Some(vec![player]),
             );
@@ -3780,7 +3773,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "Mocked Player".into_py(py),
                 Some(vec![player]),
             );
@@ -3802,7 +3795,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "disconnected Player".into_py(py),
                 Some(vec![player]),
             );
@@ -3814,7 +3807,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn client_id_for_integer_in_client_id_range(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::client_id(&py.get_type_bound::<Plugin>(), 42i32.into_py(py), None);
+            let result = Plugin::client_id(&py.get_type::<Plugin>(), 42i32.into_py(py), None);
             assert!(result.is_some_and(|value| value == 42));
         });
     }
@@ -3832,8 +3825,7 @@ def handler():
         };
 
         Python::with_gil(|py| {
-            let result =
-                Plugin::client_id(&py.get_type_bound::<Plugin>(), player.into_py(py), None);
+            let result = Plugin::client_id(&py.get_type::<Plugin>(), player.into_py(py), None);
             assert!(result.is_some_and(|value| value == 21));
         });
     }
@@ -3854,7 +3846,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::client_id(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 1234i64.into_py(py),
                 Some(vec![player]),
             );
@@ -3876,7 +3868,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::client_id(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 4321i64.into_py(py),
                 Some(vec![player]),
             );
@@ -3900,7 +3892,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::client_id(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "Mocked Player".into_py(py),
                 Some(vec![player]),
             );
@@ -3922,7 +3914,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::client_id(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "UnknownPlayer".into_py(py),
                 Some(vec![player]),
             );
@@ -3935,7 +3927,7 @@ def handler():
     fn client_id_for_unsupported_search_criteria(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::client_id(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 3.42f64.into_py(py),
                 Some(vec![default_test_player()]),
             );
@@ -3968,7 +3960,7 @@ def handler():
         };
         Python::with_gil(|py| {
             let result = Plugin::find_player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "",
                 Some(vec![player1.clone(), player2.clone()]),
             );
@@ -4017,7 +4009,7 @@ def handler():
         };
         Python::with_gil(|py| {
             let result = Plugin::find_player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "foU^3nd",
                 Some(vec![player1.clone(), player2.clone(), player3.clone()]),
             );
@@ -4066,7 +4058,7 @@ def handler():
         };
         Python::with_gil(|py| {
             let result = Plugin::find_player(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 "no-such-player",
                 Some(vec![player1, player2, player3]),
             );
@@ -4078,7 +4070,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn teams_when_no_player_in_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::teams(&py.get_type_bound::<Plugin>(), Some(vec![]));
+            let result = Plugin::teams(&py.get_type::<Plugin>(), Some(vec![]));
             assert!(result
                 .expect("result was not ok")
                 .eq([
@@ -4141,7 +4133,7 @@ def handler():
         };
         Python::with_gil(|py| {
             let result = Plugin::teams(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 Some(vec![
                     player4.clone(),
                     player3.clone(),
@@ -4157,7 +4149,8 @@ def handler():
                     ("blue".into_py(py), vec![player3].into_py(py)),
                     ("spectator".into_py(py), vec![player4].into_py(py))
                 ]
-                .into_py_dict_bound(py))
+                .into_py_dict(py)
+                .expect("this should not happen"))
                 .expect("comparison was not ok"));
         });
     }
@@ -4173,9 +4166,8 @@ def handler():
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                Plugin::center_print(&py.get_type_bound::<Plugin>(), "asdf", None)
-            });
+            let result =
+                Python::with_gil(|py| Plugin::center_print(&py.get_type::<Plugin>(), "asdf", None));
             assert!(result.is_ok());
         });
     }
@@ -4203,11 +4195,7 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                Plugin::center_print(
-                    &py.get_type_bound::<Plugin>(),
-                    "asdf",
-                    Some(player.into_py(py)),
-                )
+                Plugin::center_print(&py.get_type::<Plugin>(), "asdf", Some(player.into_py(py)))
             });
             assert!(result.is_ok());
         });
@@ -4259,7 +4247,7 @@ def handler():
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::tell(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     "asdf",
                     default_test_player().into_py(py),
                     None,
@@ -4278,7 +4266,7 @@ def handler():
             .with_get_configstring(CS_VOTE_STRING as u16, "vote is active", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    assert_eq!(Plugin::is_vote_active(&py.get_type_bound::<Plugin>()), true);
+                    assert_eq!(Plugin::is_vote_active(&py.get_type::<Plugin>()), true);
                 });
             });
     }
@@ -4291,10 +4279,7 @@ def handler():
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    assert_eq!(
-                        Plugin::is_vote_active(&py.get_type_bound::<Plugin>()),
-                        false
-                    );
+                    assert_eq!(Plugin::is_vote_active(&py.get_type::<Plugin>()), false);
                 });
             });
     }
@@ -4304,10 +4289,7 @@ def handler():
     #[serial]
     fn is_vote_active_when_main_engine_not_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert_eq!(
-                Plugin::is_vote_active(&py.get_type_bound::<Plugin>()),
-                false
-            );
+            assert_eq!(Plugin::is_vote_active(&py.get_type::<Plugin>()), false);
         });
     }
 
@@ -4316,7 +4298,7 @@ def handler():
     #[serial]
     fn current_vote_count_when_main_engine_not_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+            let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
             assert!(result.is_ok_and(|value| value.is_none(py)))
         });
     }
@@ -4330,7 +4312,7 @@ def handler():
             .with_get_configstring(CS_VOTE_NO as u16, "42", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+                    let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                 });
             });
@@ -4345,7 +4327,7 @@ def handler():
             .with_get_configstring(CS_VOTE_NO as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+                    let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                 });
             });
@@ -4360,11 +4342,11 @@ def handler():
             .with_get_configstring(CS_VOTE_NO as u16, "21", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+                    let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result
                         .expect("result was not ok")
                         .bind(py)
-                        .eq(PyTuple::new_bound(py, vec![42, 21]))
+                        .eq(PyTuple::new(py, vec![42, 21]).expect("this should not happen"))
                         .expect("comparison was not ok"));
                 });
             });
@@ -4379,7 +4361,7 @@ def handler():
             .with_get_configstring(CS_VOTE_NO as u16, "21", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+                    let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -4394,7 +4376,7 @@ def handler():
             .with_get_configstring(CS_VOTE_NO as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::current_vote_count(&py.get_type_bound::<Plugin>());
+                    let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -4409,7 +4391,7 @@ def handler():
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::callvote(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "map thunderstruck ca",
                         "map thunderstruck ca",
                         30,
@@ -4443,7 +4425,7 @@ def handler():
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -4452,7 +4434,7 @@ def handler():
                     ));
 
                     let result = Plugin::callvote(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "map thunderstruck ca",
                         "map thunderstruck ca",
                         30,
@@ -4473,7 +4455,7 @@ def handler():
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::callvote(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         "map thunderstruck ca",
                         "map thunderstruck ca",
                         30,
@@ -4488,7 +4470,7 @@ def handler():
     #[serial]
     fn force_vote_with_unparseable_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), "asdf".into_py(py));
+            let result = Plugin::force_vote(&py.get_type::<Plugin>(), "asdf".into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4535,7 +4517,7 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(1).run(|| {
             Python::with_gil(|py| {
-                let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), true.into_py(py));
+                let result = Plugin::force_vote(&py.get_type::<Plugin>(), true.into_py(py));
                 assert!(result.is_ok_and(|value| value),);
             });
         });
@@ -4583,7 +4565,7 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(1).run(|| {
             Python::with_gil(|py| {
-                let result = Plugin::force_vote(&py.get_type_bound::<Plugin>(), false.into_py(py));
+                let result = Plugin::force_vote(&py.get_type::<Plugin>(), false.into_py(py));
                 assert!(result.is_ok_and(|value| value),);
             });
         });
@@ -4605,7 +4587,7 @@ def handler():
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::teamsize(&py.get_type_bound::<Plugin>(), 42);
+                    let result = Plugin::teamsize(&py.get_type::<Plugin>(), 42);
                     assert!(result.is_ok());
                 });
             });
@@ -4616,7 +4598,7 @@ def handler():
     #[serial]
     fn kick_for_unknown_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::kick(&py.get_type_bound::<Plugin>(), 1.23.into_py(py), "");
+            let result = Plugin::kick(&py.get_type::<Plugin>(), 1.23.into_py(py), "");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4646,7 +4628,7 @@ def handler():
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::kick(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     default_test_player().into_py(py),
                     "",
                 );
@@ -4680,7 +4662,7 @@ def handler():
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::kick(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     default_test_player().into_py(py),
                     "All your base are belong to us!",
                 );
@@ -4696,7 +4678,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("forceshuffle", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -4705,7 +4687,7 @@ def handler():
     #[cfg_attr(miri, ignore)]
     fn cointoss_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            Plugin::cointoss(&py.get_type_bound::<Plugin>());
+            Plugin::cointoss(&py.get_type::<Plugin>());
         });
     }
 
@@ -4718,7 +4700,7 @@ def handler():
             .run(|| {
                 Python::with_gil(|py| {
                     let result =
-                        Plugin::change_map(&py.get_type_bound::<Plugin>(), "thunderstruck", None);
+                        Plugin::change_map(&py.get_type::<Plugin>(), "thunderstruck", None);
                     assert!(result.is_ok());
                 });
             });
@@ -4732,11 +4714,8 @@ def handler():
             .with_execute_console_command("map thunderstruck ffa", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::change_map(
-                        &py.get_type_bound::<Plugin>(),
-                        "thunderstruck",
-                        Some("ffa"),
-                    );
+                    let result =
+                        Plugin::change_map(&py.get_type::<Plugin>(), "thunderstruck", Some("ffa"));
                     assert!(result.is_ok());
                 });
             });
@@ -4747,8 +4726,7 @@ def handler():
     #[serial]
     fn change_map_when_no_main_engine_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result =
-                Plugin::change_map(&py.get_type_bound::<Plugin>(), "thunderstruck", Some("ffa"));
+            let result = Plugin::change_map(&py.get_type::<Plugin>(), "thunderstruck", Some("ffa"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -4759,7 +4737,7 @@ def handler():
     fn switch_with_invalid_player1(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::switch(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 1.23.into_py(py),
                 default_test_player().into_py(py),
             );
@@ -4773,7 +4751,7 @@ def handler():
     fn switch_with_invalid_player2(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::switch(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 default_test_player().into_py(py),
                 1.23.into_py(py),
             );
@@ -4806,7 +4784,7 @@ def handler():
 
         Python::with_gil(|py| {
             let result = Plugin::switch(
-                &py.get_type_bound::<Plugin>(),
+                &py.get_type::<Plugin>(),
                 player1.into_py(py),
                 player2.into_py(py),
             );
@@ -4843,7 +4821,7 @@ def handler():
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::switch(
-                        &py.get_type_bound::<Plugin>(),
+                        &py.get_type::<Plugin>(),
                         player1.into_py(py),
                         player2.into_py(py),
                     );
@@ -4863,8 +4841,7 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let result =
-                Plugin::play_sound(&py.get_type_bound::<Plugin>(), "sound/vo/midair.ogg", None);
+            let result = Plugin::play_sound(&py.get_type::<Plugin>(), "sound/vo/midair.ogg", None);
             assert!(result.is_ok_and(|value| value),);
         });
     }
@@ -4896,7 +4873,7 @@ def handler():
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let result = Plugin::play_sound(
-                    &py.get_type_bound::<Plugin>(),
+                    &py.get_type::<Plugin>(),
                     "sound/vo/midair.ogg",
                     Some(player),
                 );
@@ -4910,7 +4887,7 @@ def handler():
     #[serial]
     fn play_sound_with_empty_soundpath(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::play_sound(&py.get_type_bound::<Plugin>(), "", None);
+            let result = Plugin::play_sound(&py.get_type::<Plugin>(), "", None);
             assert!(result.is_ok_and(|value| !value),);
         });
     }
@@ -4920,8 +4897,7 @@ def handler():
     #[serial]
     fn play_sound_for_sound_containing_music(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result =
-                Plugin::play_sound(&py.get_type_bound::<Plugin>(), "music/sonic1.ogg", None);
+            let result = Plugin::play_sound(&py.get_type::<Plugin>(), "music/sonic1.ogg", None);
             assert!(result.is_ok_and(|value| !value),);
         });
     }
@@ -4937,8 +4913,7 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let result =
-                Plugin::play_music(&py.get_type_bound::<Plugin>(), "music/sonic1.ogg", None);
+            let result = Plugin::play_music(&py.get_type::<Plugin>(), "music/sonic1.ogg", None);
             assert!(result.is_ok_and(|value| value),);
         });
     }
@@ -4969,11 +4944,8 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = Plugin::play_music(
-                    &py.get_type_bound::<Plugin>(),
-                    "music/sonic1.ogg",
-                    Some(player),
-                );
+                let result =
+                    Plugin::play_music(&py.get_type::<Plugin>(), "music/sonic1.ogg", Some(player));
                 assert!(result.is_ok_and(|value| value),);
             });
         });
@@ -4984,7 +4956,7 @@ def handler():
     #[serial]
     fn play_music_with_empty_musicpath(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::play_music(&py.get_type_bound::<Plugin>(), "", None);
+            let result = Plugin::play_music(&py.get_type::<Plugin>(), "", None);
             assert!(result.is_ok_and(|value| !value),);
         });
     }
@@ -4994,8 +4966,7 @@ def handler():
     #[serial]
     fn play_music_for_music_containing_sound(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result =
-                Plugin::play_music(&py.get_type_bound::<Plugin>(), "sound/vo/midair.ogg", None);
+            let result = Plugin::play_music(&py.get_type::<Plugin>(), "sound/vo/midair.ogg", None);
             assert!(result.is_ok_and(|value| !value),);
         });
     }
@@ -5011,7 +4982,7 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), None);
+            let result = Plugin::stop_sound(&py.get_type::<Plugin>(), None);
             assert!(result.is_ok());
         });
     }
@@ -5042,7 +5013,7 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = Plugin::stop_sound(&py.get_type_bound::<Plugin>(), Some(player));
+                let result = Plugin::stop_sound(&py.get_type::<Plugin>(), Some(player));
                 assert!(result.is_ok());
             });
         });
@@ -5059,7 +5030,7 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), None);
+            let result = Plugin::stop_music(&py.get_type::<Plugin>(), None);
             assert!(result.is_ok());
         });
     }
@@ -5090,7 +5061,7 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = Plugin::stop_music(&py.get_type_bound::<Plugin>(), Some(player));
+                let result = Plugin::stop_music(&py.get_type::<Plugin>(), Some(player));
                 assert!(result.is_ok());
             });
         });
@@ -5101,7 +5072,7 @@ def handler():
     #[serial]
     fn slap_for_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::slap(&py.get_type_bound::<Plugin>(), py.None(), 42);
+            let result = Plugin::slap(&py.get_type::<Plugin>(), py.None(), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5114,7 +5085,7 @@ def handler():
             .with_execute_console_command("slap 21 42", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::slap(&py.get_type_bound::<Plugin>(), 21.into_py(py), 42);
+                    let result = Plugin::slap(&py.get_type::<Plugin>(), 21.into_py(py), 42);
                     assert!(result.is_ok());
                 });
             });
@@ -5125,7 +5096,7 @@ def handler():
     #[serial]
     fn slay_for_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::slay(&py.get_type_bound::<Plugin>(), py.None());
+            let result = Plugin::slay(&py.get_type::<Plugin>(), py.None());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5138,7 +5109,7 @@ def handler():
             .with_execute_console_command("slay 21", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::slay(&py.get_type_bound::<Plugin>(), 21.into_py(py));
+                    let result = Plugin::slay(&py.get_type::<Plugin>(), 21.into_py(py));
                     assert!(result.is_ok());
                 });
             });
@@ -5151,7 +5122,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("timeout", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::timeout(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::timeout(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             })
     }
@@ -5163,7 +5134,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("timein", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::timein(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::timein(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5175,8 +5146,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("allready", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Plugin::allready(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::allready(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5188,7 +5158,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("pause", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::pause(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::pause(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5200,7 +5170,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("unpause", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::unpause(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::unpause(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5213,7 +5183,7 @@ def handler():
             .configure(|_mock_engine| {})
             .run(|| {
                 Python::with_gil(|py| {
-                    let result = Plugin::lock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
+                    let result = Plugin::lock(&py.get_type::<Plugin>(), Some("invalid_team"));
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -5226,8 +5196,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("lock", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Plugin::lock(&py.get_type_bound::<Plugin>(), None));
+                let result = Python::with_gil(|py| Plugin::lock(&py.get_type::<Plugin>(), None));
                 assert!(result.is_ok());
             });
     }
@@ -5245,7 +5214,7 @@ def handler():
             .with_execute_console_command(format!("lock {}", locked_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::lock(&py.get_type_bound::<Plugin>(), Some(locked_team))
+                    Plugin::lock(&py.get_type::<Plugin>(), Some(locked_team))
                 });
                 assert!(result.is_ok());
             });
@@ -5259,8 +5228,7 @@ def handler():
             .configure(|_mock_engine| {})
             .run(|| {
                 Python::with_gil(|py| {
-                    let result =
-                        Plugin::unlock(&py.get_type_bound::<Plugin>(), Some("invalid_team"));
+                    let result = Plugin::unlock(&py.get_type::<Plugin>(), Some("invalid_team"));
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -5273,8 +5241,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("unlock", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Plugin::unlock(&py.get_type_bound::<Plugin>(), None));
+                let result = Python::with_gil(|py| Plugin::unlock(&py.get_type::<Plugin>(), None));
                 assert!(result.is_ok());
             });
     }
@@ -5292,7 +5259,7 @@ def handler():
             .with_execute_console_command(format!("unlock {}", locked_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::unlock(&py.get_type_bound::<Plugin>(), Some(locked_team))
+                    Plugin::unlock(&py.get_type::<Plugin>(), Some(locked_team))
                 });
                 assert!(result.is_ok());
             });
@@ -5303,11 +5270,7 @@ def handler():
     #[serial]
     fn put_with_invalid_team(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::put(
-                &py.get_type_bound::<Plugin>(),
-                2.into_py(py),
-                "invalid team",
-            );
+            let result = Plugin::put(&py.get_type::<Plugin>(), 2.into_py(py), "invalid team");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5317,7 +5280,7 @@ def handler():
     #[serial]
     fn put_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::put(&py.get_type_bound::<Plugin>(), 2048.into_py(py), "red");
+            let result = Plugin::put(&py.get_type::<Plugin>(), 2048.into_py(py), "red");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5335,7 +5298,7 @@ def handler():
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::put(&py.get_type_bound::<Plugin>(), 2.into_py(py), new_team)
+                    Plugin::put(&py.get_type::<Plugin>(), 2.into_py(py), new_team)
                 });
                 assert!(result.is_ok());
             });
@@ -5346,7 +5309,7 @@ def handler():
     #[serial]
     fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::mute(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::mute(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5358,9 +5321,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("mute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::mute(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::mute(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5370,7 +5332,7 @@ def handler():
     #[serial]
     fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::unmute(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::unmute(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5382,9 +5344,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::unmute(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::unmute(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5394,7 +5355,7 @@ def handler():
     #[serial]
     fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::tempban(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::tempban(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5406,9 +5367,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::tempban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::tempban(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5418,7 +5378,7 @@ def handler():
     #[serial]
     fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::ban(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::ban(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5430,9 +5390,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("ban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::ban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::ban(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5442,7 +5401,7 @@ def handler():
     #[serial]
     fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::unban(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::unban(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5454,9 +5413,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("unban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::unban(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::unban(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5468,8 +5426,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("opsay asdf", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Plugin::opsay(&py.get_type_bound::<Plugin>(), "asdf"));
+                let result = Python::with_gil(|py| Plugin::opsay(&py.get_type::<Plugin>(), "asdf"));
                 assert!(result.is_ok());
             });
     }
@@ -5479,7 +5436,7 @@ def handler():
     #[serial]
     fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::addadmin(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::addadmin(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5492,7 +5449,7 @@ def handler():
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::addadmin(&py.get_type_bound::<Plugin>(), 2.into_py(py))
+                    Plugin::addadmin(&py.get_type::<Plugin>(), 2.into_py(py))
                 });
                 assert!(result.is_ok());
             });
@@ -5503,7 +5460,7 @@ def handler():
     #[serial]
     fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::addmod(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::addmod(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5515,9 +5472,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::addmod(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::addmod(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5527,7 +5483,7 @@ def handler():
     #[serial]
     fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::demote(&py.get_type_bound::<Plugin>(), 2048.into_py(py));
+            let result = Plugin::demote(&py.get_type::<Plugin>(), 2048.into_py(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5539,9 +5495,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("demote 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::demote(&py.get_type_bound::<Plugin>(), 2.into_py(py))
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::demote(&py.get_type::<Plugin>(), 2.into_py(py)));
                 assert!(result.is_ok());
             });
     }
@@ -5553,7 +5508,7 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command("map_restart", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::abort(&py.get_type_bound::<Plugin>()));
+                let result = Python::with_gil(|py| Plugin::abort(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5563,7 +5518,7 @@ def handler():
     #[serial]
     fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::addscore(&py.get_type_bound::<Plugin>(), 2048.into_py(py), 42);
+            let result = Plugin::addscore(&py.get_type::<Plugin>(), 2048.into_py(py), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5576,7 +5531,7 @@ def handler():
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::addscore(&py.get_type_bound::<Plugin>(), 2.into_py(py), 42)
+                    Plugin::addscore(&py.get_type::<Plugin>(), 2.into_py(py), 42)
                 });
                 assert!(result.is_ok());
             });
@@ -5587,7 +5542,7 @@ def handler():
     #[serial]
     fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Plugin::addteamscore(&py.get_type_bound::<Plugin>(), "invalid_team", 42);
+            let result = Plugin::addteamscore(&py.get_type::<Plugin>(), "invalid_team", 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5604,9 +5559,8 @@ def handler():
         MockEngineBuilder::default()
             .with_execute_console_command(format!("addteamscore {} 42", team.to_lowercase()), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::addteamscore(&py.get_type_bound::<Plugin>(), team, 42)
-                });
+                let result =
+                    Python::with_gil(|py| Plugin::addteamscore(&py.get_type::<Plugin>(), team, 42));
                 assert!(result.is_ok());
             });
     }
@@ -5619,7 +5573,7 @@ def handler():
             .with_execute_console_command("setmatchtime 42", 1)
             .run(|| {
                 let result =
-                    Python::with_gil(|py| Plugin::setmatchtime(&py.get_type_bound::<Plugin>(), 42));
+                    Python::with_gil(|py| Plugin::setmatchtime(&py.get_type::<Plugin>(), 42));
                 assert!(result.is_ok());
             });
     }

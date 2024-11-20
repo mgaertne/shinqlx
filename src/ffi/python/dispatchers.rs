@@ -1,8 +1,6 @@
 use super::prelude::*;
 
 use core::sync::atomic::Ordering;
-use log::error;
-use pyo3::types::{PyBool, PyString};
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where

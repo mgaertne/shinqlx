@@ -43,10 +43,10 @@ impl ChatEventDispatcher {
         let pyany_event_dispatcher = slf.borrow().into_super().into_py(slf.py());
         let event_dispatcher_instance = pyany_event_dispatcher.bind(slf.py()).downcast()?;
 
-        let args_tuple = PyTuple::new_bound(
+        let args_tuple = PyTuple::new(
             slf.py(),
             [player.into_py(slf.py()), msg.into_py(slf.py()), channel],
-        );
+        )?;
 
         Ok(EventDispatcher::dispatch(
             event_dispatcher_instance,
@@ -141,14 +141,14 @@ mod chat_event_dispatcher_tests {
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -201,14 +201,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -261,16 +261,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -323,16 +323,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -385,16 +385,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -447,16 +447,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -509,14 +509,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -567,16 +567,16 @@ def returns_string_hook(*args, **kwargs):
             .run(|| {
                 Python::with_gil(|py| {
                     let plugin = test_plugin(py);
-                    let cmd_handler = PyModule::from_code_bound(
+                    let cmd_handler = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def handler(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("could not get module from code")
                     .getattr("handler")
@@ -613,14 +613,14 @@ def handler(*args, **kwargs):
                     let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")

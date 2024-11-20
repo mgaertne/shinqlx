@@ -100,7 +100,7 @@ impl Command {
             vec![]
         } else {
             let mut collected = vec![];
-            if let Ok(mut iter) = channels.bind(py).iter() {
+            if let Ok(mut iter) = channels.bind(py).try_iter() {
                 while let Some(Ok(value)) = iter.next() {
                     collected.push(value.into_py(py));
                 }
@@ -111,7 +111,7 @@ impl Command {
             vec![]
         } else {
             let mut collected = vec![];
-            if let Ok(mut iter) = exclude_channels.bind(py).iter() {
+            if let Ok(mut iter) = exclude_channels.bind(py).try_iter() {
                 while let Some(Ok(value)) = iter.next() {
                     collected.push(value.into_py(py));
                 }
@@ -165,7 +165,7 @@ impl Command {
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
         pyshinqlx_get_logger(py, Some(plugin)).and_then(|logger| {
             let debug_level = py
-                .import_bound(intern!(py, "logging"))
+                .import(intern!(py, "logging"))
                 .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
             logger
                 .call_method(
@@ -179,7 +179,7 @@ impl Command {
                         (player.steam_id, command_name, plugin_name, &channel),
                         py.None(),
                     ),
-                    Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict_bound(py)),
+                    Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict(py)?),
                 )
                 .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
         })?;
@@ -301,15 +301,15 @@ mod command_tests {
 
     fn test_plugin_with_permission_db(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         let test_plugin = test_plugin(py);
-        PyModule::from_code_bound(
+        PyModule::from_code(
             py,
-            r#"
+            cr#"
 class mocked_db:
     def get_permission(*args):
         return 2
             "#,
-            "",
-            "",
+            c"",
+            c"",
         )
         .and_then(|db_stub| db_stub.getattr("mocked_db"))
         .and_then(|db_class| db_class.call0())
@@ -407,7 +407,7 @@ class mocked_db:
                 "name2".to_string(),
                 "name3".to_string(),
             ];
-            let names_pylist = PyList::new_bound(py, &names_vec);
+            let names_pylist = PyList::new(py, &names_vec).expect("this should not happen");
 
             let command = Command::py_new(
                 py,
@@ -440,7 +440,7 @@ class mocked_db:
                 "name2".to_string(),
                 "name3".to_string(),
             ];
-            let names_pylist = PyTuple::new_bound(py, &names_vec);
+            let names_pylist = PyTuple::new(py, &names_vec).expect("this should not happen");
 
             let command = Command::py_new(
                 py,
@@ -614,9 +614,7 @@ class mocked_db:
             .expect("this should not happen");
             let _py_command = Py::new(py, command).expect("this should not happen");
 
-            let result = py
-                .import_bound("gc")
-                .and_then(|gc| gc.call_method0("collect"));
+            let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
             assert!(result.is_ok());
         });
     }
@@ -1523,9 +1521,9 @@ impl CommandInvoker {
             ));
         }
         let Some(mut commands) = self.commands.try_write() else {
-            return PyModule::from_code_bound(
+            return PyModule::from_code(
                 py,
-                r#"
+                cr#"
 import shinqlx
 
 
@@ -1533,8 +1531,8 @@ import shinqlx
 def add_command(cmd, priority):
     shinqlx.COMMANDS.add_command(cmd, priority)
         "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .and_then(|module| {
                 module.call_method1(intern!(py, "add_command"), (&command, priority))
@@ -1558,9 +1556,9 @@ def add_command(cmd, priority):
         }
 
         let Some(mut commands) = self.commands.try_write() else {
-            return PyModule::from_code_bound(
+            return PyModule::from_code(
                 py,
-                r#"
+                cr#"
 import shinqlx
 
 
@@ -1568,8 +1566,8 @@ import shinqlx
 def remove_command(cmd):
     shinqlx.COMMANDS.remove_command(cmd)
         "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .and_then(|module| module.call_method1(intern!(py, "remove_command"), (command,)))
             .map(|_| ());
@@ -1731,7 +1729,7 @@ def remove_command(cmd):
                             .handler
                             .getattr(py, intern!(py, "__name__"))?;
                         let warning_level =
-                            py.import_bound(intern!(py, "logging"))
+                            py.import(intern!(py, "logging"))
                                 .and_then(|logging_module| {
                                     logging_module.getattr(intern!(py, "WARNING"))
                                 })?;
@@ -1756,7 +1754,7 @@ def remove_command(cmd):
                                 ),
                                 Some(
                                     &[(intern!(py, "func"), intern!(py, "handle_input"))]
-                                        .into_py_dict_bound(py),
+                                        .into_py_dict(py)?,
                                 ),
                             )
                             .and_then(|log_record| {
@@ -1789,7 +1787,7 @@ mod command_invoker_tests {
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
     use core::borrow::BorrowMut;
-
+    use git2::IntoCString;
     use mockall::predicate;
     use rstest::*;
 
@@ -2013,7 +2011,7 @@ mod command_invoker_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -2049,7 +2047,7 @@ mod command_invoker_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -2098,7 +2096,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2158,7 +2156,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2231,7 +2229,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     event_dispatcher
                         .__getitem__(py, "command")
@@ -2308,7 +2306,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2323,9 +2321,16 @@ def cmd_handler(*args, **kwargs):
             "#,
                         return_code as i32
                     );
-                    let handler = PyModule::from_code_bound(py, &module_definition, "", "")
-                        .and_then(|result| result.getattr("cmd_handler"))
-                        .expect("this should not happen");
+                    let handler = PyModule::from_code(
+                        py,
+                        &module_definition
+                            .into_c_string()
+                            .expect("this should not happen"),
+                        c"",
+                        c"",
+                    )
+                    .and_then(|result| result.getattr("cmd_handler"))
+                    .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,
@@ -2384,7 +2389,7 @@ def cmd_handler(*args, **kwargs):
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2399,9 +2404,16 @@ def cmd_handler(*args, **kwargs):
             "#,
                         PythonReturnCodes::RET_USAGE as i32
                     );
-                    let handler = PyModule::from_code_bound(py, &module_definition, "", "")
-                        .and_then(|result| result.getattr("cmd_handler"))
-                        .expect("this should not happen");
+                    let handler = PyModule::from_code(
+                        py,
+                        &module_definition
+                            .into_c_string()
+                            .expect("this should not happen"),
+                        c"",
+                        c"",
+                    )
+                    .and_then(|result| result.getattr("cmd_handler"))
+                    .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,
@@ -2468,7 +2480,7 @@ def cmd_handler(*args, **kwargs):
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2483,9 +2495,16 @@ def cmd_handler(*args, **kwargs):
             "#,
                         PythonReturnCodes::RET_USAGE as i32
                     );
-                    let handler = PyModule::from_code_bound(py, &module_definition, "", "")
-                        .and_then(|result| result.getattr("cmd_handler"))
-                        .expect("this should not happen");
+                    let handler = PyModule::from_code(
+                        py,
+                        &module_definition
+                            .into_c_string()
+                            .expect("this should not happen"),
+                        c"",
+                        c"",
+                    )
+                    .and_then(|result| result.getattr("cmd_handler"))
+                    .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,
@@ -2544,7 +2563,7 @@ def cmd_handler(*args, **kwargs):
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<CommandDispatcher>())
+                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2552,14 +2571,14 @@ def cmd_handler(*args, **kwargs):
                             .into(),
                     ));
 
-                    let handler = PyModule::from_code_bound(
+                    let handler = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def cmd_handler(*args, **kwargs):
     return dict()
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .and_then(|result| result.getattr("cmd_handler"))
                     .expect("this should not happen");
