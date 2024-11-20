@@ -321,10 +321,8 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_str(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(
-                PythonReturnCodes::extract_bound(&PyString::new_bound(py, "asdf"))
-                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
-            );
+            assert!(PythonReturnCodes::extract_bound(&PyString::new(py, "asdf"))
+                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 }
@@ -384,9 +382,9 @@ impl From<ParsedVariables> for String {
     }
 }
 
-impl IntoPyDict for ParsedVariables {
-    fn into_py_dict_bound(self, py: Python<'_>) -> Bound<'_, PyDict> {
-        self.items.into_py_dict_bound(py)
+impl<'py> IntoPyDict<'py> for ParsedVariables {
+    fn into_py_dict(self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        self.items.into_py_dict(py)
     }
 }
 
@@ -465,9 +463,8 @@ pub(crate) fn client_id(
         return Some(player.borrow().id);
     }
 
-    let all_players = player_list.unwrap_or_else(|| {
-        Player::all_players(&py.get_type_bound::<Player>(), py).unwrap_or_default()
-    });
+    let all_players = player_list
+        .unwrap_or_else(|| Player::all_players(&py.get_type::<Player>(), py).unwrap_or_default());
 
     if let Ok(steam_id) = name.extract::<i64>(py) {
         return all_players
@@ -795,7 +792,7 @@ mod set_map_subtitles_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module = py
-                        .import_bound(intern!(py, "shinqlx"))
+                        .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
                     shinqlx_module
                         .setattr(intern!(py, "__plugins_version__"), "1.3.3.7")
@@ -841,7 +838,7 @@ mod set_map_subtitles_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module = py
-                        .import_bound(intern!(py, "shinqlx"))
+                        .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
                     shinqlx_module
                         .delattr(intern!(py, "__plugins_version__"))
@@ -873,7 +870,7 @@ fn pyshinqlx_parse_variables<'py>(
     #[allow(unused_variables)] ordered: bool,
 ) -> Bound<'py, PyDict> {
     let parsed_variables = py.allow_threads(|| parse_variables(varstr));
-    parsed_variables.into_py_dict_bound(py)
+    parsed_variables.into_py_dict(py).unwrap_or(PyDict::new(py))
 }
 
 #[cfg(test)]
@@ -926,7 +923,7 @@ pub(crate) fn pyshinqlx_get_logger(
     plugin: Option<PyObject>,
 ) -> PyResult<Bound<'_, PyAny>> {
     let logger_name = get_logger_name(py, plugin);
-    PyModule::import_bound(py, intern!(py, "logging")).and_then(|logging_module| {
+    PyModule::import(py, intern!(py, "logging")).and_then(|logging_module| {
         logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))
     })
 }
@@ -953,7 +950,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         },
     )?;
 
-    py.import_bound(intern!(py, "logging")).and_then(|logging_module| {
+    py.import(intern!(py, "logging")).and_then(|logging_module| {
         let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
         let info_level = logging_module.getattr(intern!(py, "INFO"))?;
         logging_module
@@ -983,7 +980,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                         "%H:%M:%S",
                     ),
                 )?;
-                py.import_bound("logging.handlers").and_then(|handlers_submodule| {
+                py.import("logging.handlers").and_then(|handlers_submodule| {
                     handlers_submodule
                         .call_method(
                             "RotatingFileHandler",
@@ -994,7 +991,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                                     ("maxBytes", max_logssize.into_py(py)),
                                     ("backupCount", num_max_logs.into_py(py)),
                                 ]
-                                .into_py_dict_bound(py),
+                                .into_py_dict(py)?,
                             ),
                         )
                         .and_then(|file_handler| {
@@ -1004,7 +1001,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                         })
                 })?;
 
-                let datetime_now = py.import_bound("datetime").and_then(|datetime_module| {
+                let datetime_now = py.import("datetime").and_then(|datetime_module| {
                     datetime_module
                         .getattr("datetime")
                         .and_then(|datetime_object| datetime_object.call_method0("now"))
@@ -1043,7 +1040,7 @@ mod pyshinqlx_configure_logger_tests {
 
     fn clear_logger(py: Python<'_>) {
         let logging_module = py
-            .import_bound(intern!(py, "logging"))
+            .import(intern!(py, "logging"))
             .expect("this should not happen");
         let shinqlx_logger = logging_module
             .call_method1(intern!(py, "getLogger"), ("shinqlx",))
@@ -1126,7 +1123,7 @@ mod pyshinqlx_configure_logger_tests {
                     assert!(result.is_ok());
 
                     let logging_module = py
-                        .import_bound(intern!(py, "logging"))
+                        .import(intern!(py, "logging"))
                         .expect("this should not happen");
                     let debug_level = logging_module
                         .getattr(intern!(py, "DEBUG"))
@@ -1205,7 +1202,7 @@ mod pyshinqlx_configure_logger_tests {
                     assert!(result.is_ok());
 
                     let logging_module = py
-                        .import_bound(intern!(py, "logging"))
+                        .import(intern!(py, "logging"))
                         .expect("this should not happen");
                     let debug_level = logging_module
                         .getattr(intern!(py, "DEBUG"))
@@ -1265,12 +1262,12 @@ mod pyshinqlx_configure_logger_tests {
 #[pyo3(name = "log_exception")]
 #[pyo3(signature = (plugin = None), text_signature = "(plugin = None)")]
 fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
-    py.import_bound(intern!(py, "sys")).and_then(|sys_module| {
+    py.import(intern!(py, "sys")).and_then(|sys_module| {
         sys_module
             .call_method0(intern!(py, "exc_info"))
             .and_then(|exc_info| exc_info.extract::<Bound<'_, PyTuple>>())
             .and_then(|exc_tuple| {
-                py.import_bound(intern!(py, "traceback"))
+                py.import(intern!(py, "traceback"))
                     .and_then(|traceback_module| {
                         traceback_module
                             .call_method1(intern!(py, "format_exception"), exc_tuple)
@@ -1314,8 +1311,8 @@ mod pyshinqlx_log_exception_tests {
     #[cfg_attr(miri, ignore)]
     fn log_exception_with_pending_exception(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 
 try:
@@ -1340,7 +1337,7 @@ fn pyshinqlx_handle_exception(
     exc_value: PyObject,
     exc_traceback: PyObject,
 ) -> PyResult<()> {
-    py.import_bound(intern!(py, "traceback"))
+    py.import(intern!(py, "traceback"))
         .and_then(|traceback_module| {
             traceback_module
                 .call_method1(
@@ -1385,8 +1382,8 @@ mod pyshinqlx_handle_exception_tests {
     #[cfg_attr(miri, ignore)]
     fn handle_exception_with_pending_exception(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 
 try:
@@ -1425,8 +1422,8 @@ mod pyshinqlx_handle_threading_exception_tests {
     #[cfg_attr(miri, ignore)]
     fn handle_threading_exception_with_pending_exception(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 
 class ExceptHookArgs:
@@ -1449,15 +1446,15 @@ except ValueError as e:
 }
 
 fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
-    py.import_bound(intern!(py, "traceback"))
+    py.import(intern!(py, "traceback"))
         .and_then(|traceback_module| {
             traceback_module
                 .call_method1(
                     intern!(py, "format_exception"),
                     (
-                        exception.get_type_bound(py),
-                        exception.value_bound(py),
-                        exception.traceback_bound(py),
+                        exception.get_type(py),
+                        exception.value(py),
+                        exception.traceback(py),
                     ),
                 )?
                 .extract::<Vec<String>>()
@@ -1477,7 +1474,7 @@ fn try_log_messages(
     function: &Bound<'_, PyString>,
     messages: Vec<String>,
 ) -> Result<(), PyErr> {
-    py.import_bound(intern!(py, "logging"))
+    py.import(intern!(py, "logging"))
         .and_then(|logging_module| {
             let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
             let logger_name = get_logger_name(py, plugin);
@@ -1497,7 +1494,7 @@ fn try_log_messages(
                                     py.None(),
                                     py.None(),
                                 ),
-                                Some(&[(intern!(py, "func"), function)].into_py_dict_bound(py)),
+                                Some(&[(intern!(py, "func"), function)].into_py_dict(py)?),
                             )
                             .and_then(|log_record| {
                                 py_logger.call_method1(intern!(py, "handle"), (log_record,))
@@ -1510,9 +1507,9 @@ fn try_log_messages(
 
 #[pyfunction]
 fn next_frame(py: Python<'_>, func: Py<PyFunction>) -> PyResult<Bound<'_, PyAny>> {
-    PyModule::from_code_bound(
+    PyModule::from_code(
         py,
-        r#"
+        cr#"
 from functools import wraps
 
 import shinqlx
@@ -1525,8 +1522,8 @@ def next_frame(func):
 
     return f
         "#,
-        "",
-        "",
+        c"",
+        c"",
     )
     .and_then(|next_frame_def| next_frame_def.getattr(intern!(py, "next_frame")))
     .and_then(|next_frame_func| next_frame_func.call1((func.into_py(py),)))
@@ -1549,8 +1546,8 @@ mod next_frame_tests {
     #[serial]
     fn next_frame_enqueues_function_call(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 
 @shinqlx.next_frame
@@ -1565,7 +1562,7 @@ test_func()
             assert!(result.is_ok());
 
             let shinqlx_module = py
-                .import_bound(intern!(py, "shinqlx"))
+                .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
             let next_frame_tasks = shinqlx_module
                 .getattr(intern!(py, "next_frame_tasks"))
@@ -1595,9 +1592,9 @@ test_func()
 ///         you can expect it to be called practically as soon as it expires.
 #[pyfunction]
 fn delay(py: Python<'_>, time: f32) -> PyResult<Bound<'_, PyAny>> {
-    PyModule::from_code_bound(
+    PyModule::from_code(
         py,
-        r#"
+        cr#"
 from functools import wraps
 
 import shinqlx
@@ -1613,8 +1610,8 @@ def delay(time):
 
     return wrap
     "#,
-        "",
-        "",
+        c"",
+        c"",
     )
     .and_then(|delay_def| delay_def.getattr(intern!(py, "delay")))
     .and_then(|delay_func| delay_func.call1((time.into_py(py),)))
@@ -1638,8 +1635,8 @@ mod delay_tests {
     #[serial]
     fn next_frame_enqueues_function_call(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run_bound(
-                r#"
+            let result = py.run(
+                cr#"
 import shinqlx
 
 @shinqlx.delay(10)
@@ -1654,7 +1651,7 @@ test_func()
             assert!(result.is_ok());
 
             let shinqlx_module = py
-                .import_bound(intern!(py, "shinqlx"))
+                .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
             let frame_tasks = shinqlx_module
                 .getattr(intern!(py, "frame_tasks"))
@@ -1685,9 +1682,9 @@ test_func()
 #[pyfunction]
 #[pyo3(signature = (func, force = false), text_signature = "(func, force = false)")]
 fn thread(py: Python<'_>, func: Py<PyFunction>, force: bool) -> PyResult<Bound<'_, PyAny>> {
-    PyModule::from_code_bound(
+    PyModule::from_code(
         py,
-        r#"
+        cr#"
 import threading
 from functools import wraps
 
@@ -1711,8 +1708,8 @@ def thread(func, force=False):
 
     return f
         "#,
-        "",
-        "",
+        c"",
+        c"",
     )
     .and_then(|thread_def| thread_def.getattr(intern!(py, "thread")))
     .and_then(|thread_func| thread_func.call1((func.into_py(py), force.into_py(py))))
@@ -1732,7 +1729,7 @@ fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
         let elapsed_microseconds: i32 = elapsed.subsec_micros().try_into().unwrap_or_default();
         (elapsed_days, elapsed_seconds, elapsed_microseconds)
     });
-    PyDelta::new_bound(
+    PyDelta::new(
         py,
         elapsed_days,
         elapsed_seconds,
@@ -1932,7 +1929,7 @@ mod stats_listener_tests {
     fn get_stats_listener_returns_none(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let shinqlx_module = py
-                .import_bound(intern!(py, "shinqlx"))
+                .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
             shinqlx_module
                 .setattr(intern!(py, "_stats"), py.None())
@@ -1963,7 +1960,7 @@ mod stats_listener_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let shinqlx_module = py
-                        .import_bound(intern!(py, "shinqlx"))
+                        .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
                     let stats_listener = StatsListener::py_new().expect("this should not happen");
                     shinqlx_module
@@ -2132,12 +2129,12 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
 
     let plugin_import_path = format!("{}.{}", plugins_dir, &plugin);
     let module = py
-        .import_bound(intern!(py, "importlib"))
+        .import(intern!(py, "importlib"))
         .and_then(|importlib_module| {
             importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))
         })?;
 
-    let plugin_pystring = PyString::new_bound(py, plugin);
+    let plugin_pystring = PyString::new(py, plugin);
     if let Some(modules) = MODULES.load().as_ref() {
         modules.bind(py).set_item(&plugin_pystring, &module)?;
     }
@@ -2149,7 +2146,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
     }
 
     let plugin_class = module.getattr(&plugin_pystring)?;
-    let plugin_type = py.get_type_bound::<Plugin>();
+    let plugin_type = py.get_type::<Plugin>();
     if !plugin_class
         .extract::<Bound<'_, PyType>>()?
         .is_subclass(&plugin_type)
@@ -2162,7 +2159,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
 
     plugin_class.call0().and_then(|loaded_plugin| {
         let loaded_plugins = py
-            .get_type_bound::<Plugin>()
+            .get_type::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))
             .and_then(|loaded_plugins| loaded_plugins.extract::<Bound<'_, PyDict>>())?;
         loaded_plugins.set_item(plugin, loaded_plugin)
@@ -2173,7 +2170,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
 fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let info_level = py
-            .import_bound(intern!(py, "logging"))
+            .import(intern!(py, "logging"))
             .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
         logger
             .call_method(
@@ -2187,7 +2184,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                     (plugin,),
                     py.None(),
                 ),
-                Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict_bound(py)),
+                Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict(py)?),
             )
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
@@ -2204,7 +2201,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             }
 
             let loaded_plugins = py
-                .get_type_bound::<Plugin>()
+                .get_type::<Plugin>()
                 .getattr(intern!(py, "_loaded_plugins"))?
                 .extract::<Bound<'_, PyDict>>()?;
 
@@ -2240,7 +2237,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         )?;
 
     let loaded_plugins = py
-        .get_type_bound::<Plugin>()
+        .get_type::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<Bound<'_, PyDict>>()?;
 
@@ -2252,7 +2249,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         |loaded_plugin| {
             loaded_plugin
                 .getattr(intern!(py, "hooks"))?
-                .iter()?
+                .try_iter()?
                 .flatten()
                 .for_each(|hook| {
                     if let Err(ref err) =
@@ -2288,7 +2285,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
             loaded_plugin
                 .getattr(intern!(py, "commands"))?
-                .iter()?
+                .try_iter()?
                 .flatten()
                 .for_each(|cmd| {
                     if let Err(ref err) = cmd.extract::<Bound<'_, Command>>().and_then(|py_cmd| {
@@ -2312,7 +2309,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let info_level = py
-            .import_bound(intern!(py, "logging"))
+            .import(intern!(py, "logging"))
             .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
 
         logger
@@ -2327,13 +2324,13 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                     (plugin,),
                     py.None(),
                 ),
-                Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict_bound(py)),
+                Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict(py)?),
             )
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
 
     let loaded_plugins = py
-        .get_type_bound::<Plugin>()
+        .get_type::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?
         .extract::<Bound<'_, PyDict>>()?;
     if !loaded_plugins.contains(plugin)? {
@@ -2356,7 +2353,7 @@ fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
                 .bind(py)
                 .get_item(plugin)
                 .and_then(|loaded_plugin_module| {
-                    py.import_bound(intern!(py, "importlib"))
+                    py.import(intern!(py, "importlib"))
                         .and_then(|importlib_module| {
                             importlib_module
                                 .call_method1(intern!(py, "reload"), (loaded_plugin_module,))
@@ -2572,7 +2569,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2623,7 +2620,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2674,7 +2671,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2739,7 +2736,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2780,7 +2777,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2824,7 +2821,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2865,7 +2862,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2908,7 +2905,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2916,7 +2913,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                             .into(),
                     ));
 
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -2974,7 +2971,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2982,7 +2979,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                             .into(),
                     ));
 
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -3032,7 +3029,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3040,7 +3037,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                             .into(),
                     ));
 
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -3059,8 +3056,8 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
                     load_plugin(py, "test_plugin").expect("this should not happen");
 
-                    py.get_type_bound::<Plugin>()
-                        .setattr(intern!(py, "_loaded_plugins"), PyDict::new_bound(py))
+                    py.get_type::<Plugin>()
+                        .setattr(intern!(py, "_loaded_plugins"), PyDict::new(py))
                         .expect("this should not happen");
 
                     let result = unload_plugin(py, "test_plugin");
@@ -3089,7 +3086,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3097,7 +3094,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                             .into(),
                     ));
 
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -3155,10 +3152,10 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                        .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3166,7 +3163,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                             .into(),
                     ));
 
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -3211,7 +3208,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type_bound::<UnloadDispatcher>())
+                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3219,7 +3216,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                             .into(),
                     ));
 
-                    py.import_bound(intern!(py, "sys"))
+                    py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
                                 .path()
@@ -3262,9 +3259,9 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
 }
 
 fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let sched_module = m.py().import_bound("sched")?;
+    let sched_module = m.py().import("sched")?;
     m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
-    let queue_module = m.py().import_bound("queue")?;
+    let queue_module = m.py().import("queue")?;
     m.add(
         "next_frame_tasks",
         queue_module.call_method0("SimpleQueue")?,
@@ -3479,14 +3476,14 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
         |main_engine| {
             let database_cvar = main_engine.find_cvar("qlx_database");
             if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
-                let redis_database_class = module.py().get_type_bound::<Redis>();
+                let redis_database_class = module.py().get_type::<Redis>();
                 module
                     .py()
-                    .get_type_bound::<Plugin>()
+                    .get_type::<Plugin>()
                     .setattr(intern!(module.py(), "database"), &redis_database_class)?;
             }
 
-            let sys_module = module.py().import_bound(intern!(module.py(), "sys"))?;
+            let sys_module = module.py().import(intern!(module.py(), "sys"))?;
 
             if let Ok(real_plugins_path) = try_get_plugins_path() {
                 set_plugins_version(module, &real_plugins_path.to_string_lossy());
@@ -3514,15 +3511,13 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
 
             let info_level = module
                 .py()
-                .import_bound(intern!(module.py(), "logging"))
+                .import(intern!(module.py(), "logging"))
                 .and_then(|logging_module| logging_module.getattr(intern!(module.py(), "INFO")))?;
 
             let handle_exception = module.getattr(intern!(module.py(), "handle_exception"))?;
             sys_module.setattr(intern!(module.py(), "excepthook"), handle_exception)?;
 
-            let threading_module = module
-                .py()
-                .import_bound(intern!(module.py(), "threading"))?;
+            let threading_module = module.py().import(intern!(module.py(), "threading"))?;
             let threading_except_hook =
                 module.getattr(intern!(module.py(), "threading_excepthook"))?;
             threading_module.setattr(intern!(module.py(), "excepthook"), threading_except_hook)?;
@@ -3544,7 +3539,7 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                             intern!(module.py(), "func"),
                             intern!(module.py(), "late_init"),
                         )]
-                        .into_py_dict_bound(module.py()),
+                        .into_py_dict(module.py())?,
                     ),
                 )
                 .and_then(|log_record| {
@@ -3576,7 +3571,7 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                                 intern!(module.py(), "func"),
                                 intern!(module.py(), "late_init"),
                             )]
-                            .into_py_dict_bound(module.py()),
+                            .into_py_dict(module.py())?,
                         ),
                     )
                     .and_then(|log_record| {
@@ -3603,7 +3598,7 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                             intern!(module.py(), "func"),
                             intern!(module.py(), "late_init"),
                         )]
-                        .into_py_dict_bound(module.py()),
+                        .into_py_dict(module.py())?,
                     ),
                 )
                 .and_then(|log_record| {
@@ -3813,14 +3808,8 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add(
-        "PluginLoadError",
-        m.py().get_type_bound::<PluginLoadError>(),
-    )?;
-    m.add(
-        "PluginUnloadError",
-        m.py().get_type_bound::<PluginUnloadError>(),
-    )?;
+    m.add("PluginLoadError", m.py().get_type::<PluginLoadError>())?;
+    m.add("PluginUnloadError", m.py().get_type::<PluginUnloadError>())?;
 
     m.add(
         "TEAMS",
@@ -3830,7 +3819,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             (team_t::TEAM_BLUE as i32, "blue"),
             (team_t::TEAM_SPECTATOR as i32, "spectator"),
         ]
-        .into_py_dict_bound(m.py()),
+        .into_py_dict(m.py())?,
     )?;
     // Game types
     m.add(
@@ -3849,7 +3838,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             (11, "Attack and Defend"),
             (12, "Red Rover"),
         ]
-        .into_py_dict_bound(m.py()),
+        .into_py_dict(m.py())?,
     )?;
     m.add(
         "GAMETYPES_SHORT",
@@ -3867,7 +3856,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             (11, "ad"),
             (12, "rr"),
         ]
-        .into_py_dict_bound(m.py()),
+        .into_py_dict(m.py())?,
     )?;
     m.add(
         "CONNECTION_STATES",
@@ -3878,7 +3867,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             (clientState_t::CS_PRIMED as i32, "primed"),
             (clientState_t::CS_ACTIVE as i32, "active"),
         ]
-        .into_py_dict_bound(m.py()),
+        .into_py_dict(m.py())?,
     )?;
     // Weapons
     m.add(
@@ -3900,18 +3889,15 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             (weapon_t::WP_HMG as i32, "hmg"),
             (weapon_t::WP_HANDS as i32, "hands"),
         ]
-        .into_py_dict_bound(m.py()),
+        .into_py_dict(m.py())?,
     )?;
-    m.add(
-        "DEFAULT_PLUGINS",
-        PyTuple::new_bound(m.py(), DEFAULT_PLUGINS),
-    )?;
+    m.add("DEFAULT_PLUGINS", PyTuple::new(m.py(), DEFAULT_PLUGINS)?)?;
 
     m.add("_thread_count", 0)?;
     m.add("_thread_name", "shinqlxthread")?;
 
     m.add("_stats", m.py().None())?;
-    MODULES.store(Some(PyDict::new_bound(m.py()).unbind().into()));
+    MODULES.store(Some(PyDict::new(m.py()).unbind().into()));
     m.add(
         "_modules",
         (*MODULES.load())
@@ -3950,7 +3936,7 @@ fn register_game_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Game>()?;
     m.add(
         "NonexistentGameError",
-        m.py().get_type_bound::<NonexistentGameError>(),
+        m.py().get_type::<NonexistentGameError>(),
     )?;
 
     Ok(())
@@ -3960,7 +3946,7 @@ fn register_player_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Player>()?;
     m.add(
         "NonexistentPlayerError",
-        m.py().get_type_bound::<NonexistentPlayerError>(),
+        m.py().get_type::<NonexistentPlayerError>(),
     )?;
     m.add_class::<AbstractDummyPlayer>()?;
     m.add_class::<RconDummyPlayer>()?;
@@ -3970,7 +3956,7 @@ fn register_player_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("MAX_MSG_LENGTH", MAX_MSG_LENGTH)?;
-    let regex_module = m.py().import_bound("re")?;
+    let regex_module = m.py().import("re")?;
     m.add(
         "re_color_tag",
         regex_module.call_method1("compile", (r"\^[0-7]",))?,
@@ -4068,7 +4054,7 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let regex_module = m.py().import_bound("re")?;
+    let regex_module = m.py().import("re")?;
     m.add(
         "_re_vote",
         regex_module.call_method1("compile", (r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#,))?,
@@ -4112,105 +4098,103 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let event_dispatchers = Py::new(m.py(), EventDispatcherManager::default())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<ConsolePrintDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<ConsolePrintDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<CommandDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<CommandDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<ClientCommandDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<ClientCommandDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<ServerCommandDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<ServerCommandDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<FrameEventDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<FrameEventDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<SetConfigstringDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<SetConfigstringDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<ChatEventDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<ChatEventDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<UnloadDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<UnloadDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<PlayerConnectDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<PlayerConnectDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<PlayerLoadedDispatcher>())?;
-    event_dispatchers.borrow(m.py()).add_dispatcher(
-        m.py(),
-        m.py().get_type_bound::<PlayerDisconnectDispatcher>(),
-    )?;
+        .add_dispatcher(m.py(), m.py().get_type::<PlayerLoadedDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<PlayerSpawnDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<PlayerDisconnectDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<KamikazeUseDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<PlayerSpawnDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<KamikazeExplodeDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<KamikazeUseDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<StatsDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<KamikazeExplodeDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteCalledDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<StatsDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteStartedDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<VoteCalledDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteEndedDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<VoteStartedDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<VoteDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<VoteEndedDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<GameCountdownDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<VoteDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<GameStartDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<GameCountdownDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<GameEndDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<GameStartDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<RoundCountdownDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<GameEndDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<RoundStartDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<RoundCountdownDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<RoundEndDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<RoundStartDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<TeamSwitchDispatcher>())?;
-    event_dispatchers.borrow(m.py()).add_dispatcher(
-        m.py(),
-        m.py().get_type_bound::<TeamSwitchAttemptDispatcher>(),
-    )?;
+        .add_dispatcher(m.py(), m.py().get_type::<RoundEndDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<MapDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<TeamSwitchDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<NewGameDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<TeamSwitchAttemptDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<KillDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<MapDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<DeathDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<NewGameDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<UserinfoDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<KillDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type_bound::<DamageDispatcher>())?;
+        .add_dispatcher(m.py(), m.py().get_type::<DeathDispatcher>())?;
+    event_dispatchers
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type::<UserinfoDispatcher>())?;
+    event_dispatchers
+        .borrow(m.py())
+        .add_dispatcher(m.py(), m.py().get_type::<DamageDispatcher>())?;
     EVENT_DISPATCHERS.store(Some(event_dispatchers.into()));
     m.add(
         "EVENT_DISPATCHERS",
@@ -4230,34 +4214,33 @@ fn register_zmq_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn register_plugin_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.py()
-        .get_type_bound::<Plugin>()
+        .get_type::<Plugin>()
         .setattr(intern!(m.py(), "database"), m.py().None())?;
-    m.py().get_type_bound::<Plugin>().setattr(
-        intern!(m.py(), "_loaded_plugins"),
-        PyDict::new_bound(m.py()),
-    )?;
+    m.py()
+        .get_type::<Plugin>()
+        .setattr(intern!(m.py(), "_loaded_plugins"), PyDict::new(m.py()))?;
     m.add_class::<Plugin>()?;
 
     Ok(())
 }
 
 fn register_database_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let database_module = PyModule::new_bound(m.py(), "database")?;
+    let database_module = PyModule::new(m.py(), "database")?;
 
     database_module.add_class::<AbstractDatabase>()?;
     #[cfg(feature = "rust-redis")]
     {
-        let redis_type = m.py().get_type_bound::<Redis>();
+        let redis_type = m.py().get_type::<Redis>();
         let key_type_function = redis_type.getattr("key_type")?;
         m.py()
-            .get_type_bound::<Redis>()
+            .get_type::<Redis>()
             .setattr("type", key_type_function)?;
     }
     database_module.add_class::<Redis>()?;
     m.add_submodule(&database_module)?;
 
     m.py()
-        .import_bound(intern!(m.py(), "sys"))?
+        .import(intern!(m.py(), "sys"))?
         .getattr(intern!(m.py(), "modules"))?
         .set_item("shinqlx.database", database_module)?;
 
@@ -4344,8 +4327,8 @@ pub(crate) mod pyshinqlx_test_support {
     use pyo3::prelude::*;
 
     pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
-        py.run_bound(
-            r#"
+        py.run(
+            cr#"
 import shinqlx
 
 while not shinqlx.next_frame_tasks.empty():
@@ -4382,16 +4365,16 @@ while not shinqlx.next_frame_tasks.empty():
     }
 
     pub(super) fn test_plugin(py: Python<'_>) -> Bound<'_, PyAny> {
-        PyModule::from_code_bound(
+        PyModule::from_code(
             py,
-            r#"
+            cr#"
 import shinqlx
 
 class test_plugin(shinqlx.Plugin):
     pass
 "#,
-            "",
-            "",
+            c"",
+            c"",
         )
         .expect("coult not create test plugin")
         .getattr("test_plugin")
@@ -4399,9 +4382,9 @@ class test_plugin(shinqlx.Plugin):
     }
 
     pub(crate) fn capturing_hook(py: Python<'_>) -> Bound<'_, PyModule> {
-        PyModule::from_code_bound(
+        PyModule::from_code(
             py,
-            r#"
+            cr#"
 _args = []
 
 def hook(*args):
@@ -4419,23 +4402,23 @@ def assert_called_with(*args):
             continue
         assert expected == actual, f"{expected = } == {actual = }"
         "#,
-            "",
-            "",
+            c"",
+            c"",
         )
             .expect("could create test handler module")
     }
 
     pub(crate) fn returning_false_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        let returning_false_module = PyModule::from_code_bound(
+        let returning_false_module = PyModule::from_code(
             py,
-            r#"
+            cr#"
 import shinqlx
 
 def returning_false_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-            "",
-            "",
+            c"",
+            c"",
         )
         .expect("could not create returning false module");
         returning_false_module
@@ -4444,14 +4427,14 @@ def returning_false_hook(*args, **kwargs):
     }
 
     pub(super) fn returning_other_string_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        let returning_other_string_module = PyModule::from_code_bound(
+        let returning_other_string_module = PyModule::from_code(
             py,
-            r#"
+            cr#"
 def returning_other_string(*args, **kwargs):
     return "quit"
             "#,
-            "",
-            "",
+            c"",
+            c"",
         )
         .expect("could not create returning false module");
         returning_other_string_module

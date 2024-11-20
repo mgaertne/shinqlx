@@ -92,7 +92,7 @@ use pyo3::types::IntoPyDict;
 fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let debug_level = py
-            .import_bound(intern!(py, "logging"))
+            .import(intern!(py, "logging"))
             .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
 
         let mut dbgstr = debug_str.to_string();
@@ -112,7 +112,7 @@ fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
                     py.None(),
                     py.None(),
                 ),
-                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
+                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict(py)?),
             )
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
@@ -134,7 +134,7 @@ fn try_log_unexpected_return_value(
 ) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let warning_level = py
-            .import_bound(intern!(py, "logging"))
+            .import(intern!(py, "logging"))
             .and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
         let handler_name = handler.getattr(py, intern!(py, "__name__"))?;
 
@@ -153,7 +153,7 @@ fn try_log_unexpected_return_value(
                     (handler_name, result, event_name),
                     py.None(),
                 ),
-                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict_bound(py)),
+                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict(py)?),
             )
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
@@ -271,7 +271,7 @@ impl EventDispatcher {
                         .into_py_dict_bound(slf.py())
                 })
             })
-            .unwrap_or(PyDict::new_bound(slf.py()))
+            .unwrap_or(PyDict::new(slf.py()))
     }
 
     /// Calls all the handlers that have been registered when hooking this event.
@@ -437,9 +437,9 @@ impl EventDispatcher {
 
         match event_dispatcher.plugins.try_write() {
             None => {
-                let add_hook_func = PyModule::from_code_bound(
+                let add_hook_func = PyModule::from_code(
                     slf.py(),
-                    r#"
+                    cr#"
 import shinqlx
 
 
@@ -447,8 +447,8 @@ import shinqlx
 def add_hook(event, plugin, handler, priority):
     shinqlx.EVENT_DISPATCHERS[event].add_hook(plugin, handler, priority)
         "#,
-                    "",
-                    "",
+                    c"",
+                    c"",
                 )?
                 .getattr(intern!(slf.py(), "add_hook"))?;
 
@@ -508,9 +508,9 @@ def add_hook(event, plugin, handler, priority):
             })?;
         match event_dispatcher.plugins.try_write() {
             None => {
-                let remove_hook_func = PyModule::from_code_bound(
+                let remove_hook_func = PyModule::from_code(
                     slf.py(),
-                    r#"
+                    cr#"
 import shinqlx
 
 
@@ -518,8 +518,8 @@ import shinqlx
 def remove_hook(event, plugin, handler, priority):
     shinqlx.EVENT_DISPATCHERS[event].remove_hook(plugin, handler, priority)
         "#,
-                    "",
-                    "",
+                    c"",
+                    c"",
                 )?
                 .getattr(intern!(slf.py(), "remove_hook"))?;
                 remove_hook_func.call1((dispatcher_name, plugin, handler, priority))?;
@@ -1750,9 +1750,9 @@ impl EventDispatcherManager {
 
         match self.dispatchers.try_write() {
             None => {
-                let remove_dispatcher_by_name_func = PyModule::from_code_bound(
+                let remove_dispatcher_by_name_func = PyModule::from_code(
                     py,
-                    r#"
+                    cr#"
 import shinqlx
 
 
@@ -1760,8 +1760,8 @@ import shinqlx
 def remove_dispatcher_by_name(dispatcher_name):
     shinqlx.EVENT_DISPATCHERS.remove_dispatcher_by_name(dispatcher_name)
         "#,
-                    "",
-                    "",
+                    c"",
+                    c"",
                 )?
                 .getattr(intern!(py, "remove_dispatcher_by_name"))?;
 
