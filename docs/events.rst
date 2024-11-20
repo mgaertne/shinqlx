@@ -1,9 +1,9 @@
+.. _events:
+.. currentmodule:: shinqlx
+
 ######
 Events
 ######
-
-.. _events:
-.. currentmodule:: shinqlx
 
 .. data:: EVENT_DISPATCHERS
    :type: EventDispatcherManager

@@ -1,9 +1,9 @@
+.. _database:
+.. module:: shinqlx.database
+
 ########
 Database
 ########
-
-.. _database:
-.. module:: shinqlx.database
 
 .. class:: AbstractDatabase(plugin)
 

@@ -1,11 +1,11 @@
+.. _handlers:
+.. currentmodule:: shinqlx
+
 ########
 Handlers
 ########
 
 Low-level handlers. These are all called by the Rust-code, not within Python.
-
-.. _handlers:
-.. currentmodule:: shinqlx
 
 .. function:: handle_rcon(cmd) -> bool | None
 
@@ -53,7 +53,7 @@ Low-level handlers. These are all called by the Rust-code, not within Python.
 
 .. function:: handle_player_connect(cilent_id, is_bot) -> bool | str | None
 
-   This will be called whenever a player tries to connect. If the dispatcher returns False, it will not allow the player to connect and instead show them a message explaining why. The default message is "You are banned from this server.", but it can be set with :func:`shinqlx.set_ban_message`.
+   This will be called whenever a player tries to connect. If the dispatcher returns False, it will not allow the player to connect and instead show them a message explaining why. The default message is "You are banned from this server.".
 
    :param int client_id: The client identifier.
    :param bool is_bot: Whether or not the player is a bot.
