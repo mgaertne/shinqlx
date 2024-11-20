@@ -113,6 +113,7 @@ mod replace_items_tests {
 
     use pyo3::exceptions::PyValueError;
     use pyo3::types::{PyString, PyTuple};
+    use pyo3::IntoPyObject;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -124,8 +125,15 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                (-1i32).into_py(py).bind(py),
-                1i32.into_py(py).bind(py),
+                (-1i32)
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -139,8 +147,18 @@ mod replace_items_tests {
         get_num_items_ctx.expect().returning(|| 42);
 
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_replace_items(py, 43i32.into_py(py).bind(py), 1i32.into_py(py).bind(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                43i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -155,8 +173,15 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                1i32.into_py(py).bind(py),
-                (-1i32).into_py(py).bind(py),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                (-1i32)
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -170,8 +195,18 @@ mod replace_items_tests {
         get_num_items_ctx.expect().returning(|| 42);
 
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 43i32.into_py(py).bind(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                43i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -186,8 +221,13 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                PyTuple::new_bound(py, [1i32, 2i32]).as_ref(),
-                1i32.into_py(py).bind(py),
+                PyTuple::new(py, [1i32, 2i32])
+                    .expect("this should not happen")
+                    .as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -203,8 +243,13 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                1i32.into_py(py).bind(py),
-                PyTuple::new_bound(py, [1i32, 2i32]).as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                PyTuple::new(py, [1i32, 2i32])
+                    .expect("this should not happen")
+                    .as_ref(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -234,8 +279,11 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                PyString::new_bound(py, "not existing classname").as_ref(),
-                1i32.into_py(py).bind(py),
+                PyString::new(py, "not existing classname").as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), false);
@@ -260,8 +308,11 @@ mod replace_items_tests {
         Python::with_gil(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                1i32.into_py(py).bind(py),
-                PyString::new_bound(py, "not existing classname").as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                PyString::new(py, "not existing classname").as_ref(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -285,8 +336,17 @@ mod replace_items_tests {
             });
 
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 2i32.into_py(py).bind(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                2i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -313,8 +373,17 @@ mod replace_items_tests {
             });
 
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 2i32.into_py(py).bind(py));
+            let result = pyshinqlx_replace_items(
+                py,
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                2i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -345,7 +414,17 @@ mod replace_items_tests {
             });
 
         let result = Python::with_gil(|py| {
-            pyshinqlx_replace_items(py, 1i32.into_py(py).bind(py), 2i32.into_py(py).bind(py))
+            pyshinqlx_replace_items(
+                py,
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                2i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+            )
         });
         assert_eq!(result.expect("result was not OK"), true);
     }
@@ -397,8 +476,11 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                1i32.into_py(py).bind(py),
-                PyString::new_bound(py, "weapon_bfg").as_ref(),
+                1i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any()
+                    .as_ref(),
+                PyString::new(py, "weapon_bfg").as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), true);
@@ -515,8 +597,8 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                PyString::new_bound(py, "weapon_railgun").as_ref(),
-                PyString::new_bound(py, "weapon_bfg").as_ref(),
+                PyString::new(py, "weapon_railgun").as_ref(),
+                PyString::new(py, "weapon_bfg").as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), true);
@@ -604,8 +686,8 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                PyString::new_bound(py, "weapon_railgun").as_ref(),
-                PyString::new_bound(py, "weapon_bfg").as_ref(),
+                PyString::new(py, "weapon_railgun").as_ref(),
+                PyString::new(py, "weapon_bfg").as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), true);

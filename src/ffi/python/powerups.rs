@@ -2,7 +2,12 @@ use super::prelude::*;
 
 use alloc::borrow::Cow;
 
-use pyo3::{basic::CompareOp, exceptions::PyValueError, types::PyTuple};
+use pyo3::{
+    basic::CompareOp,
+    exceptions::PyValueError,
+    types::{PyNotImplemented, PyTuple},
+    BoundObject, IntoPyObject,
+};
 
 /// A struct sequence containing all the powerups in the game.
 #[pyclass(module = "_shinqlx", name = "Powerups", frozen, get_all, sequence)]
@@ -64,11 +69,16 @@ impl Powerups {
         ))
     }
 
-    fn __richcmp__(&self, other: &Self, op: CompareOp, py: Python<'_>) -> PyObject {
+    fn __richcmp__<'py>(
+        &self,
+        other: &Self,
+        op: CompareOp,
+        py: Python<'py>,
+    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
         match op {
-            CompareOp::Eq => (self == other).into_py(py),
-            CompareOp::Ne => (self != other).into_py(py),
-            _ => py.NotImplemented(),
+            CompareOp::Eq => Ok((self == other).into_pyobject(py)?.into_any()),
+            CompareOp::Ne => Ok((self != other).into_pyobject(py)?.into_any()),
+            _ => Ok(PyNotImplemented::get(py).into_any()),
         }
     }
 
