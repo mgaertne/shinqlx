@@ -1,9 +1,9 @@
+.. _zmq:
+.. currentmodule:: shinqlx
+
 #############
 StatsListener
 #############
-
-.. _zmq:
-.. currentmodule:: shinqlx
 
 .. class:: StatsListener
 

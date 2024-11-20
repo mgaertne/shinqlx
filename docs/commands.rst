@@ -1,9 +1,9 @@
+.. _commands:
+.. currentmodule:: shinqlx
+
 ########
 Commands
 ########
-
-.. _commands:
-.. currentmodule:: shinqlx
 
 .. class:: Command(plugin, name, handler, permission, channels, exclude_channels, client_cmd_pass, client_cmd_perm, prefix, usage)
 
@@ -12,7 +12,7 @@ Commands
    :param Callable handler: The handler for the command. See below for a prototype.
    :param int permission: The minimum permission a player trying to invoke this command needs.
    :param Iterable[AbstractChannel] channels: The channels this command can be triggered from.
-   :param Iterable[Abstractchannel] exclude_channels: Explicit channels this command cannot be triggered from.
+   :param Iterable[AbstractChannel] exclude_channels: Explicit channels this command cannot be triggered from.
    :param int priority: The priority for this command, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>`.
    :param bool client_cmd_pass: Flag whether this command should be passed to ``client_command`` and the general quake live engine.
    :param int client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel.
@@ -32,10 +32,10 @@ Commands
              self,
              player: Player,
              msg: str,
-             channel: Abstractchannel
+             channel: AbstractChannel
            ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL | RET_USAGE
 
-   .. method:: execute(player, msg, channel) -> None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL | RET_USAGE
+   .. method:: execute(player, msg, channel) -> None | int
 
       Execute this command.
 

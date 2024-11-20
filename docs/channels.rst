@@ -1,9 +1,9 @@
+.. _channels:
+.. currentmodule:: shinqlx
+
 ########
 Channels
 ########
-
-.. _channels:
-.. currentmodule:: shinqlx
 
 .. class:: AbstractChannel(name)
 
@@ -41,7 +41,7 @@ Channels
 .. data:: MAX_MSG_LENGTH
    :type: int
 
-   The maximum message length. Messages that are longer are split accordingly for :class:`Chatchannel` s.
+   The maximum message length. Messages that are longer are split accordingly for :class:`ChatChannel` s.
 
 .. class:: ChatChannel(name = "chat", fmt = 'print "{}\n"\n')
 
