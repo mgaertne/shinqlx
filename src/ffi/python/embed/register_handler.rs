@@ -40,14 +40,14 @@ mod register_handler_tests {
     #[serial]
     fn register_handler_setting_handler_to_none(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let py_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -67,14 +67,14 @@ def handler():
     #[serial]
     fn register_custom_command_handler_setting_handler_to_some_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let py_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -95,14 +95,14 @@ def handler():
     #[serial]
     fn register_handler_for_some_unknown_event(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def handler():
     pass
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let py_handler = pymodule.getattr("handler").expect("this should not happen");
@@ -117,13 +117,13 @@ def handler():
     #[serial]
     fn register_handler_for_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code_bound(
+            let pymodule = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 handler = True
 "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen");
             let py_handler = pymodule.getattr("handler").expect("this should not happen");
