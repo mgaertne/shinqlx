@@ -1,9 +1,9 @@
+.. _game:
+.. currentmodule:: shinqlx
+
 ####
 Game
 ####
-
-.. _game:
-.. currentmodule:: shinqlx
 
 .. exception:: NonexistentGameError
 
