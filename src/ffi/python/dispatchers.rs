@@ -2,7 +2,7 @@ use super::prelude::*;
 
 use core::sync::atomic::Ordering;
 use log::error;
-use pyo3::types::PyBool;
+use pyo3::types::{PyBool, PyString};
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -15,32 +15,27 @@ where
     CLIENT_COMMAND_HANDLER
         .load()
         .as_ref()
-        .map(|client_command_handler| {
-            Python::with_gil(|py| {
-                client_command_handler
-            .bind(py)
-            .call1((client_id, cmd.as_ref()))
-            .map(|returned| {
-                returned
-                    .extract::<Bound<PyBool>>()
-                    .map(|bool_value| {
-                        if bool_value.is_true() {
+        .map_or(Some(cmd.as_ref().to_string()), |client_command_handler| {
+                Python::with_gil(|py| {
+                    client_command_handler
+                        .bind(py)
+                        .call1((client_id, cmd.as_ref()))
+                        .map_or_else(|e| {
+                            error!(target: "shinqlx", "client_command_handler returned an error: {:?}.", e);
                             Some(cmd.as_ref().to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .unwrap_or(Some(
-                        returned.extract::<String>().unwrap_or(cmd.as_ref().to_string()),
-                    ))
+                        }, |returned| {
+                            if returned.is_instance_of::<PyBool>() &&
+                                returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                                None
+                            }
+                            else if returned.is_instance_of::<PyString>() {
+                                returned.extract::<String>().ok()
+                            } else {
+                                Some(cmd.as_ref().to_string())
+                            }
+                        })
+                })
             })
-            .unwrap_or_else(|e| {
-                error!(target: "shinqlx", "client_command_handler returned an error: {:?}.", e);
-                Some(cmd.as_ref().to_string())
-            })
-            })
-        })
-        .unwrap_or(Some(cmd.as_ref().to_string()))
 }
 
 pub(crate) fn server_command_dispatcher<T>(client_id: Option<i32>, cmd: T) -> Option<String>
@@ -54,32 +49,27 @@ where
     SERVER_COMMAND_HANDLER
         .load()
         .as_ref()
-        .map(|server_command_handler| {
+        .map_or(Some(cmd.as_ref().to_string()), |server_command_handler| {
             Python::with_gil(|py| {
                 server_command_handler
-                .bind(py)
-                .call1((client_id.unwrap_or(-1), cmd.as_ref()))
-                .map(|returned| {
-                    returned
-                        .extract::<Bound<PyBool>>()
-                        .map(|bool_value| {
-                            if bool_value.is_true() {
-                                Some(cmd.as_ref().to_string())
-                            } else {
-                                None
-                            }
-                        })
-                        .unwrap_or(Some(
-                            returned.extract::<String>().unwrap_or(cmd.as_ref().to_string()),
-                        ))
-                })
-                .unwrap_or_else(|e| {
-                    error!(target: "shinqlx", "server_command_handler returned an error: {:?}.", e);
-                    Some(cmd.as_ref().to_string())
-                })
+                    .bind(py)
+                    .call1((client_id, cmd.as_ref()))
+                    .map_or_else(|e| {
+                        error!(target: "shinqlx", "server_command_handler returned an error: {:?}.", e);
+                        Some(cmd.as_ref().to_string())
+                    }, |returned| {
+                        if returned.is_instance_of::<PyBool>() &&
+                            returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                            None
+                        }
+                        else if returned.is_instance_of::<PyString>() {
+                            returned.extract::<String>().ok()
+                        } else {
+                            Some(cmd.as_ref().to_string())
+                        }
+                    })
             })
         })
-        .unwrap_or(Some(cmd.as_ref().to_string()))
 }
 
 pub(crate) fn frame_dispatcher() {
@@ -118,16 +108,17 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                     .call1((client_id, is_bot))
                     .ok()
                     .and_then(|returned| {
-                        returned
-                            .extract::<Bound<PyBool>>()
-                            .map(|bool_value| {
-                                if !bool_value.is_true() {
-                                    Some("You are banned from this server.".to_string())
-                                } else {
-                                    None
-                                }
-                            })
-                            .unwrap_or(returned.extract::<String>().ok())
+                        if returned.is_instance_of::<PyBool>()
+                            && returned
+                                .extract::<bool>()
+                                .is_ok_and(|bool_value| !bool_value)
+                        {
+                            Some("You are banned from this server.".to_string())
+                        } else if returned.is_instance_of::<PyString>() {
+                            returned.extract::<String>().ok()
+                        } else {
+                            None
+                        }
                     })
             });
 
@@ -217,33 +208,27 @@ where
     SET_CONFIGSTRING_HANDLER
         .load()
         .as_ref()
-        .map(|set_configstring_handler| {
+        .map_or(Some(value.as_ref().to_string()), |set_configstring_handler| {
             Python::with_gil(|py| {
                 set_configstring_handler
                     .bind(py)
                     .call1((index.into(), value.as_ref()))
-                    .map(|returned| {
-                        returned
-                            .extract::<Bound<PyBool>>()
-                            .map(|bool_value| {
-                                if bool_value.is_true() {
-                                    Some(value.as_ref().to_string())
-                                } else {
-                                    None
-                                }
-                            })
-                            .unwrap_or(Some(
-                                returned
-                                    .extract::<String>()
-                                    .unwrap_or(value.as_ref().to_string()),
-                            ))
-                    })
-                    .unwrap_or_else(|e| {
+                    .map_or_else(|e| {
                         error!(target: "shinqlx", "set_configstring_handler returned an error: {:?}.", e);
-                        Some(value.as_ref().to_string())})
+                        Some(value.as_ref().to_string())
+                    }, |returned| {
+                        if returned.is_instance_of::<PyBool>() &&
+                            returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                            None
+                        }
+                        else if returned.is_instance_of::<PyString>() {
+                            returned.extract::<String>().ok()
+                        } else {
+                            Some(value.as_ref().to_string())
+                        }
+                    })
             })
         })
-        .unwrap_or(Some(value.as_ref().to_string()))
 }
 
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
@@ -274,27 +259,27 @@ where
     CONSOLE_PRINT_HANDLER
         .load()
         .as_ref()
-        .map(|console_print_handler| {
-            Python::with_gil(
-                |py| {
-                    console_print_handler.bind(py).call1((text.as_ref(),)).map(|returned| {
-                        returned.extract::<Bound<PyBool>>().map(|bool_value| {
-                            if bool_value.is_true() {
-                                Some(text.as_ref().to_string())
-                            } else {
-                                None
-                            }
-                        }).unwrap_or({
-                            Some(returned.extract::<String>().unwrap_or(text.as_ref().to_string()))
-                        })
-                    }).unwrap_or_else(|e| {
+        .map_or(Some(text.as_ref().to_string()), |console_print_handler| {
+            Python::with_gil(|py| {
+                console_print_handler
+                    .bind(py)
+                    .call1((text.as_ref(),))
+                    .map_or_else(|e| {
                         error!(target: "shinqlx", "console_print_handler returned an error: {:?}.", e);
                         Some(text.as_ref().to_string())
+                    }, |returned| {
+                        if returned.is_instance_of::<PyBool>() &&
+                            returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                            None
+                        }
+                        else if returned.is_instance_of::<PyString>() {
+                            returned.extract::<String>().ok()
+                        } else {
+                            Some(text.as_ref().to_string())
+                        }
                     })
-                },
-            )
+            })
         })
-        .unwrap_or(Some(text.as_ref().to_string()))
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
