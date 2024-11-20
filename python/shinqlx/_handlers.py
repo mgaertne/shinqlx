@@ -192,7 +192,11 @@ def handle_server_command(client_id, cmd):
         stack.enter_context(shinqlx.ExceptionLogging())
 
         # Dispatch the "server_command" event before further processing.
-        player_info = shinqlx.player_info(client_id) if client_id >= 0 else None
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
         player = (
             shinqlx.Player(client_id, player_info) if player_info is not None else None
         )
