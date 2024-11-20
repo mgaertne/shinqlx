@@ -1,14 +1,39 @@
 .. highlight: python
+.. module:: shinqlx
 
 .. shinqlx documentation
 
-
+#####################
 shinqlx documentation
-=====================
+#####################
+
+********************************
+High-level classes and functions
+********************************
+
+* :ref:`Plugins <plugin>`
+* :ref:`Player <player>`
+* :ref:`Game <game>`
+* :ref:`Channels <channels>`
+* :ref:`Database <database>`
+
+*******************************
+Low-level classes and functions
+*******************************
+
+* :ref:`Core functions <core>`
+* :ref:`Commands <commands>`
+* :ref:`EventDispatcher <events>`
+* :ref:`Handlers <handlers>`
+* :ref:`StatsListener <zmq>`
+
+******************
+Indices and tables
+******************
+* :ref:`genindex`
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :hidden:
 
    plugin
    player
@@ -24,29 +49,3 @@ shinqlx documentation
    genindex
    modindex
    search
-
-.. module:: shinqlx
-
-High-level classes and functions
---------------------------------
-
-* :class:`Plugin`
-* :class:`Player`
-* :class:`Game`
-* :class:`Channels <AbstractChannel>`
-* :class:`database <shinqlx.database.AbstractDatabase>`
-
-Low-level classes and functions
--------------------------------
-
-* :ref:`Core functions <core>`
-* :class:`Command`
-* :class:`EventDispatcher`
-* :ref:`Handlers <handlers>`
-* :class:`StatsListener`
-
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

@@ -1,9 +1,9 @@
+.. _player:
+.. currentmodule:: shinqlx
+
 #######
 Players
 #######
-
-.. _player:
-.. currentmodule:: shinqlx
 
 .. exception:: NonexistentPlayerError
 
@@ -170,7 +170,7 @@ Players
       The player's score.
 
    .. property:: channel
-      :type: Abstractchannel
+      :type: AbstractChannel
 
       The player's client channel. **Read-only**.
 

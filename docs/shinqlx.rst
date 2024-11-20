@@ -1,9 +1,9 @@
-###########################################
-Low-level classes, functions, and constants
-###########################################
-
 .. _core:
 .. currentmodule:: shinqlx
+
+##############
+Core functions
+##############
 
 Classes
 =======
@@ -66,7 +66,7 @@ Classes
       Whether the player is alive or not.
 
    .. property:: position
-      :type: Vector
+      :type: Vector3
 
       The player's position.
 

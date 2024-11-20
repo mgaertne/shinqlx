@@ -13,7 +13,10 @@ author = "Markus 'ShiN0' Gärtner"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.coverage", "sphinx.ext.intersphinx"]
+extensions = [
+    "sphinx.ext.coverage",
+    "sphinx.ext.intersphinx",
+]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -28,10 +31,16 @@ intersphinx_mapping = {
 
 html_theme = "alabaster"
 html_theme_options = {
-    "fixed_sidebar": "true",
+    "fixed_sidebar": True,
+}
+html_sidebars = {
+    "**": ["about.html", "localtoc.html", ]
 }
 html_static_path = ["_static"]
+
+
 highlight_language = "Python"
 
-toc_object_trees = True
 maximum_signature_line_length = 48
+
+nitpicky = True
