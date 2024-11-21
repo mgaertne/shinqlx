@@ -43,8 +43,7 @@ mod game_start_dispatcher_tests {
             let dispatcher =
                 Py::new(py, GameStartDispatcher::py_new(py)).expect("this should not happen");
 
-            let result =
-                dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            let result = dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
             assert!(result.is_ok_and(|value| value
                 .bind(py)
                 .extract::<Bound<'_, PyBool>>()
@@ -72,14 +71,14 @@ mod game_start_dispatcher_tests {
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -97,11 +96,8 @@ def throws_exception_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()
@@ -130,14 +126,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -155,11 +151,8 @@ def returns_none_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()
@@ -188,16 +181,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -215,11 +208,8 @@ def returns_none_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()
@@ -248,16 +238,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -275,11 +265,8 @@ def returns_stop_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()
@@ -308,16 +295,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -335,11 +322,8 @@ def returns_stop_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()
@@ -368,16 +352,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -395,11 +379,8 @@ def returns_stop_all_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()
@@ -428,14 +409,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, GameStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -453,11 +434,8 @@ def returns_string_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        PyTuple::empty_bound(py),
-                    );
+                    let result =
+                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
                         .extract::<Bound<'_, PyBool>>()

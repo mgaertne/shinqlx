@@ -802,7 +802,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -885,7 +884,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -901,7 +899,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "game_start")
                         .and_then(|game_start_dispatcher| {
                             game_start_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -996,7 +993,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1012,7 +1008,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "round_end")
                         .and_then(|round_end_dispatcher| {
                             round_end_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1106,7 +1101,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1122,7 +1116,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "game_end")
                         .and_then(|game_end_dispatcher| {
                             game_end_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1197,7 +1190,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1213,7 +1205,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "game_end")
                         .and_then(|game_end_dispatcher| {
                             game_end_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1309,7 +1300,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1436,7 +1426,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1452,7 +1441,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "death")
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1591,7 +1579,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1607,7 +1594,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "death")
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1715,7 +1701,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1966,7 +1951,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1982,7 +1966,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "death")
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1998,7 +1981,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "kill")
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2182,7 +2164,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2198,7 +2179,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "death")
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2214,7 +2194,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "kill")
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2487,7 +2466,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2503,7 +2481,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "team_switch")
                         .and_then(|team_switch_dispatcher| {
                             team_switch_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2633,7 +2610,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2649,7 +2625,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "team_switch")
                         .and_then(|team_switch_dispatcher| {
                             team_switch_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2778,7 +2753,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2902,7 +2876,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3026,7 +2999,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3150,7 +3122,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3244,7 +3215,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3460,7 +3430,6 @@ mod handle_zmq_msg_tests {
                         .__getitem__(py, "team_switch")
                         .and_then(|team_switch_dispatcher| {
                             team_switch_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",

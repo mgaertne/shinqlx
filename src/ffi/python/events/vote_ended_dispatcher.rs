@@ -7,7 +7,10 @@ use crate::{
 };
 
 use once_cell::sync::Lazy;
-use pyo3::types::PyTuple;
+
+use pyo3::exceptions::PyEnvironmentError;
+use pyo3::types::{PyBool, PyString, PyTuple};
+
 use regex::Regex;
 
 static RE_VOTE: Lazy<Regex> =
@@ -32,58 +35,68 @@ impl VoteEndedDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: &Bound<'_, Self>, passed: bool) {
-        MAIN_ENGINE.load().iter().for_each(|main_engine| {
-            let configstring = main_engine.get_configstring(CS_VOTE_STRING as u16);
-            if configstring.is_empty() {
-                dispatcher_debug_log(
-                    slf.py(),
-                    "vote_ended went off without configstring CS_VOTE_STRING.",
-                );
-                return;
-            }
+    fn dispatch(slf: &Bound<'_, Self>, passed: bool) -> PyResult<()> {
+        let configstring = MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            )),
+            |main_engine| Ok(main_engine.get_configstring(CS_VOTE_STRING as u16)),
+        )?;
 
-            let Some(captures) = RE_VOTE.captures(&configstring) else {
-                let warning_str = format!("invalid vote called: {}", &configstring);
-                dispatcher_debug_log(slf.py(), &warning_str);
-                return;
-            };
-            let vote = captures
-                .name("cmd")
-                .map(|value| value.as_str())
-                .unwrap_or("");
-            let args = captures
-                .name("args")
-                .map(|value| value.as_str())
-                .unwrap_or("");
-            let yes_votes = main_engine
-                .get_configstring(CS_VOTE_YES as u16)
-                .parse::<i32>()
-                .unwrap_or(0);
-            let no_votes = main_engine
-                .get_configstring(CS_VOTE_NO as u16)
-                .parse::<i32>()
-                .unwrap_or(0);
+        if configstring.is_empty() {
+            dispatcher_debug_log(
+                slf.py(),
+                "vote_ended went off without configstring CS_VOTE_STRING.",
+            );
+            return Ok(());
+        }
 
-            let pyany_event_dispatcher = slf.borrow().into_super().into_py(slf.py());
-            pyany_event_dispatcher
-                .bind(slf.py())
-                .downcast()
-                .iter()
-                .for_each(|event_dispatcher_instance| {
-                    let args_tuple = PyTuple::new_bound(
-                        slf.py(),
-                        [
-                            (yes_votes, no_votes).into_py(slf.py()),
-                            vote.into_py(slf.py()),
-                            args.into_py(slf.py()),
-                            passed.into_py(slf.py()),
-                        ],
-                    );
+        let Some(captures) = RE_VOTE.captures(&configstring) else {
+            let warning_str = format!("invalid vote called: {}", &configstring);
+            dispatcher_debug_log(slf.py(), &warning_str);
+            return Ok(());
+        };
+        let vote = captures
+            .name("cmd")
+            .map(|value| value.as_str())
+            .unwrap_or("");
+        let args = captures
+            .name("args")
+            .map(|value| value.as_str())
+            .unwrap_or("");
+        let (yes_votes, no_votes) = MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            )),
+            |main_engine| {
+                Ok((
+                    main_engine
+                        .get_configstring(CS_VOTE_YES as u16)
+                        .parse::<i32>()
+                        .unwrap_or(0),
+                    main_engine
+                        .get_configstring(CS_VOTE_NO as u16)
+                        .parse::<i32>()
+                        .unwrap_or(0),
+                ))
+            },
+        )?;
 
-                    EventDispatcher::dispatch(event_dispatcher_instance, args_tuple);
-                });
-        })
+        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
+
+        let args_tuple = PyTuple::new(
+            slf.py(),
+            [
+                PyTuple::new(slf.py(), [yes_votes, no_votes])?.into_any(),
+                PyString::new(slf.py(), vote).into_any(),
+                PyString::new(slf.py(), args).into_any(),
+                PyBool::new(slf.py(), passed).to_owned().into_any(),
+            ],
+        )?;
+
+        EventDispatcher::dispatch(&event_dispatcher, args_tuple);
+
+        Ok(())
     }
 }
 
@@ -146,14 +159,14 @@ mod vote_ended_dispatcher_tests {
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -200,14 +213,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -254,16 +267,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -310,16 +323,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -366,16 +379,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -422,16 +435,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -478,14 +491,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -530,14 +543,14 @@ def returns_string_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -582,14 +595,14 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")

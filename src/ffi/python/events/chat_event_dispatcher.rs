@@ -1,7 +1,8 @@
 use super::super::{Player, COMMANDS};
 use super::prelude::*;
+
 use pyo3::exceptions::PyEnvironmentError;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyBool, PyString, PyTuple};
 
 /// Event that triggers with the "say" command. If the handler cancels it,
 /// the message will also be cancelled.
@@ -23,35 +24,35 @@ impl ChatEventDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(
-        slf: &Bound<'_, Self>,
+    fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
         player: Player,
         msg: &str,
-        channel: PyObject,
-    ) -> PyResult<PyObject> {
-        match try_handle_input(slf.py(), &player, msg, channel.clone_ref(slf.py())) {
+        channel: Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        match try_handle_input(slf.py(), &player, msg, channel.clone()) {
             Err(e) => {
                 log_exception(slf.py(), &e);
             }
             Ok(handle_input_return) => {
                 if !handle_input_return {
-                    return Ok(false.into_py(slf.py()));
+                    return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
                 }
             }
         };
 
-        let pyany_event_dispatcher = slf.borrow().into_super().into_py(slf.py());
-        let event_dispatcher_instance = pyany_event_dispatcher.bind(slf.py()).downcast()?;
+        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
 
         let args_tuple = PyTuple::new(
             slf.py(),
-            [player.into_py(slf.py()), msg.into_py(slf.py()), channel],
+            [
+                player.into_pyobject(slf.py())?.into_any(),
+                PyString::new(slf.py(), msg).into_any(),
+                channel,
+            ],
         )?;
 
-        Ok(EventDispatcher::dispatch(
-            event_dispatcher_instance,
-            args_tuple,
-        ))
+        Ok(EventDispatcher::dispatch(&event_dispatcher, args_tuple))
     }
 }
 
@@ -59,13 +60,17 @@ fn try_handle_input(
     py: Python<'_>,
     player: &Player,
     cmd: &str,
-    channel: PyObject,
+    channel: Bound<'_, PyAny>,
 ) -> PyResult<bool> {
     COMMANDS.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(
             "could not get access to COMMANDS",
         )),
-        |commands| commands.borrow(py).handle_input(py, player, cmd, channel),
+        |commands| {
+            commands
+                .borrow(py)
+                .handle_input(py, player, cmd, channel.to_owned())
+        },
     )
 }
 
@@ -86,7 +91,7 @@ mod chat_event_dispatcher_tests {
 
     use pyo3::intern;
     use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use pyo3::types::{PyBool, PyString};
 
     fn default_channel(py: Python<'_>) -> PyObject {
         Py::new(
@@ -94,7 +99,7 @@ mod chat_event_dispatcher_tests {
             TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
         )
         .expect("this should not happen")
-        .into_py(py)
+        .into_any()
     }
 
     #[rstest]
@@ -584,12 +589,12 @@ def handler(*args, **kwargs):
                     let command_invoker = CommandInvoker::py_new();
                     let command = Command::py_new(
                         py,
-                        plugin.unbind(),
-                        "asdf".into_py(py),
-                        cmd_handler.unbind(),
+                        plugin,
+                        PyString::new(py, "asdf").into_any(),
+                        cmd_handler,
                         0,
-                        py.None(),
-                        py.None(),
+                        py.None().bind(py).to_owned(),
+                        py.None().bind(py).to_owned(),
                         false,
                         0,
                         false,

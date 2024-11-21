@@ -5,9 +5,9 @@ use pyo3::{
     basic::CompareOp,
     exceptions::PyNotImplementedError,
     intern,
-    types::{IntoPyDict, PyType},
+    types::{IntoPyDict, PyBool, PyNotImplemented, PyType},
+    BoundObject,
 };
-
 use regex::Regex;
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
@@ -52,21 +52,30 @@ impl AbstractChannel {
         self.name.clone()
     }
 
-    fn __richcmp__(&self, other: &Bound<'_, PyAny>, op: CompareOp, py: Python<'_>) -> PyObject {
+    fn __richcmp__<'py>(
+        &self,
+        other: &Bound<'py, PyAny>,
+        op: CompareOp,
+        py: Python<'py>,
+    ) -> Borrowed<'py, 'py, PyAny> {
         match op {
             CompareOp::Eq => other.str().map(|other_str| other_str.to_string()).map_or(
-                other.repr().map_or(false.into_py(py), |other_repr| {
-                    (self.__repr__() == other_repr.to_string()).into_py(py)
-                }),
-                |other_channel| (self.name == other_channel).into_py(py),
+                other
+                    .repr()
+                    .map_or(PyBool::new(py, false).into_any(), |other_repr| {
+                        PyBool::new(py, self.__repr__() == other_repr.to_string()).into_any()
+                    }),
+                |other_channel| PyBool::new(py, self.name == other_channel).into_any(),
             ),
             CompareOp::Ne => other.str().map(|other_str| other_str.to_string()).map_or(
-                other.repr().map_or(true.into_py(py), |other_repr| {
-                    (self.__repr__() != other_repr.to_string()).into_py(py)
-                }),
-                |other_channel| (self.name != other_channel).into_py(py),
+                other
+                    .repr()
+                    .map_or(PyBool::new(py, true).into_any(), |other_repr| {
+                        PyBool::new(py, self.__repr__() != other_repr.to_string()).into_any()
+                    }),
+                |other_channel| PyBool::new(py, self.name != other_channel).into_any(),
             ),
-            _ => py.NotImplemented(),
+            _ => PyNotImplemented::get(py).into_any(),
         }
     }
 
@@ -441,8 +450,7 @@ impl ChatChannel {
         let fmt = slf_.fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = slf_
-            .into_py(py)
-            .bind(py)
+            .into_pyobject(py)?
             .call_method0(intern!(py, "recipients"))?
             .extract()?;
 
@@ -486,7 +494,7 @@ impl ChatChannel {
                 )?
                 .extract::<String>()?;
 
-            let next_frame_reply: Py<PyAny> = PyModule::from_code(
+            let next_frame_reply = PyModule::from_code(
                 py,
                 cr#"
 import shinqlx
@@ -499,16 +507,15 @@ def reply(targets, msg):
                 c"",
                 c"",
             )?
-            .getattr(intern!(py, "reply"))?
-            .into();
+            .getattr(intern!(py, "reply"))?;
 
             match targets {
                 None => {
-                    next_frame_reply.call1(py, (py.None(), &server_command))?;
+                    next_frame_reply.call1((py.None(), &server_command))?;
                 }
                 Some(ref cids) => {
                     cids.iter()
-                        .map(|&cid| next_frame_reply.call1(py, (cid, &server_command)))
+                        .map(|&cid| next_frame_reply.call1((cid, &server_command)))
                         .collect::<PyResult<Vec<_>>>()?;
                 }
             }
@@ -1004,9 +1011,12 @@ tell_channel = shinqlx.TellChannel(player)
             "#,
                 None,
                 Some(
-                    &vec![("player", player.into_py(py))]
-                        .into_py_dict(py)
-                        .expect("this should not happen"),
+                    &vec![(
+                        "player",
+                        player.into_pyobject(py).expect("this should not happen"),
+                    )]
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             );
             assert!(tell_channel_constructor.is_ok());
@@ -1370,9 +1380,12 @@ tell_channel = shinqlx.ClientCommandChannel(player)
             "#,
                 None,
                 Some(
-                    &vec![("player", player.into_py(py))]
-                        .into_py_dict(py)
-                        .expect("this should not happen"),
+                    &vec![(
+                        "player",
+                        player.into_pyobject(py).expect("this should not happen"),
+                    )]
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             );
             assert!(client_command_channel_constructor.is_ok());

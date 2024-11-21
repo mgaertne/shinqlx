@@ -1,6 +1,6 @@
 use super::prelude::*;
 
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::types::{IntoPyDict, PyBool, PyDict};
 
 /// Event for clients changing their userinfo.
 #[pyclass(module = "_events", name = "UserinfoDispatcher", extends = EventDispatcher, frozen)]
@@ -21,12 +21,16 @@ impl UserinfoDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: &Bound<'_, Self>, player: PyObject, changed: &Bound<'_, PyDict>) -> PyObject {
+    fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
+        player: Bound<'py, PyAny>,
+        changed: Bound<'py, PyDict>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let mut forwarded_userinfo = changed.clone();
-        let mut return_value = true.into_py(slf.py());
+        let mut return_value = PyBool::new(slf.py(), true).to_owned().into_any().unbind();
 
         let super_class = slf.borrow().into_super();
-        if let Ok(player_str) = player.bind(slf.py()).repr() {
+        if let Ok(player_str) = player.repr() {
             if let Ok(changed_str) = changed.repr() {
                 let dbgstr = format!("{}({}, {})", Self::name, player_str, changed_str);
                 dispatcher_debug_log(slf.py(), &dbgstr);
@@ -54,36 +58,42 @@ impl UserinfoDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(slf.py());
+                                return Ok(PyBool::new(slf.py(), true).to_owned().into_any());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(slf.py());
+                                return_value =
+                                    PyBool::new(slf.py(), false).to_owned().into_any().unbind();
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(slf.py());
+                                return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
                             }
 
                             let Ok(changed_value) = res.extract::<Bound<'_, PyDict>>(slf.py())
                             else {
-                                log_unexpected_return_value(slf.py(), Self::name, &res, handler);
+                                log_unexpected_return_value(
+                                    slf.py(),
+                                    Self::name,
+                                    res.bind(slf.py()).to_owned(),
+                                    handler.bind(slf.py()).to_owned(),
+                                );
                                 continue;
                             };
-                            forwarded_userinfo = changed_value.clone().into_py_dict_bound(slf.py());
-                            return_value = changed_value.into_py(slf.py());
+                            forwarded_userinfo = changed_value.clone().into_py_dict(slf.py())?;
+                            return_value = changed_value.into_any().unbind();
                         }
                     }
                 }
             }
         }
 
-        return_value
+        Ok(return_value.bind(slf.py()).to_owned())
     }
 }
 
@@ -116,7 +126,9 @@ mod userinfo_dispatcher_tests {
                 intern!(py, "dispatch"),
                 (
                     default_test_player(),
-                    [("asdf", "qwertz")].into_py_dict_bound(py),
+                    [("asdf", "qwertz")]
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                 ),
             );
             assert!(result.is_ok_and(|value| value
@@ -146,14 +158,14 @@ mod userinfo_dispatcher_tests {
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -176,7 +188,9 @@ def throws_exception_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -207,14 +221,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -237,7 +251,9 @@ def returns_none_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -268,16 +284,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -300,7 +316,9 @@ def returns_none_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -331,16 +349,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -363,7 +381,9 @@ def returns_stop_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -394,16 +414,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -426,7 +446,9 @@ def returns_stop_event_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -457,16 +479,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -489,7 +511,9 @@ def returns_stop_all_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -520,14 +544,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -550,7 +574,9 @@ def returns_string_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.is_ok_and(|value| value
@@ -581,14 +607,14 @@ def returns_string_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, UserinfoDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return {"qwertz": "asdf"}
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -611,7 +637,9 @@ def returns_string_hook(*args, **kwargs):
                         intern!(py, "dispatch"),
                         (
                             default_test_player(),
-                            [("asdf", "qwertz")].into_py_dict_bound(py),
+                            [("asdf", "qwertz")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"),
                         ),
                     );
                     assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
@@ -619,7 +647,9 @@ def returns_string_hook(*args, **kwargs):
                         .bind(py)
                         .extract::<Bound<'_, PyDict>>()
                         .is_ok_and(|dict_value| dict_value
-                            .eq([("qwertz", "asdf")].into_py_dict_bound(py))
+                            .eq([("qwertz", "asdf")]
+                                .into_py_dict(py)
+                                .expect("this should not happen"))
                             .expect("this should not happen"))));
                 });
             });

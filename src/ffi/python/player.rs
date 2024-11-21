@@ -13,7 +13,7 @@ use pyo3::{
         PyAttributeError, PyEnvironmentError, PyException, PyKeyError, PyNotImplementedError,
         PyValueError,
     },
-    types::{IntoPyDict, PyDict, PyNotImplemented, PyType},
+    types::{IntoPyDict, PyBool, PyDict, PyNotImplemented, PyType},
     BoundObject, IntoPyObject,
 };
 
@@ -164,24 +164,20 @@ impl Player {
         match op {
             CompareOp::Eq => {
                 if let Ok(other_player) = other.extract::<Self>() {
-                    Ok((self.steam_id == other_player.steam_id)
-                        .into_pyobject(py)?
-                        .into_any())
+                    Ok(PyBool::new(py, self.steam_id == other_player.steam_id).into_any())
                 } else if let Ok(steam_id) = other.extract::<i64>() {
-                    Ok((self.steam_id == steam_id).into_pyobject(py)?.into_any())
+                    Ok(PyBool::new(py, self.steam_id == steam_id).into_any())
                 } else {
-                    Ok(false.into_pyobject(py)?.into_any())
+                    Ok(PyBool::new(py, false).into_any())
                 }
             }
             CompareOp::Ne => {
                 if let Ok(other_player) = other.extract::<Self>() {
-                    Ok((self.steam_id != other_player.steam_id)
-                        .into_pyobject(py)?
-                        .into_any())
+                    Ok(PyBool::new(py, self.steam_id != other_player.steam_id).into_any())
                 } else if let Ok(steam_id) = other.extract::<i64>() {
-                    Ok((self.steam_id != steam_id).into_pyobject(py)?.into_any())
+                    Ok(PyBool::new(py, self.steam_id != steam_id).into_any())
                 } else {
-                    Ok(true.into_pyobject(py)?.into_any())
+                    Ok(PyBool::new(py, true).into_any())
                 }
             }
             _ => Ok(PyNotImplemented::get(py).into_any()),
@@ -704,7 +700,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_position(py, self.id, Vector3(x, y, z))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
+                    .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -742,7 +738,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_velocity(py, self.id, Vector3(x, y, z))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
+                    .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -834,7 +830,7 @@ impl Player {
                         g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                     ),
                 )
-                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
+                .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -865,7 +861,7 @@ impl Player {
         };
 
         pyshinqlx_set_weapon(py, self.id, converted_weapon as i32)
-            .and_then(|value| Ok(value.into_pyobject(py)?.into_any().into_bound()))
+            .map(|value| PyBool::new(py, value).into_any().to_owned())
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
@@ -955,7 +951,7 @@ impl Player {
                         g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                     ),
                 )
-                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
+                .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -1005,7 +1001,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_powerups(py, self.id, Powerups(quad, bs, haste, invis, regen, invul))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
+                    .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -1086,7 +1082,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_flight(py, self.id, Flight(fuel, max_fuel, thrust, refuel))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
+                    .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -1374,7 +1370,7 @@ mod pyshinqlx_player_tests {
 
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
-        types::IntoPyDict,
+        types::{IntoPyDict, PyBool, PyString},
         IntoPyObject,
     };
 
@@ -1668,21 +1664,10 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
                 None,
                 Some(
                     &[
-                        (
-                            "player_info",
-                            player_info
-                                .into_pyobject(py)
-                                .expect("this should not happen"),
-                        ),
-                        (
-                            "player_info2",
-                            player_info2
-                                .into_pyobject(py)
-                                .expect("this should not happen"),
-                        ),
+                        ("player_info", player_info.into_pyobject(py)?),
+                        ("player_info2", player_info2.into_pyobject(py)?),
                     ]
-                    .into_py_dict(py)
-                    .expect("this should not happen"),
+                    .into_py_dict(py)?,
                 ),
             )
         });
@@ -1706,16 +1691,7 @@ assert((shinqlx.Player(42, player_info) == 1234567891) == False)
 assert((shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
-                Some(
-                    &[(
-                        "player_info",
-                        player_info
-                            .into_pyobject(py)
-                            .expect("this should not happen"),
-                    )]
-                    .into_py_dict(py)
-                    .expect("this should not happen"),
-                ),
+                Some(&[("player_info", player_info.into_pyobject(py)?)].into_py_dict(py)?),
             )
         });
         assert!(result.is_ok());
@@ -1744,21 +1720,10 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
                 None,
                 Some(
                     &[
-                        (
-                            "player_info",
-                            player_info
-                                .into_pyobject(py)
-                                .expect("this should not happen"),
-                        ),
-                        (
-                            "player_info2",
-                            player_info2
-                                .into_pyobject(py)
-                                .expect("this should not happen"),
-                        ),
+                        ("player_info", player_info.into_pyobject(py)?),
+                        ("player_info2", player_info2.into_pyobject(py)?),
                     ]
-                    .into_py_dict(py)
-                    .expect("this should not happen"),
+                    .into_py_dict(py)?,
                 ),
             )
         });
@@ -1782,16 +1747,7 @@ assert(shinqlx.Player(42, player_info) != 1234567891)
 assert(shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
-                Some(
-                    &[(
-                        "player_info",
-                        player_info
-                            .into_pyobject(py)
-                            .expect("this should not happen"),
-                    )]
-                    .into_py_dict(py)
-                    .expect("this hsould not happen"),
-                ),
+                Some(&[("player_info", player_info.into_pyobject(py)?)].into_py_dict(py)?),
             )
         });
         assert!(result.is_ok());
@@ -1939,14 +1895,7 @@ player.update()
 assert(player._valid)
             "#,
                 None,
-                Some(
-                    &[(
-                        "player",
-                        player.into_pyobject(py).expect("this should not happen"),
-                    )]
-                    .into_py_dict(py)
-                    .expect("this should not happen"),
-                ),
+                Some(&[("player", player.into_pyobject(py)?)].into_py_dict(py)?),
             )
         });
         assert!(result.is_ok());
@@ -2760,14 +2709,8 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                player.set_handicap(
-                    py,
-                    "50".into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                )
-            });
+            let result =
+                Python::with_gil(|py| player.set_handicap(py, PyString::new(py, "50").into_any()));
             assert!(result.is_ok());
         });
     }
@@ -2786,13 +2729,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_handicap(
-                py,
-                "asdf"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-            );
+            let result = player.set_handicap(py, PyString::new(py, "asdf").into_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2898,14 +2835,8 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                player.set_autohop(
-                    py,
-                    0i32.into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                )
-            });
+            let result =
+                Python::with_gil(|py| player.set_autohop(py, 0i32.into_pyobject(py)?.into_any()));
             assert!(result.is_ok());
         });
     }
@@ -2924,13 +2855,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_autohop(
-                py,
-                "asdf"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-            );
+            let result = player.set_autohop(py, PyString::new(py, "asdf").into_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3037,12 +2962,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_autoaction(
-                    py,
-                    0i32.into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                )
+                player.set_autoaction(py, 0i32.into_pyobject(py)?.into_any())
             });
             assert!(result.is_ok());
         });
@@ -3062,13 +2982,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_autoaction(
-                py,
-                "asdf"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-            );
+            let result = player.set_autoaction(py, PyString::new(py, "asdf").into_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3175,12 +3089,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_predictitems(
-                    py,
-                    0i32.into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                )
+                player.set_predictitems(py, 0i32.into_pyobject(py)?.into_any())
             });
             assert!(result.is_ok());
         });
@@ -3200,13 +3109,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_predictitems(
-                py,
-                "asdf"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-            );
+            let result = player.set_predictitems(py, PyString::new(py, "asdf").into_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4485,15 +4388,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.weapon(
-                    py,
-                    Some(
-                        weapon_str
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    ),
-                );
+                let result = player.weapon(py, Some(PyString::new(py, weapon_str).into_any()));
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -4511,15 +4406,7 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.weapon(
-                py,
-                Some(
-                    "invalid weapon"
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                ),
-            );
+            let result = player.weapon(py, Some(PyString::new(py, "invalid weapon").into_any()));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5722,14 +5609,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_noclip(
-                    py,
-                    noclip_value
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .to_owned()
-                        .into_any(),
-                )
+                player.set_noclip(py, PyBool::new(py, noclip_value).to_owned().into_any())
             });
 
             assert!(result.is_ok());
@@ -5787,13 +5667,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_noclip(
-                    py,
-                    noclip_value
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                )
+                player.set_noclip(py, noclip_value.into_pyobject(py)?.into_any())
             });
 
             assert!(result.is_ok());
@@ -5851,13 +5725,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_noclip(
-                    py,
-                    noclip_value
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                )
+                player.set_noclip(py, PyString::new(py, noclip_value).into_any())
             });
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
@@ -6921,12 +6789,7 @@ assert(player._valid)
                                     .expect("this should not happen")
                                     .into_any(),
                             ),
-                            (
-                                "delimiter",
-                                "_".into_pyobject(py)
-                                    .expect("this should not happen")
-                                    .into_any(),
-                            ),
+                            ("delimiter", PyString::new(py, "_").into_any()),
                         ]
                         .into_py_dict(py)
                         .expect("this should not happen"),

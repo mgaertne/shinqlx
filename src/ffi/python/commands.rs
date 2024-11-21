@@ -36,36 +36,36 @@ impl Command {
     #[new]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn py_new(
-        py: Python<'_>,
-        plugin: PyObject,
-        name: PyObject,
-        handler: PyObject,
+        _py: Python<'_>,
+        plugin: Bound<'_, PyAny>,
+        name: Bound<'_, PyAny>,
+        handler: Bound<'_, PyAny>,
         permission: i32,
-        channels: PyObject,
-        exclude_channels: PyObject,
+        channels: Bound<'_, PyAny>,
+        exclude_channels: Bound<'_, PyAny>,
         client_cmd_pass: bool,
         client_cmd_perm: i32,
         prefix: bool,
         usage: &str,
     ) -> PyResult<Self> {
-        if !handler.bind(py).is_callable() {
+        if !handler.is_callable() {
             return Err(PyValueError::new_err(
                 "'handler' must be a callable function.",
             ));
         }
-        if !channels.is_none(py) && channels.getattr(py, "__iter__").is_err() {
+        if !channels.is_none() && channels.getattr("__iter__").is_err() {
             return Err(PyValueError::new_err(
                 "'channels' must be a finite iterable or None.",
             ));
         }
-        if !exclude_channels.is_none(py) && exclude_channels.getattr(py, "__iter__").is_err() {
+        if !exclude_channels.is_none() && exclude_channels.getattr("__iter__").is_err() {
             return Err(PyValueError::new_err(
                 "'exclude_channels' must be a finite iterable or None.",
             ));
         }
 
         let mut names = vec![];
-        name.extract::<Bound<'_, PyList>>(py)
+        name.extract::<Bound<'_, PyList>>()
             .ok()
             .iter()
             .for_each(|py_list| {
@@ -77,7 +77,7 @@ impl Command {
                         .for_each(|alias| names.push(alias.to_lowercase()));
                 })
             });
-        name.extract::<Bound<'_, PyTuple>>(py)
+        name.extract::<Bound<'_, PyTuple>>()
             .ok()
             .iter()
             .for_each(|py_tuple| {
@@ -89,40 +89,37 @@ impl Command {
                         .for_each(|alias| names.push(alias.to_lowercase()));
                 })
             });
-        name.extract::<String>(py)
-            .ok()
-            .iter()
-            .for_each(|py_string| {
-                names.push(py_string.clone());
-            });
+        name.extract::<String>().ok().iter().for_each(|py_string| {
+            names.push(py_string.clone());
+        });
 
-        let channels_vec = if channels.is_none(py) {
+        let channels_vec = if channels.is_none() {
             vec![]
         } else {
             let mut collected = vec![];
-            if let Ok(mut iter) = channels.bind(py).try_iter() {
+            if let Ok(mut iter) = channels.try_iter() {
                 while let Some(Ok(value)) = iter.next() {
-                    collected.push(value.into_py(py));
+                    collected.push(value.unbind());
                 }
             }
             collected
         };
-        let exclude_channels_vec = if exclude_channels.is_none(py) {
+        let exclude_channels_vec = if exclude_channels.is_none() {
             vec![]
         } else {
             let mut collected = vec![];
-            if let Ok(mut iter) = exclude_channels.bind(py).try_iter() {
+            if let Ok(mut iter) = exclude_channels.try_iter() {
                 while let Some(Ok(value)) = iter.next() {
-                    collected.push(value.into_py(py));
+                    collected.push(value.unbind());
                 }
             }
             collected
         };
 
         Ok(Self {
-            plugin,
+            plugin: plugin.unbind(),
             name: names,
-            handler,
+            handler: handler.unbind(),
             permission,
             channels: channels_vec,
             exclude_channels: exclude_channels_vec,
@@ -150,45 +147,46 @@ impl Command {
         Ok(())
     }
 
-    fn execute(
+    fn execute<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         player: Player,
         msg: &str,
-        channel: PyObject,
-    ) -> PyResult<PyObject> {
+        channel: Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let Some(command_name) = self.name.first() else {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
 
         let plugin = self.plugin.clone_ref(py);
         let plugin_name = plugin.getattr(py, intern!(py, "name"))?;
-        pyshinqlx_get_logger(py, Some(plugin)).and_then(|logger| {
-            let debug_level = py
-                .import(intern!(py, "logging"))
-                .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
-            logger
-                .call_method(
-                    intern!(py, "makeRecord"),
-                    (
-                        intern!(py, "shinqlx"),
-                        debug_level,
-                        intern!(py, ""),
-                        -1,
-                        intern!(py, "%s executed: %s @ %s -> %s"),
-                        (player.steam_id, command_name, plugin_name, &channel),
-                        py.None(),
-                    ),
-                    Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict(py)?),
-                )
-                .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-        })?;
+        pyshinqlx_get_logger(py, Some(plugin_name.clone_ref(py).into_bound(py))).and_then(
+            |logger| {
+                let debug_level = py
+                    .import(intern!(py, "logging"))
+                    .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
+                logger
+                    .call_method(
+                        intern!(py, "makeRecord"),
+                        (
+                            intern!(py, "shinqlx"),
+                            debug_level,
+                            intern!(py, ""),
+                            -1,
+                            intern!(py, "%s executed: %s @ %s -> %s"),
+                            (player.steam_id, command_name, plugin_name, &channel),
+                            py.None(),
+                        ),
+                        Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict(py)?),
+                    )
+                    .and_then(|log_record| {
+                        logger.call_method1(intern!(py, "handle"), (log_record,))
+                    })
+            },
+        )?;
 
         let msg_vec: Vec<&str> = msg.split(' ').collect();
-        self.handler
-            .bind(py)
-            .call1((player, msg_vec, &channel))
-            .map(|return_value| return_value.unbind())
+        self.handler.bind(py).call1((player, msg_vec, &channel))
     }
 
     fn is_eligible_name(&self, py: Python<'_>, name: &str) -> bool {
@@ -210,11 +208,11 @@ impl Command {
     /// Check if a chat channel is one this command should execute in.
     ///
     /// Exclude takes precedence.
-    fn is_eligible_channel(&self, py: Python<'_>, channel: PyObject) -> bool {
+    fn is_eligible_channel(&self, py: Python<'_>, channel: Bound<'_, PyAny>) -> bool {
         if self.exclude_channels.iter().any(|exclude_channel| {
             exclude_channel
                 .bind(py)
-                .eq(channel.bind(py))
+                .eq(channel.clone())
                 .unwrap_or(false)
         }) {
             return false;
@@ -224,7 +222,7 @@ impl Command {
             || self.channels.iter().any(|allowed_channel| {
                 allowed_channel
                     .bind(py)
-                    .eq(channel.bind(py))
+                    .eq(channel.clone())
                     .unwrap_or(false)
             })
     }
@@ -296,7 +294,7 @@ mod command_tests {
     use pyo3::prelude::*;
     use pyo3::{
         exceptions::{PyKeyError, PyValueError},
-        types::{PyList, PyTuple},
+        types::{PyBool, PyList, PyString, PyTuple},
     };
 
     fn test_plugin_with_permission_db(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
@@ -323,12 +321,12 @@ class mocked_db:
         Python::with_gil(|py| {
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                py.None(),
-                true.into_py(py),
+                test_plugin(py),
+                py.None().bind(py).to_owned(),
+                PyBool::new(py, true).to_owned().into_any(),
                 0,
-                py.None(),
-                py.None(),
+                py.None().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -349,15 +347,14 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                py.None(),
+                test_plugin(py),
+                py.None().bind(py).to_owned(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                chat_channel.into_any(),
-                py.None(),
+                chat_channel.into_any().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -378,15 +375,14 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                py.None(),
+                test_plugin(py),
+                py.None().bind(py).to_owned(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                py.None(),
-                chat_channel.into_any(),
+                py.None().bind(py).to_owned(),
+                chat_channel.into_any().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -411,15 +407,16 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                names_pylist.into_py(py),
+                test_plugin(py),
+                PyTuple::new(py, names_pylist)
+                    .expect("this should not happen")
+                    .into_any(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                py.None(),
-                py.None(),
+                py.None().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -444,15 +441,16 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                names_pylist.into_py(py),
+                test_plugin(py),
+                PyTuple::new(py, names_pylist)
+                    .expect("this should not happen")
+                    .into_any(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                py.None(),
-                py.None(),
+                py.None().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -470,15 +468,14 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                "cmd_name".into_py(py),
+                test_plugin(py),
+                PyString::new(py, "cmd_name").into_any(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                py.None(),
-                py.None(),
+                py.None().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -501,19 +498,22 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                "cmd_name".into_py(py),
+                test_plugin(py),
+                PyString::new(py, "cmd_name").into_any(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                vec![
-                    chat_channel.clone_ref(py).into_py(py),
-                    console_channel.clone_ref(py).into_py(py),
-                ]
-                .into_py(py),
-                py.None(),
+                PyList::new(
+                    py,
+                    [
+                        chat_channel.clone_ref(py).into_any(),
+                        console_channel.clone_ref(py).into_any(),
+                    ],
+                )
+                .expect("this should not happen")
+                .into_any(),
+                py.None().bind(py).to_owned(),
                 true,
                 0,
                 true,
@@ -524,14 +524,16 @@ class mocked_db:
                 .iter()
                 .map(|channel| channel.clone_ref(py))
                 .collect::<Vec<PyObject>>()
-                .into_py(py)
-                .bind(py)
-                .eq(vec![
-                    chat_channel.clone_ref(py).into_py(py),
-                    console_channel.clone_ref(py).into_py(py)
-                ]
-                .into_py(py)
-                .bind(py))
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .eq(PyList::new(
+                    py,
+                    [
+                        chat_channel.clone_ref(py).into_any(),
+                        console_channel.clone_ref(py).into_any()
+                    ]
+                )
+                .expect("this should not happen"))
                 .expect("this should not happen")));
         });
     }
@@ -549,19 +551,22 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                "cmd_name".into_py(py),
+                test_plugin(py),
+                PyString::new(py, "cmd_name").into_any(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                py.None(),
-                vec![
-                    chat_channel.clone_ref(py).into_py(py),
-                    console_channel.clone_ref(py).into_py(py),
-                ]
-                .into_py(py),
+                py.None().bind(py).to_owned(),
+                PyList::new(
+                    py,
+                    [
+                        chat_channel.clone_ref(py).into_any(),
+                        console_channel.clone_ref(py).into_any(),
+                    ],
+                )
+                .expect("This should not happen")
+                .into_any(),
                 true,
                 0,
                 true,
@@ -572,14 +577,16 @@ class mocked_db:
                 .iter()
                 .map(|channel| channel.clone_ref(py))
                 .collect::<Vec<PyObject>>()
-                .into_py(py)
-                .bind(py)
-                .eq(vec![
-                    chat_channel.clone_ref(py).into_py(py),
-                    console_channel.clone_ref(py).into_py(py)
-                ]
-                .into_py(py)
-                .bind(py))
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .eq(PyList::new(
+                    py,
+                    [
+                        chat_channel.clone_ref(py).into_any(),
+                        console_channel.clone_ref(py).into_any()
+                    ]
+                )
+                .expect("this should not happen"))
                 .expect("this should not happen")));
         });
     }
@@ -597,15 +604,18 @@ class mocked_db:
 
             let command = Command::py_new(
                 py,
-                test_plugin(py).unbind(),
-                "cmd_name".into_py(py),
+                test_plugin(py),
+                PyString::new(py, "cmd_name").into_any(),
                 capturing_hook
                     .getattr("hook")
-                    .expect("could not get capturing hook")
-                    .unbind(),
+                    .expect("could not get capturing hook"),
                 0,
-                vec![chat_channel.into_py(py)].into_py(py),
-                vec![console_channel.into_py(py)].into_py(py),
+                PyList::new(py, [chat_channel.into_any()])
+                    .expect("this shold not happen")
+                    .into_any(),
+                PyList::new(py, [console_channel.into_any()])
+                    .expect("this should not happen")
+                    .into_any(),
                 true,
                 0,
                 true,
@@ -640,7 +650,12 @@ class mocked_db:
                 usage: "".to_string(),
             };
 
-            let result = command.execute(py, default_test_player(), "cmd", py.None());
+            let result = command.execute(
+                py,
+                default_test_player(),
+                "cmd",
+                py.None().bind(py).to_owned(),
+            );
             assert!(result.is_ok());
             assert!(capturing_hook
                 .call_method1(
@@ -672,7 +687,12 @@ class mocked_db:
                 usage: "".to_string(),
             };
 
-            let result = command.execute(py, default_test_player(), "cmd", py.None());
+            let result = command.execute(
+                py,
+                default_test_player(),
+                "cmd",
+                py.None().bind(py).to_owned(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         });
     }
@@ -769,7 +789,7 @@ class mocked_db:
 
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
-            assert!(command.is_eligible_channel(py, chat_channel.into_py(py)));
+            assert!(command.is_eligible_channel(py, chat_channel.bind(py).to_owned().into_any()));
         });
     }
 
@@ -797,8 +817,8 @@ class mocked_db:
                     .unbind(),
                 permission: 0,
                 channels: vec![
-                    console_channel.clone_ref(py).into_py(py),
-                    chat_channel.clone_ref(py).into_py(py),
+                    console_channel.clone_ref(py).into_any(),
+                    chat_channel.clone_ref(py).into_any(),
                 ],
                 exclude_channels: vec![],
                 client_cmd_pass: false,
@@ -807,9 +827,10 @@ class mocked_db:
                 usage: "".to_string(),
             };
 
-            assert!(command.is_eligible_channel(py, chat_channel.into_py(py)));
-            assert!(command.is_eligible_channel(py, console_channel.into_py(py)));
-            assert!(!command.is_eligible_channel(py, red_team_chat_channel.into_py(py)));
+            assert!(command.is_eligible_channel(py, chat_channel.bind(py).to_owned().into_any()));
+            assert!(command.is_eligible_channel(py, console_channel.bind(py).to_owned().into_any()));
+            assert!(!command
+                .is_eligible_channel(py, red_team_chat_channel.bind(py).to_owned().into_any()));
         });
     }
 
@@ -845,12 +866,12 @@ class mocked_db:
                     .unbind(),
                 permission: 0,
                 channels: vec![
-                    console_channel.clone_ref(py).into_py(py),
-                    chat_channel.clone_ref(py).into_py(py),
+                    console_channel.clone_ref(py).into_any(),
+                    chat_channel.clone_ref(py).into_any(),
                 ],
                 exclude_channels: vec![
-                    red_team_chat_channel.clone_ref(py).into_py(py),
-                    blue_team_chat_channel.clone_ref(py).into_py(py),
+                    red_team_chat_channel.clone_ref(py).into_any(),
+                    blue_team_chat_channel.clone_ref(py).into_any(),
                 ],
                 client_cmd_pass: false,
                 client_cmd_perm: 0,
@@ -858,10 +879,12 @@ class mocked_db:
                 usage: "".to_string(),
             };
 
-            assert!(command.is_eligible_channel(py, chat_channel.into_py(py)));
-            assert!(command.is_eligible_channel(py, console_channel.into_py(py)));
-            assert!(!command.is_eligible_channel(py, red_team_chat_channel.into_py(py)));
-            assert!(!command.is_eligible_channel(py, blue_team_chat_channel.into_py(py)));
+            assert!(command.is_eligible_channel(py, chat_channel.bind(py).to_owned().into_any()));
+            assert!(command.is_eligible_channel(py, console_channel.bind(py).to_owned().into_any()));
+            assert!(!command
+                .is_eligible_channel(py, red_team_chat_channel.bind(py).to_owned().into_any()));
+            assert!(!command
+                .is_eligible_channel(py, blue_team_chat_channel.bind(py).to_owned().into_any()));
         });
     }
 
@@ -1598,7 +1621,7 @@ def remove_command(cmd):
         py: Python<'_>,
         player: &Player,
         msg: &str,
-        channel: PyObject,
+        channel: Bound<'_, PyAny>,
     ) -> PyResult<bool> {
         let Some(name) = msg
             .split_whitespace()
@@ -1608,7 +1631,6 @@ def remove_command(cmd):
             return Ok(false);
         };
         let Ok(channel_name) = channel
-            .bind(py)
             .str()
             .map(|channel_name_str| channel_name_str.to_string())
         else {
@@ -1642,7 +1664,7 @@ def remove_command(cmd):
                 if !cmd
                     .bind(py)
                     .borrow()
-                    .is_eligible_channel(py, channel.bind(py).into_py(py))
+                    .is_eligible_channel(py, channel.clone())
                 {
                     continue;
                 }
@@ -1692,13 +1714,11 @@ def remove_command(cmd):
                     return Ok(true);
                 }
 
-                let cmd_result = cmd.bind(py).borrow().execute(
-                    py,
-                    player.clone(),
-                    msg,
-                    channel.bind(py).into_py(py),
-                )?;
-                let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>(py);
+                let cmd_result =
+                    cmd.bind(py)
+                        .borrow()
+                        .execute(py, player.clone(), msg, channel.clone())?;
+                let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>();
                 if cmd_result_return_code.as_ref().is_ok_and(|value| {
                     [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL].contains(value)
                 }) {
@@ -1716,7 +1736,7 @@ def remove_command(cmd):
                     if !cmd.bind(py).borrow().usage.is_empty() {
                         let usage_msg =
                             format!("^7Usage: ^6{} {}", name, cmd.bind(py).borrow().usage);
-                        channel.call_method1(py, intern!(py, "reply"), (usage_msg,))?;
+                        channel.call_method1(intern!(py, "reply"), (usage_msg,))?;
                     }
                 } else if !cmd_result_return_code
                     .as_ref()
@@ -1976,7 +1996,12 @@ mod command_invoker_tests {
 
             let command_invoker = CommandInvoker::py_new();
 
-            let result = command_invoker.handle_input(py, &player, " ", chat_channel.into_any());
+            let result = command_invoker.handle_input(
+                py,
+                &player,
+                " ",
+                chat_channel.bind(py).to_owned().into_any(),
+            );
             assert!(result.is_ok_and(|value| !value));
         });
     }
@@ -1994,8 +2019,12 @@ mod command_invoker_tests {
 
             let command_invoker = CommandInvoker::py_new();
 
-            let result =
-                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+            let result = command_invoker.handle_input(
+                py,
+                &player,
+                "cmd_name",
+                chat_channel.bind(py).to_owned().into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -2030,8 +2059,12 @@ mod command_invoker_tests {
                 )
                 .expect("this should not happen");
 
-            let result =
-                command_invoker.handle_input(py, &player, "other_name", chat_channel.into_any());
+            let result = command_invoker.handle_input(
+                py,
+                &player,
+                "other_name",
+                chat_channel.bind(py).to_owned().into_any(),
+            );
             assert!(result.is_ok_and(|pass_through| pass_through));
         });
     }
@@ -2066,8 +2099,12 @@ mod command_invoker_tests {
                 )
                 .expect("this should not happen");
 
-            let result =
-                command_invoker.handle_input(py, &player, "cmd_name", chat_channel.into_any());
+            let result = command_invoker.handle_input(
+                py,
+                &player,
+                "cmd_name",
+                chat_channel.bind(py).to_owned().into_any(),
+            );
             assert!(result.is_ok_and(|pass_through| pass_through));
         });
     }
@@ -2120,7 +2157,7 @@ mod command_invoker_tests {
                         py,
                         &player,
                         "cmd_name",
-                        chat_channel.into_any(),
+                        chat_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(result.is_ok_and(|pass_through| pass_through));
                 });
@@ -2192,7 +2229,7 @@ mod command_invoker_tests {
                         py,
                         &player,
                         "cmd_name",
-                        client_command_channel.into_any(),
+                        client_command_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(
                         result.is_ok_and(|actual_pass_through| actual_pass_through == pass_through)
@@ -2235,7 +2272,6 @@ mod command_invoker_tests {
                         .__getitem__(py, "command")
                         .and_then(|command_dispatcher| {
                             command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2267,7 +2303,7 @@ mod command_invoker_tests {
                         py,
                         &player,
                         "cmd_name",
-                        client_command_channel.into_any(),
+                        client_command_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(result.is_ok_and(|pass_through| pass_through));
                 });
@@ -2351,7 +2387,7 @@ def cmd_handler(*args, **kwargs):
                         py,
                         &player,
                         "cmd_name",
-                        client_command_channel.into_any(),
+                        client_command_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(result.is_ok_and(|pass_through| pass_through == expect_ok_value));
                 });
@@ -2434,7 +2470,7 @@ def cmd_handler(*args, **kwargs):
                         py,
                         &player,
                         "cmd_name",
-                        chat_channel.into_any(),
+                        chat_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(result.is_ok_and(|pass_through| pass_through));
 
@@ -2526,7 +2562,7 @@ def cmd_handler(*args, **kwargs):
                         py,
                         &player,
                         "cmd_name",
-                        chat_channel.into_any(),
+                        chat_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(result.is_ok_and(|pass_through| pass_through));
 
@@ -2602,7 +2638,7 @@ def cmd_handler(*args, **kwargs):
                         py,
                         &player,
                         "cmd_name",
-                        chat_channel.into_any(),
+                        chat_channel.bind(py).to_owned().into_any(),
                     );
                     assert!(result.is_ok_and(|pass_through| pass_through));
                 });

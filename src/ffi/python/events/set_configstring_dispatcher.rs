@@ -1,5 +1,7 @@
 use super::prelude::*;
 
+use pyo3::types::{PyBool, PyString};
+
 /// Event that triggers when the server tries to set a configstring. You can
 /// stop this event and use :func:`shinqlx.set_configstring` to modify it, but a
 /// more elegant way to do it is simply returning the new configstring in
@@ -22,9 +24,13 @@ impl SetConfigstringDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: &Bound<'_, Self>, index: i32, value: &str) -> PyObject {
+    fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
+        index: i32,
+        value: &str,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let mut forwarded_value = value.to_string();
-        let mut return_value = true.into_py(slf.py());
+        let mut return_value = PyBool::new(slf.py(), true).to_owned().into_any().unbind();
 
         let super_class = slf.borrow().into_super();
         let plugins = super_class.plugins.read();
@@ -48,35 +54,41 @@ impl SetConfigstringDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(slf.py());
+                                return Ok(PyBool::new(slf.py(), true).to_owned().into_any());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(slf.py());
+                                return_value =
+                                    PyBool::new(slf.py(), false).to_owned().into_any().unbind();
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(slf.py());
+                                return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
                             }
 
                             let Ok(str_value) = res.extract::<String>(slf.py()) else {
-                                log_unexpected_return_value(slf.py(), Self::name, &res, handler);
+                                log_unexpected_return_value(
+                                    slf.py(),
+                                    Self::name,
+                                    res.bind(slf.py()).to_owned(),
+                                    handler.bind(slf.py()).to_owned(),
+                                );
                                 continue;
                             };
                             forwarded_value.clone_from(&str_value);
-                            return_value = str_value.clone().into_py(slf.py());
+                            return_value = PyString::new(slf.py(), &str_value).into_any().unbind();
                         }
                     }
                 }
             }
         }
 
-        return_value
+        Ok(return_value.bind(slf.py()).to_owned())
     }
 }
 
@@ -132,14 +144,14 @@ mod set_configstring_dispatcher_tests {
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -190,14 +202,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -248,16 +260,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -308,16 +320,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -368,16 +380,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -428,16 +440,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -488,14 +500,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -546,9 +558,9 @@ def returns_string_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 class NonStringObject:
     def __str__(self):
         raise NotImplemented("__str__ not implemented")
@@ -556,8 +568,8 @@ class NonStringObject:
 def returns_string_hook(*args, **kwargs):
     return NonStringObject()
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")

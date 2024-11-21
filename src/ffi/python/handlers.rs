@@ -16,18 +16,19 @@ use crate::{
 
 use pyo3::prelude::*;
 use pyo3::{
-    exceptions::{PyEnvironmentError, PyValueError},
+    exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
-    types::{IntoPyDict, PyBool, PyDict},
-    PyTraverseError, PyVisit,
+    types::{IntoPyDict, PyBool, PyDict, PyString},
+    BoundObject, PyTraverseError, PyVisit,
 };
 
 use alloc::sync::Arc;
 use arc_swap::ArcSwapOption;
+
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use pyo3::exceptions::PyKeyError;
 use regex::{Regex, RegexBuilder};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
@@ -38,11 +39,16 @@ fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
         let shinqlx_console_channel = CONSOLE_CHANNEL
             .load()
             .as_ref()
-            .map_or(py.None(), |channel| channel.bind(py).into_py(py));
+            .map_or(py.None(), |channel| channel.clone_ref(py).into_any());
 
         commands
             .borrow(py)
-            .handle_input(py, &player, cmd, shinqlx_console_channel)
+            .handle_input(
+                py,
+                &player,
+                cmd,
+                shinqlx_console_channel.bind(py).to_owned(),
+            )
             .map(|_| None)
     })
 }
@@ -71,6 +77,8 @@ mod handle_rcon_tests {
     use crate::prelude::*;
 
     use pyo3::prelude::*;
+    use pyo3::types::PyString;
+
     use rstest::*;
 
     #[rstest]
@@ -100,12 +108,12 @@ mod handle_rcon_tests {
                 .expect("could not get handler from test module");
             let command = Command::py_new(
                 py,
-                plugin.unbind(),
-                "asdf".into_py(py),
-                cmd_handler.unbind(),
+                plugin,
+                PyString::new(py, "asdf").into_any(),
+                cmd_handler,
                 0,
-                py.None(),
-                py.None(),
+                py.None().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 false,
                 0,
                 false,
@@ -168,12 +176,12 @@ def raising_exception_hook(*args, **kwargs):
 
             let command = Command::py_new(
                 py,
-                plugin.unbind(),
-                "asdf".into_py(py),
-                cmd_handler.unbind(),
+                plugin,
+                PyString::new(py, "asdf").into_any(),
+                cmd_handler,
                 0,
-                py.None(),
-                py.None(),
+                py.None().bind(py).to_owned(),
+                py.None().bind(py).to_owned(),
                 false,
                 0,
                 false,
@@ -269,7 +277,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|value| !value.is_true())
     {
-        return Ok(false.into_py(py));
+        return Ok(PyBool::new(py, false).into_any().unbind());
     };
 
     let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
@@ -319,9 +327,10 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             .extract::<Bound<'_, PyBool>>()
             .is_ok_and(|value| !value.is_true())
         {
-            return Ok(false.into_py(py));
+            return Ok(PyBool::new(py, false).into_any().unbind());
         }
-        return Ok(format!("say \"{reformatted_msg}\"").into_py(py));
+        let new_command = format!("say \"{reformatted_msg}\"");
+        return Ok(PyString::new(py, &new_command).into_any().unbind());
     }
 
     if let Some(reformatted_msg) = RE_SAY_TEAM.captures(updated_cmd).and_then(|captures| {
@@ -373,9 +382,10 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             .extract::<Bound<'_, PyBool>>()
             .is_ok_and(|value| !value.is_true())
         {
-            return Ok(false.into_py(py));
+            return Ok(PyBool::new(py, false).into_any().unbind());
         }
-        return Ok(format!("say_team \"{reformatted_msg}\"").into_py(py));
+        let new_command = format!("say_team \"{reformatted_msg}\"");
+        return Ok(PyString::new(py, &new_command).into_any().unbind());
     }
     if let Some((vote, args)) = RE_CALLVOTE.captures(updated_cmd).and_then(|captures| {
         captures.name("cmd").map(|vote_cmd| {
@@ -406,9 +416,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         "could not get access to vote started dispatcher",
                     )),
                     |vote_started_dispatcher| {
-                        vote_started_dispatcher
-                            .borrow_mut()
-                            .caller(py, player.clone().into_py(py));
+                        VoteStartedDispatcher::caller(
+                            vote_started_dispatcher.borrow_mut(),
+                            py,
+                            player.clone().into_pyobject(py)?.into_any(),
+                        );
                         Ok(())
                     },
                 )?;
@@ -436,10 +448,10 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())
             {
-                return Ok(false.into_py(py));
+                return Ok(PyBool::new(py, false).into_any().unbind());
             }
         }
-        return Ok(updated_cmd.into_py(py));
+        return Ok(PyString::new(py, updated_cmd).into_any().unbind());
     }
 
     if let Some(arg) = RE_VOTE
@@ -470,10 +482,10 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())
             {
-                return Ok(false.into_py(py));
+                return Ok(PyBool::new(py, false).into_any().unbind());
             }
         }
-        return Ok(updated_cmd.into_py(py));
+        return Ok(PyString::new(py, updated_cmd).into_any().unbind());
     }
 
     if let Some(arg) = RE_TEAM
@@ -484,7 +496,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         if !["f", "r", "b", "s", "a"].contains(&arg.as_str())
             || current_team.starts_with(arg.as_str())
         {
-            return Ok(updated_cmd.into_py(py));
+            return Ok(PyString::new(py, updated_cmd).into_any().unbind());
         }
 
         let target_team = match arg.as_str() {
@@ -518,9 +530,9 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             .extract::<Bound<'_, PyBool>>()
             .is_ok_and(|value| !value.is_true())
         {
-            return Ok(false.into_py(py));
+            return Ok(PyBool::new(py, false).into_any().unbind());
         }
-        return Ok(updated_cmd.into_py(py));
+        return Ok(PyString::new(py, updated_cmd).into_any().unbind());
     }
 
     if let Some(vars) = RE_USERINFO
@@ -565,7 +577,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|value| !value.is_true())
             {
-                return Ok(false.into_py(py));
+                return Ok(PyBool::new(py, false).into_any().unbind());
             }
             if let Ok(changed_values) = result.extract::<Bound<'_, PyDict>>() {
                 let updated_info = new_info.into_py_dict(py)?;
@@ -577,13 +589,14 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                             .map(|(key, value)| format!(r"\{key}\{value}"))
                             .join("");
 
-                        format!(r#"userinfo "{formatted_key_values}""#).into_py(py)
+                        let new_command = format!(r#"userinfo "{formatted_key_values}""#);
+                        PyString::new(py, &new_command).into_any().unbind()
                     });
             }
         }
     }
 
-    Ok(updated_cmd.into_py(py))
+    Ok(PyString::new(py, updated_cmd).into_any().unbind())
 }
 
 /// Client commands are commands such as "say", "say_team", "scores",
@@ -593,7 +606,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyObject {
     try_handle_client_command(py, client_id, cmd).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -696,7 +709,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "client_command")
                         .and_then(|client_command_dispatcher| {
                             client_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -834,7 +846,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "client_command")
                         .and_then(|client_command_dispatcher| {
                             client_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -920,7 +931,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "client_command")
                         .and_then(|client_command_dispatcher| {
                             client_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1017,7 +1027,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "chat")
                         .and_then(|chat_dispatcher| {
                             chat_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1245,7 +1254,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "chat")
                         .and_then(|chat_dispatcher| {
                             chat_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1350,7 +1358,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "chat")
                         .and_then(|chat_dispatcher| {
                             chat_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1604,7 +1611,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "chat")
                         .and_then(|chat_dispatcher| {
                             chat_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1696,7 +1702,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote_called")
                         .and_then(|vote_called_dispatcher| {
                             vote_called_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -1794,7 +1799,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote_called")
                         .and_then(|vote_called_dispatcher| {
                             vote_called_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2015,7 +2019,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote_called")
                         .and_then(|vote_called_dispatcher| {
                             vote_called_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2115,7 +2118,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote")
                         .and_then(|vote_dispatcher| {
                             vote_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2210,7 +2212,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote")
                         .and_then(|vote_dispatcher| {
                             vote_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2313,7 +2314,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote")
                         .and_then(|vote_dispatcher| {
                             vote_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2474,7 +2474,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "vote")
                         .and_then(|vote_dispatcher| {
                             vote_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2573,7 +2572,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
                             team_switch_attempt_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2674,7 +2672,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
                             team_switch_attempt_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2775,7 +2772,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
                             team_switch_attempt_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -2933,7 +2929,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
                             team_switch_attempt_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3022,7 +3017,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "userinfo")
                         .and_then(|userinfo_dispatcher| {
                             userinfo_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3123,7 +3117,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "userinfo")
                         .and_then(|userinfo_dispatcher| {
                             userinfo_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3290,7 +3283,6 @@ mod handle_client_command_tests {
                         .__getitem__(py, "userinfo")
                         .and_then(|userinfo_dispatcher| {
                             userinfo_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3393,7 +3385,6 @@ def returning_other_userinfo_hook(*args, **kwargs):
                         .__getitem__(py, "userinfo")
                         .and_then(|userinfo_dispatcher| {
                             userinfo_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3483,11 +3474,11 @@ static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
 fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
     let Ok(player) = (0..MAX_CLIENTS as i32)
         .find(|&id| id == client_id)
-        .map_or(Ok(py.None()), |id| {
-            Player::py_new(id, None).map(|player| player.into_py(py))
+        .map_or(Ok(py.None().bind(py).to_owned()), |id| {
+            Player::py_new(id, None).and_then(|player| Ok(player.into_pyobject(py)?.into_any()))
         })
     else {
-        return Ok(true.into_py(py));
+        return Ok(PyBool::new(py, true).to_owned().into_any().unbind());
     };
 
     let return_value = EVENT_DISPATCHERS
@@ -3511,14 +3502,14 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|value| !value.is_true())
     {
-        return Ok(false.into_py(py));
+        return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     };
 
     let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
 
-    RE_VOTE_ENDED
-        .captures(updated_cmd)
-        .map_or(Ok(updated_cmd.into_py(py)), |captures| {
+    RE_VOTE_ENDED.captures(updated_cmd).map_or(
+        Ok(PyString::new(py, updated_cmd).into_any().unbind()),
+        |captures| {
             EVENT_DISPATCHERS
                 .load()
                 .as_ref()
@@ -3539,15 +3530,16 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         vote_ended_dispatcher.call_method1(intern!(py, "dispatch"), (vote_passed,))
                     },
                 )?;
-            Ok(updated_cmd.into_py(py))
-        })
+            Ok(PyString::new(py, updated_cmd).into_any().unbind())
+        },
+    )
 }
 
 #[pyfunction]
 pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyObject {
     try_handle_server_command(py, client_id, cmd).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -3607,7 +3599,6 @@ mod handle_server_command_tests {
                         .__getitem__(py, "server_command")
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3696,7 +3687,6 @@ mod handle_server_command_tests {
                         .__getitem__(py, "server_command")
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3763,7 +3753,6 @@ mod handle_server_command_tests {
                         .__getitem__(py, "server_command")
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3813,7 +3802,6 @@ mod handle_server_command_tests {
                         .__getitem__(py, "server_command")
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3870,7 +3858,6 @@ mod handle_server_command_tests {
                         .__getitem__(py, "vote_ended")
                         .and_then(|vote_ended_dispatcher| {
                             vote_ended_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -3935,7 +3922,6 @@ mod handle_server_command_tests {
                         .__getitem__(py, "vote_ended")
                         .and_then(|vote_ended_dispatcher| {
                             vote_ended_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -4233,7 +4219,6 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                         .__getitem__(py, "frame")
                         .and_then(|frame_dispatcher| {
                             frame_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -4435,7 +4420,6 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
                         .__getitem__(py, "frame")
                         .and_then(|frame_dispatcher| {
                             frame_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -4704,7 +4688,6 @@ mod handle_new_game_tests {
                         .__getitem__(py, "new_game")
                         .and_then(|new_game_dispatcher| {
                             new_game_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -4828,7 +4811,6 @@ mod handle_new_game_tests {
                         .__getitem__(py, "new_game")
                         .and_then(|new_game_dispatcher| {
                             new_game_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -4844,7 +4826,6 @@ mod handle_new_game_tests {
                         .__getitem__(py, "map")
                         .and_then(|map_dispatcher| {
                             map_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -5301,8 +5282,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 "could not get access to set configstring dispatcher",
             )),
             |set_configstring_dispatcher| {
-                set_configstring_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (index.into_py(py), value))
+                set_configstring_dispatcher.call_method1(intern!(py, "dispatch"), (index, value))
             },
         )?;
 
@@ -5310,14 +5290,14 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|result_value| !result_value.is_true())
     {
-        return Ok(false.into_py(py));
+        return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
     let configstring_value = result.extract::<String>().unwrap_or(value.to_string());
     match index {
         CS_VOTE_STRING => {
             if configstring_value.is_empty() {
-                return Ok(configstring_value.into_py(py));
+                return Ok(PyString::new(py, &configstring_value).into_any().unbind());
             }
 
             let (vote, args) = configstring_value
@@ -5361,7 +5341,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             let new_state = opt_new_state.as_deref().unwrap_or("");
 
             if old_state == new_state {
-                return Ok(configstring_value.into_py(py));
+                return Ok(PyString::new(py, &configstring_value).into_any().unbind());
             }
             if (old_state, new_state) == ("PRE_GAME", "COUNT_DOWN") {
                 AD_ROUND_NUMBER.store(1, Ordering::SeqCst);
@@ -5422,12 +5402,12 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                         })
                 })?;
             }
-            Ok(configstring_value.into_py(py))
+            Ok(PyString::new(py, &configstring_value).into_any().unbind())
         }
         CS_ROUND_STATUS => {
             let cvars = parse_variables(&configstring_value);
             if cvars.is_empty() {
-                return Ok(configstring_value.into_py(py));
+                return Ok(PyString::new(py, &configstring_value).into_any().unbind());
             }
 
             let cs_round_number =
@@ -5470,7 +5450,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 AD_ROUND_NUMBER.load(Ordering::SeqCst)
             } else {
                 if cs_round_number == 0 {
-                    return Ok(configstring_value.into_py(py));
+                    return Ok(PyString::new(py, &configstring_value).into_any().unbind());
                 }
                 cs_round_number
             };
@@ -5496,7 +5476,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                     },
                 )
         }
-        _ => Ok(configstring_value.into_py(py)),
+        _ => Ok(PyString::new(py, &configstring_value).into_any().unbind()),
     }
 }
 
@@ -5506,7 +5486,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
 pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyObject {
     try_handle_set_configstring(py, index, value).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -5571,7 +5551,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "set_configstring")
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -5626,7 +5605,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "set_configstring")
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -5693,7 +5671,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "set_configstring")
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -5747,7 +5724,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "vote_started")
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -5804,7 +5780,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "vote_started")
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -5862,7 +5837,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "vote_started")
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6017,7 +5991,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "game_countdown")
                         .and_then(|game_countdown_dispatcher| {
                             game_countdown_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6177,7 +6150,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "round_start")
                         .and_then(|round_start_dispatcher| {
                             round_start_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6236,7 +6208,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "round_start")
                         .and_then(|round_start_dispatcher| {
                             round_start_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6300,7 +6271,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "round_countdown")
                         .and_then(|round_countdown_dispatcher| {
                             round_countdown_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6360,7 +6330,6 @@ mod handle_set_configstring_tests {
                         .__getitem__(py, "round_countdown")
                         .and_then(|round_countdown_dispatcher| {
                             round_countdown_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6701,7 +6670,7 @@ fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> P
 pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool) -> PyObject {
     try_handle_player_connect(py, client_id, is_bot).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -6791,7 +6760,6 @@ mod handle_player_connect_tests {
                         .__getitem__(py, "player_connect")
                         .and_then(|player_connect_dispatcher| {
                             player_connect_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -6931,7 +6899,6 @@ mod handle_player_connect_tests {
                         .__getitem__(py, "player_connect")
                         .and_then(|player_connect_dispatcher| {
                             player_connect_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -7042,7 +7009,7 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<PyObject
 pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> PyObject {
     try_handle_player_loaded(py, client_id).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -7132,7 +7099,6 @@ mod handle_player_loaded_tests {
                         .__getitem__(py, "player_loaded")
                         .and_then(|player_loaded_dispatcher| {
                             player_loaded_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -7291,7 +7257,7 @@ fn try_handle_player_disconnect(
 
                 player_disconnect_dispatcher
                     .call_method1(intern!(py, "dispatch"), (player, reason))
-                    .map(|value| value.into_py(py))
+                    .map(|value| value.unbind())
             },
         )
 }
@@ -7306,7 +7272,7 @@ pub(crate) fn handle_player_disconnect(
 ) -> PyObject {
     try_handle_player_disconnect(py, client_id, reason).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -7396,7 +7362,6 @@ mod handle_player_disconnect_tests {
                         .__getitem__(py, "player_disconnect")
                         .and_then(|player_disconnect_dispatcher| {
                             player_disconnect_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -7551,7 +7516,7 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 
                 player_spawn_dispatcher
                     .call_method1(intern!(py, "dispatch"), (player,))
-                    .map(|value| value.into_py(py))
+                    .map(|value| value.unbind())
             },
         )
 }
@@ -7563,7 +7528,7 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> PyObject {
     try_handle_player_spawn(py, client_id).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -7653,7 +7618,6 @@ mod handle_player_spawn_tests {
                         .__getitem__(py, "player_spawn")
                         .and_then(|player_spawn_dispatcher| {
                             player_spawn_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -7808,7 +7772,7 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 
                 kamikaze_use_dispatcher
                     .call_method1(intern!(py, "dispatch"), (player,))
-                    .map(|value| value.into_py(py))
+                    .map(|value| value.unbind())
             },
         )
 }
@@ -7818,7 +7782,7 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyObject {
     try_handle_kamikaze_use(py, client_id).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -7908,7 +7872,6 @@ mod handle_kamikaze_use_tests {
                         .__getitem__(py, "kamikaze_use")
                         .and_then(|kamikaze_use_dispatcher| {
                             kamikaze_use_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -8068,7 +8031,7 @@ fn try_handle_kamikaze_explode(
     };
     kamikaze_explode_dispatcher
         .call_method1(intern!(py, "dispatch"), (player, is_used_on_demand))
-        .map(|value| value.into_py(py))
+        .map(|value| value.unbind())
 }
 
 /// This will be called whenever kamikaze explodes.
@@ -8080,7 +8043,7 @@ pub(crate) fn handle_kamikaze_explode(
 ) -> PyObject {
     try_handle_kamikaze_explode(py, client_id, is_used_on_demand).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -8170,7 +8133,6 @@ mod handle_kamikaze_explode_tests {
                         .__getitem__(py, "kamikaze_explode")
                         .and_then(|kamikaze_explode_dispatcher| {
                             kamikaze_explode_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -8260,7 +8222,6 @@ mod handle_kamikaze_explode_tests {
                         .__getitem__(py, "kamikaze_explode")
                         .and_then(|kamikaze_explode_dispatcher| {
                             kamikaze_explode_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -8419,18 +8380,27 @@ fn try_handle_damage(
             )),
             |damage_dispatcher| {
                 let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
-                    Player::py_new(target_id, None)?.into_py(py)
+                    Player::py_new(target_id, None)?
+                        .into_pyobject(py)?
+                        .into_any()
                 } else {
-                    target_id.into_py(py)
+                    target_id.into_pyobject(py)?.into_any()
                 };
 
                 let attacker_player = attacker_id.and_then(|attacker_id| {
                     if (0..MAX_CLIENTS as i32).contains(&attacker_id) {
                         Player::py_new(attacker_id, None)
+                            .and_then(|player| {
+                                player
+                                    .into_pyobject(py)
+                                    .map(|py_player| py_player.into_any())
+                            })
                             .ok()
-                            .map(|player| player.into_py(py))
                     } else {
-                        Some(attacker_id.into_py(py))
+                        attacker_id
+                            .into_pyobject(py)
+                            .ok()
+                            .map(|value| value.into_any())
                     }
                 });
 
@@ -8557,7 +8527,6 @@ mod handle_damage_tests {
                         .__getitem__(py, "damage")
                         .and_then(|damage_dispatcher| {
                             damage_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -8655,7 +8624,6 @@ mod handle_damage_tests {
                         .__getitem__(py, "damage")
                         .and_then(|damage_dispatcher| {
                             damage_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -8753,7 +8721,6 @@ mod handle_damage_tests {
                         .__getitem__(py, "damage")
                         .and_then(|damage_dispatcher| {
                             damage_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -8957,7 +8924,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
         .extract::<Bound<'_, PyBool>>()
         .is_ok_and(|value| !value.is_true())
     {
-        return Ok(false.into_py(py));
+        return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
     PRINT_REDIRECTION
@@ -8970,7 +8937,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
         });
 
     let returned = result.extract::<String>().unwrap_or(text.to_string());
-    Ok(returned.into_py(py))
+    Ok(PyString::new(py, &returned).into_any().unbind())
 }
 
 /// Called whenever the server prints something to the console and when rcon is used.
@@ -8982,7 +8949,7 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
 
     try_handle_console_print(py, text).unwrap_or_else(|e| {
         log_exception(py, &e);
-        true.into_py(py)
+        PyBool::new(py, true).to_owned().into_any().unbind()
     })
 }
 
@@ -9043,7 +9010,6 @@ mod handle_console_print_tests {
                         .__getitem__(py, "console_print")
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -9100,7 +9066,6 @@ mod handle_console_print_tests {
                         .__getitem__(py, "console_print")
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -9152,7 +9117,6 @@ mod handle_console_print_tests {
                         .__getitem__(py, "console_print")
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher.call_method1(
-                                py,
                                 "add_hook",
                                 (
                                     "asdf",
@@ -9190,9 +9154,17 @@ mod handle_console_print_tests {
             Python::with_gil(|py| {
                 let console_channel =
                     Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
-                let print_redirector = PrintRedirector::py_new(py, console_channel.into_py(py))
-                    .expect("this should not happen");
-                PRINT_REDIRECTION.store(Some(print_redirector.into_py(py).into()));
+                let print_redirector =
+                    PrintRedirector::py_new(py, console_channel.into_bound(py).into_any())
+                        .expect("this should not happen");
+                PRINT_REDIRECTION.store(Some(
+                    print_redirector
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any()
+                        .unbind()
+                        .into(),
+                ));
 
                 let event_dispatcher = EventDispatcherManager::default();
                 event_dispatcher
@@ -9278,15 +9250,15 @@ pub(crate) struct PrintRedirector {
 #[pymethods]
 impl PrintRedirector {
     #[new]
-    fn py_new(py: Python<'_>, channel: PyObject) -> PyResult<PrintRedirector> {
-        if !channel.bind(py).is_instance_of::<AbstractChannel>() {
+    fn py_new(_py: Python<'_>, channel: Bound<'_, PyAny>) -> PyResult<PrintRedirector> {
+        if !channel.is_instance_of::<AbstractChannel>() {
             return Err(PyValueError::new_err(
                 "The redirection channel must be an instance of shinqlx.AbstractChannel.",
             ));
         }
 
         Ok(PrintRedirector {
-            channel,
+            channel: channel.unbind(),
             print_buffer: parking_lot::RwLock::new(String::with_capacity(MAX_MSG_LENGTH as usize)),
         })
     }
@@ -9296,10 +9268,9 @@ impl PrintRedirector {
     }
 
     #[pyo3(name = "__enter__")]
-    fn context_manager_enter(slf: PyRef<'_, Self>, py: Python<'_>) -> PyObject {
-        let returned = slf.into_py(py);
-        PRINT_REDIRECTION.store(Some(Arc::new(returned.clone_ref(py))));
-        returned
+    fn context_manager_enter<'py>(slf: Bound<'py, Self>, _py: Python<'py>) -> Bound<'py, Self> {
+        PRINT_REDIRECTION.store(Some(Arc::new(slf.clone().into_any().unbind())));
+        slf
     }
 
     #[pyo3(name = "__exit__")]
@@ -9349,7 +9320,7 @@ mod print_redirector_tests {
     #[cfg_attr(miri, ignore)]
     fn constructor_with_wrong_type(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = PrintRedirector::py_new(py, py.None());
+            let result = PrintRedirector::py_new(py, py.None().into_bound(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -9360,7 +9331,7 @@ mod print_redirector_tests {
         Python::with_gil(|py| {
             let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
-            let result = PrintRedirector::py_new(py, channel.into_py(py));
+            let result = PrintRedirector::py_new(py, channel.into_bound(py).into_any());
             assert!(result.is_ok());
         });
     }
@@ -9371,8 +9342,8 @@ mod print_redirector_tests {
         Python::with_gil(|py| {
             let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
-            let print_redirector =
-                PrintRedirector::py_new(py, channel.into_py(py)).expect("this should not happen");
+            let print_redirector = PrintRedirector::py_new(py, channel.into_bound(py).into_any())
+                .expect("this should not happen");
             let _py_command = Py::new(py, print_redirector).expect("this should not happen");
 
             let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
@@ -9430,7 +9401,10 @@ def test_function():
 ///         with shinqlx.redirect_print(channel):
 ///             shinqlx.console_command("echo {}".format(" ".join(msg)))
 #[pyfunction]
-pub(crate) fn redirect_print(py: Python<'_>, channel: PyObject) -> PyResult<PrintRedirector> {
+pub(crate) fn redirect_print(
+    py: Python<'_>,
+    channel: Bound<'_, PyAny>,
+) -> PyResult<PrintRedirector> {
     PrintRedirector::py_new(py, channel)
 }
 
@@ -9450,7 +9424,7 @@ mod redirect_print_tests {
         Python::with_gil(|py| {
             let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
-            let result = redirect_print(py, channel.into_py(py));
+            let result = redirect_print(py, channel.into_bound(py).into_any());
             assert!(result.is_ok());
         });
     }
