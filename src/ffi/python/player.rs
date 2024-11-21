@@ -456,8 +456,8 @@ impl Player {
     }
 
     #[setter(handicap)]
-    fn set_handicap(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
-        let new_handicap = value.bind(py).str()?.to_string();
+    fn set_handicap(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let new_handicap = value.str()?.to_string();
         if new_handicap.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_handicap}'");
             return Err(PyValueError::new_err(error_msg));
@@ -491,8 +491,8 @@ impl Player {
     }
 
     #[setter(autohop)]
-    fn set_autohop(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
-        let new_autohop = value.bind(py).str()?.to_string();
+    fn set_autohop(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let new_autohop = value.str()?.to_string();
         if new_autohop.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_autohop}'");
             return Err(PyValueError::new_err(error_msg));
@@ -526,8 +526,8 @@ impl Player {
     }
 
     #[setter(autoaction)]
-    fn set_autoaction(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
-        let new_autoaction = value.bind(py).str()?.to_string();
+    fn set_autoaction(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let new_autoaction = value.str()?.to_string();
         if new_autoaction.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_autoaction}'");
             return Err(PyValueError::new_err(error_msg));
@@ -561,8 +561,8 @@ impl Player {
     }
 
     #[setter(predictitems)]
-    fn set_predictitems(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
-        let new_predictitems = value.bind(py).str()?.to_string();
+    fn set_predictitems(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let new_predictitems = value.str()?.to_string();
         if new_predictitems.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_predictitems}'");
             return Err(PyValueError::new_err(error_msg));
@@ -672,12 +672,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
-    fn position(
+    fn position<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         reset: bool,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let pos = if reset {
             Vector3(0, 0, 0)
         } else {
@@ -688,7 +688,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(pos.into_pyobject(py)?.into_any().unbind()),
+            None => Ok(pos.into_pyobject(py)?.into_any()),
             Some(py_kwargs) => {
                 let x = match py_kwargs.get_item("x")? {
                     None => pos.0,
@@ -704,18 +704,18 @@ impl Player {
                 };
 
                 pyshinqlx_set_position(py, self.id, Vector3(x, y, z))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
             }
         }
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
-    fn velocity(
+    fn velocity<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         reset: bool,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let vel = if reset {
             Vector3(0, 0, 0)
         } else {
@@ -726,7 +726,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(vel.into_pyobject(py)?.into_any().unbind()),
+            None => Ok(vel.into_pyobject(py)?.into_any()),
             Some(py_kwargs) => {
                 let x = match py_kwargs.get_item("x")? {
                     None => vel.0,
@@ -742,18 +742,18 @@ impl Player {
                 };
 
                 pyshinqlx_set_velocity(py, self.id, Vector3(x, y, z))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
             }
         }
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
-    fn weapons(
+    fn weapons<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         reset: bool,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
@@ -764,7 +764,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(weaps.into_pyobject(py)?.into_any().unbind()),
+            None => Ok(weaps.into_pyobject(py)?.into_any()),
             Some(py_kwargs) => {
                 let g = match py_kwargs.get_item("g")? {
                     None => weaps.0,
@@ -834,25 +834,29 @@ impl Player {
                         g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                     ),
                 )
-                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
+                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
             }
         }
     }
 
     #[pyo3(signature = (new_weapon = None), text_signature = "(new_weapon = None)")]
-    fn weapon(&self, py: Python<'_>, new_weapon: Option<PyObject>) -> PyResult<PyObject> {
+    fn weapon<'py>(
+        &self,
+        py: Python<'py>,
+        new_weapon: Option<Bound<'py, PyAny>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let Some(weapon) = new_weapon else {
             let weapon = match pyshinqlx_player_state(py, self.id)? {
                 None => weapon_t::WP_HANDS as i32,
                 Some(state) => state.weapon,
             };
 
-            return Ok(weapon.into_pyobject(py)?.into_any().unbind());
+            return Ok(weapon.into_pyobject(py)?.into_any());
         };
 
-        let Ok(converted_weapon) = (match weapon.extract::<i32>(py) {
+        let Ok(converted_weapon) = (match weapon.extract::<i32>() {
             Ok(value) => weapon_t::try_from(value),
-            Err(_) => match weapon.extract::<String>(py) {
+            Err(_) => match weapon.extract::<String>() {
                 Ok(value) => weapon_t::try_from(value.as_str()),
                 Err(_) => Err("invalid weapon".to_string()),
             },
@@ -861,16 +865,16 @@ impl Player {
         };
 
         pyshinqlx_set_weapon(py, self.id, converted_weapon as i32)
-            .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
+            .and_then(|value| Ok(value.into_pyobject(py)?.into_any().into_bound()))
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
-    fn ammo(
+    fn ammo<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         reset: bool,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
@@ -881,7 +885,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(ammos.into_pyobject(py)?.into_any().unbind()),
+            None => Ok(ammos.into_pyobject(py)?.into_any()),
             Some(py_kwargs) => {
                 let g = match py_kwargs.get_item("g")? {
                     None => ammos.0,
@@ -951,18 +955,18 @@ impl Player {
                         g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                     ),
                 )
-                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
+                .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
             }
         }
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
-    fn powerups(
+    fn powerups<'py>(
         &self,
-        py: Python<'_>,
+        py: Python<'py>,
         reset: bool,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
         } else {
@@ -973,7 +977,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(powerups.into_pyobject(py)?.into_any().unbind()),
+            None => Ok(powerups.into_pyobject(py)?.into_any()),
             Some(py_kwargs) => {
                 let quad = match py_kwargs.get_item("quad")? {
                     None => powerups.0,
@@ -1001,7 +1005,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_powerups(py, self.id, Powerups(quad, bs, haste, invis, regen, invul))
-                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().unbind()))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
             }
         }
     }
@@ -1033,12 +1037,12 @@ impl Player {
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
-    fn flight(
+    fn flight<'py>(
         &mut self,
-        py: Python<'_>,
+        py: Python<'py>,
         reset: bool,
-        kwargs: Option<&Bound<'_, PyDict>>,
-    ) -> PyResult<PyObject> {
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let opt_state = pyshinqlx_player_state(py, self.id)?;
         let init_flight = if !opt_state.as_ref().is_some_and(|state| {
             state
@@ -1062,7 +1066,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(flight.into_py(py)),
+            None => Ok(flight.into_pyobject(py)?.into_any()),
             Some(py_kwargs) => {
                 let fuel = match py_kwargs.get_item("fuel")? {
                     None => flight.0,
@@ -1082,7 +1086,7 @@ impl Player {
                 };
 
                 pyshinqlx_set_flight(py, self.id, Flight(fuel, max_fuel, thrust, refuel))
-                    .map(|value| value.into_py(py))
+                    .and_then(|value| Ok(value.into_pyobject(py)?.into_any().to_owned()))
             }
         }
     }
@@ -1094,14 +1098,14 @@ impl Player {
     }
 
     #[setter(noclip)]
-    fn set_noclip(&mut self, py: Python<'_>, value: PyObject) -> PyResult<()> {
-        let noclip_value = match value.extract::<bool>(py) {
+    fn set_noclip(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let noclip_value = match value.extract::<bool>() {
             Ok(value) => value,
-            Err(_) => match value.extract::<i128>(py) {
+            Err(_) => match value.extract::<i128>() {
                 Ok(value) => value != 0,
-                Err(_) => match value.extract::<String>(py) {
+                Err(_) => match value.extract::<String>() {
                     Ok(value) => !value.is_empty(),
-                    Err(_) => !value.is_none(py),
+                    Err(_) => !value.is_none(),
                 },
             },
         };
@@ -1371,6 +1375,7 @@ mod pyshinqlx_player_tests {
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
         types::IntoPyDict,
+        IntoPyObject,
     };
 
     #[test]
@@ -1663,8 +1668,18 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
                 None,
                 Some(
                     &[
-                        ("player_info", player_info.into_py(py)),
-                        ("player_info2", player_info2.into_py(py)),
+                        (
+                            "player_info",
+                            player_info
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        ),
+                        (
+                            "player_info2",
+                            player_info2
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        ),
                     ]
                     .into_py_dict(py)
                     .expect("this should not happen"),
@@ -1692,9 +1707,14 @@ assert((shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
                 Some(
-                    &[("player_info", player_info.into_py(py))]
-                        .into_py_dict(py)
-                        .expect("this should not happen"),
+                    &[(
+                        "player_info",
+                        player_info
+                            .into_pyobject(py)
+                            .expect("this should not happen"),
+                    )]
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             )
         });
@@ -1724,8 +1744,18 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
                 None,
                 Some(
                     &[
-                        ("player_info", player_info.into_py(py)),
-                        ("player_info2", player_info2.into_py(py)),
+                        (
+                            "player_info",
+                            player_info
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        ),
+                        (
+                            "player_info2",
+                            player_info2
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        ),
                     ]
                     .into_py_dict(py)
                     .expect("this should not happen"),
@@ -1753,9 +1783,14 @@ assert(shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
                 Some(
-                    &[("player_info", player_info.into_py(py))]
-                        .into_py_dict(py)
-                        .expect("this hsould not happen"),
+                    &[(
+                        "player_info",
+                        player_info
+                            .into_pyobject(py)
+                            .expect("this should not happen"),
+                    )]
+                    .into_py_dict(py)
+                    .expect("this hsould not happen"),
                 ),
             )
         });
@@ -1785,8 +1820,18 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                 None,
                 Some(
                     &[
-                        ("player_info", player_info.into_py(py)),
-                        ("player_info2", player_info2.into_py(py)),
+                        (
+                            "player_info",
+                            player_info
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        ),
+                        (
+                            "player_info2",
+                            player_info2
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        ),
                     ]
                     .into_py_dict(py)
                     .expect("this should not happen"),
@@ -1895,9 +1940,12 @@ assert(player._valid)
             "#,
                 None,
                 Some(
-                    &[("player", player.into_py(py))]
-                        .into_py_dict(py)
-                        .expect("this should not happen"),
+                    &[(
+                        "player",
+                        player.into_pyobject(py).expect("this should not happen"),
+                    )]
+                    .into_py_dict(py)
+                    .expect("this should not happen"),
                 ),
             )
         });
@@ -2712,7 +2760,14 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_handicap(py, "50".into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_handicap(
+                    py,
+                    "50".into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                )
+            });
             assert!(result.is_ok());
         });
     }
@@ -2731,7 +2786,13 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_handicap(py, "asdf".into_py(py));
+            let result = player.set_handicap(
+                py,
+                "asdf"
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2837,7 +2898,14 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_autohop(py, 0.into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_autohop(
+                    py,
+                    0i32.into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                )
+            });
             assert!(result.is_ok());
         });
     }
@@ -2856,7 +2924,13 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_autohop(py, "asdf".into_py(py));
+            let result = player.set_autohop(
+                py,
+                "asdf"
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2962,7 +3036,14 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_autoaction(py, 0.into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_autoaction(
+                    py,
+                    0i32.into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                )
+            });
             assert!(result.is_ok());
         });
     }
@@ -2981,7 +3062,13 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_autoaction(py, "asdf".into_py(py));
+            let result = player.set_autoaction(
+                py,
+                "asdf"
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3087,7 +3174,14 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_predictitems(py, 0.into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_predictitems(
+                    py,
+                    0i32.into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                )
+            });
             assert!(result.is_ok());
         });
     }
@@ -3106,7 +3200,13 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_predictitems(py, "asdf".into_py(py));
+            let result = player.set_predictitems(
+                py,
+                "asdf"
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3600,7 +3700,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let result = player.position(py, false, None);
                 assert!(result.is_ok_and(|value| value
-                    .extract::<Vector3>(py)
+                    .extract::<Vector3>()
                     .expect("result was not a Vector3")
                     == Vector3(1, 2, 3)));
             });
@@ -3681,7 +3781,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -3728,7 +3828,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -3765,7 +3865,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     false
                 );
@@ -3814,7 +3914,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let result = player.velocity(py, false, None);
                 assert!(result.is_ok_and(|value| value
-                    .extract::<Vector3>(py)
+                    .extract::<Vector3>()
                     .expect("result was not a Vector3")
                     == Vector3(1, 2, 3)));
             });
@@ -3895,7 +3995,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -3942,7 +4042,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -3979,7 +4079,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     false
                 );
@@ -4028,7 +4128,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let result = player.weapons(py, false, None);
                 assert!(result.is_ok_and(|value| value
-                    .extract::<Weapons>(py)
+                    .extract::<Weapons>()
                     .expect("result was not Weapons")
                     == Weapons(1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)));
             });
@@ -4125,7 +4225,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4184,7 +4284,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4237,7 +4337,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     false
                 );
@@ -4303,7 +4403,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<i32>(py)
+                        .extract::<i32>()
                         .expect("result was not an integer"),
                     weapon as i32
                 )
@@ -4333,7 +4433,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<i32>(py)
+                        .extract::<i32>()
                         .expect("result was not an integer"),
                     weapon_t::WP_HANDS as i32
                 )
@@ -4385,11 +4485,19 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.weapon(py, Some(weapon_str.into_py(py)));
+                let result = player.weapon(
+                    py,
+                    Some(
+                        weapon_str
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    ),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4403,7 +4511,15 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.weapon(py, Some("invalid weapon".into_py(py)));
+            let result = player.weapon(
+                py,
+                Some(
+                    "invalid weapon"
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                ),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4452,11 +4568,19 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.weapon(py, Some(weapon_index.into_py(py)));
+                let result = player.weapon(
+                    py,
+                    Some(
+                        weapon_index
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    ),
+                );
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4470,7 +4594,15 @@ assert(player._valid)
         let player = default_test_player();
 
         Python::with_gil(|py| {
-            let result = player.weapon(py, Some(42.into_py(py)));
+            let result = player.weapon(
+                py,
+                Some(
+                    42i32
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                ),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4516,7 +4648,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let result = player.ammo(py, false, None);
                 assert!(result.is_ok_and(|value| value
-                    .extract::<Weapons>(py)
+                    .extract::<Weapons>()
                     .expect("result was not Weapons")
                     == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)));
             });
@@ -4613,7 +4745,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4672,7 +4804,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4725,7 +4857,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     false
                 );
@@ -4774,7 +4906,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let result = player.powerups(py, false, None);
                 assert!(result.is_ok_and(|value| value
-                    .extract::<Powerups>(py)
+                    .extract::<Powerups>()
                     .expect("result was not a Powerups")
                     == Powerups(1000, 2000, 3000, 4000, 5000, 6000)));
             });
@@ -4862,7 +4994,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4912,7 +5044,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -4956,7 +5088,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     false
                 );
@@ -5237,7 +5369,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let result = player.flight(py, false, None);
                 assert!(result.is_ok_and(|value| value
-                    .extract::<Flight>(py)
+                    .extract::<Flight>()
                     .expect("result was not a Flight")
                     == Flight(1, 2, 3, 4)));
             });
@@ -5317,7 +5449,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -5415,7 +5547,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     true
                 );
@@ -5452,7 +5584,7 @@ assert(player._valid)
                 assert_eq!(
                     result
                         .expect("result was not Ok")
-                        .extract::<bool>(py)
+                        .extract::<bool>()
                         .expect("result was not a bool value"),
                     false
                 );
@@ -5589,9 +5721,18 @@ assert(player._valid)
         let mut player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_noclip(
+                    py,
+                    noclip_value
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                        .to_owned()
+                        .into_any(),
+                )
+            });
 
-            assert!(result.as_ref().is_ok(), "{:?}", result.err());
+            assert!(result.is_ok());
         });
     }
 
@@ -5645,9 +5786,17 @@ assert(player._valid)
         let mut player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_noclip(
+                    py,
+                    noclip_value
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                )
+            });
 
-            assert!(result.as_ref().is_ok(), "{:?}", result.err());
+            assert!(result.is_ok());
         });
     }
 
@@ -5701,7 +5850,15 @@ assert(player._valid)
         let mut player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, noclip_value.into_py(py)));
+            let result = Python::with_gil(|py| {
+                player.set_noclip(
+                    py,
+                    noclip_value
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                        .into_any(),
+                )
+            });
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
         });
@@ -5749,7 +5906,7 @@ assert(player._valid)
         let mut player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, py.None()));
+            let result = Python::with_gil(|py| player.set_noclip(py, py.None().into_bound(py)));
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
         });
@@ -6757,9 +6914,22 @@ assert(player._valid)
                     py,
                     "These_are_four_lines",
                     Some(
-                        &[("limit", 5.into_py(py)), ("delimiter", "_".into_py(py))]
-                            .into_py_dict(py)
-                            .expect("this should not happen"),
+                        &[
+                            (
+                                "limit",
+                                5i32.into_pyobject(py)
+                                    .expect("this should not happen")
+                                    .into_any(),
+                            ),
+                            (
+                                "delimiter",
+                                "_".into_pyobject(py)
+                                    .expect("this should not happen")
+                                    .into_any(),
+                            ),
+                        ]
+                        .into_py_dict(py)
+                        .expect("this should not happen"),
                     ),
                 );
                 assert!(result.is_ok());
@@ -7240,7 +7410,7 @@ impl AbstractDummyPlayer {
     }
 
     #[getter(channel)]
-    fn get_channel(&self) -> PyResult<PyObject> {
+    fn get_channel(&self) -> PyResult<Bound<'_, PyAny>> {
         Err(PyNotImplementedError::new_err(
             "channel property needs to be implemented.",
         ))
