@@ -2,7 +2,7 @@ use super::super::{Player, COMMANDS};
 use super::prelude::*;
 use crate::ffi::python::channels::ClientCommandChannel;
 use pyo3::exceptions::PyEnvironmentError;
-use pyo3::types::PyBool;
+use pyo3::types::{PyBool, PyString};
 
 /// Event that triggers with any client command. This overlaps with
 /// other events, such as "chat".
@@ -24,9 +24,13 @@ impl ClientCommandDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    fn dispatch(slf: &Bound<'_, Self>, player: Player, cmd: &str) -> PyObject {
+    fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
+        player: Player,
+        cmd: &str,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let mut forwarded_cmd = cmd.to_string();
-        let mut return_value = true.into_py(slf.py());
+        let mut return_value = PyBool::new(slf.py(), true).to_owned().into_any().unbind();
 
         let super_class = slf.borrow().into_super();
         let player_str = &player.name;
@@ -34,7 +38,7 @@ impl ClientCommandDispatcher {
         dispatcher_debug_log(slf.py(), &dbgstr);
         let plugins = super_class.plugins.read();
 
-        let py_player = player.clone().into_py(slf.py());
+        let py_player = player.clone().into_pyobject(slf.py())?;
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
@@ -55,28 +59,34 @@ impl ClientCommandDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(slf.py());
+                                return Ok(PyBool::new(slf.py(), true).to_owned().into_any());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(slf.py());
+                                return_value =
+                                    PyBool::new(slf.py(), false).to_owned().into_any().unbind();
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(slf.py());
+                                return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
                             }
 
                             let Ok(str_value) = res.extract::<String>(slf.py()) else {
-                                log_unexpected_return_value(slf.py(), Self::name, &res, handler);
+                                log_unexpected_return_value(
+                                    slf.py(),
+                                    Self::name,
+                                    res.bind(slf.py()).to_owned(),
+                                    handler.bind(slf.py()).to_owned(),
+                                );
                                 continue;
                             };
                             forwarded_cmd.clone_from(&str_value);
-                            return_value = str_value.clone().into_py(slf.py());
+                            return_value = PyString::new(slf.py(), &str_value).into_any().unbind();
                         }
                     }
                 }
@@ -87,7 +97,7 @@ impl ClientCommandDispatcher {
             .extract::<Bound<'_, PyBool>>(slf.py())
             .is_ok_and(|value| !value.is_true())
         {
-            return false.into_py(slf.py());
+            return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
         }
 
         match try_handle_input(slf.py(), &player, cmd) {
@@ -96,12 +106,12 @@ impl ClientCommandDispatcher {
             }
             Ok(handle_input_return) => {
                 if !handle_input_return {
-                    return false.into_py(slf.py());
+                    return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
                 }
             }
         };
 
-        return_value
+        Ok(return_value.bind(slf.py()).to_owned())
     }
 }
 
@@ -112,9 +122,12 @@ fn try_handle_input(py: Python<'_>, player: &Player, cmd: &str) -> PyResult<bool
             "could not get access to COMMANDS",
         )),
         |commands| {
-            commands
-                .borrow(py)
-                .handle_input(py, player, cmd, client_command_channel.into_py(py))
+            commands.borrow(py).handle_input(
+                py,
+                player,
+                cmd,
+                client_command_channel.bind(py).to_owned().into_any(),
+            )
         },
     )
 }
@@ -137,7 +150,7 @@ mod client_command_dispatcher_tests {
 
     use pyo3::intern;
     use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use pyo3::types::{PyBool, PyString};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -181,14 +194,14 @@ mod client_command_dispatcher_tests {
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -240,14 +253,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -299,16 +312,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -360,16 +373,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -421,16 +434,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -482,16 +495,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -543,14 +556,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -602,9 +615,9 @@ def returns_string_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 class NonStringObject:
     def __str__(self):
         raise NotImplemented("__str__ not implemented")
@@ -612,8 +625,8 @@ class NonStringObject:
 def returns_string_hook(*args, **kwargs):
     return NonStringObject()
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -663,16 +676,16 @@ def returns_string_hook(*args, **kwargs):
             .run(|| {
                 Python::with_gil(|py| {
                     let plugin = test_plugin(py);
-                    let cmd_handler = PyModule::from_code_bound(
+                    let cmd_handler = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def handler(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("could not get module from code")
                     .getattr("handler")
@@ -680,12 +693,12 @@ def handler(*args, **kwargs):
                     let command_invoker = CommandInvoker::py_new();
                     let command = Command::py_new(
                         py,
-                        plugin.unbind(),
-                        "asdf".into_py(py),
-                        cmd_handler.unbind(),
+                        plugin,
+                        PyString::new(py, "asdf").into_any(),
+                        cmd_handler,
                         0,
-                        py.None(),
-                        py.None(),
+                        py.None().bind(py).to_owned(),
+                        py.None().bind(py).to_owned(),
                         false,
                         0,
                         false,
@@ -709,14 +722,14 @@ def handler(*args, **kwargs):
                     let dispatcher = Py::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")

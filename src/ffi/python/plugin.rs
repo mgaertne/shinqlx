@@ -22,7 +22,7 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
     intern,
-    types::{PyBool, PyDict, PyList, PySet, PyTuple, PyType},
+    types::{PyBool, PyDict, PyList, PySet, PyString, PyTuple, PyType},
     BoundObject, PyTraverseError,
 };
 
@@ -165,13 +165,7 @@ impl Plugin {
             .and_then(|plugin_name| {
                 pyshinqlx_get_logger(
                     slf.py(),
-                    Some(
-                        plugin_name
-                            .into_pyobject(slf.py())
-                            .expect("this should not happen")
-                            .into_any()
-                            .unbind(),
-                    ),
+                    Some(PyString::new(slf.py(), &plugin_name).into_any()),
                 )
             })
     }
@@ -289,12 +283,12 @@ impl Plugin {
 
         let new_command = Command::py_new(
             slf.py(),
-            slf.as_ref().into_pyobject(slf.py())?.into_any().unbind(),
-            name.unbind(),
-            handler.unbind(),
+            slf.clone().into_any(),
+            name,
+            handler,
             permission,
-            py_channels.unbind(),
-            py_exclude_channels.unbind(),
+            py_channels,
+            py_exclude_channels,
             client_cmd_pass,
             client_cmd_perm,
             prefix,
@@ -430,7 +424,10 @@ impl Plugin {
         let cvar_string = cvar.as_ref().map(|value| value.get_string());
 
         let Some(py_return_type) = return_type else {
-            return Ok(cvar_string.into_pyobject(cls.py())?.into_any());
+            return match cvar_string {
+                None => Ok(cls.py().None().into_bound(cls.py())),
+                Some(value) => Ok(PyString::new(cls.py(), &value).into_any()),
+            };
         };
         let py_return_type_str = py_return_type
             .bind(cls.py())
@@ -441,7 +438,7 @@ impl Plugin {
         match py_return_type_str.as_str() {
             "str" => match cvar_string {
                 None => Ok(cls.py().None().into_bound(cls.py())),
-                Some(value) => Ok(value.into_pyobject(cls.py())?.into_any()),
+                Some(value) => Ok(PyString::new(cls.py(), &value).into_any()),
             },
             "int" => match cvar_string {
                 None => Ok(cls.py().None().into_bound(cls.py())),
@@ -466,22 +463,22 @@ impl Plugin {
                 ),
             },
             "bool" => match cvar_string {
-                None => Ok(false.into_pyobject(cls.py())?.into_any().to_owned()),
+                None => Ok(PyBool::new(cls.py(), false).into_any().to_owned()),
                 Some(value) => value.parse::<i128>().map_or_else(
                     |_| {
                         let error_description =
                             format!("invalid literal for int() with base 10: '{}'", value);
                         Err(PyValueError::new_err(error_description))
                     },
-                    |int| Ok((int != 0).into_pyobject(cls.py())?.into_bound().into_any()),
+                    |int| Ok(PyBool::new(cls.py(), int != 0).into_any().to_owned()),
                 ),
             },
             "list" => match cvar_string {
-                None => Ok(PyList::empty(cls.py()).into_pyobject(cls.py())?.into_any()),
+                None => Ok(PyList::empty(cls.py()).into_any()),
                 Some(value) => {
                     let items: Vec<&str> = value.split(',').collect();
                     let returned = PyList::new(cls.py(), items)?;
-                    Ok(returned.into_pyobject(cls.py())?.into_any())
+                    Ok(PyList::new(cls.py(), returned)?.into_any())
                 }
             },
             "set" => match cvar_string {
@@ -489,16 +486,14 @@ impl Plugin {
                 Some(value) => {
                     let items: Vec<String> =
                         value.split(',').map(|item| item.to_string()).collect();
-                    let returned = PySet::new::<String>(cls.py(), items);
-                    returned.map(|set| set.into_any())
+                    Ok(PySet::new::<String>(cls.py(), items)?.into_any())
                 }
             },
             "tuple" => match cvar_string {
                 None => Ok(PyTuple::empty(cls.py()).into_any()),
                 Some(value) => {
                     let items: Vec<&str> = value.split(',').collect();
-                    let returned = PyTuple::new(cls.py(), items)?;
-                    Ok(returned.into_any())
+                    Ok(PyTuple::new(cls.py(), items)?.into_any())
                 }
             },
             value => {
@@ -663,7 +658,7 @@ impl Plugin {
                 .find(|player| player.steam_id == player_steam_id));
         }
 
-        let Some(client_id) = client_id(cls.py(), name.unbind(), Some(players.clone())) else {
+        let Some(client_id) = client_id(cls.py(), name, Some(players.clone())) else {
             return Ok(None);
         };
         Ok(players.into_iter().find(|player| player.id == client_id))
@@ -821,7 +816,7 @@ impl Plugin {
         name: Bound<'_, PyAny>,
         player_list: Option<Vec<Player>>,
     ) -> Option<i32> {
-        client_id(cls.py(), name.unbind(), player_list)
+        client_id(cls.py(), name, player_list)
     }
 
     /// Find a player based on part of a players name.
@@ -890,8 +885,7 @@ impl Plugin {
         msg: &str,
         recipient: Option<Bound<'_, PyAny>>,
     ) -> PyResult<()> {
-        let client_id =
-            recipient.and_then(|recipient| client_id(cls.py(), recipient.unbind(), None));
+        let client_id = recipient.and_then(|recipient| client_id(cls.py(), recipient, None));
 
         let center_printed_cmd = format!(r#"cp "{msg}""#);
         pyshinqlx_send_server_command(cls.py(), client_id, &center_printed_cmd).map(|_| ())
@@ -906,7 +900,7 @@ impl Plugin {
         recipient: Bound<'_, PyAny>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        let Some(recipient_client_id) = client_id(cls.py(), recipient.unbind(), None) else {
+        let Some(recipient_client_id) = client_id(cls.py(), recipient, None) else {
             return Err(PyValueError::new_err("could not find recipient"));
         };
         let recipient_player = Player::py_new(recipient_client_id, None)?;
@@ -946,9 +940,7 @@ impl Plugin {
             return Err(PyValueError::new_err(error_msg));
         };
 
-        Ok((parsed_yes_votes, parsed_no_votes)
-            .into_pyobject(cls.py())?
-            .into_any())
+        Ok(PyTuple::new(cls.py(), [parsed_yes_votes, parsed_no_votes])?.into_any())
     }
 
     #[classmethod]
@@ -998,7 +990,7 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (player, reason = ""), text_signature = "(player, reason = \"\")")]
     fn kick(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>, reason: &str) -> PyResult<()> {
-        let Some(client_id) = client_id(cls.py(), player.unbind(), None) else {
+        let Some(client_id) = client_id(cls.py(), player, None) else {
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -1104,7 +1096,7 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (player, damage = 0), text_signature = "(player, damage = 0)")]
     fn slap(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>, damage: i32) -> PyResult<()> {
-        client_id(cls.py(), player.unbind(), None).map_or(
+        client_id(cls.py(), player, None).map_or(
             Err(PyValueError::new_err("Invalid player.")),
             |client_id| {
                 cls.py().allow_threads(|| {
@@ -1117,7 +1109,7 @@ impl Plugin {
 
     #[classmethod]
     fn slay(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        client_id(cls.py(), player.unbind(), None).map_or(
+        client_id(cls.py(), player, None).map_or(
             Err(PyValueError::new_err("Invalid player.")),
             |client_id| {
                 cls.py().allow_threads(|| {
@@ -1167,32 +1159,32 @@ impl Plugin {
 
     #[classmethod]
     fn put(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>, team: &str) -> PyResult<()> {
-        put(cls.py(), player.unbind(), team)
+        put(cls.py(), player, team)
     }
 
     #[classmethod]
     fn mute(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        mute(cls.py(), player.unbind())
+        mute(cls.py(), player)
     }
 
     #[classmethod]
     fn unmute(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        unmute(cls.py(), player.unbind())
+        unmute(cls.py(), player)
     }
 
     #[classmethod]
     fn tempban(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        tempban(cls.py(), player.unbind())
+        tempban(cls.py(), player)
     }
 
     #[classmethod]
     fn ban(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        ban(cls.py(), player.unbind())
+        ban(cls.py(), player)
     }
 
     #[classmethod]
     fn unban(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        unban(cls.py(), player.unbind())
+        unban(cls.py(), player)
     }
 
     #[classmethod]
@@ -1202,17 +1194,17 @@ impl Plugin {
 
     #[classmethod]
     fn addadmin(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        addadmin(cls.py(), player.unbind())
+        addadmin(cls.py(), player)
     }
 
     #[classmethod]
     fn addmod(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        addmod(cls.py(), player.unbind())
+        addmod(cls.py(), player)
     }
 
     #[classmethod]
     fn demote(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
-        demote(cls.py(), player.unbind())
+        demote(cls.py(), player)
     }
 
     #[classmethod]
@@ -1222,7 +1214,7 @@ impl Plugin {
 
     #[classmethod]
     fn addscore(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>, score: i32) -> PyResult<()> {
-        addscore(cls.py(), player.unbind(), score)
+        addscore(cls.py(), player, score)
     }
 
     #[classmethod]
@@ -1381,7 +1373,7 @@ mod plugin_tests {
 
             let redis_type = py.get_type::<Redis>();
             py.get_type::<Plugin>()
-                .setattr("database", redis_type.as_ref().into_pyobject(py)?)?;
+                .setattr("database", redis_type.as_ref())?;
 
             let plugin_instance = extended_plugin.call0()?;
             let result = plugin_instance.getattr("db");
@@ -1959,14 +1951,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "slap").into_any(),
+                command_handler,
                 0,
                 None,
                 None,
@@ -2029,14 +2015,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "slap").into_any(),
+                command_handler,
                 0,
                 None,
                 None,
@@ -2092,16 +2072,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .as_ref()
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any()
-                    .into_bound(),
+                PyString::new(py, "slap").into_any(),
+                command_handler.clone(),
                 0,
                 None,
                 None,
@@ -2117,14 +2089,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "slap").into_any(),
+                command_handler,
             );
             assert!(result.is_ok());
             assert!(COMMANDS
@@ -2172,16 +2138,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .as_ref()
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any()
-                    .into_bound(),
+                PyString::new(py, "slap").into_any(),
+                command_handler.clone(),
                 0,
                 None,
                 None,
@@ -2197,16 +2155,10 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                ("slay", "asdf")
-                    .into_pyobject(py)
+                PyTuple::new(py, ["slay", "asdf"])
                     .expect("this should not happen")
                     .into_any(),
-                command_handler
-                    .as_ref()
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any()
-                    .into_bound(),
+                command_handler.clone(),
                 0,
                 None,
                 None,
@@ -2222,14 +2174,10 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                ("slay", "asdf")
-                    .into_pyobject(py)
+                PyTuple::new(py, ["slay", "asdf"])
                     .expect("this should not happen")
                     .into_any(),
-                command_handler
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                command_handler,
             );
             assert!(result.is_ok());
             run_all_frame_tasks(py).expect("could not run all frame tasks");
@@ -2281,16 +2229,10 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                ("slay", "asdf")
-                    .into_pyobject(py)
+                PyTuple::new(py, ["slay", "asdf"])
                     .expect("this should not happen")
                     .into_any(),
-                command_handler
-                    .as_ref()
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any()
-                    .into_bound(),
+                command_handler.clone(),
                 0,
                 None,
                 None,
@@ -2306,14 +2248,10 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                ["slay", "asdf"]
-                    .into_pyobject(py)
+                PyTuple::new(py, ["slay", "asdf"])
                     .expect("this should not happen")
                     .into_any(),
-                command_handler
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                command_handler,
             );
             assert!(result.is_ok());
             run_all_frame_tasks(py).expect("could not run all frame tasks");
@@ -2362,16 +2300,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .as_ref()
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any()
-                    .into_bound(),
+                PyString::new(py, "slap").into_any(),
+                command_handler.clone(),
                 0,
                 None,
                 None,
@@ -2387,14 +2317,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                "slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                command_handler
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "slap").into_any(),
+                command_handler,
             );
             assert!(result.is_ok());
             assert!(plugin_instance
@@ -2976,9 +2900,7 @@ def handler():
             let result = Plugin::set_cvar(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
-                "64".into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "64").into_any(),
                 0,
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -3006,9 +2928,7 @@ def handler():
                     Plugin::set_cvar(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "64").into_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 });
@@ -3036,9 +2956,7 @@ def handler():
                     Plugin::set_cvar(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "64").into_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 });
@@ -3094,17 +3012,9 @@ def handler():
                     Plugin::set_cvar_limit(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        64i32
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        1i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        64i32
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        64i32.into_pyobject(py)?.into_any(),
+                        1i32.into_pyobject(py)?.into_any(),
+                        64i32.into_pyobject(py)?.into_any(),
                         cvar_flags::CVAR_CHEAT as i32,
                     )
                 });
@@ -3120,9 +3030,7 @@ def handler():
             let result = Plugin::set_cvar_once(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
-                "64".into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "64").into_any(),
                 0,
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -3150,10 +3058,7 @@ def handler():
                     Plugin::set_cvar_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        64i32
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        64i32.into_pyobject(py)?.into_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })
@@ -3182,9 +3087,7 @@ def handler():
                     Plugin::set_cvar_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "64").into_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })
@@ -3201,15 +3104,9 @@ def handler():
             let result = Plugin::set_cvar_limit_once(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
-                "64".into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                "1".into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                "64".into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "64").into_any(),
+                PyString::new(py, "1").into_any(),
+                PyString::new(py, "64").into_any(),
                 0,
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -3239,15 +3136,9 @@ def handler():
                     Plugin::set_cvar_limit_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        "1".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "64").into_any(),
+                        PyString::new(py, "1").into_any(),
+                        PyString::new(py, "64").into_any(),
                         cvar_flags::CVAR_CHEAT as i32,
                     )
                 });
@@ -3275,15 +3166,9 @@ def handler():
                     Plugin::set_cvar_limit_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        "1".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        "64".into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "64").into_any(),
+                        PyString::new(py, "1").into_any(),
+                        PyString::new(py, "64").into_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })
@@ -3544,10 +3429,7 @@ def handler():
             };
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
-                "Mocked Player"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "Mocked Player").into_any(),
                 Some(vec![player.clone()]),
             );
             assert!(result
@@ -3562,10 +3444,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
-                "disconnected"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "disconnected").into_any(),
                 Some(vec![default_test_player()]),
             );
             assert!(result.expect("result was not ok").is_none());
@@ -3579,12 +3458,7 @@ def handler():
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
                 "asdf",
-                Some(
-                    "asdf"
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                ),
+                Some(PyString::new(py, "asdf").into_any()),
                 None,
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -3640,12 +3514,7 @@ def handler():
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
                 "asdf qwertz",
-                Some(
-                    "chat"
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                ),
+                Some(PyString::new(py, "chat").into_any()),
                 Some(
                     &[
                         (
@@ -3655,12 +3524,7 @@ def handler():
                                 .expect("this should not happen")
                                 .into_any(),
                         ),
-                        (
-                            "delimiter",
-                            "_".into_pyobject(py)
-                                .expect("this should not happen")
-                                .into_any(),
-                        ),
+                        ("delimiter", PyString::new(py, "_").into_any()),
                     ]
                     .into_py_dict(py)
                     .expect("this should not happen"),
@@ -3737,12 +3601,7 @@ def handler():
                 let result = Plugin::msg(
                     &py.get_type::<Plugin>(),
                     "asdf qwertz",
-                    Some(
-                        "red_team_chat"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    ),
+                    Some(PyString::new(py, "red_team_chat").into_any()),
                     None,
                 );
                 assert!(result.is_ok());
@@ -3817,12 +3676,7 @@ def handler():
                 let result = Plugin::msg(
                     &py.get_type::<Plugin>(),
                     "asdf qwertz",
-                    Some(
-                        "blue_team_chat"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    ),
+                    Some(PyString::new(py, "blue_team_chat").into_any()),
                     None,
                 );
                 assert!(result.is_ok());
@@ -3851,12 +3705,7 @@ def handler():
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
                 "asdf",
-                Some(
-                    "console"
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                ),
+                Some(PyString::new(py, "console").into_any()),
                 None,
             );
             assert!(result.is_ok());
@@ -3924,10 +3773,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::console(
                 &py.get_type::<Plugin>(),
-                "asdf"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "asdf").into_any(),
             );
             assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
         });
@@ -3973,10 +3819,7 @@ def handler():
             };
             let result = Plugin::colored_name(
                 &py.get_type::<Plugin>(),
-                "Mocked Player"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "Mocked Player").into_any(),
                 Some(vec![player]),
             );
             assert_eq!(result.expect("result was none"), "Mocked Player");
@@ -3998,10 +3841,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
                 &py.get_type::<Plugin>(),
-                "Mocked Player"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "Mocked Player").into_any(),
                 Some(vec![player]),
             );
             assert_eq!(result.expect("result was none"), "^1Mocked ^4Player");
@@ -4023,10 +3863,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::colored_name(
                 &py.get_type::<Plugin>(),
-                "disconnected Player"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "disconnected Player").into_any(),
                 Some(vec![player]),
             );
             assert!(result.is_none());
@@ -4143,10 +3980,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
-                "Mocked Player"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "Mocked Player").into_any(),
                 Some(vec![player]),
             );
             assert!(result.is_some_and(|value| value == 21));
@@ -4168,10 +4002,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
-                "UnknownPlayer"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "UnknownPlayer").into_any(),
                 Some(vec![player]),
             );
             assert!(result.is_none());
@@ -4333,35 +4164,10 @@ def handler():
             assert!(result
                 .expect("result was not ok")
                 .eq([
-                    (
-                        "free"
-                            .to_string()
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        PyList::empty(py)
-                    ),
-                    (
-                        "red"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        PyList::empty(py)
-                    ),
-                    (
-                        "blue"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        PyList::empty(py)
-                    ),
-                    (
-                        "spectator"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                        PyList::empty(py)
-                    )
+                    (PyString::new(py, "free").into_any(), PyList::empty(py)),
+                    (PyString::new(py, "red").into_any(), PyList::empty(py)),
+                    (PyString::new(py, "blue").into_any(), PyList::empty(py)),
+                    (PyString::new(py, "spectator").into_any(), PyList::empty(py))
                 ]
                 .into_py_dict(py)
                 .expect("this should not happen"))
@@ -4430,41 +4236,28 @@ def handler():
                 .expect("result was not ok")
                 .eq([
                     (
-                        "free"
-                            .to_string()
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "free").into_any(),
                         vec![player1]
                             .into_pyobject(py)
                             .expect("this should not happen")
                             .into_any()
                     ),
                     (
-                        "red"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "red").into_any(),
                         vec![player2]
                             .into_pyobject(py)
                             .expect("this should not happen")
                             .into_any()
                     ),
                     (
-                        "blue"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "blue").into_any(),
                         vec![player3]
                             .into_pyobject(py)
                             .expect("this should not happen")
                             .into_any()
                     ),
                     (
-                        "spectator"
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        PyString::new(py, "spectator").into_any(),
                         vec![player4]
                             .into_pyobject(py)
                             .expect("this should not happen")
@@ -4520,12 +4313,7 @@ def handler():
                 Plugin::center_print(
                     &py.get_type::<Plugin>(),
                     "asdf",
-                    Some(
-                        player
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    ),
+                    Some(player.into_pyobject(py)?.into_any()),
                 )
             });
             assert!(result.is_ok());
@@ -4805,10 +4593,7 @@ def handler():
         Python::with_gil(|py| {
             let result = Plugin::force_vote(
                 &py.get_type::<Plugin>(),
-                "asdf"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                PyString::new(py, "asdf").into_any(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -4858,10 +4643,7 @@ def handler():
             Python::with_gil(|py| {
                 let result = Plugin::force_vote(
                     &py.get_type::<Plugin>(),
-                    true.into_pyobject(py)
-                        .expect("this should not happen")
-                        .to_owned()
-                        .into_any(),
+                    PyBool::new(py, true).into_any().to_owned(),
                 );
                 assert!(result.is_ok_and(|value| value),);
             });
@@ -4912,11 +4694,7 @@ def handler():
             Python::with_gil(|py| {
                 let result = Plugin::force_vote(
                     &py.get_type::<Plugin>(),
-                    false
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any()
-                        .to_owned(),
+                    PyBool::new(py, false).into_any().to_owned(),
                 );
                 assert!(result.is_ok_and(|value| value),);
             });
@@ -5715,9 +5493,7 @@ def handler():
                 let result = Python::with_gil(|py| {
                     Plugin::put(
                         &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        2i32.into_pyobject(py)?.into_any(),
                         new_team,
                     )
                 });
@@ -5749,12 +5525,7 @@ def handler():
             .with_execute_console_command("mute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::mute(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::mute(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -5784,12 +5555,7 @@ def handler():
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::unmute(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::unmute(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -5819,12 +5585,7 @@ def handler():
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::tempban(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::tempban(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -5854,12 +5615,7 @@ def handler():
             .with_execute_console_command("ban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::ban(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::ban(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -5889,12 +5645,7 @@ def handler():
             .with_execute_console_command("unban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::unban(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::unban(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -5936,12 +5687,7 @@ def handler():
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::addadmin(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::addadmin(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -5971,12 +5717,7 @@ def handler():
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::addmod(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::addmod(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -6006,12 +5747,7 @@ def handler():
             .with_execute_console_command("demote 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Plugin::demote(
-                        &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
-                    )
+                    Plugin::demote(&py.get_type::<Plugin>(), 2i32.into_pyobject(py)?.into_any())
                 });
                 assert!(result.is_ok());
             });
@@ -6056,9 +5792,7 @@ def handler():
                 let result = Python::with_gil(|py| {
                     Plugin::addscore(
                         &py.get_type::<Plugin>(),
-                        2i32.into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                        2i32.into_pyobject(py)?.into_any(),
                         42,
                     )
                 });

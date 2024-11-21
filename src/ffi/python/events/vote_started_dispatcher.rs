@@ -1,5 +1,6 @@
 use super::prelude::*;
-use pyo3::types::PyTuple;
+
+use pyo3::types::{PyString, PyTuple};
 
 /// Event that goes off whenever a vote starts. A vote started with Plugin.callvote()
 /// will have the caller set to None.
@@ -23,22 +24,34 @@ impl VoteStartedDispatcher {
         (Self { player: py.None() }, EventDispatcher::default())
     }
 
-    fn dispatch(slf: &Bound<'_, Self>, vote: &str, args: PyObject) -> PyResult<PyObject> {
-        let player = (&slf.borrow().player).into_py(slf.py());
+    fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
+        vote: &str,
+        args: Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let player = &slf
+            .borrow()
+            .player
+            .clone_ref(slf.py())
+            .into_pyobject(slf.py())?
+            .into_any();
 
-        let pyany_event_dispatcher = slf.borrow().into_super().into_py(slf.py());
-        let event_dispatcher_instance = pyany_event_dispatcher.bind(slf.py()).downcast()?;
+        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
 
-        let args_tuple = PyTuple::new(slf.py(), [player, vote.into_py(slf.py()), args])?;
+        let args_tuple = PyTuple::new(
+            slf.py(),
+            [
+                player.to_owned(),
+                PyString::new(slf.py(), vote).into_any(),
+                args,
+            ],
+        )?;
 
-        Ok(EventDispatcher::dispatch(
-            event_dispatcher_instance,
-            args_tuple,
-        ))
+        Ok(EventDispatcher::dispatch(&event_dispatcher, args_tuple))
     }
 
-    pub(crate) fn caller(&mut self, _py: Python<'_>, player: PyObject) {
-        self.player = player;
+    pub(crate) fn caller(mut slf: PyRefMut<'_, Self>, _py: Python<'_>, player: Bound<'_, PyAny>) {
+        slf.player = player.unbind();
     }
 }
 
@@ -65,10 +78,14 @@ mod vote_started_dispatcher_tests {
         Python::with_gil(|py| {
             let dispatcher =
                 Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-            dispatcher
-                .bind(py)
-                .borrow_mut()
-                .caller(py, default_test_player().into_py(py));
+            VoteStartedDispatcher::caller(
+                dispatcher.bind(py).borrow_mut(),
+                py,
+                default_test_player()
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
 
             let result =
                 dispatcher.call_method1(py, intern!(py, "dispatch"), ("map", "thunderstruck"));
@@ -98,19 +115,23 @@ mod vote_started_dispatcher_tests {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let throws_exception_hook = PyModule::from_code(
+                        py,
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -160,19 +181,23 @@ def throws_exception_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let returns_none_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let returns_none_hook = PyModule::from_code(
+                        py,
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -222,21 +247,25 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let returns_none_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let returns_none_hook = PyModule::from_code(
+                        py,
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -286,21 +315,25 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let returns_stop_hook = PyModule::from_code(
+                        py,
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -350,21 +383,25 @@ def returns_stop_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let returns_stop_event_hook = PyModule::from_code(
+                        py,
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -414,21 +451,25 @@ def returns_stop_event_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let returns_stop_all_hook = PyModule::from_code(
+                        py,
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -478,19 +519,23 @@ def returns_stop_all_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    dispatcher
-                        .bind(py)
-                        .borrow_mut()
-                        .caller(py, default_test_player().into_py(py));
-
-                    let returns_string_hook = PyModule::from_code_bound(
+                    VoteStartedDispatcher::caller(
+                        dispatcher.bind(py).borrow_mut(),
                         py,
-                        r#"
+                        default_test_player()
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
+
+                    let returns_string_hook = PyModule::from_code(
+                        py,
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")

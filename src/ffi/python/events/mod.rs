@@ -81,7 +81,7 @@ pub(crate) use vote_started_dispatcher::VoteStartedDispatcher;
 
 use pyo3::{
     exceptions::{PyAssertionError, PyKeyError, PyValueError},
-    types::{PyDict, PyTuple, PyType},
+    types::{PyBool, PyDict, PyTuple, PyType},
     PyTraverseError, PyVisit,
 };
 
@@ -129,14 +129,14 @@ pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: &str) {
 fn try_log_unexpected_return_value(
     py: Python<'_>,
     event_name: &str,
-    result: &PyObject,
-    handler: &PyObject,
+    result: Bound<'_, PyAny>,
+    handler: Bound<'_, PyAny>,
 ) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let warning_level = py
             .import(intern!(py, "logging"))
             .and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
-        let handler_name = handler.getattr(py, intern!(py, "__name__"))?;
+        let handler_name = handler.getattr(intern!(py, "__name__"))?;
 
         logger
             .call_method(
@@ -164,8 +164,8 @@ fn try_log_unexpected_return_value(
 pub(crate) fn log_unexpected_return_value(
     py: Python<'_>,
     event_name: &str,
-    result: &PyObject,
-    handler: &PyObject,
+    result: Bound<'_, PyAny>,
+    handler: Bound<'_, PyAny>,
 ) {
     if let Err(e) = try_log_unexpected_return_value(py, event_name, result, handler) {
         log_exception(py, &e);
@@ -250,7 +250,7 @@ impl EventDispatcher {
         slf.try_borrow()
             .ok()
             .and_then(|event_dispatcher| {
-                event_dispatcher.plugins.try_read().map(|plugins| {
+                event_dispatcher.plugins.try_read().and_then(|plugins| {
                     plugins
                         .iter()
                         .map(|(plugin_name, hooks)| {
@@ -268,7 +268,8 @@ impl EventDispatcher {
                             )
                         })
                         .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
-                        .into_py_dict_bound(slf.py())
+                        .into_py_dict(slf.py())
+                        .ok()
                 })
             })
             .unwrap_or(PyDict::new(slf.py()))
@@ -290,23 +291,26 @@ impl EventDispatcher {
     ///         being returned. Can be overridden so that events can have their own
     ///         special return values.
     #[pyo3(signature = (*args))]
-    pub(crate) fn dispatch(slf: &Bound<'_, Self>, args: Bound<'_, PyTuple>) -> PyObject {
+    pub(crate) fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
+        args: Bound<'py, PyTuple>,
+    ) -> Bound<'py, PyAny> {
         let Ok(event_dispatcher) = slf.try_borrow() else {
-            return slf.py().None();
+            return slf.py().None().into_bound(slf.py());
         };
         let Ok(dispatcher_name) = slf
             .get_type()
             .getattr(intern!(slf.py(), "name"))
             .and_then(|py_dispatcher_name| py_dispatcher_name.extract::<String>())
         else {
-            return slf.py().None();
+            return slf.py().None().into_bound(slf.py());
         };
         if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
             let dbgstr = format!("{}{}", dispatcher_name, &args);
             dispatcher_debug_log(slf.py(), &dbgstr);
         }
 
-        let mut return_value = true.into_py(slf.py());
+        let mut return_value = PyBool::new(slf.py(), true).to_owned().into_any().unbind();
 
         let plugins = event_dispatcher.plugins.read();
         for i in 0..5 {
@@ -329,25 +333,26 @@ impl EventDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return true.into_py(slf.py());
+                                return PyBool::new(slf.py(), true).to_owned().into_any();
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
-                                return_value = false.into_py(slf.py());
+                                return_value =
+                                    PyBool::new(slf.py(), false).to_owned().into_any().unbind();
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return false.into_py(slf.py());
+                                return PyBool::new(slf.py(), false).to_owned().into_any();
                             }
 
                             match slf.call_method1(
                                 intern!(slf.py(), "handle_return"),
-                                (handler.into_py(slf.py()), res),
+                                (handler.bind(slf.py()), res),
                             ) {
                                 Err(e) => {
                                     log_exception(slf.py(), &e);
@@ -355,7 +360,7 @@ impl EventDispatcher {
                                 }
                                 Ok(return_handler) => {
                                     if !return_handler.is_none() {
-                                        return return_handler.unbind();
+                                        return return_handler;
                                     }
                                 }
                             }
@@ -365,7 +370,7 @@ impl EventDispatcher {
             }
         }
 
-        return_value.clone_ref(slf.py())
+        return_value.bind(slf.py()).to_owned()
     }
 
     /// Handle an unknown return value. If this returns anything but None,
@@ -376,18 +381,18 @@ impl EventDispatcher {
     /// by editing *self.args*. Furthermore, *self.return_value*
     /// is the return value that will be sent to the C-level handler if the
     /// event isn't stopped later along the road.
-    pub(crate) fn handle_return(
-        slf: &Bound<'_, Self>,
-        handler: PyObject,
-        value: PyObject,
-    ) -> PyResult<PyObject> {
+    pub(crate) fn handle_return<'py>(
+        slf: &Bound<'py, Self>,
+        handler: Bound<'py, PyAny>,
+        value: Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
         let dispatcher_name = slf
             .get_type()
             .getattr(intern!(slf.py(), "name"))?
             .extract::<String>()?;
-        log_unexpected_return_value(slf.py(), &dispatcher_name, &value, &handler);
+        log_unexpected_return_value(slf.py(), &dispatcher_name, value, handler);
 
-        Ok(slf.py().None())
+        Ok(slf.py().None().into_bound(slf.py()))
     }
 
     /// Hook the event, making the handler get called with relevant arguments
@@ -396,7 +401,7 @@ impl EventDispatcher {
     pub(crate) fn add_hook(
         slf: &Bound<'_, Self>,
         plugin: &str,
-        handler: PyObject,
+        handler: Bound<'_, PyAny>,
         priority: i32,
     ) -> PyResult<()> {
         if !(0i32..5i32).contains(&priority) {
@@ -461,7 +466,7 @@ def add_hook(event, plugin, handler, priority):
                 else {
                     let mut new_hooks =
                         (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
-                    new_hooks.1[priority as usize].push(handler);
+                    new_hooks.1[priority as usize].push(handler.unbind());
                     plugins.push(new_hooks);
                     return Ok(());
                 };
@@ -471,7 +476,7 @@ def add_hook(event, plugin, handler, priority):
                     .any(|registered_command| {
                         registered_command
                             .bind(slf.py())
-                            .eq(handler.bind(slf.py()))
+                            .eq(&handler)
                             .unwrap_or(false)
                     })
                 {
@@ -480,7 +485,7 @@ def add_hook(event, plugin, handler, priority):
                     ));
                 }
 
-                plugin_hooks.1[priority as usize].push(handler);
+                plugin_hooks.1[priority as usize].push(handler.unbind());
             }
         }
         Ok(())
@@ -491,7 +496,7 @@ def add_hook(event, plugin, handler, priority):
     fn remove_hook(
         slf: &Bound<'_, Self>,
         plugin: &str,
-        handler: PyObject,
+        handler: Bound<'_, PyAny>,
         priority: i32,
     ) -> PyResult<()> {
         let event_dispatcher = slf
@@ -534,21 +539,17 @@ def remove_hook(event, plugin, handler, priority):
                     ));
                 };
 
-                if !plugin_hooks.1[priority as usize].iter().any(|item| {
-                    item.bind(slf.py())
-                        .eq(handler.bind(slf.py()))
-                        .unwrap_or(true)
-                }) {
+                if !plugin_hooks.1[priority as usize]
+                    .iter()
+                    .any(|item| item.bind(slf.py()).eq(&handler).unwrap_or(true))
+                {
                     return Err(PyValueError::new_err(
                         "The event has not been hooked with the handler provided",
                     ));
                 }
 
-                plugin_hooks.1[priority as usize].retain(|item| {
-                    item.bind(slf.py())
-                        .ne(handler.bind(slf.py()))
-                        .unwrap_or(true)
-                });
+                plugin_hooks.1[priority as usize]
+                    .retain(|item| item.bind(slf.py()).ne(&handler).unwrap_or(true));
             }
         }
         Ok(())
@@ -572,9 +573,9 @@ mod event_dispatcher_tests {
     use pyo3::types::{PyBool, PyDict, PyTuple};
 
     fn custom_dispatcher(py: Python<'_>) -> Bound<'_, PyAny> {
-        PyModule::from_code_bound(
+        PyModule::from_code(
             py,
-            r#"
+            cr#"
 import shinqlx
 
 class CustomDispatcher(shinqlx.EventDispatcher):
@@ -584,8 +585,8 @@ class CustomDispatcher(shinqlx.EventDispatcher):
     def __init__(self):
         super().__init__()
         "#,
-            "",
-            "",
+            c"",
+            c"",
         )
         .expect("this should not happen")
         .getattr("CustomDispatcher")
@@ -595,14 +596,14 @@ class CustomDispatcher(shinqlx.EventDispatcher):
     }
 
     fn custom_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        PyModule::from_code_bound(
+        PyModule::from_code(
             py,
-            r#"
+            cr#"
 def custom_hook(*args, **kwargs):
     pass
         "#,
-            "",
-            "",
+            c"",
+            c"",
         )
         .expect("this should not happen")
         .getattr("custom_hook")
@@ -710,7 +711,7 @@ def custom_hook(*args, **kwargs):
         Python::with_gil(|py| {
             let dispatcher = custom_dispatcher(py);
 
-            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+            let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
             assert!(result.is_ok_and(|value| value
                 .extract::<Bound<'_, PyBool>>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
@@ -737,14 +738,14 @@ def custom_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -762,7 +763,7 @@ def throws_exception_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
@@ -790,14 +791,14 @@ def throws_exception_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -815,7 +816,7 @@ def returns_none_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
@@ -843,16 +844,16 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -870,7 +871,7 @@ def returns_none_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
@@ -898,16 +899,16 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -925,7 +926,7 @@ def returns_stop_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
@@ -953,16 +954,16 @@ def returns_stop_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -980,7 +981,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
@@ -1008,16 +1009,16 @@ def returns_stop_event_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -1035,7 +1036,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
@@ -1063,14 +1064,14 @@ def returns_stop_all_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -1088,7 +1089,7 @@ def returns_string_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
@@ -1117,14 +1118,14 @@ def returns_string_hook(*args, **kwargs):
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
-                    let return_handler = PyModule::from_code_bound(
+                    let return_handler = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def handle_return(*args, **kwargs):
     raise ValueError("return_handler default exception")
                 "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("handle_return")
@@ -1133,14 +1134,14 @@ def handle_return(*args, **kwargs):
                         .setattr("handle_return", return_handler)
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -1158,7 +1159,7 @@ def returns_string_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<Bound<'_, PyBool>>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
@@ -1187,14 +1188,14 @@ def returns_string_hook(*args, **kwargs):
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
-                    let return_handler = PyModule::from_code_bound(
+                    let return_handler = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def handle_return(*args, **kwargs):
     return "return_handler string return"
                 "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("handle_return")
@@ -1203,14 +1204,14 @@ def handle_return(*args, **kwargs):
                         .setattr("handle_return", return_handler)
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -1228,7 +1229,7 @@ def returns_string_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result =
-                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty_bound(py));
+                        dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .extract::<String>()
                         .is_ok_and(|str_value| str_value == "return_handler string return")));
@@ -1245,14 +1246,14 @@ def returns_string_hook(*args, **kwargs):
         Python::with_gil(|py| {
             let dispatcher = custom_dispatcher(py);
 
-            let default_hook = PyModule::from_code_bound(
+            let default_hook = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("default_hook")
@@ -1272,9 +1273,9 @@ def default_hook(*args, **kwargs):
     #[serial]
     fn add_hook_for_dispatcher_with_no_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let nameless_dispatcher = PyModule::from_code_bound(
+            let nameless_dispatcher = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 import shinqlx
 
 class NamelessDispatcher(shinqlx.EventDispatcher):
@@ -1283,8 +1284,8 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
     def __init__(self):
         super().__init__()
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("NamelessDispatcher")
@@ -1292,14 +1293,14 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
             .call0()
             .expect("this should not happen");
 
-            let default_hook = PyModule::from_code_bound(
+            let default_hook = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("default_hook")
@@ -1323,9 +1324,9 @@ def default_hook(*args, **kwargs):
     #[serial]
     fn add_hook_for_dispatcher_with_no_zmq_enabled_flag(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let zmq_less_dispatcher = PyModule::from_code_bound(
+            let zmq_less_dispatcher = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 import shinqlx
 
 class ZmqLessDispatcher(shinqlx.EventDispatcher):
@@ -1334,8 +1335,8 @@ class ZmqLessDispatcher(shinqlx.EventDispatcher):
     def __init__(self):
         super().__init__()
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("ZmqLessDispatcher")
@@ -1343,14 +1344,14 @@ class ZmqLessDispatcher(shinqlx.EventDispatcher):
             .call0()
             .expect("this should not happen");
 
-            let default_hook = PyModule::from_code_bound(
+            let default_hook = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("default_hook")
@@ -1387,9 +1388,9 @@ def default_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let zmq_dispatcher = PyModule::from_code_bound(
+                    let zmq_dispatcher = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
@@ -1399,8 +1400,8 @@ class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
     def __init__(self):
         super().__init__()
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("ZmqEnabledDispatcher")
@@ -1408,14 +1409,14 @@ class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
                     .call0()
                     .expect("this should not happen");
 
-                    let default_hook = PyModule::from_code_bound(
+                    let default_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("default_hook")
@@ -1455,14 +1456,14 @@ def default_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let default_hook = PyModule::from_code_bound(
+                    let default_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("default_hook")
@@ -1498,9 +1499,9 @@ def default_hook(*args, **kwargs):
     #[serial]
     fn remove_hook_for_dispatcher_with_no_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let nameless_dispatcher = PyModule::from_code_bound(
+            let nameless_dispatcher = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 import shinqlx
 
 class NamelessDispatcher(shinqlx.EventDispatcher):
@@ -1509,8 +1510,8 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
     def __init__(self):
         super().__init__()
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("NamelessDispatcher")
@@ -1518,14 +1519,14 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
             .call0()
             .expect("this should not happen");
 
-            let default_hook = PyModule::from_code_bound(
+            let default_hook = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("default_hook")
@@ -1551,14 +1552,14 @@ def default_hook(*args, **kwargs):
         Python::with_gil(|py| {
             let dispatcher = custom_dispatcher(py);
 
-            let default_hook = PyModule::from_code_bound(
+            let default_hook = PyModule::from_code(
                 py,
-                r#"
+                cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                "",
-                "",
+                c"",
+                c"",
             )
             .expect("this should not happen")
             .getattr("default_hook")
@@ -1597,14 +1598,14 @@ def default_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let default_hook = PyModule::from_code_bound(
+                    let default_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def default_hook(*args, **kwargs):
     pass
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("default_hook")
@@ -1666,7 +1667,7 @@ impl EventDispatcherManager {
     }
 
     #[getter(_dispatchers)]
-    fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> Bound<'py, PyDict> {
+    fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let dispatchers = self.dispatchers.read();
         dispatchers
             .iter()
@@ -1677,10 +1678,14 @@ impl EventDispatcherManager {
                 )
             })
             .collect::<Vec<(String, &PyObject)>>()
-            .into_py_dict_bound(py)
+            .into_py_dict(py)
     }
 
-    pub(crate) fn __getitem__(&self, py: Python<'_>, key: &str) -> PyResult<PyObject> {
+    pub(crate) fn __getitem__<'py>(
+        &self,
+        py: Python<'py>,
+        key: &str,
+    ) -> PyResult<Bound<'py, PyAny>> {
         self.dispatchers
             .read()
             .iter()
@@ -1690,7 +1695,7 @@ impl EventDispatcherManager {
                     let key_error = format!("'{}'", key);
                     Err(PyKeyError::new_err(key_error))
                 },
-                |(_, dispatcher)| Ok(dispatcher.clone_ref(py)),
+                |(_, dispatcher)| Ok(dispatcher.bind(py).to_owned()),
             )
     }
 
@@ -1732,10 +1737,10 @@ impl EventDispatcherManager {
         Ok(())
     }
 
-    fn remove_dispatcher(&self, py: Python<'_>, dispatcher: PyObject) -> PyResult<()> {
+    fn remove_dispatcher(&self, py: Python<'_>, dispatcher: Bound<'_, PyAny>) -> PyResult<()> {
         let dispatcher_name_str = dispatcher
-            .getattr(py, intern!(py, "name"))
-            .and_then(|dispatcher_name_attr| dispatcher_name_attr.extract::<String>(py))
+            .getattr(intern!(py, "name"))
+            .and_then(|dispatcher_name_attr| dispatcher_name_attr.extract::<String>())
             .map_err(|_| {
                 PyValueError::new_err("Cannot remove an event dispatcher with no name.")
             })?;
@@ -1797,18 +1802,16 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            let result = py
-                .import_bound("gc")
-                .and_then(|gc| gc.call_method0("collect"));
+            let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
             assert!(result.is_ok());
         });
     }
@@ -1820,7 +1823,7 @@ mod event_dispatcher_manager_tests {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
             let result = event_dispatchers.get_dispatchers(py);
-            assert!(result.is_empty());
+            assert!(result.is_ok_and(|dict| dict.is_empty()));
         });
     }
 
@@ -1830,16 +1833,18 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            let result = event_dispatchers.get_dispatchers(py);
+            let result = event_dispatchers
+                .get_dispatchers(py)
+                .expect("this should not happen");
             assert!(result
                 .get_item("game_countdown")
                 .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
@@ -1875,13 +1880,13 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
 
             let result = event_dispatchers.__getitem__(py, "game_start");
-            assert!(result.is_ok_and(|dispatcher| dispatcher
-                .bind(py)
-                .is_instance_of::<GameStartDispatcher>()));
+            assert!(
+                result.is_ok_and(|dispatcher| dispatcher.is_instance_of::<GameStartDispatcher>())
+            );
         });
     }
 
@@ -1891,13 +1896,13 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameStartDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameEndDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
             assert!(event_dispatchers.__contains__(py, "game_countdown"));
@@ -1914,7 +1919,7 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
-            let result = event_dispatchers.add_dispatcher(py, py.get_type_bound::<Plugin>());
+            let result = event_dispatchers.add_dispatcher(py, py.get_type::<Plugin>());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1926,11 +1931,11 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
 
-            let result = event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>());
+            let result =
+                event_dispatchers.add_dispatcher(py, py.get_type::<GameCountdownDispatcher>());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1942,8 +1947,8 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
-            let result = event_dispatchers
-                .remove_dispatcher(py, py.get_type_bound::<Plugin>().into_any().unbind());
+            let result =
+                event_dispatchers.remove_dispatcher(py, py.get_type::<Plugin>().into_any());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1955,15 +1960,11 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type_bound::<GameCountdownDispatcher>())
+                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
 
-            let result = event_dispatchers.remove_dispatcher(
-                py,
-                py.get_type_bound::<GameCountdownDispatcher>()
-                    .into_any()
-                    .unbind(),
-            );
+            let result = event_dispatchers
+                .remove_dispatcher(py, py.get_type::<GameCountdownDispatcher>().into_any());
 
             assert!(result.is_ok());
             assert!(!event_dispatchers.__contains__(py, "game_countdown"));
@@ -1976,12 +1977,8 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
-            let result = event_dispatchers.remove_dispatcher(
-                py,
-                py.get_type_bound::<GameCountdownDispatcher>()
-                    .into_any()
-                    .unbind(),
-            );
+            let result = event_dispatchers
+                .remove_dispatcher(py, py.get_type::<GameCountdownDispatcher>().into_any());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });

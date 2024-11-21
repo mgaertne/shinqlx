@@ -319,11 +319,11 @@ impl Game {
     }
 
     #[setter(instagib)]
-    fn set_instagib(&mut self, py: Python<'_>, value: Py<PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<bool>(py) {
+    fn set_instagib(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let string_cvar_value = match value.extract::<bool>() {
             Ok(true) => "1",
             Ok(false) => "0",
-            Err(_) => match value.extract::<i32>(py) {
+            Err(_) => match value.extract::<i32>() {
                 Ok(1) => "1",
                 Ok(0) => "0",
                 _ => {
@@ -343,11 +343,11 @@ impl Game {
     }
 
     #[setter(loadout)]
-    fn set_loadout(&mut self, py: Python<'_>, value: Py<PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<bool>(py) {
+    fn set_loadout(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let string_cvar_value = match value.extract::<bool>() {
             Ok(true) => "1",
             Ok(false) => "0",
-            Err(_) => match value.extract::<i32>(py) {
+            Err(_) => match value.extract::<i32>() {
                 Ok(1) => "1",
                 Ok(0) => "0",
                 _ => {
@@ -469,10 +469,10 @@ impl Game {
     }
 
     #[setter(tags)]
-    fn set_tags(&mut self, py: Python<'_>, value: Py<PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<String>(py) {
+    fn set_tags(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let string_cvar_value = match value.extract::<String>() {
             Ok(new_tags) => new_tags,
-            Err(_) => match value.extract::<Vec<Py<PyAny>>>(py) {
+            Err(_) => match value.extract::<Vec<Py<PyAny>>>() {
                 Ok(new_tags_list) => new_tags_list
                     .iter()
                     .map(|value| value.to_string())
@@ -506,8 +506,8 @@ impl Game {
     }
 
     #[setter(workshop_items)]
-    fn set_workshop_items(&mut self, py: Python<'_>, value: Py<PyAny>) -> PyResult<()> {
-        let workshop_items_str = match value.extract::<Vec<Py<PyAny>>>(py) {
+    fn set_workshop_items(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+        let workshop_items_str = match value.extract::<Vec<Py<PyAny>>>() {
             Ok(new_workshop_items) => new_workshop_items
                 .iter()
                 .map(|value| value.to_string())
@@ -573,32 +573,32 @@ impl Game {
     }
 
     #[classmethod]
-    fn put(cls: &Bound<'_, PyType>, player: Py<PyAny>, team: &str) -> PyResult<()> {
+    fn put(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>, team: &str) -> PyResult<()> {
         put(cls.py(), player, team)
     }
 
     #[classmethod]
-    fn mute(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn mute(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         mute(cls.py(), player)
     }
 
     #[classmethod]
-    fn unmute(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn unmute(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         unmute(cls.py(), player)
     }
 
     #[classmethod]
-    fn tempban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn tempban(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         tempban(cls.py(), player)
     }
 
     #[classmethod]
-    fn ban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn ban(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         ban(cls.py(), player)
     }
 
     #[classmethod]
-    fn unban(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn unban(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         unban(cls.py(), player)
     }
 
@@ -608,17 +608,17 @@ impl Game {
     }
 
     #[classmethod]
-    fn addadmin(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn addadmin(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         addadmin(cls.py(), player)
     }
 
     #[classmethod]
-    fn addmod(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn addmod(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         addmod(cls.py(), player)
     }
 
     #[classmethod]
-    fn demote(cls: &Bound<'_, PyType>, player: PyObject) -> PyResult<()> {
+    fn demote(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>) -> PyResult<()> {
         demote(cls.py(), player)
     }
 
@@ -628,7 +628,7 @@ impl Game {
     }
 
     #[classmethod]
-    fn addscore(cls: &Bound<'_, PyType>, player: PyObject, score: i32) -> PyResult<()> {
+    fn addscore(cls: &Bound<'_, PyType>, player: Bound<'_, PyAny>, score: i32) -> PyResult<()> {
         addscore(cls.py(), player, score)
     }
 
@@ -655,8 +655,12 @@ mod pyshinqlx_game_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyKeyError, PyValueError};
     use rstest::rstest;
+
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
+        types::{PyBool, PyList, PyString},
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1787,7 +1791,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_instagib(py, value_set.into_py(py))
+                    game.set_instagib(py, PyBool::new(py, value_set).to_owned().into_any())
                         .expect("this should not happen");
                 });
             });
@@ -1820,8 +1824,14 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_instagib(py, value_set.into_py(py))
-                        .expect("this should not happen");
+                    game.set_instagib(
+                        py,
+                        value_set
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    )
+                    .expect("this should not happen");
                 });
             });
     }
@@ -1845,7 +1855,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    let result = game.set_instagib(py, "asdf".into_py(py));
+                    let result = game.set_instagib(py, PyString::new(py, "asdf").into_any());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -1903,7 +1913,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_loadout(py, value_set.into_py(py))
+                    game.set_loadout(py, PyBool::new(py, value_set).to_owned().into_any())
                         .expect("this should not happen");
                 });
             });
@@ -1936,8 +1946,14 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_loadout(py, value_set.into_py(py))
-                        .expect("this should not happen");
+                    game.set_loadout(
+                        py,
+                        value_set
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    )
+                    .expect("this should not happen");
                 });
             });
     }
@@ -1961,7 +1977,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    let result = game.set_loadout(py, "asdf".into_py(py));
+                    let result = game.set_loadout(py, PyString::new(py, "asdf").into_any());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2372,7 +2388,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_tags(py, "tag1,tag2,tag3".into_py(py))
+                    game.set_tags(py, PyString::new(py, "tag1,tag2,tag3").into_any())
                         .expect("this should not happen");
                 });
             });
@@ -2399,8 +2415,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_tags(py, ["tag1", "tag2", "tag3"].into_py(py))
-                        .expect("this should not happen");
+                    game.set_tags(
+                        py,
+                        PyList::new(py, ["tag1", "tag2", "tag3"])
+                            .expect("this should not happen")
+                            .into_any(),
+                    )
+                    .expect("this should not happen");
                 });
             });
     }
@@ -2424,7 +2445,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    let result = game.set_tags(py, 42.into_py(py));
+                    let result = game.set_tags(
+                        py,
+                        42i32
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2470,8 +2497,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    game.set_workshop_items(py, [1234, 5678, 9101].into_py(py))
-                        .expect("this should not happen");
+                    game.set_workshop_items(
+                        py,
+                        PyList::new(py, [1234, 5678, 9101])
+                            .expect("this should not happen")
+                            .into_any(),
+                    )
+                    .expect("this should not happen");
                 });
             });
     }
@@ -2497,7 +2529,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
                         valid: true,
                     };
 
-                    let result = game.set_workshop_items(py, 42.into_py(py));
+                    let result = game.set_workshop_items(
+                        py,
+                        42i32
+                            .into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    );
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2666,7 +2704,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn put_with_invalid_team(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::put(&py.get_type::<Game>(), 2.into_py(py), "invalid team");
+            let result = Game::put(
+                &py.get_type::<Game>(),
+                2i32.into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+                "invalid team",
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2676,7 +2720,14 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn put_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::put(&py.get_type::<Game>(), 2048.into_py(py), "red");
+            let result = Game::put(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+                "red",
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2694,7 +2745,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::put(&py.get_type::<Game>(), 2.into_py(py), new_team)
+                    Game::put(
+                        &py.get_type::<Game>(),
+                        2i32.into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                        new_team,
+                    )
                 });
                 assert!(result.is_ok());
             });
@@ -2705,7 +2762,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::mute(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::mute(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2717,8 +2780,14 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("mute 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::mute(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::mute(
+                        &py.get_type::<Game>(),
+                        2i32.into_pyobject(py)
+                            .expect("this should not happen")
+                            .into_any(),
+                    )
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2728,7 +2797,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::unmute(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::unmute(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2740,8 +2815,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::unmute(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::unmute(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2751,7 +2827,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::tempban(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::tempban(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2763,8 +2845,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::tempban(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::tempban(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2774,7 +2857,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::ban(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::ban(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2786,8 +2875,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("ban 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::ban(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::ban(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2797,7 +2887,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::unban(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::unban(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2809,8 +2905,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("unban 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::unban(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::unban(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2832,7 +2929,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::addadmin(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::addadmin(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2844,8 +2947,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::addadmin(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::addadmin(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2855,7 +2959,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::addmod(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::addmod(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2867,8 +2977,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::addmod(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::addmod(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2878,7 +2989,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::demote(&py.get_type::<Game>(), 2048.into_py(py));
+            let result = Game::demote(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2890,8 +3007,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("demote 2", 1)
             .run(|| {
-                let result =
-                    Python::with_gil(|py| Game::demote(&py.get_type::<Game>(), 2.into_py(py)));
+                let result = Python::with_gil(|py| {
+                    Game::demote(&py.get_type::<Game>(), 2i32.into_pyobject(py)?.into_any())
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2913,7 +3031,14 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::addscore(&py.get_type::<Game>(), 2048.into_py(py), 42);
+            let result = Game::addscore(
+                &py.get_type::<Game>(),
+                2048i32
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+                    .into_any(),
+                42,
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2926,7 +3051,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::addscore(&py.get_type::<Game>(), 2.into_py(py), 42)
+                    Game::addscore(
+                        &py.get_type::<Game>(),
+                        2i32.into_pyobject(py)?.into_any(),
+                        42,
+                    )
                 });
                 assert!(result.is_ok());
             });

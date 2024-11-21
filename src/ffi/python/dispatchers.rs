@@ -2,6 +2,8 @@ use super::prelude::*;
 
 use core::sync::atomic::Ordering;
 
+use pyo3::types::{PyBool, PyString};
+
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
     T: AsRef<str>,
@@ -12,22 +14,18 @@ where
 
     Python::with_gil(|py| {
         let result = handle_client_command(py, client_id, cmd.as_ref());
-        result
-            .bind(py)
-            .extract::<bool>()
-            .map(|bool_value| {
-                if bool_value {
-                    Some(cmd.as_ref().to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(Some(
-                result
-                    .bind(py)
-                    .extract::<String>()
-                    .unwrap_or(cmd.as_ref().to_string()),
-            ))
+
+        if result.bind(py).is_instance_of::<PyBool>()
+            && result
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)
+        {
+            None
+        } else if result.bind(py).is_instance_of::<PyString>() {
+            result.extract::<String>(py).ok()
+        } else {
+            Some(cmd.as_ref().to_string())
+        }
     })
 }
 
@@ -41,22 +39,18 @@ where
 
     Python::with_gil(|py| {
         let result = handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref());
-        result
-            .bind(py)
-            .extract::<bool>()
-            .map(|bool_value| {
-                if bool_value {
-                    Some(cmd.as_ref().to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(Some(
-                result
-                    .bind(py)
-                    .extract::<String>()
-                    .unwrap_or(cmd.as_ref().to_string()),
-            ))
+
+        if result.bind(py).is_instance_of::<PyBool>()
+            && result
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)
+        {
+            None
+        } else if result.bind(py).is_instance_of::<PyString>() {
+            result.extract::<String>(py).ok()
+        } else {
+            Some(cmd.as_ref().to_string())
+        }
     })
 }
 
@@ -81,17 +75,18 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
 
     let returned: Option<String> = Python::with_gil(|py| {
         let result = handle_player_connect(py, client_id, is_bot);
-        result
-            .bind(py)
-            .extract::<bool>()
-            .map(|bool_value| {
-                if !bool_value {
-                    Some("You are banned from this server.".to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(result.bind(py).extract::<String>().ok())
+
+        if result.bind(py).is_instance_of::<PyBool>()
+            && result
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)
+        {
+            Some("You are banned from this server.".to_string())
+        } else if result.bind(py).is_instance_of::<PyString>() {
+            result.extract::<String>(py).ok()
+        } else {
+            None
+        }
     });
 
     {
@@ -152,22 +147,18 @@ where
 
     Python::with_gil(|py| {
         let result = handle_set_configstring(py, index.into(), value.as_ref());
-        result
-            .bind(py)
-            .extract::<bool>()
-            .map(|bool_value| {
-                if bool_value {
-                    Some(value.as_ref().to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(Some(
-                result
-                    .bind(py)
-                    .extract::<String>()
-                    .unwrap_or(value.as_ref().to_string()),
-            ))
+
+        if result.bind(py).is_instance_of::<PyBool>()
+            && result
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)
+        {
+            None
+        } else if result.bind(py).is_instance_of::<PyString>() {
+            result.extract::<String>(py).ok()
+        } else {
+            Some(value.as_ref().to_string())
+        }
     })
 }
 
@@ -192,22 +183,18 @@ where
 
     Python::with_gil(|py| {
         let result = handle_console_print(py, text.as_ref());
-        result
-            .bind(py)
-            .extract::<bool>()
-            .map(|bool_value| {
-                if bool_value {
-                    Some(text.as_ref().to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(Some(
-                result
-                    .bind(py)
-                    .extract::<String>()
-                    .unwrap_or(text.as_ref().to_string()),
-            ))
+
+        if result.bind(py).is_instance_of::<PyBool>()
+            && result
+                .extract::<bool>(py)
+                .is_ok_and(|bool_value| !bool_value)
+        {
+            None
+        } else if result.bind(py).is_instance_of::<PyString>() {
+            result.extract::<String>(py).ok()
+        } else {
+            Some(text.as_ref().to_string())
+        }
     })
 }
 
@@ -274,7 +261,10 @@ mod pyshinqlx_dispatcher_tests {
     use rstest::*;
 
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyException;
+    use pyo3::{
+        exceptions::PyException,
+        types::{PyBool, PyString, PyTuple},
+    };
 
     #[test]
     #[serial]
@@ -299,7 +289,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_client_command_ctx = handle_client_command_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, cmd| cmd.into_py(py));
+            .returning(|py, _, cmd| PyString::new(py, cmd).into_any().unbind());
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -315,7 +305,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_client_command_ctx = handle_client_command_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| "qwertz".into_py(py));
+            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -331,7 +321,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_client_command_ctx = handle_client_command_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| true.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -347,7 +337,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_client_command_ctx = handle_client_command_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| false.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, None);
@@ -361,9 +351,12 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_client_command_ctx = handle_client_command_context();
-        handle_client_command_ctx
-            .expect()
-            .returning(|py, _, _| (1, 2, 3).into_py(py));
+        handle_client_command_ctx.expect().returning(|py, _, _| {
+            PyTuple::new(py, [1, 2, 3])
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -392,7 +385,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_server_command_ctx = handle_server_command_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, cmd| cmd.into_py(py));
+            .returning(|py, _, cmd| PyString::new(py, cmd).into_any().unbind());
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -408,7 +401,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_server_command_ctx = handle_server_command_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| "qwertz".into_py(py));
+            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -424,7 +417,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_server_command_ctx = handle_server_command_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| true.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -440,7 +433,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_server_command_ctx = handle_server_command_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| false.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, None);
@@ -454,9 +447,12 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_server_command_ctx = handle_server_command_context();
-        handle_server_command_ctx
-            .expect()
-            .returning(|py, _, _| (1, 2, 3).into_py(py));
+        handle_server_command_ctx.expect().returning(|py, _, _| {
+            PyTuple::new(py, [1, 2, 3])
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -510,7 +506,7 @@ mod pyshinqlx_dispatcher_tests {
         let player_connect_handler_ctx = handle_player_connect_context();
         player_connect_handler_ctx
             .expect()
-            .returning(|py, _, _| "qwertz".into_py(py));
+            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, Some("qwertz".to_string()));
@@ -526,7 +522,7 @@ mod pyshinqlx_dispatcher_tests {
         let player_connect_handler_ctx = handle_player_connect_context();
         player_connect_handler_ctx
             .expect()
-            .returning(|py, _, _| true.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
 
         let result = client_connect_dispatcher(42, true);
         assert_eq!(result, None);
@@ -542,7 +538,7 @@ mod pyshinqlx_dispatcher_tests {
         let player_connect_handler_ctx = handle_player_connect_context();
         player_connect_handler_ctx
             .expect()
-            .returning(|py, _, _| false.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
 
         let result = client_connect_dispatcher(42, true);
         assert_eq!(result, Some("You are banned from this server.".to_string()));
@@ -556,9 +552,13 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let player_connect_handler_ctx = handle_player_connect_context();
-        player_connect_handler_ctx
-            .expect()
-            .returning(|py, _, _| PyException::new_err("asdf").into_py(py));
+        player_connect_handler_ctx.expect().returning(|py, _, _| {
+            PyException::new_err("asdf")
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
@@ -572,9 +572,12 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let player_connect_handler_ctx = handle_player_connect_context();
-        player_connect_handler_ctx
-            .expect()
-            .returning(|py, _, _| (1, 2, 3).into_py(py));
+        player_connect_handler_ctx.expect().returning(|py, _, _| {
+            PyTuple::new(py, [1, 2, 3])
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, None);
@@ -615,9 +618,13 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_player_disconnect_ctx = handle_player_disconnect_context();
-        handle_player_disconnect_ctx
-            .expect()
-            .returning(|py, _, _| PyException::new_err("").into_py(py));
+        handle_player_disconnect_ctx.expect().returning(|py, _, _| {
+            PyException::new_err("")
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         client_disconnect_dispatcher(42, "ragequit");
     }
@@ -657,9 +664,13 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_player_loaded_ctx = handle_player_loaded_context();
-        handle_player_loaded_ctx
-            .expect()
-            .returning(|py, _| PyException::new_err("").into_py(py));
+        handle_player_loaded_ctx.expect().returning(|py, _| {
+            PyException::new_err("")
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         client_loaded_dispatcher(123);
     }
@@ -712,7 +723,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_set_configstring_ctx = handle_set_configstring_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, value| value.into_py(py));
+            .returning(|py, _, value| PyString::new(py, value).into_any().unbind());
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -728,7 +739,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_set_configstring_ctx = handle_set_configstring_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| "qwertz".into_py(py));
+            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -744,7 +755,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_set_configstring_ctx = handle_set_configstring_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| true.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -760,7 +771,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_set_configstring_ctx = handle_set_configstring_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| false.into_py(py));
+            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, None);
@@ -774,9 +785,12 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_set_configstring_ctx = handle_set_configstring_context();
-        handle_set_configstring_ctx
-            .expect()
-            .returning(|py, _, _| (1, 2, 3).into_py(py));
+        handle_set_configstring_ctx.expect().returning(|py, _, _| {
+            PyTuple::new(py, [1, 2, 3])
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -830,7 +844,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_console_print_ctx = handle_console_print_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, text| text.into_py(py));
+            .returning(|py, text| PyString::new(py, text).into_any().unbind());
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -846,7 +860,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_console_print_ctx = handle_console_print_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| "qwertz".into_py(py));
+            .returning(|py, _| PyString::new(py, "qwertz").into_any().unbind());
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -862,7 +876,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_console_print_ctx = handle_console_print_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| true.into_py(py));
+            .returning(|py, _| PyBool::new(py, true).to_owned().into_any().unbind());
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -878,7 +892,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_console_print_ctx = handle_console_print_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| false.into_py(py));
+            .returning(|py, _| PyBool::new(py, false).to_owned().into_any().unbind());
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, None);
@@ -892,9 +906,12 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_console_print_ctx = handle_console_print_context();
-        handle_console_print_ctx
-            .expect()
-            .returning(|py, _| (1, 2, 3).into_py(py));
+        handle_console_print_ctx.expect().returning(|py, _| {
+            PyTuple::new(py, [1, 2, 3])
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -935,9 +952,13 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_player_spawn_ctx = handle_player_spawn_context();
-        handle_player_spawn_ctx
-            .expect()
-            .returning(|py, _| PyException::new_err("").into_py(py));
+        handle_player_spawn_ctx.expect().returning(|py, _| {
+            PyException::new_err("")
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         client_spawn_dispatcher(123);
     }
@@ -978,9 +999,13 @@ mod pyshinqlx_dispatcher_tests {
 
         let handle_kamikaze_use_ctx = handle_kamikaze_use_context();
 
-        handle_kamikaze_use_ctx
-            .expect()
-            .returning(|py, _| PyException::new_err("").into_py(py));
+        handle_kamikaze_use_ctx.expect().returning(|py, _| {
+            PyException::new_err("")
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
         kamikaze_use_dispatcher(123);
     }
 
@@ -1019,9 +1044,13 @@ mod pyshinqlx_dispatcher_tests {
         is_initialized_context.expect().returning(|| true);
 
         let handle_kamikaze_explode_ctx = handle_kamikaze_explode_context();
-        handle_kamikaze_explode_ctx
-            .expect()
-            .returning(|py, _, _| PyException::new_err("").into_py(py));
+        handle_kamikaze_explode_ctx.expect().returning(|py, _, _| {
+            PyException::new_err("")
+                .into_pyobject(py)
+                .expect("this should not happen")
+                .into_any()
+                .unbind()
+        });
 
         kamikaze_explode_dispatcher(123, true);
     }

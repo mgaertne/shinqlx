@@ -251,7 +251,7 @@ mod python_return_codes_tests {
     use rstest::rstest;
 
     use pyo3::prelude::*;
-    use pyo3::types::PyString;
+    use pyo3::types::{PyBool, PyString};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -266,10 +266,8 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_bool_true(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(
-                PythonReturnCodes::extract_bound(&true.into_py(py).into_bound(py))
-                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
-            );
+            assert!(PythonReturnCodes::extract_bound(&PyBool::new(py, true))
+                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
@@ -277,10 +275,8 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_bool_false(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(
-                PythonReturnCodes::extract_bound(&false.into_py(py).into_bound(py))
-                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
-            );
+            assert!(PythonReturnCodes::extract_bound(&PyBool::new(py, false))
+                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
@@ -297,10 +293,12 @@ mod python_return_codes_tests {
         _pyshinqlx_setup: (),
     ) {
         Python::with_gil(|py| {
-            assert!(
-                PythonReturnCodes::extract_bound(&python_value.into_py(py).into_bound(py))
-                    .is_ok_and(|value| value == expected_value)
-            );
+            assert!(PythonReturnCodes::extract_bound(
+                &python_value
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+            )
+            .is_ok_and(|value| value == expected_value));
         });
     }
 
@@ -310,10 +308,12 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_invalid_value(#[case] wrong_value: i32, _pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(
-                PythonReturnCodes::extract_bound(&wrong_value.into_py(py).into_bound(py))
-                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
-            );
+            assert!(PythonReturnCodes::extract_bound(
+                &wrong_value
+                    .into_pyobject(py)
+                    .expect("this should not happen")
+            )
+            .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 
@@ -446,34 +446,34 @@ mod parsed_variables_tests {
 
 pub(crate) fn client_id(
     py: Python<'_>,
-    name: PyObject,
+    name: Bound<'_, PyAny>,
     player_list: Option<Vec<Player>>,
 ) -> Option<i32> {
-    if name.is_none(py) {
+    if name.is_none() {
         return None;
     }
 
-    if let Ok(value) = name.extract::<i32>(py) {
+    if let Ok(value) = name.extract::<i32>() {
         if (0..64).contains(&value) {
             return Some(value);
         }
     }
 
-    if let Ok(player) = name.extract::<Bound<'_, Player>>(py) {
+    if let Ok(player) = name.extract::<Bound<'_, Player>>() {
         return Some(player.borrow().id);
     }
 
     let all_players = player_list
         .unwrap_or_else(|| Player::all_players(&py.get_type::<Player>(), py).unwrap_or_default());
 
-    if let Ok(steam_id) = name.extract::<i64>(py) {
+    if let Ok(steam_id) = name.extract::<i64>() {
         return all_players
             .iter()
             .find(|&player| player.steam_id == steam_id)
             .map(|player| player.id);
     }
 
-    if let Ok(player_name) = name.extract::<String>(py) {
+    if let Ok(player_name) = name.extract::<String>() {
         let clean_name = clean_text(&player_name).to_lowercase();
         return all_players
             .iter()
@@ -595,7 +595,7 @@ fn unlock(team: Option<&str>) -> PyResult<()> {
     )
 }
 
-fn put(py: Python<'_>, player: PyObject, team: &str) -> PyResult<()> {
+fn put(py: Python<'_>, player: Bound<'_, PyAny>, team: &str) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
@@ -608,7 +608,7 @@ fn put(py: Python<'_>, player: PyObject, team: &str) -> PyResult<()> {
     })
 }
 
-fn mute(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn mute(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let mute_cmd = format!("mute {}", player_id);
@@ -617,7 +617,7 @@ fn mute(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn unmute(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn unmute(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let unmute_cmd = format!("unmute {}", player_id);
@@ -626,7 +626,7 @@ fn unmute(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn tempban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn tempban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let tempban_cmd = format!("tempban {}", player_id);
@@ -635,7 +635,7 @@ fn tempban(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn ban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn ban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let ban_cmd = format!("ban {}", player_id);
@@ -644,7 +644,7 @@ fn ban(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn unban(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn unban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let unban_cmd = format!("unban {}", player_id);
@@ -658,7 +658,7 @@ fn opsay(msg: &str) -> PyResult<()> {
     console_command(&opsay_cmd)
 }
 
-fn addadmin(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn addadmin(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let addadmin_cmd = format!("addadmin {}", player_id);
@@ -667,7 +667,7 @@ fn addadmin(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn addmod(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn addmod(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let addmod_cmd = format!("addmod {}", player_id);
@@ -676,7 +676,7 @@ fn addmod(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn demote(py: Python<'_>, player: PyObject) -> PyResult<()> {
+fn demote(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let demote_cmd = format!("demote {}", player_id);
@@ -685,7 +685,7 @@ fn demote(py: Python<'_>, player: PyObject) -> PyResult<()> {
     })
 }
 
-fn addscore(py: Python<'_>, player: PyObject, score: i32) -> PyResult<()> {
+fn addscore(py: Python<'_>, player: Bound<'_, PyAny>, score: i32) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let addscore_cmd = format!("addscore {} {}", player_id, score);
@@ -899,10 +899,9 @@ mod pyshinqlx_parse_variables_test {
     }
 }
 
-fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
+fn get_logger_name(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> String {
     let opt_plugin_name = plugin.and_then(|req_plugin| {
         req_plugin
-            .bind(py)
             .str()
             .ok()
             .map(|plugin_name| plugin_name.to_string())
@@ -918,10 +917,10 @@ fn get_logger_name(py: Python<'_>, plugin: Option<PyObject>) -> String {
 #[pyfunction]
 #[pyo3(name = "get_logger")]
 #[pyo3(signature = (plugin = None), text_signature = "(plugin = None)")]
-pub(crate) fn pyshinqlx_get_logger(
-    py: Python<'_>,
-    plugin: Option<PyObject>,
-) -> PyResult<Bound<'_, PyAny>> {
+pub(crate) fn pyshinqlx_get_logger<'py>(
+    py: Python<'py>,
+    plugin: Option<Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyAny>> {
     let logger_name = get_logger_name(py, plugin);
     PyModule::import(py, intern!(py, "logging")).and_then(|logging_module| {
         logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))
@@ -981,15 +980,17 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                     ),
                 )?;
                 py.import("logging.handlers").and_then(|handlers_submodule| {
+                    let py_max_logssize = max_logssize.into_pyobject(py)?.into_any();
+                    let py_num_max_logs = num_max_logs.into_pyobject(py)?.into_any();
                     handlers_submodule
                         .call_method(
                             "RotatingFileHandler",
                             (format!("{homepath}/shinqlx.log"),),
                             Some(
                                 &[
-                                    ("encoding", "utf-8".into_py(py)),
-                                    ("maxBytes", max_logssize.into_py(py)),
-                                    ("backupCount", num_max_logs.into_py(py)),
+                                    ("encoding", PyString::new(py, "utf-8").into_any()),
+                                    ("maxBytes", py_max_logssize),
+                                    ("backupCount", py_num_max_logs),
                                 ]
                                 .into_py_dict(py)?,
                             ),
@@ -1261,7 +1262,7 @@ mod pyshinqlx_configure_logger_tests {
 #[pyfunction]
 #[pyo3(name = "log_exception")]
 #[pyo3(signature = (plugin = None), text_signature = "(plugin = None)")]
-fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<PyObject>) -> PyResult<()> {
+fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> PyResult<()> {
     py.import(intern!(py, "sys")).and_then(|sys_module| {
         sys_module
             .call_method0(intern!(py, "exc_info"))
@@ -1333,9 +1334,9 @@ except ValueError:
 #[pyo3(name = "handle_exception")]
 fn pyshinqlx_handle_exception(
     py: Python<'_>,
-    exc_type: PyObject,
-    exc_value: PyObject,
-    exc_traceback: PyObject,
+    exc_type: Bound<'_, PyAny>,
+    exc_value: Bound<'_, PyAny>,
+    exc_traceback: Bound<'_, PyAny>,
 ) -> PyResult<()> {
     py.import(intern!(py, "traceback"))
         .and_then(|traceback_module| {
@@ -1373,7 +1374,12 @@ mod pyshinqlx_handle_exception_tests {
     #[cfg_attr(miri, ignore)]
     fn handle_exception_with_no_exception_pending(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = pyshinqlx_handle_exception(py, py.None(), py.None(), py.None());
+            let result = pyshinqlx_handle_exception(
+                py,
+                py.None().into_bound(py),
+                py.None().into_bound(py),
+                py.None().into_bound(py),
+            );
             assert!(result.is_ok());
         });
     }
@@ -1401,12 +1407,12 @@ except ValueError as e:
 
 #[pyfunction]
 #[pyo3(name = "threading_excepthook")]
-fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: PyObject) -> PyResult<()> {
+fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Bound<'_, PyAny>) -> PyResult<()> {
     pyshinqlx_handle_exception(
         py,
-        args.getattr(py, intern!(py, "exc_type"))?,
-        args.getattr(py, intern!(py, "exc_value"))?,
-        args.getattr(py, intern!(py, "exc_traceback"))?,
+        args.getattr(intern!(py, "exc_type"))?,
+        args.getattr(intern!(py, "exc_value"))?,
+        args.getattr(intern!(py, "exc_traceback"))?,
     )
 }
 
@@ -1470,7 +1476,7 @@ pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
 
 fn try_log_messages(
     py: Python<'_>,
-    plugin: Option<PyObject>,
+    plugin: Option<Bound<'_, PyAny>>,
     function: &Bound<'_, PyString>,
     messages: Vec<String>,
 ) -> Result<(), PyErr> {
@@ -1526,7 +1532,7 @@ def next_frame(func):
         c"",
     )
     .and_then(|next_frame_def| next_frame_def.getattr(intern!(py, "next_frame")))
-    .and_then(|next_frame_func| next_frame_func.call1((func.into_py(py),)))
+    .and_then(|next_frame_func| next_frame_func.call1((func.bind(py),)))
 }
 
 #[cfg(test)]
@@ -1614,7 +1620,7 @@ def delay(time):
         c"",
     )
     .and_then(|delay_def| delay_def.getattr(intern!(py, "delay")))
-    .and_then(|delay_func| delay_func.call1((time.into_py(py),)))
+    .and_then(|delay_func| delay_func.call1((time.into_pyobject(py)?,)))
 }
 
 #[cfg(test)]
@@ -1712,7 +1718,7 @@ def thread(func, force=False):
         c"",
     )
     .and_then(|thread_def| thread_def.getattr(intern!(py, "thread")))
-    .and_then(|thread_func| thread_func.call1((func.into_py(py), force.into_py(py))))
+    .and_then(|thread_func| thread_func.call1((func.bind(py), PyBool::new(py, force))))
 }
 
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
@@ -1964,7 +1970,12 @@ mod stats_listener_tests {
                         .expect("this should not happen");
                     let stats_listener = StatsListener::py_new().expect("this should not happen");
                     shinqlx_module
-                        .setattr(intern!(py, "_stats"), stats_listener.into_py(py))
+                        .setattr(
+                            intern!(py, "_stats"),
+                            stats_listener
+                                .into_pyobject(py)
+                                .expect("this should not happen"),
+                        )
                         .expect("this should not happen");
 
                     let result = get_stats_listener(&shinqlx_module);
@@ -3244,18 +3255,54 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
 #[pyfunction(name = "initialize_cvars")]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
-    pyshinqlx_set_cvar_once(py, "qlx_owner", "-1".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_plugins", DEFAULT_PLUGINS.join(", ").into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_pluginsPath", "shinqlx-plugins".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_database", "Redis".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", "!".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_logs", "2".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_logsSize", "3000000".into_py(py), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_owner", PyString::new(py, "-1").into_any(), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_plugins",
+        PyString::new(py, &DEFAULT_PLUGINS.join(", ")).into_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_pluginsPath",
+        PyString::new(py, "shinqlx-plugins").into_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_database", PyString::new(py, "Redis").into_any(), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_commandPrefix",
+        PyString::new(py, "!").into_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_logs", PyString::new(py, "2").into_any(), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_logsSize",
+        PyString::new(py, "3000000").into_any(),
+        0,
+    )?;
 
-    pyshinqlx_set_cvar_once(py, "qlx_redisAddress", "127.0.0.1".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", "0".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisUnixSocket", "0".into_py(py), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", "".into_py(py), 0).map(|_| ())
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_redisAddress",
+        PyString::new(py, "127.0.0.1").into_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_redisDatabase",
+        PyString::new(py, "0").into_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_redisUnixSocket",
+        PyString::new(py, "0").into_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", PyString::new(py, "").into_any(), 0)
+        .map(|_| ())
 }
 
 fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -3900,9 +3947,10 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     MODULES.store(Some(PyDict::new(m.py()).unbind().into()));
     m.add(
         "_modules",
-        (*MODULES.load())
+        MODULES
+            .load()
             .as_ref()
-            .map(|modules| modules.as_ref().into_py(m.py())),
+            .map(|modules| modules.as_ref().bind(m.py())),
     )?;
 
     m.add_function(wrap_pyfunction!(pyshinqlx_parse_variables, m)?)?;
@@ -3977,9 +4025,10 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ));
     m.add(
         "CHAT_CHANNEL",
-        (*CHAT_CHANNEL.load())
+        CHAT_CHANNEL
+            .load()
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(m.py())),
+            .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     RED_TEAM_CHAT_CHANNEL.store(Some(
         Py::new(
@@ -3990,9 +4039,10 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ));
     m.add(
         "RED_TEAM_CHAT_CHANNEL",
-        (*RED_TEAM_CHAT_CHANNEL.load())
+        RED_TEAM_CHAT_CHANNEL
+            .load()
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(m.py())),
+            .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     BLUE_TEAM_CHAT_CHANNEL.store(Some(
         Py::new(
@@ -4003,9 +4053,10 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ));
     m.add(
         "BLUE_TEAM_CHAT_CHANNEL",
-        (*BLUE_TEAM_CHAT_CHANNEL.load())
+        BLUE_TEAM_CHAT_CHANNEL
+            .load()
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(m.py())),
+            .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     FREE_CHAT_CHANNEL.store(Some(
         Py::new(
@@ -4016,9 +4067,10 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ));
     m.add(
         "FREE_CHAT_CHANNEL",
-        (*FREE_CHAT_CHANNEL.load())
+        FREE_CHAT_CHANNEL
+            .load()
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(m.py())),
+            .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     SPECTATOR_CHAT_CHANNEL.store(Some(
         Py::new(
@@ -4029,25 +4081,28 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     ));
     m.add(
         "SPECTATOR_CHAT_CHANNEL",
-        (*SPECTATOR_CHAT_CHANNEL.load())
+        SPECTATOR_CHAT_CHANNEL
+            .load()
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(m.py())),
+            .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     CONSOLE_CHANNEL.store(Some(Py::new(m.py(), ConsoleChannel::py_new())?.into()));
     m.add(
         "CONSOLE_CHANNEL",
-        (*CONSOLE_CHANNEL.load())
+        CONSOLE_CHANNEL
+            .load()
             .as_ref()
-            .map(|channel| channel.as_ref().into_py(m.py())),
+            .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     m.add_class::<Command>()?;
     m.add_class::<CommandInvoker>()?;
     COMMANDS.store(Some(Py::new(m.py(), CommandInvoker::py_new())?.into()));
     m.add(
         "COMMANDS",
-        (*COMMANDS.load())
+        COMMANDS
+            .load()
             .as_ref()
-            .map(|commands| commands.as_ref().into_py(m.py())),
+            .map(|commands| commands.as_ref().bind(m.py())),
     )?;
 
     Ok(())
@@ -4198,9 +4253,10 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     EVENT_DISPATCHERS.store(Some(event_dispatchers.into()));
     m.add(
         "EVENT_DISPATCHERS",
-        (*EVENT_DISPATCHERS.load())
+        EVENT_DISPATCHERS
+            .load()
             .as_ref()
-            .map(|event_dispatchers| event_dispatchers.as_ref().into_py(m.py())),
+            .map(|event_dispatchers| event_dispatchers.as_ref().bind(m.py())),
     )?;
 
     Ok(())

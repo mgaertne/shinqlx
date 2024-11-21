@@ -1,4 +1,5 @@
 use super::prelude::*;
+
 use pyo3::types::PyString;
 
 /// Event that triggers whenever a player tries to connect. If the event
@@ -23,18 +24,17 @@ impl PlayerConnectDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    pub(crate) fn handle_return(
-        slf: &Bound<'_, Self>,
-        handler: PyObject,
-        value: PyObject,
-    ) -> PyResult<PyObject> {
-        if value.bind(slf.py()).is_instance_of::<PyString>() {
+    pub(crate) fn handle_return<'py>(
+        slf: &Bound<'py, Self>,
+        handler: Bound<'py, PyAny>,
+        value: Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if value.is_instance_of::<PyString>() {
             return Ok(value);
         }
 
-        let pyany_event_dispatcher = slf.borrow().into_super().into_py(slf.py());
-        let event_dispatcher_instance = pyany_event_dispatcher.bind(slf.py()).downcast()?;
-        EventDispatcher::handle_return(event_dispatcher_instance, handler, value)
+        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
+        EventDispatcher::handle_return(&event_dispatcher, handler, value)
     }
 }
 
@@ -91,14 +91,14 @@ mod player_connect_dispatcher_tests {
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code_bound(
+                    let throws_exception_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def throws_exception_hook(*args, **kwargs):
     raise ValueError("asdf")
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("throws_exception_hook")
@@ -149,14 +149,14 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_none_hook(*args, **kwargs):
     return None
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -207,16 +207,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code_bound(
+                    let returns_none_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_none_hook(*args, **kwargs):
     return shinqlx.RET_NONE
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_none_hook")
@@ -267,16 +267,16 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code_bound(
+                    let returns_stop_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_hook(*args, **kwargs):
     return shinqlx.RET_STOP
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_hook")
@@ -327,16 +327,16 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code_bound(
+                    let returns_stop_event_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_event_hook(*args, **kwargs):
     return shinqlx.RET_STOP_EVENT
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_event_hook")
@@ -387,16 +387,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code_bound(
+                    let returns_stop_all_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 import shinqlx
 
 def returns_stop_all_hook(*args, **kwargs):
     return shinqlx.RET_STOP_ALL
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_stop_all_hook")
@@ -447,14 +447,14 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return "return string"
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
@@ -505,14 +505,14 @@ def returns_string_hook(*args, **kwargs):
                     let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code_bound(
+                    let returns_string_hook = PyModule::from_code(
                         py,
-                        r#"
+                        cr#"
 def returns_string_hook(*args, **kwargs):
     return 42
             "#,
-                        "",
-                        "",
+                        c"",
+                        c"",
                     )
                     .expect("this should not happen")
                     .getattr("returns_string_hook")
