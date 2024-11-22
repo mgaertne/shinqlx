@@ -3656,8 +3656,8 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
     )
 }
 
-#[pymodule]
-#[pyo3(name = "shinqlx")]
+#[pymodule()]
+#[pyo3(name = "shinqlx", gil_used = true)]
 fn pyshinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let shinqlx_version = env!("SHINQLX_VERSION");
     m.add("__version__", shinqlx_version)?;
