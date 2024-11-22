@@ -58,7 +58,6 @@ serde_json = { version = ">=1.0.111", default-features = false, features = ["all
 parking_lot = { version = ">=0.12", default-features = false }
 git2 = { version = ">=0.19", default-features = false }
 semver = { version = ">=1.0.23", default-features = false }
-redis = { version = ">=0.27", default-features = false, optional = true }
 
 region = { version = ">=3.0", default-features = false, optional = true }
 
@@ -80,13 +79,12 @@ git2 = { version = ">=0.19", default-features = false }
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
 rstest = { version = ">=0.23", default-features = false }
 mockall = { version = ">=0.13", default-features = false, features = ["nightly"] }
-serial_test = { version = ">=3.1", default-features = false }
+serial_test = { version = ">=3.2", default-features = false }
 tempfile = { version = ">=3.14", default-features = false }
 
 [features]
 default = ["alloc"]
 patches = ["dep:region"]
-rust-redis = ["dep:redis"]
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 
 [lints.rust]
