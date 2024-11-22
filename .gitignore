@@ -1,3 +1,5 @@
 /target/
 /Cargo.lock
 .idea/
+.tox/
+_docs_out/
