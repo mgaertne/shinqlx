@@ -134,7 +134,7 @@ fn pyshinqlx_root_module(_py: Python<'_>, _m: &Bound<'_, PyModule>) -> PyResult<
     Ok(())
 }
 
-#[pymodule]
+#[pymodule(gil_used = false)]
 #[pyo3(name = "_shinqlx")]
 fn pyshinqlx_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_player_info, m)?)?;
