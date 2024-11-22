@@ -4,8 +4,8 @@ use alloc::borrow::Cow;
 use pyo3::{
     basic::CompareOp,
     exceptions::PyValueError,
-    types::{PyNotImplemented, PyTuple},
-    BoundObject, IntoPyObject,
+    types::{PyBool, PyNotImplemented, PyTuple},
+    BoundObject,
 };
 
 /// A struct sequence containing parameters for the flight holdable item.
@@ -64,8 +64,8 @@ impl Flight {
         py: Python<'py>,
     ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
         match op {
-            CompareOp::Eq => Ok((self == other).into_pyobject(py)?.into_any()),
-            CompareOp::Ne => Ok((self != other).into_pyobject(py)?.into_any()),
+            CompareOp::Eq => Ok(PyBool::new(py, self == other).into_any()),
+            CompareOp::Ne => Ok(PyBool::new(py, self != other).into_any()),
             _ => Ok(PyNotImplemented::get(py).into_any()),
         }
     }
