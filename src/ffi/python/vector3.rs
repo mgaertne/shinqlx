@@ -2,6 +2,7 @@ use super::prelude::*;
 
 use alloc::borrow::Cow;
 use core::array;
+
 use pyo3::{
     basic::CompareOp,
     exceptions::PyValueError,
@@ -9,9 +10,11 @@ use pyo3::{
     BoundObject,
 };
 
-#[pyclass]
+use spin::mutex::FairMutex;
+
+#[pyclass(frozen)]
 struct Vector3Iter {
-    iter: array::IntoIter<i32, 3>,
+    iter: FairMutex<array::IntoIter<i32, 3>>,
 }
 
 #[pymethods]
@@ -20,8 +23,8 @@ impl Vector3Iter {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<i32> {
-        slf.iter.next()
+    fn __next__(slf: PyRef<'_, Self>) -> Option<i32> {
+        slf.iter.lock().next()
     }
 }
 
@@ -90,7 +93,7 @@ impl Vector3 {
     fn __iter__(slf: PyRef<'_, Self>) -> Vector3Iter {
         let iter_array = [slf.0, slf.1, slf.2];
         Vector3Iter {
-            iter: iter_array.into_iter(),
+            iter: iter_array.into_iter().into(),
         }
     }
 }
