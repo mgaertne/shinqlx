@@ -86,7 +86,6 @@ impl AbstractDatabase {
     }
 
     /// Should clear specified player flag.
-    #[allow(unused_variables)]
     fn clear_flag(&self, player: Bound<'_, PyAny>, flag: &str) -> PyResult<bool> {
         self.set_flag(player, flag, false)
     }
