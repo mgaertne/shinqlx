@@ -183,8 +183,7 @@ impl VmFunctions {
                 .collect();
 
             debug!(target: "shinqlx", "Searching for necessary VM functions...");
-            let mut failed_functions: ArrayVec<QuakeLiveFunction, 11> = ArrayVec::new();
-            [
+            let failed_functions: ArrayVec<QuakeLiveFunction, 11> = [
                 (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
                 (
                     QuakeLiveFunction::CheckPrivileges,
@@ -205,15 +204,17 @@ impl VmFunctions {
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
             ]
             .iter()
-            .for_each(|(ql_func, field)| {
-                match pattern_search_module(&qagame_maps, ql_func) {
-                    None => failed_functions.push(*ql_func),
+            .filter_map(
+                |(ql_func, field)| match pattern_search_module(&qagame_maps, ql_func) {
+                    None => Some(*ql_func),
                     Some(orig_func) => {
                         debug!(target: "shinqlx", "{}: {:#X}", ql_func, orig_func);
                         field.store(orig_func, Ordering::SeqCst);
+                        None
                     }
-                }
-            });
+                },
+            )
+            .collect();
 
             if !failed_functions.is_empty() {
                 return Err(QuakeLiveEngineError::VmFunctionNotFound(
