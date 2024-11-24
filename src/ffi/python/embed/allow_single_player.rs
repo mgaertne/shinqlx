@@ -7,7 +7,6 @@ use crate::ffi::python::prelude::*;
 pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
     py.allow_threads(|| {
         CurrentLevel::try_get()
-            .ok()
             .iter_mut()
             .for_each(|current_level| current_level.set_training_map(allow))
     });

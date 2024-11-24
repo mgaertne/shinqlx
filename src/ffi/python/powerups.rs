@@ -2,6 +2,8 @@ use super::prelude::*;
 
 use alloc::borrow::Cow;
 
+use arrayvec::ArrayVec;
+
 use pyo3::{
     basic::CompareOp,
     exceptions::PyValueError,
@@ -52,20 +54,19 @@ impl Powerups {
         let results = values
             .iter()
             .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
+            .collect::<ArrayVec<Option<i32>, 6>>();
 
         if results.iter().any(|item| item.is_none()) {
             return Err(PyValueError::new_err("Powerups values need to be integer"));
         }
 
         Ok(Self::from(
-            <Vec<i32> as TryInto<[i32; 6]>>::try_into(
-                results
-                    .iter()
-                    .map(|&value| value.unwrap_or(0))
-                    .collect::<Vec<i32>>(),
-            )
-            .unwrap(),
+            results
+                .iter()
+                .map(|&value| value.unwrap_or(0))
+                .collect::<ArrayVec<i32, 6>>()
+                .into_inner()
+                .unwrap(),
         ))
     }
 

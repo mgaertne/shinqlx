@@ -13,6 +13,8 @@ use core::{
     ffi::{c_char, c_float, c_int, CStr},
 };
 
+use arrayvec::ArrayVec;
+
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct GameEntity {
@@ -114,7 +116,6 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
                     .for_each(|free_entity_func| {
                         (unsafe { ent.as_mut() }).iter_mut().for_each(|mut_ent| {
                             let level_time = CurrentLevel::try_get()
-                                .ok()
                                 .map(|current_level| current_level.get_leveltime())
                                 .unwrap_or_default();
 
@@ -302,7 +303,6 @@ impl GameEntity {
         };
 
         let level_time = CurrentLevel::try_get()
-            .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
 
@@ -387,7 +387,8 @@ impl GameEntity {
                 }
                 Err(_) => false,
             })
-            .collect()
+            .collect::<ArrayVec<u32, { MAX_GENTITIES as usize }>>()
+            .to_vec()
     }
 
     pub(crate) fn set_next_think(&mut self, next_think: i32) {
