@@ -219,19 +219,13 @@ impl EventDispatcher {
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        let events = &(*self.plugins.read());
-        events
+        self.plugins
+            .read()
             .iter()
-            .map(|(_, plugins)| {
+            .flat_map(|(_, plugins)| {
                 plugins
                     .iter()
-                    .map(|prio_plugins| {
-                        prio_plugins
-                            .iter()
-                            .map(|plugin| visit.call(plugin))
-                            .collect::<Result<Vec<_>, PyTraverseError>>()
-                    })
-                    .collect::<Result<Vec<_>, PyTraverseError>>()
+                    .flat_map(|prio_plugins| prio_plugins.iter().map(|plugin| visit.call(plugin)))
             })
             .collect::<Result<Vec<_>, PyTraverseError>>()
             .map(|_| ())
@@ -1668,8 +1662,8 @@ impl EventDispatcherManager {
 
     #[getter(_dispatchers)]
     fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        let dispatchers = self.dispatchers.read();
-        dispatchers
+        self.dispatchers
+            .read()
             .iter()
             .map(|(dispatcher_name, dispatch_function)| {
                 (
