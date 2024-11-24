@@ -15,7 +15,7 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
             |main_engine| Ok(main_engine.get_max_clients()),
         )?;
 
-        let result: Vec<Option<PlayerInfo>> = (0..maxclients)
+        Ok((0..maxclients)
             .filter_map(|client_id| {
                 #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
                 Client::try_from(client_id).map_or_else(
@@ -26,9 +26,7 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
                     },
                 )
             })
-            .collect();
-
-        Ok(result)
+            .collect())
     })
 }
 

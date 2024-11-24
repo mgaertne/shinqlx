@@ -3,14 +3,15 @@ use super::prelude::*;
 use alloc::borrow::Cow;
 use core::array;
 
+use arrayvec::ArrayVec;
+use spin::mutex::FairMutex;
+
 use pyo3::{
     basic::CompareOp,
     exceptions::PyValueError,
     types::{PyBool, PyNotImplemented, PyTuple},
     BoundObject,
 };
-
-use spin::mutex::FairMutex;
 
 #[pyclass(frozen)]
 struct Vector3Iter {
@@ -56,7 +57,7 @@ impl Vector3 {
         let results = values
             .iter()
             .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
+            .collect::<ArrayVec<Option<i32>, 3>>();
 
         if results.iter().any(|item| item.is_none()) {
             return Err(PyValueError::new_err("Vector3 values need to be integer"));
