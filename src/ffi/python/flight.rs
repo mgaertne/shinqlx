@@ -1,6 +1,9 @@
 use super::prelude::*;
 
 use alloc::borrow::Cow;
+
+use arrayvec::ArrayVec;
+
 use pyo3::{
     basic::CompareOp,
     exceptions::PyValueError,
@@ -43,7 +46,7 @@ impl Flight {
         let results = values
             .iter()
             .map(|item| item.extract::<i32>().ok())
-            .collect::<Vec<Option<i32>>>();
+            .collect::<ArrayVec<Option<i32>, 4>>();
 
         if results.iter().any(|item| item.is_none()) {
             return Err(PyValueError::new_err("Flight values need to be integer"));
