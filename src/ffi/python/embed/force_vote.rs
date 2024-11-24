@@ -9,10 +9,11 @@ use pyo3::exceptions::PyEnvironmentError;
 #[pyo3(name = "force_vote")]
 pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
     py.allow_threads(|| {
-        let vote_time = CurrentLevel::try_get()
+        if CurrentLevel::try_get()
             .ok()
-            .and_then(|current_level| current_level.get_vote_time());
-        if vote_time.is_none() {
+            .and_then(|current_level| current_level.get_vote_time())
+            .is_none()
+        {
             return Ok(false);
         }
 
