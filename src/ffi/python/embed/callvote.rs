@@ -11,7 +11,6 @@ pub(crate) fn pyshinqlx_callvote(
 ) {
     py.allow_threads(|| {
         CurrentLevel::try_get()
-            .ok()
             .iter_mut()
             .for_each(|current_level| current_level.callvote(vote, vote_disp, vote_time));
     })
