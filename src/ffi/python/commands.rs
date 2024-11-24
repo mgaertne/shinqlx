@@ -96,24 +96,20 @@ impl Command {
         let channels_vec = if channels.is_none() {
             vec![]
         } else {
-            let mut collected = vec![];
-            if let Ok(mut iter) = channels.try_iter() {
-                while let Some(Ok(value)) = iter.next() {
-                    collected.push(value.unbind());
-                }
-            }
-            collected
+            channels
+                .try_iter()?
+                .try_iter()?
+                .filter_map(|iter_value| iter_value.ok().map(|value| value.unbind()))
+                .collect::<Vec<PyObject>>()
         };
         let exclude_channels_vec = if exclude_channels.is_none() {
             vec![]
         } else {
-            let mut collected = vec![];
-            if let Ok(mut iter) = exclude_channels.try_iter() {
-                while let Some(Ok(value)) = iter.next() {
-                    collected.push(value.unbind());
-                }
-            }
-            collected
+            exclude_channels
+                .try_iter()?
+                .try_iter()?
+                .filter_map(|iter_value| iter_value.ok().map(|value| value.unbind()))
+                .collect::<Vec<PyObject>>()
         };
 
         Ok(Self {
