@@ -4,6 +4,8 @@ use crate::prelude::*;
 use alloc::borrow::Cow;
 use core::ffi::{c_int, CStr};
 
+use arrayvec::ArrayVec;
+
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
 pub(crate) struct GameClient {
@@ -126,8 +128,8 @@ impl GameClient {
                 0 => 0,
                 _ => 1,
             })
-            .collect::<Vec<i32>>()
-            .try_into()
+            .collect::<ArrayVec<i32, 15>>()
+            .into_inner()
             .unwrap()
     }
 
@@ -142,13 +144,11 @@ impl GameClient {
     }
 
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
-        let ammos = self.game_client.ps.ammo;
-        ammos
+        self.game_client.ps.ammo[1..]
             .iter()
-            .skip(1)
             .copied()
-            .collect::<Vec<i32>>()
-            .try_into()
+            .collect::<ArrayVec<i32, 15>>()
+            .into_inner()
             .unwrap_or_default()
     }
 
@@ -161,7 +161,6 @@ impl GameClient {
 
     pub(crate) fn get_powerups(&self) -> [i32; 6] {
         let level_time = CurrentLevel::try_get()
-            .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
 
@@ -172,14 +171,13 @@ impl GameClient {
                 0 => 0,
                 _ => powerup_time - level_time,
             })
-            .collect::<Vec<i32>>()
-            .try_into()
+            .collect::<ArrayVec<i32, 6>>()
+            .into_inner()
             .unwrap()
     }
 
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {
         let level_time = CurrentLevel::try_get()
-            .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
 
@@ -251,7 +249,6 @@ impl GameClient {
 
     pub(crate) fn set_invulnerability(&mut self, time: i32) {
         let level_time = CurrentLevel::try_get()
-            .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
         self.game_client.invulnerabilityTime = level_time + time;
@@ -295,7 +292,6 @@ impl GameClient {
 
     pub(crate) fn get_time_on_team(&self) -> i32 {
         let level_time = CurrentLevel::try_get()
-            .ok()
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
         level_time - self.game_client.pers.enterTime
