@@ -3,6 +3,8 @@ use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::{ComPrintf, SendServerCommand};
 use crate::MAIN_ENGINE;
 
+use arrayvec::ArrayVec;
+
 use pyo3::exceptions::PyEnvironmentError;
 
 /// Prints all items and entity numbers to server console.
@@ -11,8 +13,8 @@ use pyo3::exceptions::PyEnvironmentError;
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
     py.allow_threads(|| {
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let formatted_items: Vec<String> = (0..MAX_GENTITIES)
-            .filter_map(|i| GameEntity::try_from(i as i32).ok())
+        let formatted_items: ArrayVec<String, { MAX_GENTITIES as usize }> = (0..MAX_GENTITIES)
+            .filter_map(|i| GameEntity::try_from(i as i32).ok().map(Box::new))
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
             })
@@ -25,7 +27,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             })
             .collect();
         let mut str_length = 0;
-        let printed_items: Vec<String> = formatted_items
+        let printed_items: ArrayVec<String, { MAX_GENTITIES as usize }> = formatted_items
             .iter()
             .take_while(|&item| {
                 str_length += item.len();
@@ -51,7 +53,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                     &format!("print \"{}\n\"", printed_items.join("\n")),
                 );
 
-                let remaining_items: Vec<String> = formatted_items
+                let remaining_items: ArrayVec<String, { MAX_GENTITIES as usize }> = formatted_items
                     .iter()
                     .skip(printed_items.len())
                     .map(|item| item.to_string())
