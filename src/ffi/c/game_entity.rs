@@ -378,14 +378,13 @@ impl GameEntity {
         let my_targetname = unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
 
         (1..MAX_GENTITIES)
-            .filter(|entity_id| match GameEntity::try_from(*entity_id) {
-                Ok(other_ent) => {
+            .filter(|entity_id| {
+                GameEntity::try_from(*entity_id).is_ok_and(|other_ent| {
                     !other_ent.gentity_t.target.is_null()
                         && my_targetname
                             == unsafe { CStr::from_ptr(other_ent.gentity_t.target) }
                                 .to_string_lossy()
-                }
-                Err(_) => false,
+                })
             })
             .collect::<ArrayVec<u32, { MAX_GENTITIES as usize }>>()
             .to_vec()
