@@ -1,6 +1,8 @@
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 
+use arrayvec::ArrayVec;
+
 use pyo3::exceptions::PyValueError;
 
 fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
@@ -80,8 +82,11 @@ pub(crate) fn pyshinqlx_replace_items(
     if let Ok(item1_classname) = item1.extract::<String>() {
         return py.allow_threads(|| {
             #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-            let mut matching_item1_entities: Vec<GameEntity> = (0..MAX_GENTITIES)
-                .filter_map(|i| GameEntity::try_from(i as i32).ok())
+            let mut matching_item1_entities: ArrayVec<
+                Box<GameEntity>,
+                { MAX_GENTITIES as usize },
+            > = (0..MAX_GENTITIES)
+                .filter_map(|i| GameEntity::try_from(i as i32).ok().map(Box::new))
                 .filter(|game_entity| {
                     game_entity.in_use()
                         && game_entity.is_game_item(entityType_t::ET_ITEM)
