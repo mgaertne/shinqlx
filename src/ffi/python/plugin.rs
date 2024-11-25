@@ -654,14 +654,15 @@ impl Plugin {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
         if let Ok(player_steam_id) = name.extract::<i64>() {
             return Ok(players
-                .into_iter()
-                .find(|player| player.steam_id == player_steam_id));
+                .iter()
+                .find(|player| player.steam_id == player_steam_id)
+                .cloned());
         }
 
         let Some(client_id) = client_id(cls.py(), name, Some(players.clone())) else {
             return Ok(None);
         };
-        Ok(players.into_iter().find(|player| player.id == client_id))
+        Ok(players.iter().find(|player| player.id == client_id).cloned())
     }
 
     /// Send a message to the chat, or any other channel.
@@ -836,12 +837,13 @@ impl Plugin {
 
             let cleaned_text = clean_text(&name).to_lowercase();
             players
-                .into_iter()
+                .iter()
                 .filter(|player| {
                     clean_text(&player.name)
                         .to_lowercase()
                         .contains(&cleaned_text)
                 })
+                .cloned()
                 .collect()
         })
     }
@@ -857,23 +859,25 @@ impl Plugin {
 
         let result = PyDict::new(cls.py());
 
-        for team_str in [
+        [
             intern!(cls.py(), "free"),
             intern!(cls.py(), "red"),
             intern!(cls.py(), "blue"),
             intern!(cls.py(), "spectator"),
-        ] {
+        ]
+        .iter()
+        .try_for_each(|team_str| {
             let filtered_players: Vec<Player> = players
-                .clone()
-                .into_iter()
+                .iter()
                 .filter(|player| {
                     player
                         .get_team(cls.py())
                         .is_ok_and(|team| team == team_str.to_string())
                 })
+                .cloned()
                 .collect();
-            result.set_item(team_str, filtered_players)?;
-        }
+            result.set_item(team_str, filtered_players)
+        })?;
 
         Ok(result)
     }
