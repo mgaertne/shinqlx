@@ -210,7 +210,7 @@ impl EventDispatcher {
         &'static str,
         &'static str,
     ) {
-        NO_DEBUG.into_iter().collect_tuple().unwrap_or_default()
+        NO_DEBUG.iter().cloned().collect_tuple().unwrap_or_default()
     }
 
     #[new]

@@ -367,7 +367,7 @@ impl FromStr for ParsedVariables {
             warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
         }
         Ok(Self {
-            items: varstr_vec.into_iter().tuples().collect(),
+            items: varstr_vec.iter().cloned().tuples().collect(),
         })
     }
 }
@@ -419,9 +419,9 @@ impl ParsedVariables {
     pub fn set(&mut self, item: &str, value: &str) {
         let mut new_items: Vec<(String, String)> = self
             .items
-            .clone()
-            .into_iter()
+            .iter()
             .filter(|(key, _value)| key != item)
+            .cloned()
             .collect();
         new_items.push((item.into(), value.into()));
         self.items = new_items;
