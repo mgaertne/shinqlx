@@ -662,7 +662,10 @@ impl Plugin {
         let Some(client_id) = client_id(cls.py(), name, Some(players.clone())) else {
             return Ok(None);
         };
-        Ok(players.iter().find(|player| player.id == client_id).cloned())
+        Ok(players
+            .iter()
+            .find(|player| player.id == client_id)
+            .cloned())
     }
 
     /// Send a message to the chat, or any other channel.
@@ -857,8 +860,6 @@ impl Plugin {
     ) -> PyResult<Bound<'py, PyDict>> {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        let result = PyDict::new(cls.py());
-
         [
             intern!(cls.py(), "free"),
             intern!(cls.py(), "red"),
@@ -866,7 +867,7 @@ impl Plugin {
             intern!(cls.py(), "spectator"),
         ]
         .iter()
-        .try_for_each(|team_str| {
+        .try_fold(PyDict::new(cls.py()), |result, team_str| {
             let filtered_players: Vec<Player> = players
                 .iter()
                 .filter(|player| {
@@ -876,10 +877,10 @@ impl Plugin {
                 })
                 .cloned()
                 .collect();
-            result.set_item(team_str, filtered_players)
-        })?;
+            result.set_item(team_str, filtered_players)?;
 
-        Ok(result)
+            Ok(result)
+        })
     }
 
     #[classmethod]
