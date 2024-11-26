@@ -4500,7 +4500,7 @@ def returning_other_string(*args, **kwargs):
 }
 
 #[cfg(test)]
-#[cfg_attr(test, mockall::automock)]
+#[mockall::automock]
 #[allow(dead_code)]
 pub(crate) mod python_tests {
     use super::PythonInitializationError;

@@ -5539,7 +5539,7 @@ impl Default for MockEngineBuilder {
 }
 
 #[cfg(test)]
-#[cfg_attr(test, mockall::automock)]
+#[mockall::automock]
 #[allow(dead_code)]
 mod quake_functions {
     use crate::ffi::c::prelude::{
