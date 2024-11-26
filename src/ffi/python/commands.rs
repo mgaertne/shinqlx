@@ -2211,18 +2211,7 @@ mod command_invoker_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_when_event_dispatcher_returns_false(_pyshinqlx_setup: ()) {
-        // let owner = c"9876543210";
-        // let mut raw_cvar = CVarBuilder::default()
-        //     .string(owner.as_ptr().cast_mut())
-        //     .build()
-        //    .expect("this should not happen");
-
         MockEngineBuilder::default()
-            // .with_find_cvar(
-            //     predicate::eq("qlx_owner"),
-            //     move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-            //     1..,
-            // )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
