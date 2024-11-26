@@ -9444,7 +9444,7 @@ mod register_handlers_tests {
 }
 
 #[cfg(test)]
-#[cfg_attr(test, mockall::automock)]
+#[mockall::automock]
 #[allow(dead_code)]
 #[allow(clippy::module_inception)]
 pub(crate) mod handlers {
