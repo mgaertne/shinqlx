@@ -15,27 +15,25 @@ pub(crate) fn pyshinqlx_send_server_command(
     client_id: Option<i32>,
     cmd: &str,
 ) -> PyResult<bool> {
-    match client_id {
-        None => py.allow_threads(|| {
+    py.allow_threads(|| match client_id {
+        None => {
             shinqlx_send_server_command(None, cmd);
             Ok(true)
-        }),
-        Some(actual_client_id) => {
-            validate_client_id(py, actual_client_id)?;
-
-            py.allow_threads(|| {
-                #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-                let opt_client = Client::try_from(actual_client_id)
-                    .ok()
-                    .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
-                let returned = opt_client.is_some();
-                if returned {
-                    shinqlx_send_server_command(opt_client, cmd);
-                }
-                Ok(returned)
-            })
         }
-    }
+        Some(actual_client_id) => {
+            validate_client_id(actual_client_id)?;
+
+            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
+            let opt_client = Client::try_from(actual_client_id)
+                .ok()
+                .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
+            let returned = opt_client.is_some();
+            if returned {
+                shinqlx_send_server_command(opt_client, cmd);
+            }
+            Ok(returned)
+        }
+    })
 }
 
 #[cfg(test)]

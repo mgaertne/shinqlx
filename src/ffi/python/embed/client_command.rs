@@ -14,9 +14,9 @@ pub(crate) fn pyshinqlx_client_command(
     client_id: i32,
     cmd: &str,
 ) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok().filter(|client| {
             ![clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state())

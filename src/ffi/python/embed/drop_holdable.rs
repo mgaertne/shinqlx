@@ -6,9 +6,9 @@ use crate::ffi::python::prelude::*;
 #[pyfunction]
 #[pyo3(name = "drop_holdable")]
 pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         GameEntity::try_from(client_id)
             .ok()

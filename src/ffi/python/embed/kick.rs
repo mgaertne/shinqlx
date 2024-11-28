@@ -14,9 +14,9 @@ use pyo3::exceptions::PyValueError;
 #[pyo3(name = "kick")]
 #[pyo3(signature = (client_id, reason=None))]
 pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_client = Client::try_from(client_id)
             .ok()

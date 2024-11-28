@@ -8,11 +8,11 @@ use crate::ffi::python::prelude::*;
 pub(crate) fn pyshinqlx_set_position(
     py: Python<'_>,
     client_id: i32,
-    position: Vector3,
+    position: &Vector3,
 ) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
@@ -39,8 +39,10 @@ mod set_position_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_position_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
+        let vector = Vector3(1, 2, 3);
+
         Python::with_gil(|py| {
-            let result = pyshinqlx_set_position(py, 21, Vector3(1, 2, 3));
+            let result = pyshinqlx_set_position(py, 21, &vector);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -49,9 +51,11 @@ mod set_position_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_position_for_client_id_too_small(_pyshinqlx_setup: ()) {
+        let vector = Vector3(1, 2, 3);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_set_position(py, -1, Vector3(1, 2, 3));
+                let result = pyshinqlx_set_position(py, -1, &vector);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -61,9 +65,11 @@ mod set_position_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_position_for_client_id_too_large(_pyshinqlx_setup: ()) {
+        let vector = Vector3(1, 2, 3);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_set_position(py, 666, Vector3(1, 2, 3));
+                let result = pyshinqlx_set_position(py, 666, &vector);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -87,8 +93,10 @@ mod set_position_tests {
             mock_game_entity
         });
 
+        let vector = Vector3(1, 2, 3);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_position(py, 2, Vector3(1, 2, 3)));
+            let result = Python::with_gil(|py| pyshinqlx_set_position(py, 2, &vector));
             assert_eq!(result.expect("result was not OK"), true);
         });
     }
@@ -106,8 +114,10 @@ mod set_position_tests {
             mock_game_entity
         });
 
+        let vector = Vector3(1, 2, 3);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_position(py, 2, Vector3(1, 2, 3)));
+            let result = Python::with_gil(|py| pyshinqlx_set_position(py, 2, &vector));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }
