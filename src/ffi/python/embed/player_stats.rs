@@ -9,9 +9,9 @@ pub(crate) fn pyshinqlx_player_stats(
     py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerStats>> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         Ok(GameEntity::try_from(client_id)
             .ok()

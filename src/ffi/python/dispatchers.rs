@@ -1,7 +1,9 @@
 use super::prelude::*;
 
 use core::sync::atomic::Ordering;
+
 use log::error;
+
 use pyo3::types::{PyBool, PyString};
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
@@ -24,14 +26,15 @@ where
                             error!(target: "shinqlx", "client_command_handler returned an error: {:?}.", e);
                             Some(cmd.as_ref().to_string())
                         }, |returned| {
-                            if returned.is_instance_of::<PyBool>() &&
-                                returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                            if returned.downcast::<PyBool>().is_ok_and(|bool_value| !bool_value.is_true()) {
                                 None
-                            }
-                            else if returned.is_instance_of::<PyString>() {
-                                returned.extract::<String>().ok()
                             } else {
-                                Some(cmd.as_ref().to_string())
+                                returned.downcast::<PyString>()
+                                    .ok()
+                                    .map_or(
+                                        Some(cmd.as_ref().to_string()),
+                                        |py_string| Some(py_string.to_string())
+                                    )
                             }
                         })
                 })
@@ -58,14 +61,15 @@ where
                         error!(target: "shinqlx", "server_command_handler returned an error: {:?}.", e);
                         Some(cmd.as_ref().to_string())
                     }, |returned| {
-                        if returned.is_instance_of::<PyBool>() &&
-                            returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                        if returned.downcast::<PyBool>().is_ok_and(|bool_value| !bool_value.is_true()) {
                             None
-                        }
-                        else if returned.is_instance_of::<PyString>() {
-                            returned.extract::<String>().ok()
                         } else {
-                            Some(cmd.as_ref().to_string())
+                            returned.downcast::<PyString>()
+                                .ok()
+                                .map_or(
+                                    Some(cmd.as_ref().to_string()),
+                                    |py_string| Some(py_string.to_string())
+                                )
                         }
                     })
             })
@@ -108,16 +112,16 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                     .call1((client_id, is_bot))
                     .ok()
                     .and_then(|returned| {
-                        if returned.is_instance_of::<PyBool>()
-                            && returned
-                                .extract::<bool>()
-                                .is_ok_and(|bool_value| !bool_value)
+                        if returned
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
                         {
                             Some("You are banned from this server.".to_string())
-                        } else if returned.is_instance_of::<PyString>() {
-                            returned.extract::<String>().ok()
                         } else {
-                            None
+                            returned
+                                .downcast::<PyString>()
+                                .ok()
+                                .map(|py_string| py_string.to_string())
                         }
                     })
             });
@@ -217,15 +221,18 @@ where
                         error!(target: "shinqlx", "set_configstring_handler returned an error: {:?}.", e);
                         Some(value.as_ref().to_string())
                     }, |returned| {
-                        if returned.is_instance_of::<PyBool>() &&
-                            returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                        if returned
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true()) {
                             None
-                        }
-                        else if returned.is_instance_of::<PyString>() {
-                            returned.extract::<String>().ok()
                         } else {
-                            Some(value.as_ref().to_string())
-                        }
+                             returned.downcast::<PyString>()
+                                .ok()
+                                .map_or(
+                                     Some(value.as_ref().to_string()),
+                                     |py_string| Some(py_string.to_string())
+                                 )
+                         }
                     })
             })
         })
@@ -268,14 +275,17 @@ where
                         error!(target: "shinqlx", "console_print_handler returned an error: {:?}.", e);
                         Some(text.as_ref().to_string())
                     }, |returned| {
-                        if returned.is_instance_of::<PyBool>() &&
-                            returned.extract::<bool>().is_ok_and(|bool_value| !bool_value) {
+                        if returned
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true()) {
                             None
-                        }
-                        else if returned.is_instance_of::<PyString>() {
-                            returned.extract::<String>().ok()
                         } else {
-                            Some(text.as_ref().to_string())
+                            returned.downcast::<PyString>()
+                                .ok()
+                                .map_or(
+                                    Some(text.as_ref().to_string()),
+                                    |py_string| Some(py_string.to_string())
+                                )
                         }
                     })
             })

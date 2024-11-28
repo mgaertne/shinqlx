@@ -11,9 +11,9 @@ pub(crate) fn pyshinqlx_player_info(
     py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerInfo>> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok();

@@ -10,9 +10,9 @@ pub(crate) fn pyshinqlx_set_holdable(
     client_id: i32,
     holdable: i32,
 ) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
