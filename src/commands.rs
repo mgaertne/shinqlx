@@ -117,13 +117,13 @@ pub extern "C" fn cmd_slap() {
 
         main_engine.send_server_command(None::<Client>, &message);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let Ok(mut game_client) = client_entity.get_game_client() else {
             return;
         };
         game_client.set_velocity((
-            rng.gen_range(-1.0..=1.0) * 200.0,
-            rng.gen_range(-1.0..=1.0) * 200.0,
+            rng.random_range(-1.0..=1.0) * 200.0,
+            rng.random_range(-1.0..=1.0) * 200.0,
             300.0,
         ));
         if dmg > 0 {
