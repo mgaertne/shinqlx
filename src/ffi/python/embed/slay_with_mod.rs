@@ -12,9 +12,9 @@ pub(crate) fn pyshinqlx_slay_with_mod(
     client_id: i32,
     mean_of_death: i32,
 ) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         let Ok(means_of_death): Result<meansOfDeath_t, _> = mean_of_death.try_into() else {
             return Err(PyValueError::new_err(
                 "means of death needs to be a valid enum value.",
