@@ -203,7 +203,7 @@ jobs:
           toolchain: nightly
           components: "llvm-tools"
       - run: cargo install cargo-llvm-cov
-      - run: cargo llvm-cov --lcov --output-path lcov.info
+      - run: cargo llvm-cov --lcov --output-path lcov.info --no-cfg-covergae-nightly
       #      - name: Upload to codecov.io
       #        uses: codecov/codecov-action@v4
       #        with:

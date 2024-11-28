@@ -38,7 +38,7 @@ rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 ctor = { version = ">=0.2", default-features = false }
-rand = { version = ">=0.9.0-alpha.2", default-features = false, features = ["std", "std_rng", "getrandom"] }
+rand = { version = ">=0.9.0-beta.0", default-features = false, features = ["std", "std_rng", "os_rng"] }
 pyo3 = { version = ">=0.23, <0.24", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.3", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
@@ -88,4 +88,9 @@ patches = ["dep:region"]
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 
 [lints.rust]
+missing_docs = "warn"
 non_local_definitions = "allow"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,tarpaulin_include)'] }
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
