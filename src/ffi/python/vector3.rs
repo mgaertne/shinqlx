@@ -1,17 +1,12 @@
 use super::prelude::*;
 
-use alloc::borrow::Cow;
 use core::array;
+use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
 use spin::mutex::FairMutex;
 
-use pyo3::{
-    basic::CompareOp,
-    exceptions::PyValueError,
-    types::{PyBool, PyNotImplemented, PyTuple},
-    BoundObject,
-};
+use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 #[pyclass(frozen)]
 struct Vector3Iter {
@@ -30,13 +25,33 @@ impl Vector3Iter {
 }
 
 /// A three-dimensional vector.
-#[pyclass(module = "_shinqlx", name = "Vector3", frozen, get_all, sequence)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "Vector3",
+    frozen,
+    get_all,
+    sequence,
+    eq,
+    str
+)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub(crate) struct Vector3(
     #[pyo3(name = "x")] pub(crate) i32,
     #[pyo3(name = "y")] pub(crate) i32,
     #[pyo3(name = "z")] pub(crate) i32,
 );
+
+impl From<(f32, f32, f32)> for Vector3 {
+    fn from(value: (f32, f32, f32)) -> Self {
+        Self(value.0 as i32, value.1 as i32, value.2 as i32)
+    }
+}
+
+impl Display for Vector3 {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
+    }
+}
 
 #[pymethods]
 impl Vector3 {
@@ -56,52 +71,26 @@ impl Vector3 {
 
         let results = values
             .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<ArrayVec<Option<i32>, 3>>();
+            .filter_map(|item| item.extract::<i32>().ok())
+            .collect::<ArrayVec<i32, 3>>();
 
-        if results.iter().any(|item| item.is_none()) {
+        if results.len() != 3 {
             return Err(PyValueError::new_err("Vector3 values need to be integer"));
         }
 
-        Ok(Self(
-            results[0].unwrap(),
-            results[1].unwrap(),
-            results[2].unwrap(),
-        ))
+        Ok(Self(results[0], results[1], results[2]))
     }
 
-    fn __richcmp__<'py>(
-        &self,
-        other: &Self,
-        op: CompareOp,
-        py: Python<'py>,
-    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
-        match op {
-            CompareOp::Eq => Ok(PyBool::new(py, self == other).into_any()),
-            CompareOp::Ne => Ok(PyBool::new(py, self != other).into_any()),
-            _ => Ok(PyNotImplemented::get(py).into_any()),
-        }
+    fn __repr__(&self) -> String {
+        format!("{self}")
     }
 
-    pub(crate) fn __str__(&self) -> Cow<str> {
-        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2).into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!("Vector3(x={}, y={}, z={})", self.0, self.1, self.2).into()
-    }
-
-    fn __iter__(slf: PyRef<'_, Self>) -> Vector3Iter {
-        let iter_array = [slf.0, slf.1, slf.2];
+    fn __iter__(slf: &Bound<'_, Self>) -> Vector3Iter {
+        let values = slf.get();
+        let iter_array = [values.0, values.1, values.2];
         Vector3Iter {
             iter: iter_array.into_iter().into(),
         }
-    }
-}
-
-impl From<(f32, f32, f32)> for Vector3 {
-    fn from(value: (f32, f32, f32)) -> Self {
-        Self(value.0 as i32, value.1 as i32, value.2 as i32)
     }
 }
 
@@ -275,7 +264,7 @@ except StopIteration:
     #[test]
     fn vector3_to_str() {
         let vector3 = Vector3(1, 2, 3);
-        assert_eq!(vector3.__str__(), "Vector3(x=1, y=2, z=3)");
+        assert_eq!(format!("{vector3}"), "Vector3(x=1, y=2, z=3)");
     }
 
     #[test]

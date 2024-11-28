@@ -1,10 +1,17 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 /// Information about a player's state in the game.
-#[pyclass(module = "_shinqlx", name = "PlayerState", frozen, get_all, sequence)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "PlayerState",
+    frozen,
+    get_all,
+    sequence,
+    str
+)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerState {
     /// Whether the player's alive or not.
@@ -28,58 +35,13 @@ pub(crate) struct PlayerState {
     ///The player's powerups.
     pub(crate) powerups: Powerups,
     /// The player's holdable item.
-    pub(crate) holdable: Option<Cow<'static, str>>,
+    pub(crate) holdable: Holdable,
     /// A struct sequence with flight parameters.
     pub(crate) flight: Flight,
     /// Whether the player is currently chatting.
     pub(crate) is_chatting: bool,
     /// Whether the player is frozen(freezetag).
     pub(crate) is_frozen: bool,
-}
-
-#[pymethods]
-impl PlayerState {
-    fn __str__(&self) -> Cow<str> {
-        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
-                self.is_alive,
-                self.position.__str__(),
-                self.velocity.__str__(),
-                self.health,
-                self.armor,
-                self.noclip,
-                self.weapon,
-                self.weapons.__str__(),
-                self.ammo.__str__(),
-                self.powerups.__str__(),
-                match self.holdable.as_ref() {
-                    Some(value) => value,
-                    None => "None",
-                },
-                self.flight.__str__(),
-                self.is_chatting,
-                self.is_frozen).into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!("PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
-                self.is_alive,
-                self.position.__str__(),
-                self.velocity.__str__(),
-                self.health,
-                self.armor,
-                self.noclip,
-                self.weapon,
-                self.weapons.__str__(),
-                self.ammo.__str__(),
-                self.powerups.__str__(),
-                match self.holdable.as_ref() {
-                    Some(value) => value,
-                    None => "None",
-                },
-                self.flight.__str__(),
-                self.is_chatting,
-                self.is_frozen).into()
-    }
 }
 
 impl From<GameEntity> for PlayerState {
@@ -98,7 +60,7 @@ impl From<GameEntity> for PlayerState {
             weapons: Weapons::from(game_client.get_weapons()),
             ammo: Weapons::from(game_client.get_ammos()),
             powerups: Powerups::from(game_client.get_powerups()),
-            holdable: Holdable::from(game_client.get_holdable()).into(),
+            holdable: Holdable::from(game_client.get_holdable()),
             flight: Flight(
                 game_client.get_current_flight_fuel(),
                 game_client.get_max_flight_fuel(),
@@ -108,6 +70,33 @@ impl From<GameEntity> for PlayerState {
             is_chatting: game_client.is_chatting(),
             is_frozen: game_client.is_frozen(),
         }
+    }
+}
+
+impl Display for PlayerState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
+                self.is_alive,
+                self.position,
+                self.velocity,
+                self.health,
+                self.armor,
+                self.noclip,
+                self.weapon,
+                self.weapons,
+                self.ammo,
+                self.powerups,
+                self.holdable,
+                self.flight,
+                self.is_chatting,
+                self.is_frozen)
+    }
+}
+
+#[pymethods]
+impl PlayerState {
+    fn __repr__(&self) -> String {
+        format!("{self}")
     }
 }
 
@@ -131,7 +120,7 @@ mod player_state_tests {
             weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
             ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
             powerups: Powerups(12, 34, 56, 78, 90, 24),
-            holdable: Some("kamikaze".into()),
+            holdable: Holdable::Kamikaze,
             flight: Flight(12, 34, 56, 78),
             is_chatting: true,
             is_frozen: true,
@@ -188,7 +177,7 @@ mod player_state_tests {
     #[test]
     fn player_state_to_str() {
         assert_eq!(
-            default_player_state().__str__(),
+            format!("{}", default_player_state()),
             "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
@@ -209,12 +198,12 @@ mod player_state_tests {
     #[test]
     fn player_state_to_str_with_no_holdble() {
         let player_state = PlayerState {
-            holdable: None,
+            holdable: Holdable::None,
             ..default_player_state()
         };
 
         assert_eq!(
-            player_state.__str__(),
+            format!("{}", player_state),
             "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
@@ -256,7 +245,7 @@ mod player_state_tests {
     #[test]
     fn player_state_repr_with_no_holdable() {
         let player_state = PlayerState {
-            holdable: None,
+            holdable: Holdable::None,
             ..default_player_state()
         };
 

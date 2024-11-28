@@ -1,18 +1,21 @@
 use super::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
 
-use pyo3::{
-    basic::CompareOp,
-    exceptions::PyValueError,
-    types::{PyBool, PyNotImplemented, PyTuple},
-    BoundObject,
-};
+use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing parameters for the flight holdable item.
-#[pyclass(module = "_shinqlx", name = "Flight", frozen, get_all, sequence)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "Flight",
+    frozen,
+    get_all,
+    sequence,
+    eq,
+    str
+)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,
@@ -24,6 +27,16 @@ pub(crate) struct Flight(
 impl From<Flight> for [i32; 4] {
     fn from(flight: Flight) -> Self {
         [flight.0, flight.1, flight.2, flight.3]
+    }
+}
+
+impl Display for Flight {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
+            self.0, self.1, self.2, self.3
+        )
     }
 }
 
@@ -45,48 +58,18 @@ impl Flight {
 
         let results = values
             .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<ArrayVec<Option<i32>, 4>>();
+            .filter_map(|item| item.extract::<i32>().ok())
+            .collect::<ArrayVec<i32, 4>>();
 
-        if results.iter().any(|item| item.is_none()) {
+        if results.len() != 4 {
             return Err(PyValueError::new_err("Flight values need to be integer"));
         }
 
-        Ok(Self(
-            results[0].unwrap(),
-            results[1].unwrap(),
-            results[2].unwrap(),
-            results[3].unwrap(),
-        ))
+        Ok(Self(results[0], results[1], results[2], results[3]))
     }
 
-    fn __richcmp__<'py>(
-        &self,
-        other: &Self,
-        op: CompareOp,
-        py: Python<'py>,
-    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
-        match op {
-            CompareOp::Eq => Ok(PyBool::new(py, self == other).into_any()),
-            CompareOp::Ne => Ok(PyBool::new(py, self != other).into_any()),
-            _ => Ok(PyNotImplemented::get(py).into_any()),
-        }
-    }
-
-    pub(crate) fn __str__(&self) -> Cow<str> {
-        format!(
-            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
-            self.0, self.1, self.2, self.3
-        )
-        .into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!(
-            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
-            self.0, self.1, self.2, self.3
-        )
-        .into()
+    fn __repr__(&self) -> String {
+        format!("{self}")
     }
 }
 
@@ -218,7 +201,7 @@ assert(_shinqlx.Flight((0, 1, 2, 3)) < _shinqlx.Flight((3, 2, 1, 0)))
     fn flight_to_str() {
         let flight = Flight(1, 2, 3, 4);
         assert_eq!(
-            flight.__str__(),
+            format!("{flight}"),
             "Flight(fuel=1, max_fuel=2, thrust=3, refuel=4)"
         );
     }

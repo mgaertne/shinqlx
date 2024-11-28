@@ -1,18 +1,21 @@
 use super::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
 
-use pyo3::{
-    basic::CompareOp,
-    exceptions::PyValueError,
-    types::{PyBool, PyNotImplemented, PyTuple},
-    BoundObject,
-};
+use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the powerups in the game.
-#[pyclass(module = "_shinqlx", name = "Powerups", frozen, get_all, sequence)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "Powerups",
+    frozen,
+    get_all,
+    sequence,
+    eq,
+    str
+)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Powerups(
     #[pyo3(name = "quad")] pub(crate) i32,
@@ -32,6 +35,13 @@ impl From<[i32; 6]> for Powerups {
 impl From<Powerups> for [i32; 6] {
     fn from(value: Powerups) -> Self {
         [value.0, value.1, value.2, value.3, value.4, value.5]
+    }
+}
+
+impl Display for Powerups {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
+                self.0, self.1, self.2, self.3, self.4, self.5)
     }
 }
 
@@ -70,27 +80,9 @@ impl Powerups {
         ))
     }
 
-    fn __richcmp__<'py>(
-        &self,
-        other: &Self,
-        op: CompareOp,
-        py: Python<'py>,
-    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
-        match op {
-            CompareOp::Eq => Ok(PyBool::new(py, self == other).into_any()),
-            CompareOp::Ne => Ok(PyBool::new(py, self != other).into_any()),
-            _ => Ok(PyNotImplemented::get(py).into_any()),
-        }
-    }
-
-    pub(crate) fn __str__(&self) -> Cow<str> {
+    fn __repr__(&self) -> String {
         format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-                self.0, self.1, self.2, self.3, self.4, self.5).into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-                self.0, self.1, self.2, self.3, self.4, self.5).into()
+                self.0, self.1, self.2, self.3, self.4, self.5)
     }
 }
 
@@ -238,7 +230,7 @@ assert(_shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < _shinqlx.Powerups((5, 4, 3, 2, 1,
     fn powerups_to_str() {
         let powerups = Powerups(1, 2, 3, 4, 5, 6);
         assert_eq!(
-            powerups.__str__(),
+            format!("{powerups}"),
             "Powerups(quad=1, battlesuit=2, haste=3, invisibility=4, regeneration=5, invulnerability=6)"
         );
     }

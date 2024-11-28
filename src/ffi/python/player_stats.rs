@@ -1,10 +1,17 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 /// A player's score and some basic stats.
-#[pyclass(module = "_shinqlx", name = "PlayerStats", frozen, get_all, sequence)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "PlayerStats",
+    frozen,
+    get_all,
+    sequence,
+    str
+)]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PlayerStats {
     /// The player's primary score.
@@ -23,19 +30,6 @@ pub(crate) struct PlayerStats {
     pub(crate) ping: i32,
 }
 
-#[pymethods]
-impl PlayerStats {
-    fn __str__(&self) -> Cow<str> {
-        format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping).into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!("PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping).into()
-    }
-}
-
 impl From<GameClient> for PlayerStats {
     fn from(game_client: GameClient) -> Self {
         Self {
@@ -47,6 +41,20 @@ impl From<GameClient> for PlayerStats {
             time: game_client.get_time_on_team(),
             ping: game_client.get_ping(),
         }
+    }
+}
+
+impl Display for PlayerStats {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
+                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
+    }
+}
+
+#[pymethods]
+impl PlayerStats {
+    fn __repr__(&self) -> String {
+        format!("{self}")
     }
 }
 
@@ -72,7 +80,7 @@ mod player_stats_tests {
 
     #[test]
     fn player_stats_to_str() {
-        assert_eq!(default_player_stats().__str__(), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
+        assert_eq!(format!("{}", default_player_stats()), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
     }
 
     #[test]
