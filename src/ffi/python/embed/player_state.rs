@@ -9,9 +9,9 @@ pub(crate) fn pyshinqlx_player_state(
     py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerState>> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         Ok(GameEntity::try_from(client_id)
             .ok()
@@ -154,7 +154,7 @@ mod player_state_tests {
                     weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
                     ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
                     powerups: Powerups(12, 34, 56, 78, 90, 24),
-                    holdable: Some("kamikaze".into()),
+                    holdable: Holdable::Kamikaze,
                     flight: Flight(12, 34, 56, 78),
                     is_chatting: true,
                     is_frozen: true,

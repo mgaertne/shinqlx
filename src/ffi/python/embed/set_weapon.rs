@@ -8,9 +8,9 @@ use pyo3::exceptions::PyValueError;
 #[pyfunction]
 #[pyo3(name = "set_weapon")]
 pub(crate) fn pyshinqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         if !(0..16).contains(&weapon) {
             return Err(PyValueError::new_err(
                 "Weapon must be a number from 0 to 15.",

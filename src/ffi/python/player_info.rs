@@ -1,10 +1,10 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
-#[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all, sequence)]
+#[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all, sequence, str)]
 #[derive(Debug, PartialEq, Clone)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {
@@ -24,6 +24,19 @@ pub(crate) struct PlayerInfo {
     pub(crate) privileges: i32,
 }
 
+impl Display for PlayerInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
+                self.client_id,
+                self.name,
+                self.connection_state,
+                self.userinfo,
+                self.steam_id,
+                self.team,
+                self.privileges)
+    }
+}
+
 #[pymethods]
 impl PlayerInfo {
     #[new]
@@ -39,26 +52,8 @@ impl PlayerInfo {
         }
     }
 
-    fn __str__(&self) -> Cow<str> {
-        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-                self.client_id,
-                self.name,
-                self.connection_state,
-                self.userinfo,
-                self.steam_id,
-                self.team,
-                self.privileges).into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!("PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-                self.client_id,
-                self.name,
-                self.connection_state,
-                self.userinfo,
-                self.steam_id,
-                self.team,
-                self.privileges).into()
+    fn __repr__(&self) -> String {
+        format!("{self}")
     }
 }
 
@@ -151,7 +146,7 @@ player_info = shinqlx.PlayerInfo(
     #[test]
     fn player_info_python_string() {
         assert_eq!(
-            default_player_info().__str__(),
+            format!("{}", default_player_info()),
             "PlayerInfo(client_id=2, name=UnknownPlayer, connection_state=4, userinfo=asdf, \
             steam_id=42, team=3, privileges=0)"
         );

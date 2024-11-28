@@ -95,22 +95,20 @@ pub(crate) use slay_with_mod::pyshinqlx_slay_with_mod;
 pub(crate) use spawn_item::pyshinqlx_spawn_item;
 
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-use pyo3::{PyResult, Python};
+use pyo3::PyResult;
 
-fn validate_client_id(py: Python<'_>, client_id: i32) -> PyResult<()> {
-    py.allow_threads(|| {
-        let maxclients = MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
-            |main_engine| Ok(main_engine.get_max_clients()),
-        )?;
-        if !(0..maxclients).contains(&client_id) {
-            return Err(PyValueError::new_err(format!(
-                "client_id needs to be a number from 0 to {}, or None.",
-                maxclients - 1
-            )));
-        }
-        Ok(())
-    })
+fn validate_client_id(client_id: i32) -> PyResult<()> {
+    let maxclients = MAIN_ENGINE.load().as_ref().map_or(
+        Err(PyEnvironmentError::new_err(
+            "main quake live engine not set",
+        )),
+        |main_engine| Ok(main_engine.get_max_clients()),
+    )?;
+    if !(0..maxclients).contains(&client_id) {
+        return Err(PyValueError::new_err(format!(
+            "client_id needs to be a number from 0 to {}, or None.",
+            maxclients - 1
+        )));
+    }
+    Ok(())
 }

@@ -8,18 +8,18 @@ use crate::ffi::python::prelude::*;
 pub(crate) fn pyshinqlx_set_weapons(
     py: Python<'_>,
     client_id: i32,
-    weapons: Weapons,
+    weapons: &Weapons,
 ) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok());
         opt_game_client
             .iter_mut()
-            .for_each(|game_client| game_client.set_weapons(weapons.into()));
+            .for_each(|game_client| game_client.set_weapons((*weapons).into()));
         Ok(opt_game_client.is_some())
     })
 }
@@ -39,9 +39,10 @@ mod set_weapons_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapons_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
+        let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_set_weapons(py, 21, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+            let result = pyshinqlx_set_weapons(py, 21, &weapons);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -50,13 +51,11 @@ mod set_weapons_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapons_for_client_id_too_small(_pyshinqlx_setup: ()) {
+        let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_set_weapons(
-                    py,
-                    -1,
-                    Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                );
+                let result = pyshinqlx_set_weapons(py, -1, &weapons);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -66,13 +65,11 @@ mod set_weapons_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapons_for_client_id_too_large(_pyshinqlx_setup: ()) {
+        let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_set_weapons(
-                    py,
-                    666,
-                    Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                );
+                let result = pyshinqlx_set_weapons(py, 666, &weapons);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -96,10 +93,10 @@ mod set_weapons_tests {
             mock_game_entity
         });
 
+        let weapons = Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_weapons(py, 2, Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1))
-            });
+            let result = Python::with_gil(|py| pyshinqlx_set_weapons(py, 2, &weapons));
             assert_eq!(result.expect("result was not OK"), true);
         });
     }
@@ -117,10 +114,10 @@ mod set_weapons_tests {
             mock_game_entity
         });
 
+        let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_set_weapons(py, 2, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-            });
+            let result = Python::with_gil(|py| pyshinqlx_set_weapons(py, 2, &weapons));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }
