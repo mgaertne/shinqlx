@@ -21,10 +21,9 @@ fn main() {
 
 fn gather_shinqlx_version() -> String {
     let pkg_version = env!("CARGO_PKG_VERSION");
-    let pkg_name = env!("CARGO_PKG_NAME");
     match shinqlx_version_suffix() {
-        None => format!(r#""v{pkg_version}-{pkg_name}"#),
-        Some(suffix) => format!(r#""v{pkg_version}-{pkg_name}-{suffix}"#)
+        None => pkg_version.into(),
+        Some(suffix) => format!("{pkg_version}+{suffix}"),
     }
 }
 
@@ -43,7 +42,8 @@ fn shinqlx_version_suffix() -> Option<String> {
                 .include_ignored(false)
                 .include_unmodified(false)
                 .exclude_submodules(false),
-        )).ok()?
+        ))
+        .ok()?
         .iter()
         .any(|status| ![git2::Status::CURRENT, git2::Status::IGNORED].contains(&status.status()))
     {
