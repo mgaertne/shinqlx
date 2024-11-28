@@ -4,7 +4,14 @@ use crate::ffi::c::prelude::*;
 use core::fmt::{Display, Formatter};
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
-#[pyclass(module = "_shinqlx", name = "PlayerInfo", frozen, get_all, sequence, str)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "PlayerInfo",
+    frozen,
+    get_all,
+    sequence,
+    str
+)]
 #[derive(Debug, PartialEq, Clone)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {

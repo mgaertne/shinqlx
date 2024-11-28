@@ -15,16 +15,19 @@ where
     Python::with_gil(|py| {
         let result = handle_client_command(py, client_id, cmd.as_ref());
 
-        if result.bind(py).is_instance_of::<PyBool>()
-            && result
-                .extract::<bool>(py)
-                .is_ok_and(|bool_value| !bool_value)
+        if result
+            .bind(py)
+            .downcast::<PyBool>()
+            .is_ok_and(|bool_value| !bool_value.is_true())
         {
             None
-        } else if result.bind(py).is_instance_of::<PyString>() {
-            result.extract::<String>(py).ok()
         } else {
-            Some(cmd.as_ref().to_string())
+            result
+                .bind(py)
+                .downcast::<PyString>()
+                .map_or(Some(cmd.as_ref().to_string()), |py_string| {
+                    Some(py_string.to_string())
+                })
         }
     })
 }

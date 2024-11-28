@@ -699,7 +699,9 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_position(py, self.id, Vector3(x, y, z))
+                let vector = Vector3(x, y, z);
+
+                pyshinqlx_set_position(py, self.id, &vector)
                     .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
@@ -737,7 +739,9 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_velocity(py, self.id, Vector3(x, y, z))
+                let vector = Vector3(x, y, z);
+
+                pyshinqlx_set_velocity(py, self.id, &vector)
                     .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
@@ -823,14 +827,12 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_weapons(
-                    py,
-                    self.id,
-                    Weapons(
-                        g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
-                    ),
-                )
-                .map(|value| PyBool::new(py, value).into_any().to_owned())
+                let weapons = Weapons(
+                    g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
+                );
+
+                pyshinqlx_set_weapons(py, self.id, &weapons)
+                    .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -944,14 +946,12 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_ammo(
-                    py,
-                    self.id,
-                    Weapons(
-                        g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
-                    ),
-                )
-                .map(|value| PyBool::new(py, value).into_any().to_owned())
+                let weapons = Weapons(
+                    g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
+                );
+
+                pyshinqlx_set_ammo(py, self.id, &weapons)
+                    .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
     }
@@ -1000,7 +1000,9 @@ impl Player {
                     Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
                 };
 
-                pyshinqlx_set_powerups(py, self.id, Powerups(quad, bs, haste, invis, regen, invul))
+                let powerups = Powerups(quad, bs, haste, invis, regen, invul);
+
+                pyshinqlx_set_powerups(py, self.id, &powerups)
                     .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
@@ -1009,7 +1011,9 @@ impl Player {
     #[getter(holdable)]
     fn get_holdable(&self, py: Python<'_>) -> PyResult<Option<String>> {
         pyshinqlx_player_state(py, self.id).map(|opt_state| {
-            opt_state.and_then(|state| state.holdable.map(|holdable| holdable.to_string()))
+            opt_state
+                .filter(|state| state.holdable != Holdable::None)
+                .map(|state| state.holdable.to_string())
         })
     }
 
@@ -1020,7 +1024,8 @@ impl Player {
             value => {
                 pyshinqlx_set_holdable(py, self.id, value.into())?;
                 if value == Holdable::Flight {
-                    pyshinqlx_set_flight(py, self.id, Flight(16000, 16000, 1200, 0))?;
+                    let flight = Flight(16000, 16000, 1200, 0);
+                    pyshinqlx_set_flight(py, self.id, &flight)?;
                 }
                 Ok(())
             }
@@ -1040,12 +1045,10 @@ impl Player {
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let opt_state = pyshinqlx_player_state(py, self.id)?;
-        let init_flight = if !opt_state.as_ref().is_some_and(|state| {
-            state
-                .holdable
-                .as_ref()
-                .is_some_and(|holdable| holdable == "flight")
-        }) {
+        let init_flight = if !opt_state
+            .as_ref()
+            .is_some_and(|state| state.holdable == Holdable::Flight)
+        {
             self.set_holdable(py, Some("flight".to_string()))?;
             true
         } else {
@@ -1081,7 +1084,9 @@ impl Player {
                     Some(value) => value.extract::<i32>()?,
                 };
 
-                pyshinqlx_set_flight(py, self.id, Flight(fuel, max_fuel, thrust, refuel))
+                let flight = Flight(fuel, max_fuel, thrust, refuel);
+
+                pyshinqlx_set_flight(py, self.id, &flight)
                     .map(|value| PyBool::new(py, value).into_any().to_owned())
             }
         }
@@ -3260,7 +3265,7 @@ assert(player._valid)
                     weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
                     ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
                     powerups: Powerups(12, 34, 56, 78, 90, 24),
-                    holdable: Some("kamikaze".into()),
+                    holdable: Holdable::Kamikaze,
                     flight: Flight(12, 34, 56, 78),
                     is_chatting: true,
                     is_frozen: true,
