@@ -345,7 +345,7 @@ def set_map_subtitles() -> None:
         cs += " - "
     shinqlx.set_configstring(
         678,
-        cs + f"Running shinqlx ^6{shinqlx.__version__}^7 "
+        cs + f"Running shinqlx ^6v{shinqlx.__version__}^7 "
         f"with plugins ^6{getattr(shinqlx, '__plugins_version__', 'NOT_SET')}^7.",
     )
     cs = shinqlx.get_configstring(679)
