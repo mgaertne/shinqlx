@@ -7,9 +7,9 @@ use core::sync::atomic::Ordering;
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
 pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok().filter(|client| {
             let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
