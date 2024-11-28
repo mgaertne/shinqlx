@@ -80,4 +80,9 @@ patches = ["dep:region"]
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 
 [lints.rust]
+missing_docs = "warn"
 non_local_definitions = "allow"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,tarpaulin_include)'] }
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
