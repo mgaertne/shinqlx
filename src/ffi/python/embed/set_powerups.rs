@@ -8,18 +8,18 @@ use crate::ffi::python::prelude::*;
 pub(crate) fn pyshinqlx_set_powerups(
     py: Python<'_>,
     client_id: i32,
-    powerups: Powerups,
+    powerups: &Powerups,
 ) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_client = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok());
         opt_game_client
             .iter_mut()
-            .for_each(|game_client| game_client.set_powerups(powerups.into()));
+            .for_each(|game_client| game_client.set_powerups((*powerups).into()));
         Ok(opt_game_client.is_some())
     })
 }
@@ -39,8 +39,10 @@ mod set_powerups_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_powerups_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
+        let powerups = Powerups(0, 0, 0, 0, 0, 0);
+
         Python::with_gil(|py| {
-            let result = pyshinqlx_set_powerups(py, 21, Powerups(0, 0, 0, 0, 0, 0));
+            let result = pyshinqlx_set_powerups(py, 21, &powerups);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -49,9 +51,11 @@ mod set_powerups_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_powerups_for_client_id_too_small(_pyshinqlx_setup: ()) {
+        let powerups = Powerups(0, 0, 0, 0, 0, 0);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_set_powerups(py, -1, Powerups(0, 0, 0, 0, 0, 0));
+                let result = pyshinqlx_set_powerups(py, -1, &powerups);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -61,9 +65,11 @@ mod set_powerups_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_powerups_for_client_id_too_large(_pyshinqlx_setup: ()) {
+        let powerups = Powerups(0, 0, 0, 0, 0, 0);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_set_powerups(py, 666, Powerups(0, 0, 0, 0, 0, 0));
+                let result = pyshinqlx_set_powerups(py, 666, &powerups);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -87,9 +93,10 @@ mod set_powerups_tests {
             mock_game_entity
         });
 
+        let powerups = Powerups(1, 2, 3, 4, 5, 6);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(1, 2, 3, 4, 5, 6)));
+            let result = Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, &powerups));
             assert_eq!(result.expect("result was not OK"), true);
         });
     }
@@ -107,9 +114,10 @@ mod set_powerups_tests {
             mock_game_entity
         });
 
+        let powerups = Powerups(0, 0, 0, 0, 0, 0);
+
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result =
-                Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, Powerups(0, 0, 0, 0, 0, 0)));
+            let result = Python::with_gil(|py| pyshinqlx_set_powerups(py, 2, &powerups));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }

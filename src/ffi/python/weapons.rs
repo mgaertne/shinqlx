@@ -1,18 +1,21 @@
 use super::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
 
-use pyo3::{
-    basic::CompareOp,
-    exceptions::PyValueError,
-    types::{PyBool, PyNotImplemented, PyTuple},
-    BoundObject,
-};
+use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing all the weapons in the game.
-#[pyclass(module = "_shinqlx", name = "Weapons", frozen, get_all, sequence)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "Weapons",
+    frozen,
+    get_all,
+    sequence,
+    eq,
+    str
+)]
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) struct Weapons(
     #[pyo3(name = "g")] pub(crate) i32,
@@ -47,6 +50,13 @@ impl From<Weapons> for [i32; 15] {
             value.0, value.1, value.2, value.3, value.4, value.5, value.6, value.7, value.8,
             value.9, value.10, value.11, value.12, value.13, value.14,
         ]
+    }
+}
+
+impl Display for Weapons {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
+                self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
     }
 }
 
@@ -85,27 +95,8 @@ impl Weapons {
         ))
     }
 
-    fn __richcmp__<'py>(
-        &self,
-        other: &Self,
-        op: CompareOp,
-        py: Python<'py>,
-    ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
-        match op {
-            CompareOp::Eq => Ok(PyBool::new(py, self == other).into_any()),
-            CompareOp::Ne => Ok(PyBool::new(py, self != other).into_any()),
-            _ => Ok(PyNotImplemented::get(py).into_any()),
-        }
-    }
-
-    pub(crate) fn __str__(&self) -> Cow<str> {
-        format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
-                self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14).into()
-    }
-
-    fn __repr__(&self) -> Cow<str> {
-        format!("Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
-                self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14).into()
+    fn __repr__(&self) -> String {
+        format!("{self}")
     }
 }
 
@@ -375,7 +366,7 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < shi
     fn ammo_to_str() {
         let ammo = Weapons(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
         assert_eq!(
-            ammo.__str__(),
+            format!("{ammo}"),
             "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=5, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
         );
     }

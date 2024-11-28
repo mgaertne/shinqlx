@@ -10,9 +10,9 @@ use crate::hooks::shinqlx_client_spawn;
 #[pyfunction]
 #[pyo3(name = "player_spawn")]
 pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
-    validate_client_id(py, client_id)?;
-
     py.allow_threads(|| {
+        validate_client_id(client_id)?;
+
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let mut opt_game_entity = GameEntity::try_from(client_id)
             .ok()
