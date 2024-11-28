@@ -4284,14 +4284,6 @@ fn register_database_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let database_module = PyModule::new(m.py(), "database")?;
 
     database_module.add_class::<AbstractDatabase>()?;
-    #[cfg(feature = "rust-redis")]
-    {
-        let redis_type = m.py().get_type::<Redis>();
-        let key_type_function = redis_type.getattr("key_type")?;
-        m.py()
-            .get_type::<Redis>()
-            .setattr("type", key_type_function)?;
-    }
     database_module.add_class::<Redis>()?;
     m.add_submodule(&database_module)?;
 
