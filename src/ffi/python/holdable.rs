@@ -1,8 +1,8 @@
 use super::prelude::*;
 
-use alloc::borrow::Cow;
+use core::fmt::{Display, Formatter};
 
-#[pyclass(module = "_shinqlx", name = "Holdable", frozen, eq, eq_int)]
+#[pyclass(module = "_shinqlx", name = "Holdable", frozen, eq, eq_int, str)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) enum Holdable {
     None = 0,
@@ -45,17 +45,17 @@ impl From<Holdable> for i32 {
     }
 }
 
-impl From<Holdable> for Option<Cow<'static, str>> {
-    fn from(holdable: Holdable) -> Self {
-        match holdable {
-            Holdable::None => None,
-            Holdable::Teleporter => Some("teleporter".into()),
-            Holdable::MedKit => Some("medkit".into()),
-            Holdable::Kamikaze => Some("kamikaze".into()),
-            Holdable::Portal => Some("portal".into()),
-            Holdable::Invulnerability => Some("invulnerability".into()),
-            Holdable::Flight => Some("flight".into()),
-            Holdable::Unknown => Some("unknown".into()),
+impl Display for Holdable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Holdable::None => write!(f, "None"),
+            Holdable::Teleporter => write!(f, "teleporter"),
+            Holdable::MedKit => write!(f, "medkit"),
+            Holdable::Kamikaze => write!(f, "kamikaze"),
+            Holdable::Portal => write!(f, "portal"),
+            Holdable::Invulnerability => write!(f, "invulnerability"),
+            Holdable::Flight => write!(f, "flight"),
+            Holdable::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -63,8 +63,6 @@ impl From<Holdable> for Option<Cow<'static, str>> {
 #[cfg(test)]
 mod holdable_tests {
     use super::Holdable;
-
-    use alloc::borrow::Cow;
 
     use pretty_assertions::assert_eq;
     use rstest::rstest;
@@ -96,18 +94,15 @@ mod holdable_tests {
     }
 
     #[rstest]
-    #[case(Holdable::None, None)]
-    #[case(Holdable::Teleporter, Some("teleporter".into()))]
-    #[case(Holdable::MedKit, Some("medkit".into()))]
-    #[case(Holdable::Flight, Some("flight".into()))]
-    #[case(Holdable::Kamikaze, Some("kamikaze".into()))]
-    #[case(Holdable::Portal, Some("portal".into()))]
-    #[case(Holdable::Invulnerability, Some("invulnerability".into()))]
-    #[case(Holdable::Unknown, Some("unknown".into()))]
-    fn opt_string_from_holdable(
-        #[case] holdable: Holdable,
-        #[case] expected_result: Option<Cow<'static, str>>,
-    ) {
-        assert_eq!(Option::<Cow<'static, str>>::from(holdable), expected_result);
+    #[case(Holdable::None, "None")]
+    #[case(Holdable::Teleporter, "teleporter")]
+    #[case(Holdable::MedKit, "medkit")]
+    #[case(Holdable::Flight, "flight")]
+    #[case(Holdable::Kamikaze, "kamikaze")]
+    #[case(Holdable::Portal, "portal")]
+    #[case(Holdable::Invulnerability, "invulnerability")]
+    #[case(Holdable::Unknown, "unknown")]
+    fn opt_string_from_holdable(#[case] holdable: Holdable, #[case] expected_result: &str) {
+        assert_eq!(format!("{holdable}"), expected_result);
     }
 }
