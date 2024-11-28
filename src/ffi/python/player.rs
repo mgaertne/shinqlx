@@ -988,15 +988,15 @@ impl Player {
                     Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
                 };
                 let invis = match py_kwargs.get_item("invisibility")? {
-                    None => powerups.2,
+                    None => powerups.3,
                     Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
                 };
                 let regen = match py_kwargs.get_item("regeneration")? {
-                    None => powerups.2,
+                    None => powerups.4,
                     Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
                 };
                 let invul = match py_kwargs.get_item("invulnerability")? {
-                    None => powerups.2,
+                    None => powerups.5,
                     Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
                 };
 
