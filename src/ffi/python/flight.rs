@@ -7,7 +7,15 @@ use arrayvec::ArrayVec;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 /// A struct sequence containing parameters for the flight holdable item.
-#[pyclass(module = "_shinqlx", name = "Flight", frozen, get_all, sequence, eq, str)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "Flight",
+    frozen,
+    get_all,
+    sequence,
+    eq,
+    str
+)]
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,
