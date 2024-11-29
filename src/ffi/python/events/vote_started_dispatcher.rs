@@ -4,9 +4,9 @@ use pyo3::types::{PyString, PyTuple};
 
 /// Event that goes off whenever a vote starts. A vote started with Plugin.callvote()
 /// will have the caller set to None.
-#[pyclass(module = "_events", name = "VoteStartedDispatcher", extends = EventDispatcher)]
+#[pyclass(module = "_events", name = "VoteStartedDispatcher", extends = EventDispatcher, frozen)]
 pub(crate) struct VoteStartedDispatcher {
-    player: PyObject,
+    player: spin::mutex::FairMutex<PyObject>,
 }
 
 #[pymethods]
@@ -21,43 +21,53 @@ impl VoteStartedDispatcher {
 
     #[new]
     fn py_new(py: Python<'_>) -> (Self, EventDispatcher) {
-        (Self { player: py.None() }, EventDispatcher::default())
+        (
+            Self {
+                player: py.None().into(),
+            },
+            EventDispatcher::default(),
+        )
     }
+}
 
-    fn dispatch<'py>(
-        slf: &Bound<'py, Self>,
-        vote: &str,
-        args: Bound<'py, PyAny>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let player = &slf
+pub(crate) trait VoteStartedDispatcherMethods<'py> {
+    fn dispatch(&self, vote: &str, args: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>>;
+    fn caller(&self, player: &Bound<'py, PyAny>);
+}
+
+impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher> {
+    fn dispatch(&self, vote: &str, args: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        let player = &self
             .borrow()
             .player
-            .clone_ref(slf.py())
-            .into_pyobject(slf.py())?
+            .try_lock()
+            .unwrap()
+            .clone_ref(self.py())
+            .into_bound(self.py())
             .into_any();
 
-        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
+        let event_dispatcher = self.as_super();
 
         let args_tuple = PyTuple::new(
-            slf.py(),
+            self.py(),
             [
                 player.to_owned(),
-                PyString::new(slf.py(), vote).into_any(),
+                PyString::new(self.py(), vote).into_any(),
                 args,
             ],
         )?;
 
-        Ok(EventDispatcher::dispatch(&event_dispatcher, args_tuple))
+        Ok(EventDispatcher::dispatch(event_dispatcher, args_tuple))
     }
 
-    pub(crate) fn caller(mut slf: PyRefMut<'_, Self>, _py: Python<'_>, player: Bound<'_, PyAny>) {
-        slf.player = player.unbind();
+    fn caller(&self, player: &Bound<'py, PyAny>) {
+        *self.borrow().player.lock() = player.clone().unbind();
     }
 }
 
 #[cfg(test)]
 mod vote_started_dispatcher_tests {
-    use super::VoteStartedDispatcher;
+    use super::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::pyshinqlx_test_support::default_test_player;
@@ -78,13 +88,10 @@ mod vote_started_dispatcher_tests {
         Python::with_gil(|py| {
             let dispatcher =
                 Py::new(py, VoteStartedDispatcher::py_new(py)).expect("this should not happen");
-            VoteStartedDispatcher::caller(
-                dispatcher.bind(py).borrow_mut(),
-                py,
-                default_test_player()
-                    .into_pyobject(py)
+            dispatcher.bind(py).caller(
+                Bound::new(py, default_test_player())
                     .expect("this should not happen")
-                    .into_any(),
+                    .as_any(),
             );
 
             let result =
@@ -115,13 +122,10 @@ mod vote_started_dispatcher_tests {
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let throws_exception_hook = PyModule::from_code(
@@ -181,13 +185,10 @@ def throws_exception_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let returns_none_hook = PyModule::from_code(
@@ -247,13 +248,10 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let returns_none_hook = PyModule::from_code(
@@ -315,13 +313,10 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let returns_stop_hook = PyModule::from_code(
@@ -383,13 +378,10 @@ def returns_stop_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let returns_stop_event_hook = PyModule::from_code(
@@ -451,13 +443,10 @@ def returns_stop_event_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let returns_stop_all_hook = PyModule::from_code(
@@ -519,13 +508,10 @@ def returns_stop_all_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = Py::new(py, VoteStartedDispatcher::py_new(py))
                         .expect("this should not happen");
-                    VoteStartedDispatcher::caller(
-                        dispatcher.bind(py).borrow_mut(),
-                        py,
-                        default_test_player()
-                            .into_pyobject(py)
+                    dispatcher.bind(py).caller(
+                        Bound::new(py, default_test_player())
                             .expect("this should not happen")
-                            .into_any(),
+                            .as_any(),
                     );
 
                     let returns_string_hook = PyModule::from_code(

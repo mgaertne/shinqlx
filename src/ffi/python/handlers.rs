@@ -5,9 +5,10 @@ use super::prelude::{
     MAX_MSG_LENGTH,
 };
 use super::{
-    get_cvar, is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+    events::VoteStartedDispatcherMethods, get_cvar, is_vote_active, late_init, log_exception,
+    pyshinqlx_get_logger, set_map_subtitles, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS,
+    CONSOLE_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL,
+    SPECTATOR_CHAT_CHANNEL,
 };
 use crate::{
     quake_live_engine::{FindCVar, GetConfigstring},
@@ -19,7 +20,7 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     types::{IntoPyDict, PyBool, PyDict, PyString},
-    BoundObject, PyTraverseError, PyVisit,
+    BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
 };
 
 use alloc::sync::Arc;
@@ -416,11 +417,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         "could not get access to vote started dispatcher",
                     )),
                     |vote_started_dispatcher| {
-                        VoteStartedDispatcher::caller(
-                            vote_started_dispatcher.borrow_mut(),
-                            py,
-                            player.clone().into_pyobject(py)?.into_any(),
-                        );
+                        vote_started_dispatcher.caller(Bound::new(py, player.clone())?.as_any());
                         Ok(())
                     },
                 )?;
@@ -5318,7 +5315,8 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                     )),
                     |vote_started_dispatcher| {
                         vote_started_dispatcher
-                            .call_method1(intern!(py, "dispatch"), (vote, args))?;
+                            .downcast::<VoteStartedDispatcher>()?
+                            .dispatch(vote, args.into_bound_py_any(py)?)?;
 
                         Ok(py.None())
                     },

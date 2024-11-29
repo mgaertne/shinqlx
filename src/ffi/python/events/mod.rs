@@ -77,7 +77,7 @@ pub(crate) use userinfo_dispatcher::UserinfoDispatcher;
 pub(crate) use vote_called_dispatcher::VoteCalledDispatcher;
 pub(crate) use vote_dispatcher::VoteDispatcher;
 pub(crate) use vote_ended_dispatcher::VoteEndedDispatcher;
-pub(crate) use vote_started_dispatcher::VoteStartedDispatcher;
+pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
 use pyo3::{
     exceptions::{PyAssertionError, PyKeyError, PyValueError},

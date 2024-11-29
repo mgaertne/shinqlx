@@ -82,7 +82,7 @@ impl VoteEndedDispatcher {
             },
         )?;
 
-        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
+        let event_dispatcher = slf.as_super();
 
         let args_tuple = PyTuple::new(
             slf.py(),
@@ -94,7 +94,7 @@ impl VoteEndedDispatcher {
             ],
         )?;
 
-        EventDispatcher::dispatch(&event_dispatcher, args_tuple);
+        EventDispatcher::dispatch(event_dispatcher, args_tuple);
 
         Ok(())
     }

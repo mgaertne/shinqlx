@@ -41,18 +41,18 @@ impl ChatEventDispatcher {
             }
         };
 
-        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
+        let event_dispatcher = slf.as_super();
 
         let args_tuple = PyTuple::new(
             slf.py(),
             [
-                player.into_pyobject(slf.py())?.into_any(),
+                Bound::new(slf.py(), player)?.into_any(),
                 PyString::new(slf.py(), msg).into_any(),
                 channel,
             ],
         )?;
 
-        Ok(EventDispatcher::dispatch(&event_dispatcher, args_tuple))
+        Ok(EventDispatcher::dispatch(event_dispatcher, args_tuple))
     }
 }
 
