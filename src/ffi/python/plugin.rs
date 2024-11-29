@@ -1,10 +1,9 @@
 use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities,
-    console_command, demote, events::VoteStartedDispatcherMethods, is_vote_active, lock, mute,
-    opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban, unlock, unmute,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    RED_TEAM_CHAT_CHANNEL,
+    console_command, demote, is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger,
+    set_teamsize, tempban, unban, unlock, unmute, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS,
+    CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
 };
 
 #[cfg(test)]
