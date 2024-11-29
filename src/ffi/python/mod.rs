@@ -36,7 +36,7 @@ pub(crate) mod prelude {
         RoundEndDispatcher, RoundStartDispatcher, ServerCommandDispatcher,
         SetConfigstringDispatcher, StatsDispatcher, TeamSwitchAttemptDispatcher,
         TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher, VoteCalledDispatcher,
-        VoteDispatcher, VoteEndedDispatcher, VoteStartedDispatcher,
+        VoteDispatcher, VoteEndedDispatcher, VoteStartedDispatcher, VoteStartedDispatcherMethods,
     };
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
