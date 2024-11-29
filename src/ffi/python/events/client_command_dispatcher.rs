@@ -1,6 +1,9 @@
+use super::super::channels::ClientCommandChannel;
 use super::super::{Player, COMMANDS};
 use super::prelude::*;
-use crate::ffi::python::channels::ClientCommandChannel;
+
+use core::ops::Deref;
+
 use pyo3::exceptions::PyEnvironmentError;
 use pyo3::types::{PyBool, PyString};
 
@@ -26,23 +29,22 @@ impl ClientCommandDispatcher {
 
     fn dispatch<'py>(
         slf: &Bound<'py, Self>,
-        player: Player,
+        player: &Bound<'py, Player>,
         cmd: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
         let mut forwarded_cmd = cmd.to_string();
         let mut return_value = PyBool::new(slf.py(), true).to_owned().into_any().unbind();
 
         let super_class = slf.borrow().into_super();
-        let player_str = &player.name;
+        let player_str = &player.borrow().name;
         let dbgstr = format!("{}({}, {})", Self::name, player_str, cmd);
         dispatcher_debug_log(slf.py(), &dbgstr);
         let plugins = super_class.plugins.read();
 
-        let py_player = player.clone().into_pyobject(slf.py())?;
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(slf.py(), (&py_player, &forwarded_cmd)) {
+                    match handler.call1(slf.py(), (player, &forwarded_cmd)) {
                         Err(e) => {
                             log_exception(slf.py(), &e);
                             continue;
@@ -100,7 +102,7 @@ impl ClientCommandDispatcher {
             return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
         }
 
-        match try_handle_input(slf.py(), &player, cmd) {
+        match try_handle_input(slf.py(), player.borrow().deref(), cmd) {
             Err(e) => {
                 log_exception(slf.py(), &e);
             }

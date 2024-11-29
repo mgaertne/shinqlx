@@ -33,8 +33,8 @@ impl PlayerConnectDispatcher {
             return Ok(value);
         }
 
-        let event_dispatcher = slf.borrow().into_super().into_pyobject(slf.py())?;
-        EventDispatcher::handle_return(&event_dispatcher, handler, value)
+        let event_dispatcher = slf.as_super();
+        EventDispatcher::handle_return(event_dispatcher, handler, value)
     }
 }
 
