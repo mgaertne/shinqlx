@@ -27,7 +27,8 @@ pub(crate) mod prelude {
     pub(crate) use super::database::{AbstractDatabase, Redis};
     pub(crate) use super::embed::*;
     pub(crate) use super::events::{
-        ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
+        ChatEventDispatcher, ChatEventDispatcherMethods, ClientCommandDispatcher,
+        ClientCommandDispatcherMethods, CommandDispatcher, ConsolePrintDispatcher,
         DamageDispatcher, DeathDispatcher, EventDispatcher, EventDispatcherManager,
         FrameEventDispatcher, GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher,
         KamikazeExplodeDispatcher, KamikazeUseDispatcher, KillDispatcher, MapDispatcher,

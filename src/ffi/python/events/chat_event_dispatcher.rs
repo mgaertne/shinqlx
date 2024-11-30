@@ -28,26 +28,46 @@ impl ChatEventDispatcher {
         slf: &Bound<'py, Self>,
         player: Player,
         msg: &str,
-        channel: Bound<'py, PyAny>,
+        channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        match try_handle_input(slf.py(), &player, msg, channel.clone()) {
+        slf.dispatch(player, msg, channel)
+    }
+}
+
+pub(crate) trait ChatEventDispatcherMethods<'py> {
+    fn dispatch(
+        &self,
+        player: Player,
+        msg: &str,
+        channel: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+}
+
+impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
+    fn dispatch(
+        &self,
+        player: Player,
+        msg: &str,
+        channel: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        match try_handle_input(self.py(), &player, msg, channel) {
             Err(e) => {
-                log_exception(slf.py(), &e);
+                log_exception(self.py(), &e);
             }
             Ok(handle_input_return) => {
                 if !handle_input_return {
-                    return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
+                    return Ok(PyBool::new(self.py(), false).to_owned().into_any());
                 }
             }
         };
 
-        let event_dispatcher = slf.as_super();
+        let event_dispatcher = self.as_super();
 
         let args_tuple = PyTuple::new(
-            slf.py(),
+            self.py(),
             [
-                Bound::new(slf.py(), player)?.into_any(),
-                PyString::new(slf.py(), msg).into_any(),
+                Bound::new(self.py(), player)?.as_any(),
+                PyString::new(self.py(), msg).as_any(),
                 channel,
             ],
         )?;
@@ -60,7 +80,7 @@ fn try_handle_input(
     py: Python<'_>,
     player: &Player,
     cmd: &str,
-    channel: Bound<'_, PyAny>,
+    channel: &Bound<'_, PyAny>,
 ) -> PyResult<bool> {
     COMMANDS.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(
@@ -119,7 +139,7 @@ mod chat_event_dispatcher_tests {
             );
             assert!(result.is_ok_and(|value| value
                 .bind(py)
-                .extract::<Bound<'_, PyBool>>()
+                .downcast::<PyBool>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
@@ -178,7 +198,7 @@ def throws_exception_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -238,7 +258,7 @@ def returns_none_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -300,7 +320,7 @@ def returns_none_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -362,7 +382,7 @@ def returns_stop_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -424,7 +444,7 @@ def returns_stop_event_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
             });
@@ -486,7 +506,7 @@ def returns_stop_all_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
             });
@@ -546,7 +566,7 @@ def returns_string_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -650,8 +670,8 @@ def returns_none_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
-                        .is_ok_and(|value| !value.is_true())));
+                        .downcast::<PyBool>()
+                        .is_ok_and(|value| !value.is_true())),);
                 });
             });
     }

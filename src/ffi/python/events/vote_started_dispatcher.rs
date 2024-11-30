@@ -28,15 +28,27 @@ impl VoteStartedDispatcher {
             EventDispatcher::default(),
         )
     }
+
+    fn dispatch<'py>(
+        slf: &Bound<'py, Self>,
+        vote: &str,
+        args: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.dispatch(vote, args)
+    }
+
+    fn caller(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) {
+        slf.caller(player)
+    }
 }
 
 pub(crate) trait VoteStartedDispatcherMethods<'py> {
-    fn dispatch(&self, vote: &str, args: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>>;
+    fn dispatch(&self, vote: &str, args: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>>;
     fn caller(&self, player: &Bound<'py, PyAny>);
 }
 
 impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher> {
-    fn dispatch(&self, vote: &str, args: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+    fn dispatch(&self, vote: &str, args: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
         let player = &self
             .borrow()
             .player
@@ -50,11 +62,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
 
         let args_tuple = PyTuple::new(
             self.py(),
-            [
-                player.to_owned(),
-                PyString::new(self.py(), vote).into_any(),
-                args,
-            ],
+            [player, PyString::new(self.py(), vote).as_any(), args],
         )?;
 
         Ok(EventDispatcher::dispatch(event_dispatcher, args_tuple))

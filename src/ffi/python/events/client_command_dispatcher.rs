@@ -32,25 +32,35 @@ impl ClientCommandDispatcher {
         player: &Bound<'py, Player>,
         cmd: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let mut forwarded_cmd = cmd.to_string();
-        let mut return_value = PyBool::new(slf.py(), true).to_owned().into_any().unbind();
+        slf.dispatch(player, cmd)
+    }
+}
 
-        let super_class = slf.borrow().into_super();
+pub(crate) trait ClientCommandDispatcherMethods<'py> {
+    fn dispatch(&self, player: &Bound<'py, Player>, cmd: &str) -> PyResult<Bound<'py, PyAny>>;
+}
+
+impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispatcher> {
+    fn dispatch(&self, player: &Bound<'py, Player>, cmd: &str) -> PyResult<Bound<'py, PyAny>> {
+        let mut forwarded_cmd = cmd.to_string();
+        let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
+
+        let super_class = self.borrow().into_super();
         let player_str = &player.borrow().name;
-        let dbgstr = format!("{}({}, {})", Self::name, player_str, cmd);
-        dispatcher_debug_log(slf.py(), &dbgstr);
+        let dbgstr = format!("{}({}, {})", ClientCommandDispatcher::name, player_str, cmd);
+        dispatcher_debug_log(self.py(), &dbgstr);
         let plugins = super_class.plugins.read();
 
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(slf.py(), (player, &forwarded_cmd)) {
+                    match handler.call1(self.py(), (player, &forwarded_cmd)) {
                         Err(e) => {
-                            log_exception(slf.py(), &e);
+                            log_exception(self.py(), &e);
                             continue;
                         }
                         Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(slf.py());
+                            let res_i32 = res.extract::<PythonReturnCodes>(self.py());
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
@@ -61,34 +71,34 @@ impl ClientCommandDispatcher {
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
                             {
-                                return Ok(PyBool::new(slf.py(), true).to_owned().into_any());
+                                return Ok(PyBool::new(self.py(), true).to_owned().into_any());
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
                             {
                                 return_value =
-                                    PyBool::new(slf.py(), false).to_owned().into_any().unbind();
+                                    PyBool::new(self.py(), false).to_owned().into_any().unbind();
                                 continue;
                             }
                             if res_i32
                                 .as_ref()
                                 .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
                             {
-                                return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
+                                return Ok(PyBool::new(self.py(), false).to_owned().into_any());
                             }
 
-                            let Ok(str_value) = res.extract::<String>(slf.py()) else {
+                            let Ok(str_value) = res.extract::<String>(self.py()) else {
                                 log_unexpected_return_value(
-                                    slf.py(),
-                                    Self::name,
-                                    res.bind(slf.py()).to_owned(),
-                                    handler.bind(slf.py()).to_owned(),
+                                    self.py(),
+                                    ClientCommandDispatcher::name,
+                                    res.bind(self.py()).to_owned(),
+                                    handler.bind(self.py()).to_owned(),
                                 );
                                 continue;
                             };
                             forwarded_cmd.clone_from(&str_value);
-                            return_value = PyString::new(slf.py(), &str_value).into_any().unbind();
+                            return_value = PyString::new(self.py(), &str_value).into_any().unbind();
                         }
                     }
                 }
@@ -96,24 +106,24 @@ impl ClientCommandDispatcher {
         }
 
         if return_value
-            .extract::<Bound<'_, PyBool>>(slf.py())
+            .extract::<Bound<'_, PyBool>>(self.py())
             .is_ok_and(|value| !value.is_true())
         {
-            return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
+            return Ok(PyBool::new(self.py(), false).to_owned().into_any());
         }
 
-        match try_handle_input(slf.py(), player.borrow().deref(), cmd) {
+        match try_handle_input(self.py(), player.borrow().deref(), cmd) {
             Err(e) => {
-                log_exception(slf.py(), &e);
+                log_exception(self.py(), &e);
             }
             Ok(handle_input_return) => {
                 if !handle_input_return {
-                    return Ok(PyBool::new(slf.py(), false).to_owned().into_any());
+                    return Ok(PyBool::new(self.py(), false).to_owned().into_any());
                 }
             }
         };
 
-        Ok(return_value.bind(slf.py()).to_owned())
+        Ok(return_value.bind(self.py()).to_owned())
     }
 }
 

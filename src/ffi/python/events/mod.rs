@@ -45,8 +45,10 @@ use prelude::*;
 
 use super::{commands::CommandPriorities, get_cvar};
 
-pub(crate) use chat_event_dispatcher::ChatEventDispatcher;
-pub(crate) use client_command_dispatcher::ClientCommandDispatcher;
+pub(crate) use chat_event_dispatcher::{ChatEventDispatcher, ChatEventDispatcherMethods};
+pub(crate) use client_command_dispatcher::{
+    ClientCommandDispatcher, ClientCommandDispatcherMethods,
+};
 pub(crate) use command_dispatcher::CommandDispatcher;
 pub(crate) use console_print_dispatcher::ConsolePrintDispatcher;
 pub(crate) use damage_dispatcher::DamageDispatcher;

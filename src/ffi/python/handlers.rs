@@ -1,8 +1,8 @@
 use crate::ffi::c::prelude::*;
 
 use super::prelude::{
-    parse_variables, AbstractChannel, Player, RconDummyPlayer, VoteStartedDispatcher,
-    VoteStartedDispatcherMethods, MAX_MSG_LENGTH,
+    parse_variables, AbstractChannel, ChatEventDispatcherMethods, ClientCommandDispatcherMethods,
+    Player, RconDummyPlayer, VoteStartedDispatcherMethods, MAX_MSG_LENGTH,
 };
 use super::{
     get_cvar, is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
@@ -269,8 +269,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 "could not get access to client command dispatcher",
             )),
             |client_command_dispatcher| {
-                client_command_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player.clone(), cmd))
+                ClientCommandDispatcherMethods::dispatch(
+                    client_command_dispatcher.downcast()?,
+                    &Bound::new(py, player.clone())?,
+                    cmd,
+                )
             },
         )?;
     if return_value
@@ -316,9 +319,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         ));
                     };
 
-                    chat_dispatcher.call_method1(
-                        intern!(py, "dispatch"),
-                        (player.clone(), &reformatted_msg, main_chat_channel.as_ref()),
+                    ChatEventDispatcherMethods::dispatch(
+                        chat_dispatcher.downcast()?,
+                        player,
+                        &reformatted_msg,
+                        main_chat_channel.bind(py),
                     )
                 },
             )?;
@@ -406,9 +411,6 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     event_dispatchers
                         .bind(py)
                         .get_item(intern!(py, "vote_started"))
-                        .and_then(|dispatcher| {
-                            dispatcher.extract::<Bound<'_, VoteStartedDispatcher>>()
-                        })
                         .ok()
                 })
                 .map_or(
@@ -416,7 +418,10 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         "could not get access to vote started dispatcher",
                     )),
                     |vote_started_dispatcher| {
-                        vote_started_dispatcher.caller(Bound::new(py, player.clone())?.as_any());
+                        VoteStartedDispatcherMethods::caller(
+                            vote_started_dispatcher.downcast()?,
+                            Bound::new(py, player.clone())?.as_any(),
+                        );
                         Ok(())
                     },
                 )?;
@@ -5313,9 +5318,11 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                         "could not get access to vote started dispatcher",
                     )),
                     |vote_started_dispatcher| {
-                        vote_started_dispatcher
-                            .downcast::<VoteStartedDispatcher>()?
-                            .dispatch(vote, args.into_bound_py_any(py)?)?;
+                        VoteStartedDispatcherMethods::dispatch(
+                            vote_started_dispatcher.downcast()?,
+                            vote,
+                            &args.into_bound_py_any(py)?,
+                        )?;
 
                         Ok(py.None())
                     },
