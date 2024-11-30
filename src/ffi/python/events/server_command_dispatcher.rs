@@ -73,8 +73,8 @@ impl ServerCommandDispatcher {
                                 log_unexpected_return_value(
                                     slf.py(),
                                     Self::name,
-                                    res.bind(slf.py()).to_owned(),
-                                    handler.bind(slf.py()).to_owned(),
+                                    res.bind(slf.py()),
+                                    handler.bind(slf.py()),
                                 );
                                 continue;
                             };

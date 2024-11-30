@@ -795,7 +795,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -874,10 +874,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
                         .expect("could not add game_start dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -948,7 +948,7 @@ mod handle_zmq_msg_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                 .expect("could not add stats dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -983,10 +983,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<RoundEndDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<RoundEndDispatcher>())
                         .expect("could not add round_end dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1056,7 +1056,7 @@ mod handle_zmq_msg_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                 .expect("could not add stats dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -1091,10 +1091,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
                         .expect("could not add game_end dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1180,10 +1180,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
                         .expect("could not add game_end dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1256,7 +1256,7 @@ mod handle_zmq_msg_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                 .expect("could not add stats dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -1293,7 +1293,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1416,10 +1416,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DeathDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DeathDispatcher>())
                         .expect("could not add death dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1569,10 +1569,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DeathDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DeathDispatcher>())
                         .expect("could not add death dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1694,7 +1694,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1807,7 +1807,7 @@ mod handle_zmq_msg_tests {
             Python::with_gil(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 event_dispatcher
-                    .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                    .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                     .expect("could not add stats dispatcher");
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -1938,13 +1938,13 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DeathDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DeathDispatcher>())
                         .expect("could not add death dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<KillDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<KillDispatcher>())
                         .expect("could not add kill dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2151,13 +2151,13 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DeathDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DeathDispatcher>())
                         .expect("could not add death dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<KillDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<KillDispatcher>())
                         .expect("could not add kill dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2352,10 +2352,10 @@ mod handle_zmq_msg_tests {
             Python::with_gil(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 event_dispatcher
-                    .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                    .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                     .expect("could not add stats dispatcher");
                 event_dispatcher
-                    .add_dispatcher(py, py.get_type::<DeathDispatcher>())
+                    .add_dispatcher(py, &py.get_type::<DeathDispatcher>())
                     .expect("could not add death dispatcher");
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -2456,10 +2456,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchDispatcher>())
                         .expect("could not add team_switch dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2600,10 +2600,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchDispatcher>())
                         .expect("could not add team_switch dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2746,7 +2746,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2869,7 +2869,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2992,7 +2992,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3115,7 +3115,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3208,7 +3208,7 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3319,7 +3319,7 @@ mod handle_zmq_msg_tests {
             Python::with_gil(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 event_dispatcher
-                    .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                    .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                     .expect("could not add stats dispatcher");
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -3421,10 +3421,10 @@ mod handle_zmq_msg_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<StatsDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<StatsDispatcher>())
                         .expect("could not add stats dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchDispatcher>())
                         .expect("could not add team_switch dispatcher");
                     event_dispatcher
                         .__getitem__(py, "team_switch")

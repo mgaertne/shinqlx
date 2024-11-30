@@ -1298,7 +1298,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1570,7 +1570,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1625,7 +1625,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1723,7 +1723,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1806,7 +1806,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1870,7 +1870,7 @@ mod plugin_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -4553,7 +4553,7 @@ def handler():
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)

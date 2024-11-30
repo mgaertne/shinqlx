@@ -92,8 +92,8 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
                                 log_unexpected_return_value(
                                     self.py(),
                                     ClientCommandDispatcher::name,
-                                    res.bind(self.py()).to_owned(),
-                                    handler.bind(self.py()).to_owned(),
+                                    res.bind(self.py()),
+                                    handler.bind(self.py()),
                                 );
                                 continue;
                             };

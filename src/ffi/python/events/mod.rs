@@ -131,8 +131,8 @@ pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: &str) {
 fn try_log_unexpected_return_value(
     py: Python<'_>,
     event_name: &str,
-    result: Bound<'_, PyAny>,
-    handler: Bound<'_, PyAny>,
+    result: &Bound<'_, PyAny>,
+    handler: &Bound<'_, PyAny>,
 ) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let warning_level = py
@@ -166,8 +166,8 @@ fn try_log_unexpected_return_value(
 pub(crate) fn log_unexpected_return_value(
     py: Python<'_>,
     event_name: &str,
-    result: Bound<'_, PyAny>,
-    handler: Bound<'_, PyAny>,
+    result: &Bound<'_, PyAny>,
+    handler: &Bound<'_, PyAny>,
 ) {
     if let Err(e) = try_log_unexpected_return_value(py, event_name, result, handler) {
         log_exception(py, &e);
@@ -379,8 +379,8 @@ impl EventDispatcher {
     /// event isn't stopped later along the road.
     pub(crate) fn handle_return<'py>(
         slf: &Bound<'py, Self>,
-        handler: Bound<'py, PyAny>,
-        value: Bound<'py, PyAny>,
+        handler: &Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let dispatcher_name = slf
             .get_type()
@@ -397,7 +397,7 @@ impl EventDispatcher {
     pub(crate) fn add_hook(
         slf: &Bound<'_, Self>,
         plugin: &str,
-        handler: Bound<'_, PyAny>,
+        handler: &Bound<'_, PyAny>,
         priority: i32,
     ) -> PyResult<()> {
         if !(0i32..5i32).contains(&priority) {
@@ -462,7 +462,7 @@ def add_hook(event, plugin, handler, priority):
                 else {
                     let mut new_hooks =
                         (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
-                    new_hooks.1[priority as usize].push(handler.unbind());
+                    new_hooks.1[priority as usize].push(handler.clone().unbind());
                     plugins.push(new_hooks);
                     return Ok(());
                 };
@@ -472,7 +472,7 @@ def add_hook(event, plugin, handler, priority):
                     .any(|registered_command| {
                         registered_command
                             .bind(slf.py())
-                            .eq(&handler)
+                            .eq(handler)
                             .unwrap_or(false)
                     })
                 {
@@ -481,7 +481,7 @@ def add_hook(event, plugin, handler, priority):
                     ));
                 }
 
-                plugin_hooks.1[priority as usize].push(handler.unbind());
+                plugin_hooks.1[priority as usize].push(handler.clone().unbind());
             }
         }
         Ok(())
@@ -492,7 +492,7 @@ def add_hook(event, plugin, handler, priority):
     fn remove_hook(
         slf: &Bound<'_, Self>,
         plugin: &str,
-        handler: Bound<'_, PyAny>,
+        handler: &Bound<'_, PyAny>,
         priority: i32,
     ) -> PyResult<()> {
         let event_dispatcher = slf
@@ -537,7 +537,7 @@ def remove_hook(event, plugin, handler, priority):
 
                 if !plugin_hooks.1[priority as usize]
                     .iter()
-                    .any(|item| item.bind(slf.py()).eq(&handler).unwrap_or(true))
+                    .any(|item| item.bind(slf.py()).eq(handler).unwrap_or(true))
                 {
                     return Err(PyValueError::new_err(
                         "The event has not been hooked with the handler provided",
@@ -545,7 +545,7 @@ def remove_hook(event, plugin, handler, priority):
                 }
 
                 plugin_hooks.1[priority as usize]
-                    .retain(|item| item.bind(slf.py()).ne(&handler).unwrap_or(true));
+                    .retain(|item| item.bind(slf.py()).ne(handler).unwrap_or(true));
             }
         }
         Ok(())
@@ -1707,7 +1707,7 @@ impl EventDispatcherManager {
     pub(crate) fn add_dispatcher(
         &self,
         py: Python<'_>,
-        dispatcher: Bound<'_, PyType>,
+        dispatcher: &Bound<'_, PyType>,
     ) -> PyResult<()> {
         if !dispatcher
             .is_subclass_of::<EventDispatcher>()
@@ -1733,7 +1733,7 @@ impl EventDispatcherManager {
         Ok(())
     }
 
-    fn remove_dispatcher(&self, py: Python<'_>, dispatcher: Bound<'_, PyAny>) -> PyResult<()> {
+    fn remove_dispatcher(&self, py: Python<'_>, dispatcher: &Bound<'_, PyAny>) -> PyResult<()> {
         let dispatcher_name_str = dispatcher
             .getattr(intern!(py, "name"))
             .and_then(|dispatcher_name_attr| dispatcher_name_attr.extract::<String>())
@@ -1798,13 +1798,13 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
             let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
@@ -1829,13 +1829,13 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
             let result = event_dispatchers
@@ -1876,7 +1876,7 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
 
             let result = event_dispatchers.__getitem__(py, "game_start");
@@ -1892,13 +1892,13 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
             assert!(event_dispatchers.__contains__(py, "game_countdown"));
@@ -1915,7 +1915,7 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
-            let result = event_dispatchers.add_dispatcher(py, py.get_type::<Plugin>());
+            let result = event_dispatchers.add_dispatcher(py, &py.get_type::<Plugin>());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1927,11 +1927,11 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
 
             let result =
-                event_dispatchers.add_dispatcher(py, py.get_type::<GameCountdownDispatcher>());
+                event_dispatchers.add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1944,7 +1944,7 @@ mod event_dispatcher_manager_tests {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
             let result =
-                event_dispatchers.remove_dispatcher(py, py.get_type::<Plugin>().into_any());
+                event_dispatchers.remove_dispatcher(py, &py.get_type::<Plugin>().into_any());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1956,11 +1956,11 @@ mod event_dispatcher_manager_tests {
         Python::with_gil(|py| {
             let event_dispatchers = EventDispatcherManager::py_new(py);
             event_dispatchers
-                .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
 
             let result = event_dispatchers
-                .remove_dispatcher(py, py.get_type::<GameCountdownDispatcher>().into_any());
+                .remove_dispatcher(py, &py.get_type::<GameCountdownDispatcher>().into_any());
 
             assert!(result.is_ok());
             assert!(!event_dispatchers.__contains__(py, "game_countdown"));
@@ -1974,7 +1974,7 @@ mod event_dispatcher_manager_tests {
             let event_dispatchers = EventDispatcherManager::py_new(py);
 
             let result = event_dispatchers
-                .remove_dispatcher(py, py.get_type::<GameCountdownDispatcher>().into_any());
+                .remove_dispatcher(py, &py.get_type::<GameCountdownDispatcher>().into_any());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
