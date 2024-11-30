@@ -136,7 +136,7 @@ mod handle_rcon_tests {
             ));
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -703,7 +703,7 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -841,7 +841,7 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
                         .__getitem__(py, "client_command")
@@ -926,7 +926,7 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
                         .__getitem__(py, "client_command")
@@ -1018,10 +1018,10 @@ mod handle_client_command_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ChatEventDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ChatEventDispatcher>())
                         .expect("could not add chat dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1112,7 +1112,7 @@ mod handle_client_command_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                 .expect("could not add client_command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -1168,10 +1168,10 @@ mod handle_client_command_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                 .expect("could not add client_command dispatcher");
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ChatEventDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ChatEventDispatcher>())
                 .expect("could not add chat dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -1246,10 +1246,10 @@ mod handle_client_command_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ChatEventDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ChatEventDispatcher>())
                         .expect("could not add chat dispatcher");
                     event_dispatcher
                         .__getitem__(py, "chat")
@@ -1349,10 +1349,10 @@ mod handle_client_command_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ChatEventDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ChatEventDispatcher>())
                         .expect("could not add chat dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1445,10 +1445,10 @@ mod handle_client_command_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                 .expect("could not add client_command dispatcher");
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ChatEventDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ChatEventDispatcher>())
                 .expect("could not add chat dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -1520,7 +1520,7 @@ mod handle_client_command_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                 .expect("could not add client_command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -1603,10 +1603,10 @@ mod handle_client_command_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ChatEventDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ChatEventDispatcher>())
                         .expect("could not add chat dispatcher");
                     event_dispatcher
                         .__getitem__(py, "chat")
@@ -1690,13 +1690,13 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteCalledDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteCalledDispatcher>())
                         .expect("could not add vote_called dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1787,13 +1787,13 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteCalledDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteCalledDispatcher>())
                         .expect("could not add vote_called dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -1873,10 +1873,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -1936,10 +1936,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteCalledDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteCalledDispatcher>())
                         .expect("could not add vote_called dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2008,13 +2008,13 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteCalledDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteCalledDispatcher>())
                         .expect("could not add vote_called dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     event_dispatcher
                         .__getitem__(py, "vote_called")
@@ -2109,10 +2109,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteDispatcher>())
                         .expect("could not add vote dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2203,10 +2203,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteDispatcher>())
                         .expect("could not add vote dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2305,10 +2305,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteDispatcher>())
                         .expect("could not add vote dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2388,7 +2388,7 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2466,10 +2466,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteDispatcher>())
                         .expect("could not add vote dispatcher");
                     event_dispatcher
                         .__getitem__(py, "vote")
@@ -2563,10 +2563,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add team_switch_attempt dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2663,10 +2663,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add team_switch_attempt dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2763,10 +2763,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add team_switch_attempt dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -2845,7 +2845,7 @@ mod handle_client_command_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                 .expect("could not add client_command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -2921,10 +2921,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add team_switch_attempt dispatcher");
                     event_dispatcher
                         .__getitem__(py, "team_switch_attempt")
@@ -3008,10 +3008,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UserinfoDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UserinfoDispatcher>())
                         .expect("could not add userinfo dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3108,10 +3108,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UserinfoDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UserinfoDispatcher>())
                         .expect("could not add userinfo dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3205,7 +3205,7 @@ mod handle_client_command_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                 .expect("could not add client_command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -3275,10 +3275,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UserinfoDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UserinfoDispatcher>())
                         .expect("could not add userinfo dispatcher");
                     event_dispatcher
                         .__getitem__(py, "userinfo")
@@ -3367,10 +3367,10 @@ mod handle_client_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ClientCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ClientCommandDispatcher>())
                         .expect("could not add client_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UserinfoDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UserinfoDispatcher>())
                         .expect("could not add userinfo dispatcher");
                     let returning_other_userinfo_module = PyModule::from_code(
                         py,
@@ -3593,7 +3593,7 @@ mod handle_server_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3681,7 +3681,7 @@ mod handle_server_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3748,7 +3748,7 @@ mod handle_server_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     event_dispatcher
                         .__getitem__(py, "server_command")
@@ -3797,7 +3797,7 @@ mod handle_server_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     event_dispatcher
                         .__getitem__(py, "server_command")
@@ -3849,10 +3849,10 @@ mod handle_server_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteEndedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteEndedDispatcher>())
                         .expect("could not add vote_ended dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3913,10 +3913,10 @@ mod handle_server_command_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteEndedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteEndedDispatcher>())
                         .expect("could not add vote_ended dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -3961,7 +3961,7 @@ mod handle_server_command_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<ServerCommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<ServerCommandDispatcher>())
                 .expect("could not add server_command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -4213,7 +4213,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<FrameEventDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<FrameEventDispatcher>())
                         .expect("could not add frame dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -4414,7 +4414,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<FrameEventDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<FrameEventDispatcher>())
                         .expect("could not add frame dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -4472,7 +4472,7 @@ for event in frame_tasks.queue:
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<FrameEventDispatcher>())
+                .add_dispatcher(py, &py.get_type::<FrameEventDispatcher>())
                 .expect("could not add frame dispatcher");
             EVENT_DISPATCHERS.store(None);
 
@@ -4631,7 +4631,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -4682,7 +4682,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -4802,10 +4802,10 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<MapDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<MapDispatcher>())
                         .expect("could not add map dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -4898,7 +4898,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     run_all_frame_tasks(py).expect("this should not happen");
                     EVENT_DISPATCHERS.store(Some(
@@ -4997,7 +4997,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -5095,7 +5095,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -5196,7 +5196,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -5251,7 +5251,7 @@ mod handle_new_game_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<NewGameDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<NewGameDispatcher>())
                         .expect("could not add new_game dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -5548,7 +5548,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -5603,7 +5603,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
                         .__getitem__(py, "set_configstring")
@@ -5669,7 +5669,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
                         .__getitem__(py, "set_configstring")
@@ -5718,10 +5718,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -5774,10 +5774,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -5831,10 +5831,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -5878,7 +5878,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -5898,7 +5898,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -5921,7 +5921,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -5948,7 +5948,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -5985,10 +5985,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<GameCountdownDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
                         .expect("could not add game_countdown dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -6050,7 +6050,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -6078,7 +6078,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -6105,7 +6105,7 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -6144,10 +6144,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<RoundStartDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<RoundStartDispatcher>())
                         .expect("could not add round_start dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -6202,10 +6202,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<RoundStartDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<RoundStartDispatcher>())
                         .expect("could not add round_start dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -6265,10 +6265,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<RoundCountdownDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<RoundCountdownDispatcher>())
                         .expect("could not add round_countdown dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -6324,10 +6324,10 @@ mod handle_set_configstring_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<RoundCountdownDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<RoundCountdownDispatcher>())
                         .expect("could not add round_countdown dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -6374,7 +6374,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6396,7 +6396,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6422,7 +6422,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6444,7 +6444,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6465,7 +6465,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6487,7 +6487,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6509,7 +6509,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6532,7 +6532,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6552,7 +6552,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6573,7 +6573,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6594,7 +6594,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6614,7 +6614,7 @@ mod handle_set_configstring_tests {
         Python::with_gil(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<SetConfigstringDispatcher>())
+                .add_dispatcher(py, &py.get_type::<SetConfigstringDispatcher>())
                 .expect("could not add set_configstring dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6757,7 +6757,7 @@ mod handle_player_connect_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<PlayerConnectDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<PlayerConnectDispatcher>())
                         .expect("could not add player_connect dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -6897,7 +6897,7 @@ mod handle_player_connect_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<PlayerConnectDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<PlayerConnectDispatcher>())
                         .expect("could not add player_connect dispatcher");
                     event_dispatcher
                         .__getitem__(py, "player_connect")
@@ -7096,7 +7096,7 @@ mod handle_player_loaded_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<PlayerLoadedDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<PlayerLoadedDispatcher>())
                         .expect("could not add client_loaded dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -7359,7 +7359,7 @@ mod handle_player_disconnect_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<PlayerDisconnectDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<PlayerDisconnectDispatcher>())
                         .expect("could not add player_disconnect dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -7615,7 +7615,7 @@ mod handle_player_spawn_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<PlayerSpawnDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<PlayerSpawnDispatcher>())
                         .expect("could not add player_spawn dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -7869,7 +7869,7 @@ mod handle_kamikaze_use_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<KamikazeUseDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<KamikazeUseDispatcher>())
                         .expect("could not add kamikaze_use dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -8130,7 +8130,7 @@ mod handle_kamikaze_explode_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<KamikazeExplodeDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<KamikazeExplodeDispatcher>())
                         .expect("could not add kamikaze_explode dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -8219,7 +8219,7 @@ mod handle_kamikaze_explode_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<KamikazeExplodeDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<KamikazeExplodeDispatcher>())
                         .expect("could not add kamikaze_explode dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -8524,7 +8524,7 @@ mod handle_damage_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DamageDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DamageDispatcher>())
                         .expect("could not add damage dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -8621,7 +8621,7 @@ mod handle_damage_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DamageDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DamageDispatcher>())
                         .expect("could not add damage dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -8718,7 +8718,7 @@ mod handle_damage_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<DamageDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<DamageDispatcher>())
                         .expect("could not add damage dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -9007,7 +9007,7 @@ mod handle_console_print_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ConsolePrintDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ConsolePrintDispatcher>())
                         .expect("could not add console_print dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
@@ -9064,7 +9064,7 @@ mod handle_console_print_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ConsolePrintDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ConsolePrintDispatcher>())
                         .expect("could not add console_print dispatcher");
                     event_dispatcher
                         .__getitem__(py, "console_print")
@@ -9115,7 +9115,7 @@ mod handle_console_print_tests {
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<ConsolePrintDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<ConsolePrintDispatcher>())
                         .expect("could not add console_print dispatcher");
                     event_dispatcher
                         .__getitem__(py, "console_print")
@@ -9172,7 +9172,7 @@ mod handle_console_print_tests {
 
                 let event_dispatcher = EventDispatcherManager::default();
                 event_dispatcher
-                    .add_dispatcher(py, py.get_type::<ConsolePrintDispatcher>())
+                    .add_dispatcher(py, &py.get_type::<ConsolePrintDispatcher>())
                     .expect("could not add console_print dispatcher");
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)

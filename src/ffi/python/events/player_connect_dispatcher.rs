@@ -26,11 +26,11 @@ impl PlayerConnectDispatcher {
 
     pub(crate) fn handle_return<'py>(
         slf: &Bound<'py, Self>,
-        handler: Bound<'py, PyAny>,
-        value: Bound<'py, PyAny>,
+        handler: &Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         if value.is_instance_of::<PyString>() {
-            return Ok(value);
+            return Ok(value.clone());
         }
 
         let event_dispatcher = slf.as_super();

@@ -2006,7 +2006,7 @@ mod command_invoker_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -2046,7 +2046,7 @@ mod command_invoker_tests {
 
             let event_dispatcher = EventDispatcherManager::default();
             event_dispatcher
-                .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -2099,7 +2099,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2159,7 +2159,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2221,7 +2221,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     event_dispatcher
                         .__getitem__(py, "command")
@@ -2297,7 +2297,7 @@ mod command_invoker_tests {
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2380,7 +2380,7 @@ def cmd_handler(*args, **kwargs):
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2471,7 +2471,7 @@ def cmd_handler(*args, **kwargs):
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2554,7 +2554,7 @@ def cmd_handler(*args, **kwargs):
 
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)

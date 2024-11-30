@@ -2917,7 +2917,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -2983,7 +2983,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3041,7 +3041,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3098,7 +3098,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3164,10 +3164,10 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<GameEndDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -3220,7 +3220,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::with_gil(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     event_dispatcher
-                        .add_dispatcher(py, py.get_type::<UnloadDispatcher>())
+                        .add_dispatcher(py, &py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -4154,103 +4154,103 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let event_dispatchers = Py::new(m.py(), EventDispatcherManager::default())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<ConsolePrintDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<ConsolePrintDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<CommandDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<CommandDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<ClientCommandDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<ClientCommandDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<ServerCommandDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<ServerCommandDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<FrameEventDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<FrameEventDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<SetConfigstringDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<SetConfigstringDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<ChatEventDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<ChatEventDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<UnloadDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<UnloadDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<PlayerConnectDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<PlayerConnectDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<PlayerLoadedDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<PlayerLoadedDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<PlayerDisconnectDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<PlayerDisconnectDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<PlayerSpawnDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<PlayerSpawnDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<KamikazeUseDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<KamikazeUseDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<KamikazeExplodeDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<KamikazeExplodeDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<StatsDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<StatsDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<VoteCalledDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<VoteCalledDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<VoteStartedDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<VoteStartedDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<VoteEndedDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<VoteEndedDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<VoteDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<VoteDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<GameCountdownDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<GameCountdownDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<GameStartDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<GameStartDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<GameEndDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<GameEndDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<RoundCountdownDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<RoundCountdownDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<RoundStartDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<RoundStartDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<RoundEndDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<RoundEndDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<TeamSwitchDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<TeamSwitchDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<TeamSwitchAttemptDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<TeamSwitchAttemptDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<MapDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<MapDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<NewGameDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<NewGameDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<KillDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<KillDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<DeathDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<DeathDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<UserinfoDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<UserinfoDispatcher>())?;
     event_dispatchers
         .borrow(m.py())
-        .add_dispatcher(m.py(), m.py().get_type::<DamageDispatcher>())?;
+        .add_dispatcher(m.py(), &m.py().get_type::<DamageDispatcher>())?;
     EVENT_DISPATCHERS.store(Some(event_dispatchers.into()));
     m.add(
         "EVENT_DISPATCHERS",
