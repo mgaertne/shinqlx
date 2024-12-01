@@ -47,7 +47,7 @@ mod new_game_dispatcher_tests {
             let result = dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
             assert!(result.is_ok_and(|value| value
                 .bind(py)
-                .extract::<Bound<'_, PyBool>>()
+                .downcast::<PyBool>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
@@ -101,7 +101,7 @@ def throws_exception_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -156,7 +156,7 @@ def returns_none_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -213,7 +213,7 @@ def returns_none_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -270,7 +270,7 @@ def returns_stop_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });
@@ -327,7 +327,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
             });
@@ -384,7 +384,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
             });
@@ -439,7 +439,7 @@ def returns_string_hook(*args, **kwargs):
                         dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| value
                         .bind(py)
-                        .extract::<Bound<'_, PyBool>>()
+                        .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
             });

@@ -1,5 +1,8 @@
 use super::prelude::*;
-use super::{get_cvar, owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
+use super::{
+    get_cvar, owner, pyshinqlx_get_logger, CommandDispatcherMethods, PythonReturnCodes,
+    EVENT_DISPATCHERS,
+};
 
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
@@ -19,16 +22,16 @@ use pyo3::{
 #[pyclass(module = "_commands", name = "Command", get_all, frozen)]
 #[derive(Debug)]
 pub(crate) struct Command {
-    plugin: Py<PyAny>,
+    pub(crate) plugin: Py<PyAny>,
     pub(crate) name: Vec<String>,
     pub(crate) handler: Py<PyAny>,
-    permission: i32,
-    channels: Vec<Py<PyAny>>,
-    exclude_channels: Vec<Py<PyAny>>,
-    client_cmd_pass: bool,
-    client_cmd_perm: i32,
-    prefix: bool,
-    usage: String,
+    pub(crate) permission: i32,
+    pub(crate) channels: Vec<Py<PyAny>>,
+    pub(crate) exclude_channels: Vec<Py<PyAny>>,
+    pub(crate) client_cmd_pass: bool,
+    pub(crate) client_cmd_perm: i32,
+    pub(crate) prefix: bool,
+    pub(crate) usage: String,
 }
 
 #[pymethods]
@@ -65,30 +68,24 @@ impl Command {
         }
 
         let mut names = vec![];
-        name.extract::<Bound<'_, PyList>>()
-            .ok()
-            .iter()
-            .for_each(|py_list| {
-                py_list.iter().for_each(|py_alias| {
-                    py_alias
-                        .extract::<String>()
-                        .ok()
-                        .iter()
-                        .for_each(|alias| names.push(alias.to_lowercase()));
-                })
-            });
-        name.extract::<Bound<'_, PyTuple>>()
-            .ok()
-            .iter()
-            .for_each(|py_tuple| {
-                py_tuple.iter().for_each(|py_alias| {
-                    py_alias
-                        .extract::<String>()
-                        .ok()
-                        .iter()
-                        .for_each(|alias| names.push(alias.to_lowercase()));
-                })
-            });
+        name.downcast::<PyList>().ok().iter().for_each(|py_list| {
+            py_list.iter().for_each(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .iter()
+                    .for_each(|alias| names.push(alias.to_lowercase()));
+            })
+        });
+        name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
+            py_tuple.iter().for_each(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .iter()
+                    .for_each(|alias| names.push(alias.to_lowercase()));
+            })
+        });
         name.extract::<String>().ok().iter().for_each(|py_string| {
             names.push(py_string.clone());
         });
@@ -146,7 +143,7 @@ impl Command {
     fn execute<'py>(
         &self,
         py: Python<'py>,
-        player: Player,
+        player: &Bound<'py, Player>,
         msg: &str,
         channel: Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -170,7 +167,12 @@ impl Command {
                             intern!(py, ""),
                             -1,
                             intern!(py, "%s executed: %s @ %s -> %s"),
-                            (player.steam_id, command_name, plugin_name, &channel),
+                            (
+                                player.borrow().steam_id,
+                                command_name,
+                                plugin_name,
+                                &channel,
+                            ),
                             py.None(),
                         ),
                         Some(&[(intern!(py, "func"), intern!(py, "execute"))].into_py_dict(py)?),
@@ -224,10 +226,15 @@ impl Command {
     }
 
     /// Check if a player has the rights to execute the command.
-    fn is_eligible_player(&self, py: Python<'_>, player: Player, is_client_cmd: bool) -> bool {
+    fn is_eligible_player(
+        &self,
+        py: Python<'_>,
+        player: &Bound<'_, Player>,
+        is_client_cmd: bool,
+    ) -> bool {
         if owner()
             .unwrap_or_default()
-            .is_some_and(|owner_steam_id| player.steam_id == owner_steam_id)
+            .is_some_and(|owner_steam_id| player.borrow().steam_id == owner_steam_id)
         {
             return true;
         }
@@ -648,7 +655,7 @@ class mocked_db:
 
             let result = command.execute(
                 py,
-                default_test_player(),
+                &Bound::new(py, default_test_player()).expect("this should not happen"),
                 "cmd",
                 py.None().bind(py).to_owned(),
             );
@@ -685,7 +692,7 @@ class mocked_db:
 
             let result = command.execute(
                 py,
-                default_test_player(),
+                &Bound::new(py, default_test_player()).expect("this should not happen"),
                 "cmd",
                 py.None().bind(py).to_owned(),
             );
@@ -921,7 +928,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, false));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        false
+                    ));
                 });
             });
     }
@@ -963,7 +974,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, true));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        true
+                    ));
                 });
             });
     }
@@ -1016,7 +1031,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, false));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        false
+                    ));
                 });
             });
     }
@@ -1059,7 +1078,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, false));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        false
+                    ));
                 });
             });
     }
@@ -1111,7 +1134,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, true));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        true
+                    ));
                 });
             });
     }
@@ -1154,7 +1181,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, true));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        true
+                    ));
                 });
             });
     }
@@ -1201,7 +1232,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(!command.is_eligible_player(py, player, false));
+                    assert!(!command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        false
+                    ));
                 });
             });
     }
@@ -1248,7 +1283,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(!command.is_eligible_player(py, player, true));
+                    assert!(!command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        true
+                    ));
                 });
             });
     }
@@ -1295,7 +1334,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, false));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        false
+                    ));
                 });
             });
     }
@@ -1342,7 +1385,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(!command.is_eligible_player(py, player, false));
+                    assert!(!command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        false
+                    ));
                 });
             });
     }
@@ -1389,7 +1436,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(command.is_eligible_player(py, player, true));
+                    assert!(command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        true
+                    ));
                 });
             });
     }
@@ -1436,7 +1487,11 @@ class mocked_db:
 
                     let player = default_test_player();
 
-                    assert!(!command.is_eligible_player(py, player, true));
+                    assert!(!command.is_eligible_player(
+                        py,
+                        &Bound::new(py, player).expect("this should not happen"),
+                        true
+                    ));
                 });
             });
     }
@@ -1607,7 +1662,7 @@ def remove_command(cmd):
     pub(crate) fn handle_input(
         &self,
         py: Python<'_>,
-        player: &Player,
+        player: &Bound<'_, Player>,
         msg: &str,
         channel: Bound<'_, PyAny>,
     ) -> PyResult<bool> {
@@ -1653,7 +1708,11 @@ def remove_command(cmd):
                 if !bound_cmd.is_eligible_channel(py, channel.clone()) {
                     continue;
                 }
-                if !bound_cmd.is_eligible_player(py, player.clone(), is_client_cmd) {
+                if !bound_cmd.is_eligible_player(
+                    py,
+                    &Bound::new(py, player.clone())?,
+                    is_client_cmd,
+                ) {
                     continue;
                 }
 
@@ -1682,16 +1741,20 @@ def remove_command(cmd):
                     usage: bound_cmd.usage.clone(),
                 };
 
-                let dispatcher_result = command_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player.clone(), cmd_copy, msg))?;
+                let dispatcher_result = CommandDispatcherMethods::dispatch(
+                    command_dispatcher.downcast()?,
+                    &Bound::new(py, player.clone())?,
+                    &Bound::new(py, cmd_copy)?,
+                    msg,
+                )?;
                 if dispatcher_result
-                    .extract::<Bound<'_, PyBool>>()
+                    .downcast::<PyBool>()
                     .is_ok_and(|value| !value.is_true())
                 {
                     return Ok(true);
                 }
 
-                let cmd_result = bound_cmd.execute(py, player.clone(), msg, channel.clone())?;
+                let cmd_result = bound_cmd.execute(py, player, msg, channel.clone())?;
                 let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>();
                 if cmd_result_return_code.as_ref().is_ok_and(|value| {
                     [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL].contains(value)
@@ -1763,7 +1826,8 @@ mod command_invoker_tests {
     use crate::ffi::python::events::{CommandDispatcher, EventDispatcherManager};
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::pyshinqlx_test_support::{
-        capturing_hook, default_test_player, returning_false_hook, run_all_frame_tasks, test_plugin,
+        capturing_hook, default_command, default_test_player, returning_false_hook,
+        run_all_frame_tasks,
     };
     use crate::ffi::python::{PythonReturnCodes, EVENT_DISPATCHERS};
 
@@ -1779,25 +1843,6 @@ mod command_invoker_tests {
 
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use pyo3::prelude::*;
-
-    fn default_command(py: Python<'_>) -> Command {
-        let capturing_hook = capturing_hook(py);
-        Command {
-            plugin: test_plugin(py).unbind(),
-            name: vec!["cmd_name".into()],
-            handler: capturing_hook
-                .getattr("hook")
-                .expect("could not get capturing hook")
-                .unbind(),
-            permission: 0,
-            channels: vec![],
-            exclude_channels: vec![],
-            client_cmd_pass: false,
-            client_cmd_perm: 0,
-            prefix: true,
-            usage: "".to_string(),
-        }
-    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1964,7 +2009,7 @@ mod command_invoker_tests {
 
             let result = command_invoker.handle_input(
                 py,
-                &player,
+                &Bound::new(py, player).expect("this should not happen"),
                 " ",
                 chat_channel.bind(py).to_owned().into_any(),
             );
@@ -1987,7 +2032,7 @@ mod command_invoker_tests {
 
             let result = command_invoker.handle_input(
                 py,
-                &player,
+                &Bound::new(py, player).expect("this should not happen"),
                 "cmd_name",
                 chat_channel.bind(py).to_owned().into_any(),
             );
@@ -2027,7 +2072,7 @@ mod command_invoker_tests {
 
             let result = command_invoker.handle_input(
                 py,
-                &player,
+                &Bound::new(py, player).expect("this should not happen"),
                 "other_name",
                 chat_channel.bind(py).to_owned().into_any(),
             );
@@ -2067,7 +2112,7 @@ mod command_invoker_tests {
 
             let result = command_invoker.handle_input(
                 py,
-                &player,
+                &Bound::new(py, player).expect("this should not happen"),
                 "cmd_name",
                 chat_channel.bind(py).to_owned().into_any(),
             );
@@ -2121,7 +2166,7 @@ mod command_invoker_tests {
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         chat_channel.bind(py).to_owned().into_any(),
                     );
@@ -2193,7 +2238,7 @@ mod command_invoker_tests {
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         client_command_channel.bind(py).to_owned().into_any(),
                     );
@@ -2256,7 +2301,7 @@ mod command_invoker_tests {
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         client_command_channel.bind(py).to_owned().into_any(),
                     );
@@ -2340,7 +2385,7 @@ def cmd_handler(*args, **kwargs):
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         client_command_channel.bind(py).to_owned().into_any(),
                     );
@@ -2423,7 +2468,7 @@ def cmd_handler(*args, **kwargs):
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         chat_channel.bind(py).to_owned().into_any(),
                     );
@@ -2515,7 +2560,7 @@ def cmd_handler(*args, **kwargs):
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         chat_channel.bind(py).to_owned().into_any(),
                     );
@@ -2591,7 +2636,7 @@ def cmd_handler(*args, **kwargs):
 
                     let result = command_invoker.handle_input(
                         py,
-                        &player,
+                        &Bound::new(py, player).expect("this should not happen"),
                         "cmd_name",
                         chat_channel.bind(py).to_owned().into_any(),
                     );
