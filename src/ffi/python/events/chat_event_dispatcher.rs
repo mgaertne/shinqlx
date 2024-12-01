@@ -26,7 +26,7 @@ impl ChatEventDispatcher {
 
     fn dispatch<'py>(
         slf: &Bound<'py, Self>,
-        player: Player,
+        player: &Bound<'py, Player>,
         msg: &str,
         channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -37,7 +37,7 @@ impl ChatEventDispatcher {
 pub(crate) trait ChatEventDispatcherMethods<'py> {
     fn dispatch(
         &self,
-        player: Player,
+        player: &Bound<'py, Player>,
         msg: &str,
         channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>>;
@@ -46,11 +46,11 @@ pub(crate) trait ChatEventDispatcherMethods<'py> {
 impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
     fn dispatch(
         &self,
-        player: Player,
+        player: &Bound<'py, Player>,
         msg: &str,
         channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        match try_handle_input(self.py(), &player, msg, channel) {
+        match try_handle_input(self.py(), player, msg, channel) {
             Err(e) => {
                 log_exception(self.py(), &e);
             }
@@ -61,24 +61,22 @@ impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
             }
         };
 
-        let event_dispatcher = self.as_super();
-
         let args_tuple = PyTuple::new(
             self.py(),
             [
-                Bound::new(self.py(), player)?.as_any(),
+                player.as_any(),
                 PyString::new(self.py(), msg).as_any(),
                 channel,
             ],
         )?;
 
-        Ok(EventDispatcher::dispatch(event_dispatcher, args_tuple))
+        Ok(self.as_super().dispatch(&args_tuple))
     }
 }
 
 fn try_handle_input(
     py: Python<'_>,
-    player: &Player,
+    player: &Bound<'_, Player>,
     cmd: &str,
     channel: &Bound<'_, PyAny>,
 ) -> PyResult<bool> {
@@ -96,25 +94,28 @@ fn try_handle_input(
 
 #[cfg(test)]
 mod chat_event_dispatcher_tests {
-    use super::ChatEventDispatcher;
+    use super::{ChatEventDispatcher, ChatEventDispatcherMethods};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::ffi::python::channels::TeamChatChannel;
-    use crate::ffi::python::commands::{Command, CommandInvoker, CommandPriorities};
-    use crate::ffi::python::pyshinqlx_test_support::{default_test_player, test_plugin};
-    use crate::ffi::python::{pyshinqlx_setup, COMMANDS};
+    use crate::ffi::python::{
+        channels::TeamChatChannel,
+        commands::{Command, CommandInvoker, CommandPriorities},
+        events::EventDispatcherMethods,
+        pyshinqlx_setup,
+        pyshinqlx_test_support::{default_test_player, test_plugin},
+        COMMANDS,
+    };
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
     use rstest::rstest;
 
-    use pyo3::intern;
     use pyo3::prelude::*;
     use pyo3::types::{PyBool, PyString};
 
-    fn default_channel(py: Python<'_>) -> PyObject {
-        Py::new(
+    fn default_channel(py: Python<'_>) -> Bound<'_, PyAny> {
+        Bound::new(
             py,
             TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
         )
@@ -130,15 +131,14 @@ mod chat_event_dispatcher_tests {
 
         Python::with_gil(|py| {
             let dispatcher =
-                Py::new(py, ChatEventDispatcher::py_new(py)).expect("this should not happen");
+                Bound::new(py, ChatEventDispatcher::py_new(py)).expect("this should not happen");
 
-            let result = dispatcher.call_method1(
-                py,
-                intern!(py, "dispatch"),
-                (default_test_player(), "asdf", default_channel(py)),
+            let result = dispatcher.dispatch(
+                &Bound::new(py, default_test_player()).expect("this should not happen"),
+                "asdf",
+                &default_channel(py),
             );
             assert!(result.is_ok_and(|value| value
-                .bind(py)
                 .downcast::<PyBool>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
@@ -163,7 +163,7 @@ mod chat_event_dispatcher_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let throws_exception_hook = PyModule::from_code(
@@ -180,24 +180,20 @@ def throws_exception_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                throws_exception_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &throws_exception_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -223,7 +219,7 @@ def throws_exception_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -240,24 +236,20 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -283,7 +275,7 @@ def returns_none_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -302,24 +294,20 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -345,7 +333,7 @@ def returns_none_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_hook = PyModule::from_code(
@@ -364,24 +352,20 @@ def returns_stop_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -407,7 +391,7 @@ def returns_stop_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_event_hook = PyModule::from_code(
@@ -426,24 +410,20 @@ def returns_stop_event_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_event_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_event_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
@@ -469,7 +449,7 @@ def returns_stop_event_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_all_hook = PyModule::from_code(
@@ -488,24 +468,20 @@ def returns_stop_all_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_all_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_all_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
@@ -531,7 +507,7 @@ def returns_stop_all_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -548,24 +524,20 @@ def returns_string_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_string_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_string_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -621,13 +593,9 @@ def handler(*args, **kwargs):
                         "",
                     )
                     .expect("could not create command");
-                    let py_command = Py::new(py, command).expect("this should not happen");
+                    let py_command = Bound::new(py, command).expect("this should not happen");
                     command_invoker
-                        .add_command(
-                            py,
-                            py_command.into_bound(py),
-                            CommandPriorities::PRI_NORMAL as usize,
-                        )
+                        .add_command(py, py_command, CommandPriorities::PRI_NORMAL as usize)
                         .expect("could not add command to command invoker");
                     COMMANDS.store(Some(
                         Py::new(py, command_invoker)
@@ -635,7 +603,7 @@ def handler(*args, **kwargs):
                             .into(),
                     ));
 
-                    let dispatcher = Py::new(py, ChatEventDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -652,24 +620,20 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(), "asdf", default_channel(py)),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
+                        "asdf",
+                        &default_channel(py),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|value| !value.is_true())),);
                 });

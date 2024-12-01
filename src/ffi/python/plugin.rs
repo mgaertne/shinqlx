@@ -120,10 +120,9 @@ impl Plugin {
     fn get_plugins<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let loaded_plugins = py
             .get_type::<Plugin>()
-            .getattr(intern!(py, "_loaded_plugins"))?
-            .extract::<Bound<'_, PyDict>>()?;
+            .getattr(intern!(py, "_loaded_plugins"))?;
 
-        Ok(loaded_plugins)
+        Ok(loaded_plugins.downcast()?.clone())
     }
 
     /// A list of all the hooks this plugin has.
@@ -319,30 +318,24 @@ impl Plugin {
         handler: Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let mut names = vec![];
-        name.extract::<Bound<'_, PyList>>()
-            .ok()
-            .iter()
-            .for_each(|py_list| {
-                py_list.iter().for_each(|py_alias| {
-                    py_alias
-                        .extract::<String>()
-                        .ok()
-                        .iter()
-                        .for_each(|alias| names.push(alias.clone()));
-                })
-            });
-        name.extract::<Bound<'_, PyTuple>>()
-            .ok()
-            .iter()
-            .for_each(|py_tuple| {
-                py_tuple.iter().for_each(|py_alias| {
-                    py_alias
-                        .extract::<String>()
-                        .ok()
-                        .iter()
-                        .for_each(|alias| names.push(alias.clone()));
-                })
-            });
+        name.downcast::<PyList>().ok().iter().for_each(|py_list| {
+            py_list.iter().for_each(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .iter()
+                    .for_each(|alias| names.push(alias.clone()));
+            })
+        });
+        name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
+            py_tuple.iter().for_each(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .iter()
+                    .for_each(|alias| names.push(alias.clone()));
+            })
+        });
         name.extract::<String>().ok().iter().for_each(|py_string| {
             names.push(py_string.clone());
         });
@@ -1417,10 +1410,8 @@ mod plugin_tests {
                 .setattr("_loaded_plugins", &loaded_plugins);
 
             let plugin_instance = extended_plugin.call0()?;
-            let plugins = plugin_instance
-                .getattr("plugins")?
-                .extract::<Bound<'_, PyDict>>()?;
-            assert!(plugins.eq(loaded_plugins)?);
+            let plugins = plugin_instance.getattr("plugins")?;
+            assert!(plugins.downcast::<PyDict>()?.eq(loaded_plugins)?);
             Ok(())
         });
         assert!(res.is_ok());

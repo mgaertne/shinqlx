@@ -36,6 +36,16 @@ impl VoteEndedDispatcher {
     }
 
     fn dispatch(slf: &Bound<'_, Self>, passed: bool) -> PyResult<()> {
+        slf.dispatch(passed)
+    }
+}
+
+pub(crate) trait VoteEndedDispatcherMethods<'py> {
+    fn dispatch(&self, passed: bool) -> PyResult<()>;
+}
+
+impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
+    fn dispatch(&self, passed: bool) -> PyResult<()> {
         let configstring = MAIN_ENGINE.load().as_ref().map_or(
             Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
@@ -45,7 +55,7 @@ impl VoteEndedDispatcher {
 
         if configstring.is_empty() {
             dispatcher_debug_log(
-                slf.py(),
+                self.py(),
                 "vote_ended went off without configstring CS_VOTE_STRING.",
             );
             return Ok(());
@@ -53,7 +63,7 @@ impl VoteEndedDispatcher {
 
         let Some(captures) = RE_VOTE.captures(&configstring) else {
             let warning_str = format!("invalid vote called: {}", &configstring);
-            dispatcher_debug_log(slf.py(), &warning_str);
+            dispatcher_debug_log(self.py(), &warning_str);
             return Ok(());
         };
         let vote = captures
@@ -82,19 +92,17 @@ impl VoteEndedDispatcher {
             },
         )?;
 
-        let event_dispatcher = slf.as_super();
-
         let args_tuple = PyTuple::new(
-            slf.py(),
+            self.py(),
             [
-                PyTuple::new(slf.py(), [yes_votes, no_votes])?.into_any(),
-                PyString::new(slf.py(), vote).into_any(),
-                PyString::new(slf.py(), args).into_any(),
-                PyBool::new(slf.py(), passed).to_owned().into_any(),
+                PyTuple::new(self.py(), [yes_votes, no_votes])?.into_any(),
+                PyString::new(self.py(), vote).into_any(),
+                PyString::new(self.py(), args).into_any(),
+                PyBool::new(self.py(), passed).to_owned().into_any(),
             ],
         )?;
 
-        EventDispatcher::dispatch(event_dispatcher, args_tuple);
+        self.as_super().dispatch(&args_tuple);
 
         Ok(())
     }
@@ -102,19 +110,20 @@ impl VoteEndedDispatcher {
 
 #[cfg(test)]
 mod vote_ended_dispatcher_tests {
-    use super::VoteEndedDispatcher;
+    use super::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 
     use crate::ffi::c::prelude::{
         cvar_t, CVar, CVarBuilder, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES,
     };
-    use crate::ffi::python::{commands::CommandPriorities, pyshinqlx_setup};
+    use crate::ffi::python::{
+        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+    };
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
     use rstest::rstest;
 
-    use pyo3::intern;
     use pyo3::prelude::*;
 
     #[rstest]
@@ -127,11 +136,11 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -156,7 +165,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_NO as u16, "0", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let throws_exception_hook = PyModule::from_code(
@@ -173,19 +182,16 @@ def throws_exception_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                throws_exception_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &throws_exception_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -210,7 +216,7 @@ def throws_exception_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -227,19 +233,16 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -264,7 +267,7 @@ def returns_none_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -283,19 +286,16 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -320,7 +320,7 @@ def returns_none_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_hook = PyModule::from_code(
@@ -339,19 +339,16 @@ def returns_stop_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -376,7 +373,7 @@ def returns_stop_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_event_hook = PyModule::from_code(
@@ -395,19 +392,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_event_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_event_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -432,7 +426,7 @@ def returns_stop_event_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_all_hook = PyModule::from_code(
@@ -451,19 +445,16 @@ def returns_stop_all_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_all_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_all_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -488,7 +479,7 @@ def returns_stop_all_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -505,19 +496,16 @@ def returns_string_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_string_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_string_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -540,7 +528,7 @@ def returns_string_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -557,19 +545,16 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }
@@ -592,7 +577,7 @@ def returns_none_hook(*args, **kwargs):
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, VoteEndedDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -609,19 +594,16 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(py, intern!(py, "dispatch"), (true,));
-                    assert!(result.is_ok_and(|value| value.bind(py).is_none()));
+                    let result = dispatcher.dispatch(true);
+                    assert!(result.is_ok());
                 });
             });
     }

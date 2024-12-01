@@ -575,14 +575,14 @@ impl Redis {
         }
 
         if args.len() == 1 {
-            let Ok(dict_arg) = args.get_item(0)?.extract::<Bound<'_, PyDict>>() else {
+            let Ok(dict_arg) = args.get_item(0) else {
                 let error = redis_error.call1((intern!(
                     slf_.py(),
                     "MSET requires **kwargs or a single dict arg"
                 ),))?;
                 return Err(PyErr::from_value(error));
             };
-            mapping.update(dict_arg.as_mapping())?;
+            mapping.update(dict_arg.downcast::<PyDict>()?.as_mapping())?;
         }
 
         if let Some(kwargs_dict) = kwargs {
@@ -613,14 +613,14 @@ impl Redis {
         }
 
         if args.len() == 1 {
-            let Ok(dict_arg) = args.get_item(0)?.extract::<Bound<'_, PyDict>>() else {
+            let Ok(dict_arg) = args.get_item(0) else {
                 let error = redis_error.call1((intern!(
                     slf_.py(),
                     "MSETNX requires **kwargs or a single dict arg"
                 ),))?;
                 return Err(PyErr::from_value(error));
             };
-            mapping.update(dict_arg.as_mapping())?;
+            mapping.update(dict_arg.downcast::<PyDict>()?.as_mapping())?;
         }
 
         if let Some(kwargs_dict) = kwargs {

@@ -28,16 +28,19 @@ pub(crate) mod prelude {
     pub(crate) use super::embed::*;
     pub(crate) use super::events::{
         ChatEventDispatcher, ChatEventDispatcherMethods, ClientCommandDispatcher,
-        ClientCommandDispatcherMethods, CommandDispatcher, ConsolePrintDispatcher,
-        DamageDispatcher, DeathDispatcher, EventDispatcher, EventDispatcherManager,
-        FrameEventDispatcher, GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher,
-        KamikazeExplodeDispatcher, KamikazeUseDispatcher, KillDispatcher, MapDispatcher,
-        NewGameDispatcher, PlayerConnectDispatcher, PlayerDisconnectDispatcher,
-        PlayerLoadedDispatcher, PlayerSpawnDispatcher, RoundCountdownDispatcher,
-        RoundEndDispatcher, RoundStartDispatcher, ServerCommandDispatcher,
-        SetConfigstringDispatcher, StatsDispatcher, TeamSwitchAttemptDispatcher,
-        TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher, VoteCalledDispatcher,
-        VoteDispatcher, VoteEndedDispatcher, VoteStartedDispatcher, VoteStartedDispatcherMethods,
+        ClientCommandDispatcherMethods, CommandDispatcher, CommandDispatcherMethods,
+        ConsolePrintDispatcher, ConsolePrintDispatcherMethods, DamageDispatcher,
+        DamageDispatcherMethods, DeathDispatcher, EventDispatcher, EventDispatcherManager,
+        FrameEventDispatcher, FrameEventDispatcherMethods, GameCountdownDispatcher,
+        GameEndDispatcher, GameStartDispatcher, KamikazeExplodeDispatcher, KamikazeUseDispatcher,
+        KillDispatcher, MapDispatcher, NewGameDispatcher, PlayerConnectDispatcher,
+        PlayerDisconnectDispatcher, PlayerLoadedDispatcher, PlayerSpawnDispatcher,
+        RoundCountdownDispatcher, RoundEndDispatcher, RoundStartDispatcher,
+        ServerCommandDispatcher, ServerCommandDispatcherMethods, SetConfigstringDispatcher,
+        SetConfigstringDispatcherMethods, StatsDispatcher, TeamSwitchAttemptDispatcher,
+        TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher, UserinfoDispatcherMethods,
+        VoteCalledDispatcher, VoteDispatcher, VoteEndedDispatcher, VoteEndedDispatcherMethods,
+        VoteStartedDispatcher, VoteStartedDispatcherMethods,
     };
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
@@ -460,7 +463,7 @@ pub(crate) fn client_id(
         }
     }
 
-    if let Ok(player) = name.extract::<Bound<'_, Player>>() {
+    if let Ok(player) = name.downcast::<Player>() {
         return Some(player.borrow().id);
     }
 
@@ -1051,7 +1054,7 @@ mod pyshinqlx_configure_logger_tests {
             .call_method0(intern!(py, "hasHandlers"))
             .is_ok_and(|value| {
                 value
-                    .extract::<Bound<'_, PyBool>>()
+                    .downcast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             })
         {
@@ -1267,12 +1270,14 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> 
     py.import(intern!(py, "sys")).and_then(|sys_module| {
         sys_module
             .call_method0(intern!(py, "exc_info"))
-            .and_then(|exc_info| exc_info.extract::<Bound<'_, PyTuple>>())
-            .and_then(|exc_tuple| {
+            .and_then(|exc_info| {
                 py.import(intern!(py, "traceback"))
                     .and_then(|traceback_module| {
                         traceback_module
-                            .call_method1(intern!(py, "format_exception"), exc_tuple)
+                            .call_method1(
+                                intern!(py, "format_exception"),
+                                exc_info.downcast::<PyTuple>()?,
+                            )
                             .and_then(|value| {
                                 value
                                     .extract::<Vec<String>>()
@@ -1577,7 +1582,7 @@ test_func()
             assert!(next_frame_tasks
                 .call_method0(intern!(py, "empty"))
                 .is_ok_and(|value| value
-                    .extract::<Bound<'_, PyBool>>()
+                    .downcast::<PyBool>()
                     .is_ok_and(|bool_value| !bool_value.is_true())));
             assert!(next_frame_tasks
                 .call_method0(intern!(py, "get_nowait"))
@@ -1585,7 +1590,7 @@ test_func()
             assert!(next_frame_tasks
                 .call_method0(intern!(py, "empty"))
                 .is_ok_and(|value| value
-                    .extract::<Bound<'_, PyBool>>()
+                    .downcast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
@@ -1666,7 +1671,7 @@ test_func()
             assert!(frame_tasks
                 .call_method0(intern!(py, "empty"))
                 .is_ok_and(|value| value
-                    .extract::<Bound<'_, PyBool>>()
+                    .downcast::<PyBool>()
                     .is_ok_and(|bool_value| !bool_value.is_true())));
             let scheduler_queue = frame_tasks
                 .getattr("queue")
@@ -1677,7 +1682,7 @@ test_func()
             assert!(frame_tasks
                 .call_method0(intern!(py, "empty"))
                 .is_ok_and(|value| value
-                    .extract::<Bound<'_, PyBool>>()
+                    .downcast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())));
         });
     }
@@ -2160,7 +2165,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
     let plugin_class = module.getattr(&plugin_pystring)?;
     let plugin_type = py.get_type::<Plugin>();
     if !plugin_class
-        .extract::<Bound<'_, PyType>>()?
+        .downcast::<PyType>()?
         .is_subclass(&plugin_type)
         .unwrap_or(false)
     {
@@ -2172,9 +2177,10 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
     plugin_class.call0().and_then(|loaded_plugin| {
         let loaded_plugins = py
             .get_type::<Plugin>()
-            .getattr(intern!(py, "_loaded_plugins"))
-            .and_then(|loaded_plugins| loaded_plugins.extract::<Bound<'_, PyDict>>())?;
-        loaded_plugins.set_item(plugin, loaded_plugin)
+            .getattr(intern!(py, "_loaded_plugins"))?;
+        loaded_plugins
+            .downcast::<PyDict>()?
+            .set_item(plugin, loaded_plugin)
     })
 }
 
@@ -2214,10 +2220,9 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
             let loaded_plugins = py
                 .get_type::<Plugin>()
-                .getattr(intern!(py, "_loaded_plugins"))?
-                .extract::<Bound<'_, PyDict>>()?;
+                .getattr(intern!(py, "_loaded_plugins"))?;
 
-            if loaded_plugins.contains(plugin)? {
+            if loaded_plugins.downcast::<PyDict>()?.contains(plugin)? {
                 return reload_plugin(py, plugin);
             }
 
@@ -2250,71 +2255,78 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
     let loaded_plugins = py
         .get_type::<Plugin>()
-        .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<Bound<'_, PyDict>>()?;
+        .getattr(intern!(py, "_loaded_plugins"))?;
 
-    loaded_plugins.get_item(plugin)?.map_or_else(
-        || {
-            let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
-            Err(PluginUnloadError::new_err(error_msg))
-        },
-        |loaded_plugin| {
-            loaded_plugin
-                .getattr(intern!(py, "hooks"))?
-                .try_iter()?
-                .flatten()
-                .for_each(|hook| {
-                    if let Err(ref err) =
-                        hook.extract::<Bound<'_, PyTuple>>().and_then(|hook_tuple| {
-                            let event_name = hook_tuple.get_item(0)?;
-                            let event_handler = hook_tuple.get_item(1)?;
-                            let event_priority = hook_tuple.get_item(2)?;
-                            EVENT_DISPATCHERS
-                                .load()
-                                .as_ref()
-                                .and_then(|event_dispatchers| {
-                                    event_dispatchers.bind(py).get_item(&event_name).ok()
-                                })
-                                .map_or(
-                                    Err(PyAttributeError::new_err(event_name.to_string())),
-                                    |event_dispatcher| {
-                                        let plugin_name =
-                                            loaded_plugin.getattr(intern!(py, "name"))?;
+    loaded_plugins
+        .downcast::<PyDict>()?
+        .get_item(plugin)?
+        .map_or_else(
+            || {
+                let error_msg =
+                    format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
+                Err(PluginUnloadError::new_err(error_msg))
+            },
+            |loaded_plugin| {
+                loaded_plugin
+                    .getattr(intern!(py, "hooks"))?
+                    .try_iter()?
+                    .flatten()
+                    .for_each(|hook| {
+                        if let Err(ref err) = hook
+                            .downcast_into::<PyTuple>()
+                            .map_err(PyErr::from)
+                            .and_then(|hook_tuple| {
+                                let event_name = hook_tuple.get_item(0)?;
+                                let event_handler = hook_tuple.get_item(1)?;
+                                let event_priority = hook_tuple.get_item(2)?;
+                                EVENT_DISPATCHERS
+                                    .load()
+                                    .as_ref()
+                                    .and_then(|event_dispatchers| {
+                                        event_dispatchers.bind(py).get_item(&event_name).ok()
+                                    })
+                                    .map_or(
+                                        Err(PyAttributeError::new_err(event_name.to_string())),
+                                        |event_dispatcher| {
+                                            let plugin_name =
+                                                loaded_plugin.getattr(intern!(py, "name"))?;
 
-                                        event_dispatcher
-                                            .call_method1(
-                                                intern!(py, "remove_hook"),
-                                                (plugin_name, event_handler, event_priority),
-                                            )
-                                            .map(|_| ())
-                                    },
-                                )
-                        })
-                    {
-                        log_exception(py, err);
-                    }
-                });
+                                            event_dispatcher
+                                                .call_method1(
+                                                    intern!(py, "remove_hook"),
+                                                    (plugin_name, event_handler, event_priority),
+                                                )
+                                                .map(|_| ())
+                                        },
+                                    )
+                            })
+                        {
+                            log_exception(py, err);
+                        }
+                    });
 
-            loaded_plugin
-                .getattr(intern!(py, "commands"))?
-                .try_iter()?
-                .flatten()
-                .for_each(|cmd| {
-                    if let Err(ref err) = cmd.extract::<Bound<'_, Command>>().and_then(|py_cmd| {
-                        COMMANDS.load().as_ref().map_or(
+                loaded_plugin
+                    .getattr(intern!(py, "commands"))?
+                    .try_iter()?
+                    .flatten()
+                    .for_each(|cmd| {
+                        if let Err(ref err) = COMMANDS.load().as_ref().map_or(
                             Err(PyEnvironmentError::new_err(
                                 "could not get access to commands",
                             )),
-                            |commands| commands.borrow(py).remove_command(py, py_cmd),
-                        )
-                    }) {
-                        log_exception(py, err);
-                    };
-                });
+                            |commands| {
+                                commands
+                                    .borrow(py)
+                                    .remove_command(py, cmd.downcast()?.clone())
+                            },
+                        ) {
+                            log_exception(py, err);
+                        };
+                    });
 
-            loaded_plugins.del_item(plugin)
-        },
-    )
+                loaded_plugins.del_item(plugin)
+            },
+        )
 }
 
 #[pyfunction(name = "unload_plugin")]
@@ -2343,9 +2355,8 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
     let loaded_plugins = py
         .get_type::<Plugin>()
-        .getattr(intern!(py, "_loaded_plugins"))?
-        .extract::<Bound<'_, PyDict>>()?;
-    if !loaded_plugins.contains(plugin)? {
+        .getattr(intern!(py, "_loaded_plugins"))?;
+    if !loaded_plugins.downcast::<PyDict>()?.contains(plugin)? {
         let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
         return Err(PluginUnloadError::new_err(error_msg));
     }
@@ -4373,6 +4384,7 @@ pub(crate) mod pyshinqlx_test_support {
 
     use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t};
 
+    use crate::ffi::python::commands::Command;
     use pyo3::prelude::*;
 
     pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
@@ -4410,6 +4422,25 @@ while not shinqlx.next_frame_tasks.empty():
             user_info: "".to_string(),
             steam_id: 1234567890,
             name: "".to_string(),
+        }
+    }
+
+    pub(crate) fn default_command(py: Python<'_>) -> Command {
+        let capturing_hook = capturing_hook(py);
+        Command {
+            plugin: test_plugin(py).unbind(),
+            name: vec!["cmd_name".into()],
+            handler: capturing_hook
+                .getattr("hook")
+                .expect("could not get capturing hook")
+                .unbind(),
+            permission: 0,
+            channels: vec![],
+            exclude_channels: vec![],
+            client_cmd_pass: false,
+            client_cmd_perm: 0,
+            prefix: true,
+            usage: "".to_string(),
         }
     }
 
