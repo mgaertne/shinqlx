@@ -56,21 +56,31 @@ pub(crate) use console_print_dispatcher::{ConsolePrintDispatcher, ConsolePrintDi
 pub(crate) use damage_dispatcher::{DamageDispatcher, DamageDispatcherMethods};
 pub(crate) use death_dispatcher::DeathDispatcher;
 pub(crate) use frame_event_dispatcher::{FrameEventDispatcher, FrameEventDispatcherMethods};
-pub(crate) use game_countdown_dispatcher::GameCountdownDispatcher;
+pub(crate) use game_countdown_dispatcher::{
+    GameCountdownDispatcher, GameCountdownDispatcherMethods,
+};
 pub(crate) use game_end_dispatcher::GameEndDispatcher;
 pub(crate) use game_start_dispatcher::GameStartDispatcher;
-pub(crate) use kamikaze_explode_dispatcher::KamikazeExplodeDispatcher;
-pub(crate) use kamikaze_use_dispatcher::KamikazeUseDispatcher;
+pub(crate) use kamikaze_explode_dispatcher::{
+    KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods,
+};
+pub(crate) use kamikaze_use_dispatcher::{KamikazeUseDispatcher, KamikazeUseDispatcherMethods};
 pub(crate) use kill_dispatcher::KillDispatcher;
-pub(crate) use map_dispatcher::MapDispatcher;
-pub(crate) use new_game_dispatcher::NewGameDispatcher;
-pub(crate) use player_connect_dispatcher::PlayerConnectDispatcher;
-pub(crate) use player_disconnect_dispatcher::PlayerDisconnectDispatcher;
-pub(crate) use player_loaded_dispatcher::PlayerLoadedDispatcher;
-pub(crate) use player_spawn_dispatcher::PlayerSpawnDispatcher;
-pub(crate) use round_countdown_dispatcher::RoundCountdownDispatcher;
+pub(crate) use map_dispatcher::{MapDispatcher, MapDispatcherMethods};
+pub(crate) use new_game_dispatcher::{NewGameDispatcher, NewGameDispatcherMethods};
+pub(crate) use player_connect_dispatcher::{
+    PlayerConnectDispatcher, PlayerConnectDispatcherMethods,
+};
+pub(crate) use player_disconnect_dispatcher::{
+    PlayerDisconnectDispatcher, PlayerDisconnectDispatcherMethods,
+};
+pub(crate) use player_loaded_dispatcher::{PlayerLoadedDispatcher, PlayerLoadedDispatcherMethods};
+pub(crate) use player_spawn_dispatcher::{PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods};
+pub(crate) use round_countdown_dispatcher::{
+    RoundCountdownDispatcher, RoundCountdownDispatcherMethods,
+};
 pub(crate) use round_end_dispatcher::RoundEndDispatcher;
-pub(crate) use round_start_dispatcher::RoundStartDispatcher;
+pub(crate) use round_start_dispatcher::{RoundStartDispatcher, RoundStartDispatcherMethods};
 pub(crate) use server_command_dispatcher::{
     ServerCommandDispatcher, ServerCommandDispatcherMethods,
 };
@@ -78,12 +88,14 @@ pub(crate) use set_configstring_dispatcher::{
     SetConfigstringDispatcher, SetConfigstringDispatcherMethods,
 };
 pub(crate) use stats_dispatcher::StatsDispatcher;
-pub(crate) use team_switch_attempt_dispatcher::TeamSwitchAttemptDispatcher;
+pub(crate) use team_switch_attempt_dispatcher::{
+    TeamSwitchAttemptDispatcher, TeamSwitchAttemptDispatcherMethods,
+};
 pub(crate) use team_switch_dispatcher::TeamSwitchDispatcher;
-pub(crate) use unload_dispatcher::UnloadDispatcher;
+pub(crate) use unload_dispatcher::{UnloadDispatcher, UnloadDispatcherMethods};
 pub(crate) use userinfo_dispatcher::{UserinfoDispatcher, UserinfoDispatcherMethods};
-pub(crate) use vote_called_dispatcher::VoteCalledDispatcher;
-pub(crate) use vote_dispatcher::VoteDispatcher;
+pub(crate) use vote_called_dispatcher::{VoteCalledDispatcher, VoteCalledDispatcherMethods};
+pub(crate) use vote_dispatcher::{VoteDispatcher, VoteDispatcherMethods};
 pub(crate) use vote_ended_dispatcher::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 

@@ -1,6 +1,8 @@
 use super::prelude::*;
 
-use pyo3::types::PyString;
+use crate::ffi::python::Player;
+
+use pyo3::types::{PyString, PyTuple};
 
 /// Event that triggers whenever a player tries to connect. If the event
 /// is not stopped, it will let the player connect as usual. If it is stopped
@@ -24,8 +26,41 @@ impl PlayerConnectDispatcher {
         (Self {}, EventDispatcher::default())
     }
 
-    pub(crate) fn handle_return<'py>(
+    fn dispatch<'py>(
         slf: &Bound<'py, Self>,
+        player: &Bound<'py, Player>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.dispatch(player)
+    }
+
+    fn handle_return<'py>(
+        slf: &Bound<'py, Self>,
+        handler: &Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.handle_return(handler, value)
+    }
+}
+
+pub(crate) trait PlayerConnectDispatcherMethods<'py> {
+    fn dispatch(&self, player: &Bound<'py, Player>) -> PyResult<Bound<'py, PyAny>>;
+
+    fn handle_return(
+        &self,
+        handler: &Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+}
+
+impl<'py> PlayerConnectDispatcherMethods<'py> for Bound<'py, PlayerConnectDispatcher> {
+    fn dispatch(&self, player: &Bound<'py, Player>) -> PyResult<Bound<'py, PyAny>> {
+        Ok(self
+            .as_super()
+            .dispatch(&PyTuple::new(self.py(), [player])?))
+    }
+
+    fn handle_return(
+        &self,
         handler: &Bound<'py, PyAny>,
         value: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
@@ -33,17 +68,18 @@ impl PlayerConnectDispatcher {
             return Ok(value.clone());
         }
 
-        let event_dispatcher = slf.as_super();
-        EventDispatcher::handle_return(event_dispatcher, handler, value)
+        self.as_super().handle_return(handler, value)
     }
 }
 
 #[cfg(test)]
 mod player_connect_dispatcher_tests {
-    use super::PlayerConnectDispatcher;
+    use super::{PlayerConnectDispatcher, PlayerConnectDispatcherMethods};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::ffi::python::{commands::CommandPriorities, pyshinqlx_setup};
+    use crate::ffi::python::{
+        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+    };
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
@@ -51,7 +87,6 @@ mod player_connect_dispatcher_tests {
     use rstest::rstest;
 
     use crate::ffi::python::pyshinqlx_test_support::default_test_player;
-    use pyo3::intern;
     use pyo3::prelude::*;
     use pyo3::types::PyBool;
 
@@ -59,13 +94,12 @@ mod player_connect_dispatcher_tests {
     #[cfg_attr(miri, ignore)]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let dispatcher =
-                Py::new(py, PlayerConnectDispatcher::py_new(py)).expect("this should not happen");
+            let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
+                .expect("this should not happen");
 
-            let result =
-                dispatcher.call_method1(py, intern!(py, "dispatch"), (default_test_player(),));
+            let result = dispatcher
+                .dispatch(&Bound::new(py, default_test_player()).expect("this should not happen"));
             assert!(result.is_ok_and(|value| value
-                .bind(py)
                 .downcast::<PyBool>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
@@ -88,7 +122,7 @@ mod player_connect_dispatcher_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let throws_exception_hook = PyModule::from_code(
@@ -105,24 +139,18 @@ def throws_exception_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                throws_exception_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &throws_exception_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -146,7 +174,7 @@ def throws_exception_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -163,24 +191,18 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -204,7 +226,7 @@ def returns_none_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -223,24 +245,18 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -264,7 +280,7 @@ def returns_none_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_hook = PyModule::from_code(
@@ -283,24 +299,18 @@ def returns_stop_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -324,7 +334,7 @@ def returns_stop_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_event_hook = PyModule::from_code(
@@ -343,24 +353,18 @@ def returns_stop_event_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_event_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_event_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
@@ -384,7 +388,7 @@ def returns_stop_event_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_all_hook = PyModule::from_code(
@@ -403,24 +407,18 @@ def returns_stop_all_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_all_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_all_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
@@ -444,7 +442,7 @@ def returns_stop_all_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -461,24 +459,18 @@ def returns_string_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_string_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_string_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .extract::<String>()
                         .is_ok_and(|str_value| str_value == "return string")));
                 });
@@ -502,7 +494,7 @@ def returns_string_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, PlayerConnectDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -519,24 +511,18 @@ def returns_string_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_string_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_string_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.call_method1(
-                        py,
-                        intern!(py, "dispatch"),
-                        (default_test_player(),),
+                    let result = dispatcher.dispatch(
+                        &Bound::new(py, default_test_player()).expect("this should not happen"),
                     );
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });

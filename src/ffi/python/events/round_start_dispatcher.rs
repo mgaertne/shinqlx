@@ -1,5 +1,7 @@
 use super::prelude::*;
 
+use pyo3::types::PyTuple;
+
 /// Event that goes off when a round starts.
 #[pyclass(module = "_events", name = "RoundStartDispatcher", extends = EventDispatcher, frozen)]
 pub(crate) struct RoundStartDispatcher {}
@@ -18,34 +20,50 @@ impl RoundStartDispatcher {
     fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
         (Self {}, EventDispatcher::default())
     }
+
+    fn dispatch<'py>(slf: &Bound<'py, Self>, round_number: i32) -> PyResult<Bound<'py, PyAny>> {
+        slf.dispatch(round_number)
+    }
+}
+
+pub(crate) trait RoundStartDispatcherMethods<'py> {
+    fn dispatch(&self, round_number: i32) -> PyResult<Bound<'py, PyAny>>;
+}
+
+impl<'py> RoundStartDispatcherMethods<'py> for Bound<'py, RoundStartDispatcher> {
+    fn dispatch(&self, round_number: i32) -> PyResult<Bound<'py, PyAny>> {
+        Ok(self
+            .as_super()
+            .dispatch(&PyTuple::new(self.py(), [round_number])?))
+    }
 }
 
 #[cfg(test)]
 mod round_start_dispatcher_tests {
-    use super::RoundStartDispatcher;
+    use super::{RoundStartDispatcher, RoundStartDispatcherMethods};
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::ffi::python::{commands::CommandPriorities, pyshinqlx_setup};
+    use crate::ffi::python::{
+        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+    };
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
 
     use rstest::rstest;
 
-    use pyo3::intern;
     use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyTuple};
+    use pyo3::types::PyBool;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let dispatcher =
-                Py::new(py, RoundStartDispatcher::py_new(py)).expect("this should not happen");
+                Bound::new(py, RoundStartDispatcher::py_new(py)).expect("this should not happen");
 
-            let result = dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+            let result = dispatcher.dispatch(42);
             assert!(result.is_ok_and(|value| value
-                .bind(py)
                 .downcast::<PyBool>()
                 .is_ok_and(|bool_value| bool_value.is_true())));
         });
@@ -68,7 +86,7 @@ mod round_start_dispatcher_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let throws_exception_hook = PyModule::from_code(
@@ -85,21 +103,16 @@ def throws_exception_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                throws_exception_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &throws_exception_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -123,7 +136,7 @@ def throws_exception_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -140,21 +153,16 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -178,7 +186,7 @@ def returns_none_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_none_hook = PyModule::from_code(
@@ -197,21 +205,16 @@ def returns_none_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_none_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_none_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -235,7 +238,7 @@ def returns_none_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_hook = PyModule::from_code(
@@ -254,21 +257,16 @@ def returns_stop_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });
@@ -292,7 +290,7 @@ def returns_stop_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_event_hook = PyModule::from_code(
@@ -311,21 +309,16 @@ def returns_stop_event_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_event_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_event_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
@@ -349,7 +342,7 @@ def returns_stop_event_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_stop_all_hook = PyModule::from_code(
@@ -368,21 +361,16 @@ def returns_stop_all_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_stop_all_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_stop_all_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true())));
                 });
@@ -406,7 +394,7 @@ def returns_stop_all_hook(*args, **kwargs):
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let dispatcher = Py::new(py, RoundStartDispatcher::py_new(py))
+                    let dispatcher = Bound::new(py, RoundStartDispatcher::py_new(py))
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -423,21 +411,16 @@ def returns_string_hook(*args, **kwargs):
                     .expect("this should not happen");
 
                     dispatcher
-                        .call_method1(
-                            py,
-                            intern!(py, "add_hook"),
-                            (
-                                "test_plugin",
-                                returns_string_hook.unbind(),
-                                CommandPriorities::PRI_NORMAL as i32,
-                            ),
+                        .as_super()
+                        .add_hook(
+                            "test_plugin",
+                            &returns_string_hook,
+                            CommandPriorities::PRI_NORMAL as i32,
                         )
                         .expect("this should not happen");
 
-                    let result =
-                        dispatcher.call_method1(py, intern!(py, "dispatch"), PyTuple::empty(py));
+                    let result = dispatcher.dispatch(42);
                     assert!(result.is_ok_and(|value| value
-                        .bind(py)
                         .downcast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())));
                 });

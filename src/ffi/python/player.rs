@@ -235,7 +235,7 @@ impl Player {
     }
 
     #[setter(cvars)]
-    fn set_cvars(&mut self, py: Python<'_>, new_cvars: Bound<'_, PyDict>) -> PyResult<()> {
+    fn set_cvars(&self, py: Python<'_>, new_cvars: Bound<'_, PyDict>) -> PyResult<()> {
         let new = new_cvars
             .iter()
             .map(|(key, value)| format!(r"\{key}\{value}"))
@@ -283,7 +283,7 @@ impl Player {
     }
 
     #[setter(clan)]
-    fn set_clan(&mut self, py: Python<'_>, tag: String) {
+    fn set_clan(&self, py: Python<'_>, tag: String) {
         py.allow_threads(|| {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                 return;
@@ -313,7 +313,7 @@ impl Player {
     }
 
     #[setter(name)]
-    fn set_name(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_name(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.user_info);
             new_cvars.set("name", &value);
@@ -354,7 +354,7 @@ impl Player {
     }
 
     #[setter(team)]
-    fn set_team(&mut self, py: Python<'_>, new_team: String) -> PyResult<()> {
+    fn set_team(&self, py: Python<'_>, new_team: String) -> PyResult<()> {
         py.allow_threads(|| {
             if !["free", "red", "blue", "spectator"].contains(&&*new_team.to_lowercase()) {
                 return Err(PyValueError::new_err("Invalid team."));
@@ -382,7 +382,7 @@ impl Player {
     }
 
     #[setter(colors)]
-    fn set_colors(&mut self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
+    fn set_colors(&self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
             new_cvars.set("color1", &format!("{}", new.0));
@@ -406,7 +406,7 @@ impl Player {
     }
 
     #[setter(model)]
-    fn set_model(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_model(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
             new_cvars.set("model", &value);
@@ -429,7 +429,7 @@ impl Player {
     }
 
     #[setter(headmodel)]
-    fn set_headmodel(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_headmodel(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo);
             new_cvars.set("headmodel", &value);
@@ -452,7 +452,7 @@ impl Player {
     }
 
     #[setter(handicap)]
-    fn set_handicap(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_handicap(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let new_handicap = value.str()?.to_string();
         if new_handicap.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_handicap}'");
@@ -487,7 +487,7 @@ impl Player {
     }
 
     #[setter(autohop)]
-    fn set_autohop(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_autohop(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let new_autohop = value.str()?.to_string();
         if new_autohop.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_autohop}'");
@@ -522,7 +522,7 @@ impl Player {
     }
 
     #[setter(autoaction)]
-    fn set_autoaction(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_autoaction(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let new_autoaction = value.str()?.to_string();
         if new_autoaction.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_autoaction}'");
@@ -557,7 +557,7 @@ impl Player {
     }
 
     #[setter(predictitems)]
-    fn set_predictitems(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_predictitems(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let new_predictitems = value.str()?.to_string();
         if new_predictitems.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_predictitems}'");
@@ -615,7 +615,7 @@ impl Player {
     }
 
     #[setter(privileges)]
-    fn set_privileges(&mut self, py: Python<'_>, value: Option<String>) -> PyResult<()> {
+    fn set_privileges(&self, py: Python<'_>, value: Option<String>) -> PyResult<()> {
         let new_privileges = py
             .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".to_string()).as_str()));
 
@@ -639,7 +639,7 @@ impl Player {
     }
 
     #[setter(country)]
-    fn set_country(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_country(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
             let mut new_cvars = parse_variables(&self.player_info.userinfo.clone());
             new_cvars.set("country", &value);
@@ -1018,7 +1018,7 @@ impl Player {
     }
 
     #[setter(holdable)]
-    fn set_holdable(&mut self, py: Python<'_>, holdable: Option<String>) -> PyResult<()> {
+    fn set_holdable(&self, py: Python<'_>, holdable: Option<String>) -> PyResult<()> {
         match Holdable::from(holdable) {
             Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
             value => {
@@ -1032,14 +1032,14 @@ impl Player {
         }
     }
 
-    fn drop_holdable(&mut self, py: Python<'_>) -> PyResult<()> {
+    fn drop_holdable(&self, py: Python<'_>) -> PyResult<()> {
         pyshinqlx_drop_holdable(py, self.id)?;
         Ok(())
     }
 
     #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
     fn flight<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
@@ -1099,7 +1099,7 @@ impl Player {
     }
 
     #[setter(noclip)]
-    fn set_noclip(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_noclip(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let noclip_value = match value.extract::<bool>() {
             Ok(value) => value,
             Err(_) => match value.extract::<i128>() {
@@ -1120,7 +1120,7 @@ impl Player {
     }
 
     #[setter(health)]
-    fn set_health(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_health(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         pyshinqlx_set_health(py, self.id, value)?;
         Ok(())
     }
@@ -1132,7 +1132,7 @@ impl Player {
     }
 
     #[setter(armor)]
-    fn set_armor(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_armor(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         pyshinqlx_set_armor(py, self.id, value)?;
         Ok(())
     }
@@ -1144,7 +1144,7 @@ impl Player {
     }
 
     #[setter(is_alive)]
-    fn set_is_alive(&mut self, py: Python<'_>, value: bool) -> PyResult<()> {
+    fn set_is_alive(&self, py: Python<'_>, value: bool) -> PyResult<()> {
         let current = self.get_is_alive(py)?;
 
         if !current && value {
@@ -2034,7 +2034,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
@@ -2134,7 +2134,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_clan_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let mut player = default_test_player();
+        let player = default_test_player();
         Python::with_gil(|py| player.set_clan(py, "asdf".to_string()));
     }
 
@@ -2142,7 +2142,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_clan_with_no_clan_set(_pyshinqlx_setup: ()) {
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default()
             .with_get_configstring((CS_PLAYERS + 2) as u16, "", 1)
@@ -2165,7 +2165,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_clan_with_clan_set(_pyshinqlx_setup: ()) {
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default()
             .with_get_configstring((CS_PLAYERS + 2) as u16, r"\xcn\asdf\cn\asdf", 1)
@@ -2245,7 +2245,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
@@ -2488,7 +2488,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer".to_string(),
@@ -2560,7 +2560,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
@@ -2632,7 +2632,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".to_string(),
@@ -2704,7 +2704,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
@@ -2724,7 +2724,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_handicap_for_unparseable_value(_pyshinqlx_setup: ()) {
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
@@ -2830,7 +2830,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
@@ -2850,7 +2850,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_autohop_for_unparseable_value(_pyshinqlx_setup: ()) {
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
@@ -2956,7 +2956,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
@@ -2977,7 +2977,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_autoaction_with_unparseable_value(_pyshinqlx_setup: ()) {
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
@@ -3083,7 +3083,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
@@ -3104,7 +3104,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_predictitems_with_unparseable_value(_pyshinqlx_setup: ()) {
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
@@ -3325,7 +3325,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_privileges(py, opt_priv));
@@ -3336,7 +3336,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn set_privileges_for_invalid_string(_pyshinqlx_setup: ()) {
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         Python::with_gil(|py| {
             let result = player.set_privileges(py, Some("root".to_string()));
@@ -3383,7 +3383,7 @@ assert(player._valid)
             })
             .times(1);
 
-        let mut player = Player {
+        let player = Player {
             user_info: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
@@ -5060,7 +5060,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         Python::with_gil(|py| {
             let result = player.set_holdable(py, Some("kamikaze".to_string()));
@@ -5074,7 +5074,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_unknown_values(_pyshinqlx_setup: (), #[case] invalid_str: &str) {
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         Python::with_gil(|py| {
             let result = player.set_holdable(py, Some(invalid_str.to_string()));
@@ -5113,7 +5113,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_holdable(py, new_holdable));
@@ -5162,7 +5162,7 @@ assert(player._valid)
                 mock_game_entity
             });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_holdable(py, Some("flight".to_string())));
@@ -5208,7 +5208,7 @@ assert(player._valid)
                 mock_game_entity
             });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.drop_holdable(py));
@@ -5255,7 +5255,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
@@ -5325,7 +5325,7 @@ assert(player._valid)
                 });
                 mock_game_entity
             });
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
@@ -5423,7 +5423,7 @@ assert(player._valid)
                 mock_game_entity
             });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
@@ -5460,7 +5460,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
@@ -5610,7 +5610,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
@@ -5668,7 +5668,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
@@ -5726,7 +5726,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
@@ -5776,7 +5776,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_noclip(py, py.None().into_bound(py)));
@@ -5873,7 +5873,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_health(py, 666));
@@ -5993,7 +5993,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_armor(py, 666));
@@ -6145,7 +6145,7 @@ assert(player._valid)
                 mock_game_entity
             });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, false));
@@ -6185,7 +6185,7 @@ assert(player._valid)
             mock_game_entity.expect_get_health();
             mock_game_entity
         });
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, false));
@@ -6226,7 +6226,7 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, true));
@@ -6303,7 +6303,7 @@ assert(player._valid)
         let shinqlx_client_spawn_ctx = shinqlx_client_spawn_context();
         shinqlx_client_spawn_ctx.expect().times(1);
 
-        let mut player = default_test_player();
+        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| player.set_is_alive(py, true));
