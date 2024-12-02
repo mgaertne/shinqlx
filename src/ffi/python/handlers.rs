@@ -2,9 +2,14 @@ use crate::ffi::c::prelude::*;
 
 use super::prelude::{
     parse_variables, AbstractChannel, ChatEventDispatcherMethods, ClientCommandDispatcherMethods,
-    ConsolePrintDispatcherMethods, DamageDispatcherMethods, FrameEventDispatcherMethods, Player,
-    RconDummyPlayer, ServerCommandDispatcherMethods, SetConfigstringDispatcherMethods,
-    UserinfoDispatcherMethods, VoteEndedDispatcherMethods, VoteStartedDispatcherMethods,
+    ConsolePrintDispatcherMethods, DamageDispatcherMethods, FrameEventDispatcherMethods,
+    GameCountdownDispatcherMethods, KamikazeExplodeDispatcherMethods, KamikazeUseDispatcherMethods,
+    MapDispatcherMethods, NewGameDispatcherMethods, Player, PlayerConnectDispatcherMethods,
+    PlayerDisconnectDispatcherMethods, PlayerLoadedDispatcherMethods, PlayerSpawnDispatcherMethods,
+    RconDummyPlayer, RoundCountdownDispatcherMethods, RoundStartDispatcherMethods,
+    ServerCommandDispatcherMethods, SetConfigstringDispatcherMethods,
+    TeamSwitchAttemptDispatcherMethods, UserinfoDispatcherMethods, VoteCalledDispatcherMethods,
+    VoteDispatcherMethods, VoteEndedDispatcherMethods, VoteStartedDispatcherMethods,
     MAX_MSG_LENGTH,
 };
 use super::{
@@ -380,9 +385,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                             "could not get access to team chat channel",
                         ));
                     };
-                    chat_dispatcher.call_method1(
-                        intern!(py, "dispatch"),
-                        (player.clone(), &reformatted_msg, chat_channel.bind(py)),
+                    ChatEventDispatcherMethods::dispatch(
+                        chat_dispatcher.downcast()?,
+                        &Bound::new(py, player)?,
+                        &reformatted_msg,
+                        chat_channel.bind(py),
                     )
                 },
             )?;
@@ -442,9 +449,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         "could not get access to vote called dispatcher",
                     )),
                     |vote_called_dispatcher| {
-                        vote_called_dispatcher.call_method1(
-                            intern!(py, "dispatch"),
-                            (player.clone(), vote.as_str(), args),
+                        VoteCalledDispatcherMethods::dispatch(
+                            vote_called_dispatcher.downcast()?,
+                            &Bound::new(py, player.clone())?,
+                            vote.as_str(),
+                            PyString::new(py, args).as_any(),
                         )
                     },
                 )?;
@@ -478,8 +487,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         "could not get access to vote dispatcher",
                     )),
                     |vote_dispatcher| {
-                        vote_dispatcher
-                            .call_method1(intern!(py, "dispatch"), (player.clone(), vote))
+                        VoteDispatcherMethods::dispatch(
+                            vote_dispatcher.downcast()?,
+                            &Bound::new(py, player.clone())?,
+                            vote,
+                        )
                     },
                 )?;
             if result
@@ -524,9 +536,11 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     "could not get access to team switch attempt dispatcher",
                 )),
                 |team_switch_attempt_dispatcher| {
-                    team_switch_attempt_dispatcher.call_method1(
-                        intern!(py, "dispatch"),
-                        (player.clone(), current_team, target_team),
+                    TeamSwitchAttemptDispatcherMethods::dispatch(
+                        team_switch_attempt_dispatcher.downcast()?,
+                        &Bound::new(py, player)?,
+                        &current_team,
+                        target_team,
                     )
                 },
             )?;
@@ -4553,7 +4567,11 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
                     "could not get access to map dispatcher",
                 )),
                 |map_dispatcher| {
-                    map_dispatcher.call_method1(intern!(py, "dispatch"), (map_name, factory_name))
+                    MapDispatcherMethods::dispatch(
+                        map_dispatcher.downcast()?,
+                        &map_name.unwrap_or_default(),
+                        &factory_name.unwrap_or_default(),
+                    )
                 },
             )?;
     }
@@ -4571,7 +4589,9 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
             Err(PyEnvironmentError::new_err(
                 "could not get access to new game dispatcher",
             )),
-            |new_game_dispatcher| new_game_dispatcher.call_method0(intern!(py, "dispatch")),
+            |new_game_dispatcher| {
+                NewGameDispatcherMethods::dispatch(new_game_dispatcher.downcast()?)
+            },
         )?;
 
     Ok(())
@@ -5384,8 +5404,10 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                             "could not get access to game countdown dispatcher",
                         )),
                         |game_countdown_dispatcher| {
-                            game_countdown_dispatcher.call_method0(intern!(py, "dispatch"))?;
-                            Ok(())
+                            GameCountdownDispatcherMethods::dispatch(
+                                game_countdown_dispatcher.downcast()?,
+                            )
+                            .map(|_| ())
                         },
                     )?;
             }
@@ -5480,26 +5502,51 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 cs_round_number
             };
 
-            let event = if cvars.contains("time") {
-                intern!(py, "round_countdown")
-            } else {
-                intern!(py, "round_start")
-            };
-
-            EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
-                .map_or(
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to round countdown/start dispatcher",
-                    )),
-                    |round_dispatcher| {
-                        round_dispatcher
-                            .call_method1(intern!(py, "dispatch"), (round_number,))
+            if cvars.contains("time") {
+                EVENT_DISPATCHERS
+                    .load()
+                    .as_ref()
+                    .and_then(|event_dispatchers| {
+                        event_dispatchers
+                            .bind(py)
+                            .get_item(intern!(py, "round_countdown"))
+                            .ok()
+                    })
+                    .map_or(
+                        Err(PyEnvironmentError::new_err(
+                            "could not get access to round countdown dispatcher",
+                        )),
+                        |round_dispatcher| {
+                            RoundCountdownDispatcherMethods::dispatch(
+                                round_dispatcher.downcast()?,
+                                round_number,
+                            )
                             .map(|_| py.None())
-                    },
-                )
+                        },
+                    )
+            } else {
+                EVENT_DISPATCHERS
+                    .load()
+                    .as_ref()
+                    .and_then(|event_dispatchers| {
+                        event_dispatchers
+                            .bind(py)
+                            .get_item(intern!(py, "round_start"))
+                            .ok()
+                    })
+                    .map_or(
+                        Err(PyEnvironmentError::new_err(
+                            "could not get access to round start dispatcher",
+                        )),
+                        |round_dispatcher| {
+                            RoundStartDispatcherMethods::dispatch(
+                                round_dispatcher.downcast()?,
+                                round_number,
+                            )
+                            .map(|_| py.None())
+                        },
+                    )
+            }
         }
         _ => Ok(PyString::new(py, &configstring_value).into_any().unbind()),
     }
@@ -6682,9 +6729,11 @@ fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> P
             |player_connect_dispatcher| {
                 let player = Player::py_new(client_id, None)?;
 
-                player_connect_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player,))
-                    .map(|value| value.unbind())
+                PlayerConnectDispatcherMethods::dispatch(
+                    player_connect_dispatcher.downcast()?,
+                    &Bound::new(py, player)?,
+                )
+                .map(|value| value.unbind())
             },
         )
 }
@@ -7024,9 +7073,11 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<PyObject
             |player_loaded_dispatcher| {
                 let player = Player::py_new(client_id, None)?;
 
-                player_loaded_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player,))
-                    .map(|value| value.unbind())
+                PlayerLoadedDispatcherMethods::dispatch(
+                    player_loaded_dispatcher.downcast()?,
+                    &Bound::new(py, player)?,
+                )
+                .map(|value| value.unbind())
             },
         )
 }
@@ -7286,9 +7337,12 @@ fn try_handle_player_disconnect(
             |player_disconnect_dispatcher| {
                 let player = Player::py_new(client_id, None)?;
 
-                player_disconnect_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player, reason))
-                    .map(|value| value.unbind())
+                PlayerDisconnectDispatcherMethods::dispatch(
+                    player_disconnect_dispatcher.downcast()?,
+                    &Bound::new(py, player)?,
+                    &reason.into_bound_py_any(py)?,
+                )
+                .map(|value| value.unbind())
             },
         )
 }
@@ -7547,9 +7601,11 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
             |player_spawn_dispatcher| {
                 let player = Player::py_new(client_id, None)?;
 
-                player_spawn_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player,))
-                    .map(|value| value.unbind())
+                PlayerSpawnDispatcherMethods::dispatch(
+                    player_spawn_dispatcher.downcast()?,
+                    &Bound::new(py, player)?,
+                )
+                .map(|value| value.unbind())
             },
         )
 }
@@ -7805,9 +7861,11 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
             |kamikaze_use_dispatcher| {
                 let player = Player::py_new(client_id, None)?;
 
-                kamikaze_use_dispatcher
-                    .call_method1(intern!(py, "dispatch"), (player,))
-                    .map(|value| value.unbind())
+                KamikazeUseDispatcherMethods::dispatch(
+                    kamikaze_use_dispatcher.downcast()?,
+                    &Bound::new(py, player)?,
+                )
+                .map(|value| value.unbind())
             },
         )
 }
@@ -8066,9 +8124,13 @@ fn try_handle_kamikaze_explode(
             "could not get access to kamikaze explode dispatcher",
         ));
     };
-    kamikaze_explode_dispatcher
-        .call_method1(intern!(py, "dispatch"), (player, is_used_on_demand))
-        .map(|value| value.unbind())
+
+    KamikazeExplodeDispatcherMethods::dispatch(
+        kamikaze_explode_dispatcher.downcast()?,
+        &Bound::new(py, player)?,
+        is_used_on_demand,
+    )
+    .map(|value| value.unbind())
 }
 
 /// This will be called whenever kamikaze explodes.

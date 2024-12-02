@@ -32,15 +32,21 @@ pub(crate) mod prelude {
         ConsolePrintDispatcher, ConsolePrintDispatcherMethods, DamageDispatcher,
         DamageDispatcherMethods, DeathDispatcher, EventDispatcher, EventDispatcherManager,
         FrameEventDispatcher, FrameEventDispatcherMethods, GameCountdownDispatcher,
-        GameEndDispatcher, GameStartDispatcher, KamikazeExplodeDispatcher, KamikazeUseDispatcher,
-        KillDispatcher, MapDispatcher, NewGameDispatcher, PlayerConnectDispatcher,
-        PlayerDisconnectDispatcher, PlayerLoadedDispatcher, PlayerSpawnDispatcher,
-        RoundCountdownDispatcher, RoundEndDispatcher, RoundStartDispatcher,
-        ServerCommandDispatcher, ServerCommandDispatcherMethods, SetConfigstringDispatcher,
-        SetConfigstringDispatcherMethods, StatsDispatcher, TeamSwitchAttemptDispatcher,
-        TeamSwitchDispatcher, UnloadDispatcher, UserinfoDispatcher, UserinfoDispatcherMethods,
-        VoteCalledDispatcher, VoteDispatcher, VoteEndedDispatcher, VoteEndedDispatcherMethods,
-        VoteStartedDispatcher, VoteStartedDispatcherMethods,
+        GameCountdownDispatcherMethods, GameEndDispatcher, GameStartDispatcher,
+        KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods, KamikazeUseDispatcher,
+        KamikazeUseDispatcherMethods, KillDispatcher, MapDispatcher, MapDispatcherMethods,
+        NewGameDispatcher, NewGameDispatcherMethods, PlayerConnectDispatcher,
+        PlayerConnectDispatcherMethods, PlayerDisconnectDispatcher,
+        PlayerDisconnectDispatcherMethods, PlayerLoadedDispatcher, PlayerLoadedDispatcherMethods,
+        PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods, RoundCountdownDispatcher,
+        RoundCountdownDispatcherMethods, RoundEndDispatcher, RoundStartDispatcher,
+        RoundStartDispatcherMethods, ServerCommandDispatcher, ServerCommandDispatcherMethods,
+        SetConfigstringDispatcher, SetConfigstringDispatcherMethods, StatsDispatcher,
+        TeamSwitchAttemptDispatcher, TeamSwitchAttemptDispatcherMethods, TeamSwitchDispatcher,
+        UnloadDispatcher, UnloadDispatcherMethods, UserinfoDispatcher, UserinfoDispatcherMethods,
+        VoteCalledDispatcher, VoteCalledDispatcherMethods, VoteDispatcher, VoteDispatcherMethods,
+        VoteEndedDispatcher, VoteEndedDispatcherMethods, VoteStartedDispatcher,
+        VoteStartedDispatcherMethods,
     };
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
@@ -2250,7 +2256,12 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             Err(PyEnvironmentError::new_err(
                 "could not get access to unload dispatcher",
             )),
-            |unload_dispatcher| unload_dispatcher.call_method1(intern!(py, "dispatch"), (plugin,)),
+            |unload_dispatcher| {
+                UnloadDispatcherMethods::dispatch(
+                    unload_dispatcher.downcast()?,
+                    PyString::new(py, plugin).as_any(),
+                )
+            },
         )?;
 
     let loaded_plugins = py

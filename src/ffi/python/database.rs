@@ -17,7 +17,7 @@ use core::cmp::max;
 
 use itertools::Itertools;
 
-#[pyclass(name = "AbstractDatabase", module = "database", subclass)]
+#[pyclass(name = "AbstractDatabase", module = "database", subclass, frozen)]
 pub(crate) struct AbstractDatabase {
     plugin: PyObject,
 }
@@ -36,7 +36,7 @@ impl AbstractDatabase {
         Ok(())
     }
 
-    fn __clear__(&mut self) {}
+    fn __clear__(&self) {}
 
     #[getter(logger)]
     fn get_logger<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
@@ -120,7 +120,7 @@ impl AbstractDatabase {
 }
 
 /// A subclass of :class:`shinqlx.AbstractDatabase` providing support for Redis.
-#[pyclass(name = "Redis", module = "database", extends = AbstractDatabase, dict)]
+#[pyclass(name = "Redis", module = "database", extends = AbstractDatabase, dict, frozen)]
 pub(crate) struct Redis {}
 
 #[pymethods]

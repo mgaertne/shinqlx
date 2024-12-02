@@ -1507,7 +1507,7 @@ pub(crate) enum CommandPriorities {
 }
 
 /// Holds all commands and executes them whenever we get input and should execute.
-#[pyclass(module = "_commands", name = "CommandInvoker")]
+#[pyclass(module = "_commands", name = "CommandInvoker", frozen)]
 pub(crate) struct CommandInvoker {
     commands: parking_lot::RwLock<[Vec<Py<Command>>; 5]>,
 }
