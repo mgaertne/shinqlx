@@ -1689,10 +1689,10 @@ def default_hook(*args, **kwargs):
 /// Holds all the event dispatchers and provides a way to access the dispatcher
 /// instances by accessing it like a dictionary using the event name as a key.
 /// Only one dispatcher can be used per event.
-#[pyclass(name = "EventDispatcherManager", module = "_events", mapping)]
+#[pyclass(name = "EventDispatcherManager", module = "_events", mapping, frozen)]
 #[derive(Default)]
 pub(crate) struct EventDispatcherManager {
-    dispatchers: parking_lot::RwLock<Vec<(String, PyObject)>>,
+    dispatchers: spin::mutex::FairMutex<Vec<(String, PyObject)>>,
 }
 
 #[pymethods]
@@ -1704,39 +1704,71 @@ impl EventDispatcherManager {
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         self.dispatchers
-            .read()
+            .lock()
             .iter()
             .map(|(_, plugins)| visit.call(plugins))
             .collect::<Result<Vec<_>, PyTraverseError>>()
             .map(|_| ())
     }
 
-    fn __clear__(&mut self) {
-        self.dispatchers.write().clear();
+    fn __clear__(&self) {
+        self.dispatchers.lock().clear();
     }
 
     #[getter(_dispatchers)]
-    fn get_dispatchers<'py>(&'py self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        self.dispatchers
-            .read()
-            .iter()
-            .map(|(dispatcher_name, dispatch_function)| {
-                (
-                    dispatcher_name.clone(),
-                    dispatch_function.bind(py).as_unbound(),
-                )
-            })
-            .collect::<Vec<(String, &PyObject)>>()
-            .into_py_dict(py)
+    fn get_dispatchers<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyDict>> {
+        slf.get_dispatchers()
     }
 
     pub(crate) fn __getitem__<'py>(
-        &self,
-        py: Python<'py>,
+        slf: &Bound<'py, Self>,
         key: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
-        self.dispatchers
-            .read()
+        slf.__getitem__(key)
+    }
+
+    fn __contains__(slf: &Bound<'_, Self>, key: &str) -> bool {
+        slf.__contains__(key)
+    }
+
+    pub(crate) fn add_dispatcher(
+        slf: &Bound<'_, Self>,
+        dispatcher: &Bound<'_, PyType>,
+    ) -> PyResult<()> {
+        slf.add_dispatcher(dispatcher)
+    }
+
+    fn remove_dispatcher(slf: &Bound<'_, Self>, dispatcher: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.remove_dispatcher(dispatcher)
+    }
+
+    fn remove_dispatcher_by_name(slf: &Bound<'_, Self>, dispatcher_name: &str) -> PyResult<()> {
+        slf.remove_dispatcher_by_name(dispatcher_name)
+    }
+}
+
+pub(crate) trait EventDispatcherManagerMethods<'py> {
+    fn __contains__(&self, key: &str) -> bool;
+    fn __getitem__(&self, key: &str) -> PyResult<Bound<'py, PyAny>>;
+    fn get_dispatchers(&self) -> PyResult<Bound<'py, PyDict>>;
+    fn add_dispatcher(&self, dispatcher: &Bound<'py, PyType>) -> PyResult<()>;
+    fn remove_dispatcher(&self, dispatcher: &Bound<'py, PyAny>) -> PyResult<()>;
+    fn remove_dispatcher_by_name(&self, dispatcher_name: &str) -> PyResult<()>;
+}
+
+impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManager> {
+    fn __contains__(&self, key: &str) -> bool {
+        self.borrow()
+            .dispatchers
+            .lock()
+            .iter()
+            .any(|(event_name, _)| key == event_name)
+    }
+
+    fn __getitem__(&self, key: &str) -> PyResult<Bound<'py, PyAny>> {
+        self.borrow()
+            .dispatchers
+            .lock()
             .iter()
             .find(|(event_name, _)| key == event_name)
             .map_or_else(
@@ -1744,24 +1776,26 @@ impl EventDispatcherManager {
                     let key_error = format!("'{}'", key);
                     Err(PyKeyError::new_err(key_error))
                 },
-                |(_, dispatcher)| Ok(dispatcher.bind(py).to_owned()),
+                |(_, dispatcher)| Ok(dispatcher.bind(self.py()).to_owned()),
             )
     }
 
-    fn __contains__(&self, py: Python<'_>, key: &str) -> bool {
-        py.allow_threads(|| {
-            self.dispatchers
-                .read()
-                .iter()
-                .any(|(event_name, _)| key == event_name)
-        })
+    fn get_dispatchers(&self) -> PyResult<Bound<'py, PyDict>> {
+        self.borrow()
+            .dispatchers
+            .lock()
+            .iter()
+            .map(|(dispatcher_name, dispatch_function)| {
+                (
+                    dispatcher_name.clone(),
+                    dispatch_function.bind(self.py()).as_unbound(),
+                )
+            })
+            .collect::<Vec<(String, &PyObject)>>()
+            .into_py_dict(self.py())
     }
 
-    pub(crate) fn add_dispatcher(
-        &self,
-        py: Python<'_>,
-        dispatcher: &Bound<'_, PyType>,
-    ) -> PyResult<()> {
+    fn add_dispatcher(&self, dispatcher: &Bound<'py, PyType>) -> PyResult<()> {
         if !dispatcher
             .is_subclass_of::<EventDispatcher>()
             .unwrap_or(false)
@@ -1772,40 +1806,41 @@ impl EventDispatcherManager {
         }
 
         let dispatcher_name_str = dispatcher
-            .getattr(intern!(py, "name"))
+            .getattr(intern!(self.py(), "name"))
             .and_then(|dispatcher_name_attr| dispatcher_name_attr.extract::<String>())
             .map_err(|_| PyValueError::new_err("Cannot add an event dispatcher with no name."))?;
-        if self.__contains__(py, &dispatcher_name_str) {
+        if self.__contains__(&dispatcher_name_str) {
             return Err(PyValueError::new_err("Event name already taken."));
         }
 
-        self.dispatchers
-            .write()
+        self.borrow()
+            .dispatchers
+            .lock()
             .push((dispatcher_name_str, dispatcher.call0()?.unbind()));
 
         Ok(())
     }
 
-    fn remove_dispatcher(&self, py: Python<'_>, dispatcher: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn remove_dispatcher(&self, dispatcher: &Bound<'py, PyAny>) -> PyResult<()> {
         let dispatcher_name_str = dispatcher
-            .getattr(intern!(py, "name"))
+            .getattr(intern!(self.py(), "name"))
             .and_then(|dispatcher_name_attr| dispatcher_name_attr.extract::<String>())
             .map_err(|_| {
                 PyValueError::new_err("Cannot remove an event dispatcher with no name.")
             })?;
 
-        self.remove_dispatcher_by_name(py, &dispatcher_name_str)
+        self.remove_dispatcher_by_name(&dispatcher_name_str)
     }
 
-    fn remove_dispatcher_by_name(&self, py: Python<'_>, dispatcher_name: &str) -> PyResult<()> {
-        if !self.__contains__(py, dispatcher_name) {
+    fn remove_dispatcher_by_name(&self, dispatcher_name: &str) -> PyResult<()> {
+        if !self.__contains__(dispatcher_name) {
             return Err(PyValueError::new_err("Event name not found."));
         }
 
-        match self.dispatchers.try_write() {
+        match self.borrow().dispatchers.try_lock() {
             None => {
                 let remove_dispatcher_by_name_func = PyModule::from_code(
-                    py,
+                    self.py(),
                     cr#"
 import shinqlx
 
@@ -1817,7 +1852,7 @@ def remove_dispatcher_by_name(dispatcher_name):
                     c"",
                     c"",
                 )?
-                .getattr(intern!(py, "remove_dispatcher_by_name"))?;
+                .getattr(intern!(self.py(), "remove_dispatcher_by_name"))?;
 
                 remove_dispatcher_by_name_func.call1((dispatcher_name,))?;
             }
@@ -1833,7 +1868,8 @@ def remove_dispatcher_by_name(dispatcher_name):
 #[cfg(test)]
 mod event_dispatcher_manager_tests {
     use super::{
-        EventDispatcherManager, GameCountdownDispatcher, GameEndDispatcher, GameStartDispatcher,
+        EventDispatcherManager, EventDispatcherManagerMethods, GameCountdownDispatcher,
+        GameEndDispatcher, GameStartDispatcher,
     };
     use pyo3::exceptions::PyValueError;
 
@@ -1849,15 +1885,16 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn event_dispatcher_manager_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(&py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(&py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
+                .add_dispatcher(&py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
             let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
@@ -1869,9 +1906,10 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn get_dispatchers_when_no_dispatchers_added(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
-            let result = event_dispatchers.get_dispatchers(py);
+            let result = EventDispatcherManager::get_dispatchers(&event_dispatchers);
             assert!(result.is_ok_and(|dict| dict.is_empty()));
         });
     }
@@ -1880,19 +1918,19 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn get_dispatchers_with_added_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(&py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(&py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
+                .add_dispatcher(&py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            let result = event_dispatchers
-                .get_dispatchers(py)
+            let result = EventDispatcherManager::get_dispatchers(&event_dispatchers)
                 .expect("this should not happen");
             assert!(result
                 .get_item("game_countdown")
@@ -1916,9 +1954,10 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn get_item_from_empty_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
-            let result = event_dispatchers.__getitem__(py, "game_start");
+            let result = event_dispatchers.__getitem__("game_start");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         })
     }
@@ -1927,12 +1966,13 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn get_item_for_existing_dispatcher(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(&py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
 
-            let result = event_dispatchers.__getitem__(py, "game_start");
+            let result = event_dispatchers.__getitem__("game_start");
             assert!(
                 result.is_ok_and(|dispatcher| dispatcher.is_instance_of::<GameStartDispatcher>())
             );
@@ -1943,22 +1983,23 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn contains_with_added_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(&py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameStartDispatcher>())
+                .add_dispatcher(&py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameEndDispatcher>())
+                .add_dispatcher(&py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            assert!(event_dispatchers.__contains__(py, "game_countdown"));
-            assert!(event_dispatchers.__contains__(py, "game_start"));
-            assert!(event_dispatchers.__contains__(py, "game_end"));
-            assert!(!event_dispatchers.__contains__(py, "map"));
-            assert!(!event_dispatchers.__contains__(py, "damage"));
+            assert!(event_dispatchers.__contains__("game_countdown"));
+            assert!(event_dispatchers.__contains__("game_start"));
+            assert!(event_dispatchers.__contains__("game_end"));
+            assert!(!event_dispatchers.__contains__("map"));
+            assert!(!event_dispatchers.__contains__("damage"));
         });
     }
 
@@ -1966,9 +2007,10 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn add_dispatcher_with_type_not_being_subclass_of_event_dispatcher(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
-            let result = event_dispatchers.add_dispatcher(py, &py.get_type::<Plugin>());
+            let result = event_dispatchers.add_dispatcher(&py.get_type::<Plugin>());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1978,13 +2020,14 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn add_dispatcher_that_is_already_added(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(&py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
 
             let result =
-                event_dispatchers.add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>());
+                event_dispatchers.add_dispatcher(&py.get_type::<GameCountdownDispatcher>());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -1994,10 +2037,10 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn remove_dispatcher_with_type_not_being_subclass_of_event_dispatcher(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
-            let result =
-                event_dispatchers.remove_dispatcher(py, &py.get_type::<Plugin>().into_any());
+            let result = event_dispatchers.remove_dispatcher(&py.get_type::<Plugin>().into_any());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2007,16 +2050,17 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn remove_dispatcher_that_is_already_added(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
-                .add_dispatcher(py, &py.get_type::<GameCountdownDispatcher>())
+                .add_dispatcher(&py.get_type::<GameCountdownDispatcher>())
                 .expect("could not add game_countdown dispatcher");
 
             let result = event_dispatchers
-                .remove_dispatcher(py, &py.get_type::<GameCountdownDispatcher>().into_any());
+                .remove_dispatcher(&py.get_type::<GameCountdownDispatcher>().into_any());
 
             assert!(result.is_ok());
-            assert!(!event_dispatchers.__contains__(py, "game_countdown"));
+            assert!(!event_dispatchers.__contains__("game_countdown"));
         });
     }
 
@@ -2024,10 +2068,11 @@ mod event_dispatcher_manager_tests {
     #[cfg_attr(miri, ignore)]
     fn remove_dispatcher_that_is_not_added(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let event_dispatchers = EventDispatcherManager::py_new(py);
+            let event_dispatchers =
+                Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
             let result = event_dispatchers
-                .remove_dispatcher(py, &py.get_type::<GameCountdownDispatcher>().into_any());
+                .remove_dispatcher(&py.get_type::<GameCountdownDispatcher>().into_any());
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });

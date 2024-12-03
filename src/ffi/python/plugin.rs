@@ -694,8 +694,10 @@ impl Plugin {
                     .load()
                     .as_ref()
                     .map(|main_chat_channel| {
-                        let main_channel = main_chat_channel.borrow(cls.py()).into_super();
-                        ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)
+                        main_chat_channel
+                            .bind(cls.py())
+                            .as_super()
+                            .reply(msg, limit, &delimiter)
                     })
                     .unwrap_or(Ok(()));
             }
@@ -727,8 +729,10 @@ impl Plugin {
                                 .unwrap_or(false)
                         })
                         .map(|global_chat_channel| {
-                            let main_channel = global_chat_channel.borrow(cls.py()).into_super();
-                            ChatChannel::reply(main_channel, cls.py(), msg, limit, &delimiter)
+                            global_chat_channel
+                                .bind(cls.py())
+                                .as_super()
+                                .reply(msg, limit, &delimiter)
                         })
                     {
                         return result;
@@ -745,13 +749,7 @@ impl Plugin {
                             .unwrap_or(false)
                     })
                     .map(|console_channel| {
-                        ConsoleChannel::reply(
-                            console_channel.get(),
-                            cls.py(),
-                            msg,
-                            limit,
-                            &delimiter,
-                        )
+                        console_channel.bind(cls.py()).reply(msg, limit, &delimiter)
                     })
                 {
                     return result;
@@ -1238,8 +1236,8 @@ mod plugin_tests {
     use crate::prelude::*;
 
     use crate::ffi::python::{
-        pyshinqlx_test_support::*, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
-        EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+        events::EventDispatcherManagerMethods, pyshinqlx_test_support::*, BLUE_TEAM_CHAT_CHANNEL,
+        CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
     };
     use crate::hooks::mock_hooks::{
         shinqlx_com_printf_context, shinqlx_drop_client_context,
@@ -1289,15 +1287,12 @@ mod plugin_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let extended_plugin = test_plugin(py);
                     let plugin_instance = extended_plugin
@@ -1559,15 +1554,12 @@ mod plugin_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let extended_plugin = test_plugin(py);
                     let plugin_instance = extended_plugin
@@ -1614,15 +1606,12 @@ mod plugin_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let extended_plugin = test_plugin(py);
                     let plugin_instance = extended_plugin
@@ -1712,15 +1701,12 @@ mod plugin_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let extended_plugin = test_plugin(py);
                     let plugin_instance = extended_plugin
@@ -1795,15 +1781,12 @@ mod plugin_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let extended_plugin = test_plugin(py);
                     let plugin_instance = extended_plugin
@@ -1859,15 +1842,12 @@ mod plugin_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let extended_plugin = test_plugin(py);
                     let plugin_instance = extended_plugin
@@ -4542,15 +4522,12 @@ def handler():
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<VoteStartedDispatcher>())
+                        .add_dispatcher(&py.get_type::<VoteStartedDispatcher>())
                         .expect("could not add vote_started dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = Plugin::callvote(
                         &py.get_type::<Plugin>(),
