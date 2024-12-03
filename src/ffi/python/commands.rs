@@ -1823,7 +1823,9 @@ mod command_invoker_tests {
     use super::{Command, CommandInvoker, CommandPriorities};
 
     use crate::ffi::python::channels::{ChatChannel, ClientCommandChannel, TeamChatChannel};
-    use crate::ffi::python::events::{CommandDispatcher, EventDispatcherManager};
+    use crate::ffi::python::events::{
+        CommandDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+    };
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::ffi::python::pyshinqlx_test_support::{
         capturing_hook, default_command, default_test_player, returning_false_hook,
@@ -2049,15 +2051,12 @@ mod command_invoker_tests {
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
 
-            let event_dispatcher = EventDispatcherManager::default();
+            let event_dispatcher =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
-                .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                .add_dispatcher(&py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
             let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
@@ -2089,15 +2088,12 @@ mod command_invoker_tests {
             let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                 .expect("this should not happen");
 
-            let event_dispatcher = EventDispatcherManager::default();
+            let event_dispatcher =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
-                .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                .add_dispatcher(&py.get_type::<CommandDispatcher>())
                 .expect("could not add command dispatcher");
-            EVENT_DISPATCHERS.store(Some(
-                Py::new(py, event_dispatcher)
-                    .expect("could not create event dispatcher manager in python")
-                    .into(),
-            ));
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
             let py_command = Py::new(py, default_command(py)).expect("this should not happen");
 
@@ -2142,15 +2138,12 @@ mod command_invoker_tests {
                     let chat_channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
                         .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let py_command =
                         Py::new(py, default_command(py)).expect("this should not happen");
@@ -2202,15 +2195,12 @@ mod command_invoker_tests {
                     let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
                         .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let capturing_hook = capturing_hook(py);
                     let py_command = Py::new(
@@ -2264,12 +2254,13 @@ mod command_invoker_tests {
                     let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
                         .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     event_dispatcher
-                        .__getitem__(py, "command")
+                        .__getitem__("command")
                         .and_then(|command_dispatcher| {
                             command_dispatcher.call_method1(
                                 "add_hook",
@@ -2281,11 +2272,7 @@ mod command_invoker_tests {
                             )
                         })
                         .expect("could not add hook to vote dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let py_command =
                         Py::new(py, default_command(py)).expect("this should not happen");
@@ -2340,15 +2327,12 @@ mod command_invoker_tests {
                     let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
                         .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let module_definition = format!(
                         r#"
@@ -2423,15 +2407,12 @@ def cmd_handler(*args, **kwargs):
                     )
                     .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let module_definition = format!(
                         r#"
@@ -2514,15 +2495,12 @@ def cmd_handler(*args, **kwargs):
                     )
                     .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let module_definition = format!(
                         r#"
@@ -2597,15 +2575,12 @@ def cmd_handler(*args, **kwargs):
                     )
                     .expect("this should not happen");
 
-                    let event_dispatcher = EventDispatcherManager::default();
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
                     event_dispatcher
-                        .add_dispatcher(py, &py.get_type::<CommandDispatcher>())
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let handler = PyModule::from_code(
                         py,

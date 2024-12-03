@@ -1222,13 +1222,10 @@ impl Player {
                     })
                     .unwrap_or(" ".to_owned());
 
-                ChatChannel::reply(
-                    tell_channel.bind(py).borrow().into_super(),
-                    py,
-                    msg,
-                    limit,
-                    &delimiter,
-                )
+                tell_channel
+                    .bind(py)
+                    .as_super()
+                    .reply(msg, limit, &delimiter)
             },
         )
     }
@@ -7435,12 +7432,7 @@ impl RconDummyPlayer {
             Err(PyEnvironmentError::new_err(
                 "could not get access to CONSOLE_CHANNEL",
             )),
-            |console_channel| {
-                console_channel
-                    .bind(slf.py())
-                    .borrow()
-                    .reply(slf.py(), msg, 100, " ")
-            },
+            |console_channel| console_channel.bind(slf.py()).reply(msg, 100, " "),
         )
     }
 }

@@ -1,6 +1,8 @@
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
 
+use core::fmt::{Display, Formatter};
+
 use pyo3::{
     basic::CompareOp,
     exceptions::PyNotImplementedError,
@@ -28,11 +30,18 @@ use regex::Regex;
     name = "AbstractChannel",
     subclass,
     frozen,
-    get_all
+    get_all,
+    str
 )]
 pub(crate) struct AbstractChannel {
     #[pyo3(name = "_name")]
     name: String,
+}
+
+impl Display for AbstractChannel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.name)
+    }
 }
 
 #[pymethods]
@@ -44,12 +53,8 @@ impl AbstractChannel {
         }
     }
 
-    fn __str__(&self) -> String {
-        self.name.clone()
-    }
-
     fn __repr__(&self) -> String {
-        self.name.clone()
+        format!("{self}")
     }
 
     fn __richcmp__<'py>(
@@ -80,11 +85,68 @@ impl AbstractChannel {
     }
 
     #[getter(name)]
-    fn get_name(&self) -> String {
-        self.name.clone()
+    fn get_name(slf: &Bound<'_, Self>) -> String {
+        slf.get_name()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    )]
+    fn reply(
+        slf: &Bound<'_, Self>,
+        #[allow(unused_variables)] msg: &str,
+        #[allow(unused_variables)] limit: i32,
+        #[allow(unused_variables)] delimiter: &str,
+    ) -> PyResult<()> {
+        slf.reply(msg, limit, delimiter)
+    }
+
+    #[classmethod]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    )]
+    fn split_long_lines(
+        cls: &Bound<'_, PyType>,
+        msg: &str,
+        limit: i32,
+        delimiter: &str,
+    ) -> Vec<String> {
+        cls.py().allow_threads(|| {
+            let split_string = msg.split('\n').flat_map(|value| {
+                if value.len() <= limit as usize {
+                    vec![value.to_string()]
+                } else {
+                    let mut result = vec![];
+                    let mut next_string = "".to_string();
+                    for item in value.split_inclusive(&delimiter) {
+                        if next_string.len() + item.len() <= limit as usize {
+                            next_string.push_str(item);
+                        } else {
+                            if !next_string.is_empty() {
+                                result.push(next_string);
+                            }
+                            next_string = item.to_string();
+                        }
+                    }
+                    if !next_string.is_empty() {
+                        result.push(next_string);
+                    }
+                    result
+                }
+            });
+            split_string.collect()
+        })
+    }
+}
+
+pub(crate) trait AbstractChannelMethods {
+    fn get_name(&self) -> String;
+    fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()>;
+}
+
+impl AbstractChannelMethods for Bound<'_, AbstractChannel> {
+    fn get_name(&self) -> String {
+        self.borrow().name.clone()
+    }
+
     fn reply(
         &self,
         #[allow(unused_variables)] msg: &str,
@@ -93,43 +155,12 @@ impl AbstractChannel {
     ) -> PyResult<()> {
         Err(PyNotImplementedError::new_err("not implemented"))
     }
-
-    #[classmethod]
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
-    fn split_long_lines(
-        _cls: &Bound<'_, PyType>,
-        msg: &str,
-        limit: i32,
-        delimiter: &str,
-    ) -> Vec<String> {
-        let split_string = msg.split('\n').flat_map(|value| {
-            if value.len() <= limit as usize {
-                vec![value.to_string()]
-            } else {
-                let mut result = vec![];
-                let mut next_string = "".to_string();
-                for item in value.split_inclusive(&delimiter) {
-                    if next_string.len() + item.len() <= limit as usize {
-                        next_string.push_str(item);
-                    } else {
-                        if !next_string.is_empty() {
-                            result.push(next_string);
-                        }
-                        next_string = item.to_string();
-                    }
-                }
-                if !next_string.is_empty() {
-                    result.push(next_string);
-                }
-                result
-            }
-        });
-        split_string.collect()
-    }
 }
 
 #[cfg(test)]
 mod abstract_channel_tests {
+    use super::AbstractChannelMethods;
+
     use crate::ffi::python::prelude::*;
 
     use pretty_assertions::assert_eq;
@@ -255,20 +286,26 @@ shinqlx.AbstractChannel("abstract") < 2
         });
     }
 
-    #[test]
-    fn get_name() {
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_name(_pyshinqlx_setup: ()) {
         let abstract_channel = AbstractChannel {
             name: "abstract".to_string(),
         };
-        assert_eq!(abstract_channel.get_name(), "abstract");
+
+        Python::with_gil(|py| {
+            let bound_channel = Bound::new(py, abstract_channel).expect("this should not happen");
+            assert_eq!(bound_channel.get_name(), "abstract");
+        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn reply_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let abstract_channel = Py::new(py, AbstractChannel::py_new("abstract")).unwrap();
-            let result = abstract_channel.bind(py).borrow().reply("asdf", 100, " ");
+            let abstract_channel = Bound::new(py, AbstractChannel::py_new("abstract"))
+                .expect("this should not happen");
+            let result = abstract_channel.reply("asdf", 100, " ");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -350,21 +387,38 @@ impl ConsoleChannel {
         PyClassInitializer::from(AbstractChannel::py_new("console")).add_subclass(Self {})
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    )]
     pub(crate) fn reply(
-        &self,
-        py: Python<'_>,
+        slf: &Bound<'_, Self>,
         msg: &str,
         #[allow(unused_variables)] limit: i32,
         #[allow(unused_variables)] delimiter: &str,
     ) -> PyResult<()> {
-        pyshinqlx_console_print(py, msg);
+        slf.reply(msg, limit, delimiter)
+    }
+}
+
+impl AbstractChannelMethods for Bound<'_, ConsoleChannel> {
+    fn get_name(&self) -> String {
+        self.as_super().get_name()
+    }
+
+    fn reply(
+        &self,
+        msg: &str,
+        #[allow(unused_variables)] limit: i32,
+        #[allow(unused_variables)] delimiter: &str,
+    ) -> PyResult<()> {
+        pyshinqlx_console_print(self.py(), msg);
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod console_channel_tests {
+    use super::AbstractChannelMethods;
+
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
@@ -399,11 +453,9 @@ console_channel = shinqlx.ConsoleChannel()
             .times(1);
 
         let result = Python::with_gil(|py| {
-            let console_channel = Py::new(py, ConsoleChannel::py_new()).unwrap();
-            console_channel
-                .bind(py)
-                .borrow()
-                .reply(py, "asdf", 100, " ")
+            let console_channel =
+                Bound::new(py, ConsoleChannel::py_new()).expect("this shouöld not happen");
+            console_channel.reply("asdf", 100, " ")
         });
         assert!(result.is_ok());
     }
@@ -427,35 +479,46 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")")]
+    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")"
+    )]
     pub(crate) fn py_new(name: &str, fmt: &str) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name)).add_subclass(Self {
             fmt: fmt.to_string(),
         })
     }
 
-    fn recipients(_slf: PyRef<'_, Self>) -> PyResult<Option<Vec<i32>>> {
-        Err(PyNotImplementedError::new_err("ChatChannel recipients"))
+    fn recipients(slf: &Bound<'_, Self>) -> PyResult<Option<Vec<i32>>> {
+        slf.recipients()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    )]
     pub(crate) fn reply(
-        slf_: PyRef<'_, Self>,
-        py: Python<'_>,
+        slf: &Bound<'_, Self>,
         msg: &str,
         limit: i32,
         delimiter: &str,
     ) -> PyResult<()> {
+        slf.reply(msg, limit, delimiter)
+    }
+}
+
+impl AbstractChannelMethods for Bound<'_, ChatChannel> {
+    fn get_name(&self) -> String {
+        self.as_super().get_name()
+    }
+
+    fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
-        let fmt = slf_.fmt.clone();
+        let fmt = self.borrow().fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
-        let targets: Option<Vec<i32>> = slf_
-            .into_pyobject(py)?
-            .call_method0(intern!(py, "recipients"))?
+        let targets: Option<Vec<i32>> = self
+            .into_pyobject(self.py())?
+            .call_method0(intern!(self.py(), "recipients"))?
             .extract()?;
 
         let split_msgs = AbstractChannel::split_long_lines(
-            &py.get_type::<AbstractChannel>(),
+            &self.py().get_type::<AbstractChannel>(),
             &cleaned_msg,
             limit,
             delimiter,
@@ -480,22 +543,23 @@ impl ChatChannel {
         let mut last_color = "".to_string();
         for s in joined_msgs {
             let message = format!("{last_color}{s}");
-            let server_command = py
+            let server_command = self
+                .py()
                 .eval(
                     c"fmt.format(message)",
                     None,
                     Some(
                         &[
-                            (intern!(py, "fmt"), fmt.clone()),
-                            (intern!(py, "message"), message.clone()),
+                            (intern!(self.py(), "fmt"), fmt.clone()),
+                            (intern!(self.py(), "message"), message.clone()),
                         ]
-                        .into_py_dict(py)?,
+                        .into_py_dict(self.py())?,
                     ),
                 )?
                 .extract::<String>()?;
 
             let next_frame_reply = PyModule::from_code(
-                py,
+                self.py(),
                 cr#"
 import shinqlx
 
@@ -507,11 +571,11 @@ def reply(targets, msg):
                 c"",
                 c"",
             )?
-            .getattr(intern!(py, "reply"))?;
+            .getattr(intern!(self.py(), "reply"))?;
 
             match targets {
                 None => {
-                    next_frame_reply.call1((py.None(), &server_command))?;
+                    next_frame_reply.call1((self.py().None(), &server_command))?;
                 }
                 Some(ref cids) => {
                     cids.iter()
@@ -529,10 +593,19 @@ def reply(targets, msg):
     }
 }
 
+pub(crate) trait ChatChannelMethods {
+    fn recipients(&self) -> PyResult<Option<Vec<i32>>>;
+}
+
+impl ChatChannelMethods for Bound<'_, ChatChannel> {
+    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
+        Err(PyNotImplementedError::new_err("ChatChannel recipients"))
+    }
+}
+
 #[cfg(test)]
 mod chat_channel_tests {
-    use super::ChatChannel;
-    use mockall::predicate;
+    use super::{AbstractChannelMethods, ChatChannel, ChatChannelMethods};
 
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::{
@@ -546,6 +619,7 @@ mod chat_channel_tests {
 
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
+    use mockall::predicate;
     use rstest::*;
 
     use pyo3::exceptions::{PyNotImplementedError, PyValueError};
@@ -571,9 +645,9 @@ chat_channel = shinqlx.ChatChannel()
     #[cfg_attr(miri, ignore)]
     fn receipients_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let chat_channel = Py::new(py, ChatChannel::py_new("asdf", "print\"{}\n\"\n"))
+            let chat_channel = Bound::new(py, ChatChannel::py_new("asdf", "print\"{}\n\"\n"))
                 .expect("this should not happen");
-            let result = ChatChannel::recipients(chat_channel.bind(py).borrow());
+            let result = chat_channel.recipients();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -673,10 +747,9 @@ test_channel.reply("asdf")
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let tell_channel =
-                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+                    Bound::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-                let result =
-                    ChatChannel::reply(tell_channel.borrow(py).into_super(), py, "asdf", 100, " ");
+                let result = tell_channel.as_super().reply("asdf", 100, " ");
                 assert!(result.is_ok());
 
                 let _ = run_all_frame_tasks(py);
@@ -733,15 +806,11 @@ test_channel.reply("asdf")
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let tell_channel =
-                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+                    Bound::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-                let result = ChatChannel::reply(
-                    tell_channel.borrow(py).into_super(),
-                    py,
-                    "These are four lines",
-                    5,
-                    " ",
-                );
+                let result = tell_channel
+                    .as_super()
+                    .reply("These are four lines", 5, " ");
                 assert!(result.is_ok());
 
                 let _ = run_all_frame_tasks(py);
@@ -798,15 +867,11 @@ test_channel.reply("asdf")
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let chat_channel =
-                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+                    Bound::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-                let result = ChatChannel::reply(
-                    chat_channel.borrow(py).into_super(),
-                    py,
-                    "These_are_four_lines",
-                    5,
-                    "_",
-                );
+                let result = chat_channel
+                    .as_super()
+                    .reply("These_are_four_lines", 5, "_");
                 assert!(result.is_ok());
 
                 let _ = run_all_frame_tasks(py);
@@ -903,11 +968,9 @@ test_channel.reply("asdf")
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
                 let chat_channel =
-                    Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+                    Bound::new(py, TellChannel::py_new(&player)).expect("this should not happen");
 
-                let result = ChatChannel::reply(
-                    chat_channel.borrow(py).into_super(),
-                    py,
+                let result = chat_channel.as_super().reply(
                     "^0Lorem ipsum dolor sit amet, consectetuer adipiscing elit. \
                 ^1Aenean commodo ligula eget dolor. ^2Aenean massa. ^3Cum sociis natoque penatibus \
                 et magnis dis parturient montes, nascetur ridiculus mus. ^4Donec quam felis, \
@@ -977,17 +1040,45 @@ impl TellChannel {
     }
 
     #[getter(recipient)]
-    fn get_recipient(&self) -> PyResult<Player> {
-        Player::py_new(self.client_id, None)
+    fn get_recipient(slf: &Bound<'_, Self>) -> PyResult<Player> {
+        slf.get_recipient()
     }
 
-    fn recipients(slf_: PyRef<'_, Self>) -> PyResult<Option<Vec<i32>>> {
-        Ok(Some(vec![slf_.client_id]))
+    fn recipients(slf: &Bound<'_, Self>) -> PyResult<Option<Vec<i32>>> {
+        slf.recipients()
+    }
+}
+
+impl AbstractChannelMethods for Bound<'_, TellChannel> {
+    fn get_name(&self) -> String {
+        self.as_super().get_name()
+    }
+
+    fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
+        self.as_super().reply(msg, limit, delimiter)
+    }
+}
+
+impl ChatChannelMethods for Bound<'_, TellChannel> {
+    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
+        Ok(Some(vec![self.borrow().client_id]))
+    }
+}
+
+pub(crate) trait TellChannelMethods {
+    fn get_recipient(&self) -> PyResult<Player>;
+}
+
+impl TellChannelMethods for Bound<'_, TellChannel> {
+    fn get_recipient(&self) -> PyResult<Player> {
+        Player::py_new(self.borrow().client_id, None)
     }
 }
 
 #[cfg(test)]
 mod tell_channel_tests {
+    use super::{ChatChannelMethods, TellChannelMethods};
+
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::*;
@@ -1029,9 +1120,10 @@ tell_channel = shinqlx.TellChannel(player)
         assert_eq!(tell_channel.__repr__(), "tell 42");
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn get_recipient_returns_player_with_client_id() {
+    #[cfg_attr(miri, ignore)]
+    fn get_recipient_returns_player_with_client_id(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1065,10 +1157,18 @@ tell_channel = shinqlx.TellChannel(player)
                 mock_client
             });
 
-        let tell_channel = TellChannel { client_id: 42 };
-        assert!(tell_channel
-            .get_recipient()
-            .is_ok_and(|player| player.id == 42));
+        let tell_channel = PyClassInitializer::from(AbstractChannel::py_new("tell"))
+            .add_subclass(ChatChannel {
+                fmt: "print \"{}\n\"\n".to_string(),
+            })
+            .add_subclass(TellChannel { client_id: 42 });
+
+        Python::with_gil(|py| {
+            assert!(Bound::new(py, tell_channel)
+                .expect("this should not happen")
+                .get_recipient()
+                .is_ok_and(|player| player.id == 42));
+        })
     }
 
     #[rstest]
@@ -1077,8 +1177,9 @@ tell_channel = shinqlx.TellChannel(player)
         let player = default_test_player();
         Python::with_gil(|py| {
             let py_tell_channel =
-                Py::new(py, TellChannel::py_new(&player)).expect("this should not happen");
-            assert!(TellChannel::recipients(py_tell_channel.bind(py).borrow())
+                Bound::new(py, TellChannel::py_new(&player)).expect("this should not happen");
+            assert!(py_tell_channel
+                .recipients()
                 .is_ok_and(|recipients| recipients == Some(vec![2,])));
         });
     }
@@ -1100,7 +1201,8 @@ pub(crate) struct TeamChatChannel {
 #[pymethods]
 impl TeamChatChannel {
     #[new]
-    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")")]
+    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")"
+    )]
     pub(crate) fn py_new(team: &str, name: &str, fmt: &str) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name))
             .add_subclass(ChatChannel {
@@ -1111,12 +1213,28 @@ impl TeamChatChannel {
             })
     }
 
-    fn recipients(&self, py: Python<'_>) -> PyResult<Option<Vec<i32>>> {
-        if self.team == "all" {
+    fn recipients(slf: &Bound<'_, Self>) -> PyResult<Option<Vec<i32>>> {
+        slf.recipients()
+    }
+}
+
+impl AbstractChannelMethods for Bound<'_, TeamChatChannel> {
+    fn get_name(&self) -> String {
+        self.as_super().get_name()
+    }
+
+    fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
+        self.as_super().reply(msg, limit, delimiter)
+    }
+}
+
+impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
+    fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
+        if self.borrow().team == "all" {
             return Ok(None);
         }
 
-        let filtered_team: i32 = match self.team.as_str() {
+        let filtered_team: i32 = match self.borrow().team.as_str() {
             "red" => team_t::TEAM_RED as i32,
             "blue" => team_t::TEAM_BLUE as i32,
             "free" => team_t::TEAM_FREE as i32,
@@ -1124,7 +1242,7 @@ impl TeamChatChannel {
             _ => -1,
         };
 
-        let players_info = pyshinqlx_players_info(py)?;
+        let players_info = pyshinqlx_players_info(self.py())?;
         Ok(Some(
             players_info
                 .iter()
@@ -1148,6 +1266,8 @@ impl TeamChatChannel {
 
 #[cfg(test)]
 mod team_chat_channel_tests {
+    use super::ChatChannelMethods;
+
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -1225,12 +1345,15 @@ tell_channel = shinqlx.TeamChatChannel("all")
                 mock_game_entity
             });
 
-        let team_chat_channel = TeamChatChannel {
-            team: team.to_string(),
-        };
-
         MockEngineBuilder::default().with_max_clients(8).run(|| {
-            let result = Python::with_gil(|py| team_chat_channel.recipients(py));
+            let result = Python::with_gil(|py| {
+                let team_chat_channel = Bound::new(
+                    py,
+                    TeamChatChannel::py_new(team, "chat", "print \"{}\n\"\n"),
+                )
+                .expect("this should not happen");
+                team_chat_channel.recipients()
+            });
             assert!(result.is_ok_and(|ids| ids == expected_ids));
         });
     }
@@ -1281,12 +1404,15 @@ tell_channel = shinqlx.TeamChatChannel("all")
                 mock_game_entity
             });
 
-        let team_chat_channel = TeamChatChannel {
-            team: "invalid".to_string(),
-        };
-
         MockEngineBuilder::default().with_max_clients(8).run(|| {
-            let result = Python::with_gil(|py| team_chat_channel.recipients(py));
+            let result = Python::with_gil(|py| {
+                let team_chat_channel = Bound::new(
+                    py,
+                    TeamChatChannel::py_new("invalid", "chat", "print \"{}\n\"\n"),
+                )
+                .expect("this should not happen");
+                team_chat_channel.recipients()
+            });
             assert!(result.is_ok_and(|ids| ids == Some(vec![])));
         });
     }
@@ -1319,42 +1445,65 @@ impl ClientCommandChannel {
     }
 
     #[getter(recipient)]
-    fn get_recipient(&self) -> PyResult<Player> {
-        Player::py_new(self.client_id, None)
+    fn get_recipient(slf: &Bound<'_, Self>) -> PyResult<Player> {
+        slf.get_recipient()
     }
 
     #[getter(tell_channel)]
-    fn get_tell_channel(&self, py: Python<'_>) -> PyResult<Py<TellChannel>> {
-        let player = self.get_recipient()?;
-        Py::new(py, TellChannel::py_new(&player))
+    fn get_tell_channel(slf: &Bound<'_, Self>) -> PyResult<Py<TellChannel>> {
+        slf.get_tell_channel()
     }
 
     #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
-    fn reply(&self, py: Python<'_>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
-        let tell_channel = Py::new(
-            py,
+    fn reply(slf: &Bound<'_, Self>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
+        slf.reply(msg, limit, delimiter)
+    }
+}
+
+impl AbstractChannelMethods for Bound<'_, ClientCommandChannel> {
+    fn get_name(&self) -> String {
+        self.as_super().get_name()
+    }
+
+    fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
+        let tell_channel = Bound::new(
+            self.py(),
             PyClassInitializer::from(AbstractChannel::py_new("tell"))
                 .add_subclass(ChatChannel {
                     fmt: "print \"{}\n\"\n".to_string(),
                 })
                 .add_subclass(TellChannel {
-                    client_id: self.client_id,
+                    client_id: self.borrow().client_id,
                 }),
         )?;
 
-        ChatChannel::reply(
-            tell_channel.bind(py).borrow().into_super(),
-            py,
-            msg,
-            limit,
-            delimiter,
-        )
-        .map(|_| ())
+        tell_channel
+            .as_super()
+            .reply(msg, limit, delimiter)
+            .map(|_| ())
+    }
+}
+
+impl TellChannelMethods for Bound<'_, ClientCommandChannel> {
+    fn get_recipient(&self) -> PyResult<Player> {
+        Player::py_new(self.borrow().client_id, None)
+    }
+}
+pub(crate) trait ClientCommandChannelMethods {
+    fn get_tell_channel(&self) -> PyResult<Py<TellChannel>>;
+}
+
+impl ClientCommandChannelMethods for Bound<'_, ClientCommandChannel> {
+    fn get_tell_channel(&self) -> PyResult<Py<TellChannel>> {
+        let player = self.get_recipient()?;
+        Py::new(self.py(), TellChannel::py_new(&player))
     }
 }
 
 #[cfg(test)]
 mod client_command_channel_tests {
+    use super::{ClientCommandChannelMethods, TellChannelMethods};
+
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::*;
@@ -1398,9 +1547,10 @@ tell_channel = shinqlx.ClientCommandChannel(player)
         assert_eq!(client_command_channel.__repr__(), "client_command 42");
     }
 
-    #[test]
+    #[rstest]
     #[serial]
-    fn get_recipient_returns_player_with_client_id() {
+    #[cfg_attr(miri, ignore)]
+    fn get_recipient_returns_player_with_client_id(_pyshinqlx_setup: ()) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
@@ -1434,10 +1584,16 @@ tell_channel = shinqlx.ClientCommandChannel(player)
                 mock_client
             });
 
-        let client_command_channel = ClientCommandChannel { client_id: 42 };
-        assert!(client_command_channel
-            .get_recipient()
-            .is_ok_and(|player| player.id == 42));
+        Python::with_gil(|py| {
+            let client_command_channel =
+                PyClassInitializer::from(AbstractChannel::py_new("client_command"))
+                    .add_subclass(ClientCommandChannel { client_id: 42 });
+            let py_client_command_channel =
+                Bound::new(py, client_command_channel).expect("this should not happen");
+            assert!(py_client_command_channel
+                .get_recipient()
+                .is_ok_and(|player| player.id == 42));
+        })
     }
 
     #[rstest]
@@ -1477,9 +1633,15 @@ tell_channel = shinqlx.ClientCommandChannel(player)
                 mock_client
             });
 
-        let client_command_channel = ClientCommandChannel { client_id: 42 };
-        let result = Python::with_gil(|py| client_command_channel.get_tell_channel(py));
-        assert!(result.is_ok_and(|tell_channel| tell_channel.get().client_id == 42));
+        Python::with_gil(|py| {
+            let client_command_channel =
+                PyClassInitializer::from(AbstractChannel::py_new("client_command"))
+                    .add_subclass(ClientCommandChannel { client_id: 42 });
+            let py_client_command_channel =
+                Bound::new(py, client_command_channel).expect("this should not happen");
+            let result = py_client_command_channel.get_tell_channel();
+            assert!(result.is_ok_and(|tell_channel| tell_channel.get().client_id == 42));
+        });
     }
 
     #[rstest]
@@ -1548,12 +1710,10 @@ tell_channel = shinqlx.ClientCommandChannel(player)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let client_command_channel = Py::new(py, ClientCommandChannel::py_new(&player))
+                let client_command_channel = Bound::new(py, ClientCommandChannel::py_new(&player))
                     .expect("this should not happen");
 
-                let result = client_command_channel
-                    .borrow(py)
-                    .reply(py, "asdf", 100, " ");
+                let result = client_command_channel.reply("asdf", 100, " ");
                 assert!(result.is_ok());
 
                 let _ = run_all_frame_tasks(py);
