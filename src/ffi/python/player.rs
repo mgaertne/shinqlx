@@ -86,10 +86,10 @@ impl Clone for Player {
         Self {
             valid: self.valid.load(Ordering::SeqCst).into(),
             id: self.id,
-            player_info: spin::mutex::FairMutex::from(self.player_info.lock().clone()),
+            player_info: self.player_info.lock().clone().into(),
             user_info: self.user_info.clone(),
             steam_id: self.steam_id,
-            name: spin::mutex::FairMutex::from(self.name.lock().clone()),
+            name: self.name.lock().clone().into(),
         }
     }
 }
@@ -126,8 +126,8 @@ impl Player {
             id: client_id,
             user_info: player_info.userinfo.clone(),
             steam_id: player_info.steam_id,
-            player_info: spin::mutex::FairMutex::from(player_info),
-            name: spin::mutex::FairMutex::from(name),
+            player_info: player_info.into(),
+            name: name.into(),
         })
     }
 

@@ -61,8 +61,8 @@ impl Game {
                     }
 
                     Ok(Game {
-                        cached: AtomicBool::from(cached),
-                        valid: AtomicBool::from(true),
+                        cached: cached.into(),
+                        valid: true.into(),
                     })
                 },
             )
@@ -716,8 +716,8 @@ mod pyshinqlx_game_tests {
                 assert_eq!(
                     result.expect("result was not OK"),
                     Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     }
                 );
             });
@@ -731,8 +731,8 @@ mod pyshinqlx_game_tests {
             let game = Bound::new(
                 py,
                 Game {
-                    cached: AtomicBool::from(true),
-                    valid: AtomicBool::from(true),
+                    cached: true.into(),
+                    valid: true.into(),
                 },
             )
             .expect("this should not happen");
@@ -752,8 +752,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: AtomicBool::from(true),
-                            valid: AtomicBool::from(true),
+                            cached: true.into(),
+                            valid: true.into(),
                         },
                     )
                     .expect("this should not happen");
@@ -774,8 +774,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: AtomicBool::from(true),
-                            valid: AtomicBool::from(true),
+                            cached: true.into(),
+                            valid: true.into(),
                         },
                     )
                     .expect("this should not happen");
@@ -796,8 +796,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: AtomicBool::from(true),
-                            valid: AtomicBool::from(true),
+                            cached: true.into(),
+                            valid: true.into(),
                         },
                     )
                     .expect("this should not happen");
@@ -822,8 +822,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: AtomicBool::from(true),
-                            valid: AtomicBool::from(true),
+                            cached: true.into(),
+                            valid: true.into(),
                         },
                     )
                     .expect("this should not happen");
@@ -839,8 +839,8 @@ mod pyshinqlx_game_tests {
     fn str_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
             game.__str__(py)
         });
@@ -856,8 +856,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
                     game.__str__(py)
                 });
@@ -874,8 +874,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
                     game.__str__(py)
                 });
@@ -892,8 +892,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
                     game.__str__(py)
                 });
@@ -914,8 +914,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
                     game.__str__(py)
                 });
@@ -929,8 +929,8 @@ mod pyshinqlx_game_tests {
     fn contains_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.__contains__(py, "asdf");
@@ -947,8 +947,8 @@ mod pyshinqlx_game_tests {
         .run(|| {
             Python::with_gil(|py| {
                 let game = Game {
-                    cached: AtomicBool::from(true),
-                    valid: AtomicBool::from(true),
+                    cached: true.into(),
+                    valid: true.into(),
                 };
 
                 let result = game.__contains__(py, "asdf");
@@ -966,8 +966,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.__contains__(py, "asdf")
@@ -985,8 +985,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.__contains__(py, "qwertz")
@@ -1004,8 +1004,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.__contains__(py, "asdf")
@@ -1023,8 +1023,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.__contains__(py, "asdf")
@@ -1039,8 +1039,8 @@ mod pyshinqlx_game_tests {
     fn getitem_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.__getitem__(py, "asdf");
@@ -1057,8 +1057,8 @@ mod pyshinqlx_game_tests {
         .run(|| {
             Python::with_gil(|py| {
                 let game = Game {
-                    cached: AtomicBool::from(true),
-                    valid: AtomicBool::from(true),
+                    cached: true.into(),
+                    valid: true.into(),
                 };
 
                 let result = game.__getitem__(py, "asdf");
@@ -1076,8 +1076,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.__getitem__(py, "asdf")
@@ -1095,8 +1095,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.__getitem__(py, "qwertz");
@@ -1114,8 +1114,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.__getitem__(py, "asdf");
@@ -1133,8 +1133,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.__getitem__(py, "asdf");
@@ -1149,8 +1149,8 @@ mod pyshinqlx_game_tests {
     fn cvars_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let cvars_result = game.get_cvars(py);
@@ -1167,8 +1167,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let cvars_result = game.get_cvars(py);
@@ -1187,8 +1187,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let cvars_result = game.get_cvars(py);
@@ -1212,8 +1212,8 @@ mod pyshinqlx_game_tests {
     fn get_type_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_type(py);
@@ -1230,8 +1230,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_type(py);
@@ -1271,8 +1271,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_type(py);
@@ -1287,8 +1287,8 @@ mod pyshinqlx_game_tests {
     fn get_type_short_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_type_short(py);
@@ -1305,8 +1305,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_type_short(py);
@@ -1346,8 +1346,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_type_short(py);
@@ -1365,8 +1365,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_map(py);
@@ -1384,8 +1384,8 @@ mod pyshinqlx_game_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_map(py, "campgrounds")
@@ -1409,8 +1409,8 @@ shinqlx._map_title = "eyetoeye"
             )
             .expect("this should not happen");
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             assert_eq!(
@@ -1435,8 +1435,8 @@ shinqlx._map_subtitle1 = "Clan Arena"
             )
             .expect("this should not happen");
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             assert_eq!(
@@ -1461,8 +1461,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             )
             .expect("this should not happen");
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             assert_eq!(
@@ -1478,8 +1478,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_red_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_red_score(py);
@@ -1496,8 +1496,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_red_score(py);
@@ -1515,8 +1515,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_red_score(py);
@@ -1531,8 +1531,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_blue_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_blue_score(py);
@@ -1549,8 +1549,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_blue_score(py);
@@ -1568,8 +1568,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.get_blue_score(py);
@@ -1584,8 +1584,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_state_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_state(py);
@@ -1614,8 +1614,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_state(py)
@@ -1630,8 +1630,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_factory_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_factory(py);
@@ -1648,8 +1648,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_factory(py)
@@ -1668,8 +1668,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_factory(py, "ffa".to_string())
@@ -1684,8 +1684,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_factory_title_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: AtomicBool::from(true),
-                valid: AtomicBool::from(true),
+                cached: true.into(),
+                valid: true.into(),
             };
 
             let result = game.get_factory_title(py);
@@ -1702,8 +1702,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_factory_title(py)
@@ -1721,8 +1721,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_hostname(py)
@@ -1748,8 +1748,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_hostname(py, "More awesome server!".to_string())
@@ -1773,8 +1773,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_instagib(py)
@@ -1806,8 +1806,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_instagib(py, PyBool::new(py, value_set).to_owned().into_any())
@@ -1839,8 +1839,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_instagib(
@@ -1870,8 +1870,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.set_instagib(py, PyString::new(py, "asdf").into_any());
@@ -1895,8 +1895,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_loadout(py)
@@ -1928,8 +1928,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_loadout(py, PyBool::new(py, value_set).to_owned().into_any())
@@ -1961,8 +1961,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_loadout(
@@ -1992,8 +1992,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.set_loadout(py, PyString::new(py, "asdf").into_any());
@@ -2011,8 +2011,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_maxclients(py)
@@ -2038,8 +2038,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_maxclients(py, 32).expect("this should not happen");
@@ -2056,8 +2056,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_timelimit(py)
@@ -2083,8 +2083,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_timelimit(py, 30).expect("this should not happen");
@@ -2101,8 +2101,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_fraglimit(py)
@@ -2128,8 +2128,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_fraglimit(py, 20).expect("this should not happen");
@@ -2146,8 +2146,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_roundlimit(py)
@@ -2173,8 +2173,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_roundlimit(py, 13).expect("this should not happen");
@@ -2191,8 +2191,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_roundtimelimit(py)
@@ -2218,8 +2218,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_roundtimelimit(py, 150)
@@ -2237,8 +2237,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_scorelimit(py)
@@ -2264,8 +2264,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_scorelimit(py, 8).expect("this should not happen");
@@ -2282,8 +2282,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_capturelimit(py)
@@ -2309,8 +2309,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.set_capturelimit(py, 20);
@@ -2328,8 +2328,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_teamsize(py)
@@ -2355,8 +2355,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_teamsize(py, 8).expect("this should not happen");
@@ -2373,8 +2373,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_tags(py)
@@ -2403,8 +2403,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_tags(py, PyString::new(py, "tag1,tag2,tag3").into_any())
@@ -2430,8 +2430,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_tags(
@@ -2460,8 +2460,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.set_tags(
@@ -2485,8 +2485,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.get_workshop_items(py)
@@ -2512,8 +2512,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     game.set_workshop_items(
@@ -2544,8 +2544,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: AtomicBool::from(true),
-                        valid: AtomicBool::from(true),
+                        cached: true.into(),
+                        valid: true.into(),
                     };
 
                     let result = game.set_workshop_items(
