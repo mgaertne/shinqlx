@@ -782,7 +782,7 @@ impl Plugin {
         player_list: Option<Vec<Player>>,
     ) -> Option<String> {
         if let Ok(player) = name.extract::<Player>() {
-            return Some(player.name.clone());
+            return Some(player.name.lock().clone());
         }
 
         let Ok(searched_name) = name.str().map(|value| value.to_string()) else {
@@ -795,7 +795,7 @@ impl Plugin {
         players
             .iter()
             .find(|&player| player.get_clean_name(cls.py()).to_lowercase() == clean_name)
-            .map(|found_player| found_player.name.clone())
+            .map(|found_player| found_player.name.lock().clone())
     }
 
     /// Get a player's client id from the name, client ID,
@@ -830,7 +830,8 @@ impl Plugin {
             players
                 .iter()
                 .filter(|player| {
-                    clean_text(&player.name)
+                    let player_name = &*player.name.lock();
+                    clean_text(player_name)
                         .to_lowercase()
                         .contains(&cleaned_text)
                 })
@@ -3233,10 +3234,11 @@ def handler():
                             steam_id: 1234,
                             team: team_t::TEAM_RED as i32,
                             ..default_test_player_info()
-                        },
+                        }
+                        .into(),
                         user_info: "asdf".into(),
                         steam_id: 1234,
-                        name: "Mocked Player".into(),
+                        name: "Mocked Player".to_string().into(),
                         ..default_test_player()
                     },
                     Player {
@@ -3249,10 +3251,11 @@ def handler():
                             steam_id: 1234,
                             team: team_t::TEAM_RED as i32,
                             ..default_test_player_info()
-                        },
+                        }
+                        .into(),
                         user_info: "asdf".into(),
                         steam_id: 1234,
-                        name: "Mocked Player".into(),
+                        name: "Mocked Player".to_string().into(),
                         ..default_test_player()
                     },
                 ]
@@ -3331,7 +3334,7 @@ def handler():
                 .is_some_and(|player| player
                     == Player {
                         id: 42,
-                        name: "Mocked Player".into(),
+                        name: "Mocked Player".to_string().into(),
                         steam_id: 1234,
                         user_info: "asdf".into(),
                         player_info: PlayerInfo {
@@ -3342,7 +3345,8 @@ def handler():
                             userinfo: "asdf".into(),
                             connection_state: clientState_t::CS_ACTIVE as i32,
                             ..default_test_player_info()
-                        },
+                        }
+                        .into(),
                         ..default_test_player()
                     }));
         });
@@ -3357,7 +3361,8 @@ def handler():
                 player_info: PlayerInfo {
                     steam_id: 1234,
                     ..default_test_player_info()
-                },
+                }
+                .into(),
                 ..default_test_player()
             };
             let result = Plugin::player(
@@ -3395,11 +3400,12 @@ def handler():
     fn player_for_provided_name_from_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Player {
-                name: "Mocked Player".into(),
+                name: "Mocked Player".to_string().into(),
                 player_info: PlayerInfo {
                     name: "Mocked Player".into(),
                     ..default_test_player_info()
-                },
+                }
+                .into(),
                 ..default_test_player()
             };
             let result = Plugin::player(
@@ -3769,7 +3775,7 @@ def handler():
     fn colored_name_for_provided_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Player {
-                name: "Mocked Player".into(),
+                name: "Mocked Player".to_string().into(),
                 ..default_test_player()
             };
             let result = Plugin::colored_name(
@@ -3789,7 +3795,7 @@ def handler():
     fn colored_name_for_player_in_provided_playerlist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Player {
-                name: "Mocked Player".into(),
+                name: "Mocked Player".to_string().into(),
                 ..default_test_player()
             };
             let result = Plugin::colored_name(
@@ -3808,8 +3814,9 @@ def handler():
             player_info: PlayerInfo {
                 name: "^1Mocked ^4Player".to_string(),
                 ..default_test_player_info()
-            },
-            name: "^1Mocked ^4Player".to_string(),
+            }
+            .into(),
+            name: "^1Mocked ^4Player".to_string().into(),
             ..default_test_player()
         };
 
@@ -3830,8 +3837,9 @@ def handler():
             player_info: PlayerInfo {
                 name: "^1Mocked ^4Player".to_string(),
                 ..default_test_player_info()
-            },
-            name: "^1Mocked ^4Player".to_string(),
+            }
+            .into(),
+            name: "^1Mocked ^4Player".to_string().into(),
             ..default_test_player()
         };
 
@@ -3869,7 +3877,8 @@ def handler():
             player_info: PlayerInfo {
                 client_id: 21,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3896,7 +3905,8 @@ def handler():
                 client_id: 21,
                 steam_id: 1234,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3921,7 +3931,8 @@ def handler():
             player_info: PlayerInfo {
                 steam_id: 1234,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3943,12 +3954,13 @@ def handler():
     fn client_id_for_player_name(_pyshinqlx_setup: ()) {
         let player = Player {
             id: 21,
-            name: "Mocked Player".to_string(),
+            name: "Mocked Player".to_string().into(),
             player_info: PlayerInfo {
                 client_id: 21,
                 name: "Mocked Player".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3969,8 +3981,9 @@ def handler():
             player_info: PlayerInfo {
                 name: "Mocked Player".to_string(),
                 ..default_test_player_info()
-            },
-            name: "Mocked Player".to_string(),
+            }
+            .into(),
+            name: "Mocked Player".to_string().into(),
             ..default_test_player()
         };
 
@@ -4010,7 +4023,8 @@ def handler():
                 client_id: 21,
                 steam_id: 1234,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player2 = Player {
@@ -4020,7 +4034,8 @@ def handler():
                 client_id: 0,
                 steam_id: 1235,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         Python::with_gil(|py| {
@@ -4038,38 +4053,41 @@ def handler():
     fn find_players_by_matching_provided_names(_pyshinqlx_setup: ()) {
         let player1 = Player {
             id: 21,
-            name: "^1Found ^4Player".to_string(),
+            name: "^1Found ^4Player".to_string().into(),
             steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 21,
                 name: "^1Found ^4Player".to_string(),
                 steam_id: 1234,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player2 = Player {
             id: 0,
-            name: "non-matching Player".to_string(),
+            name: "non-matching Player".to_string().into(),
             steam_id: 1235,
             player_info: PlayerInfo {
                 client_id: 0,
                 name: "non-matching Player".to_string(),
                 steam_id: 1235,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player3 = Player {
             id: 5,
-            name: "found Player".to_string(),
+            name: "found Player".to_string().into(),
             steam_id: 1236,
             player_info: PlayerInfo {
                 client_id: 5,
                 name: "found Player".to_string(),
                 steam_id: 1236,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         Python::with_gil(|py| {
@@ -4087,38 +4105,41 @@ def handler():
     fn find_players_when_no_player_matches(_pyshinqlx_setup: ()) {
         let player1 = Player {
             id: 21,
-            name: "^1non-matching ^4Player".to_string(),
+            name: "^1non-matching ^4Player".to_string().into(),
             steam_id: 1234,
             player_info: PlayerInfo {
                 client_id: 21,
                 name: "^1non-matching ^4Player".to_string(),
                 steam_id: 1234,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player2 = Player {
             id: 0,
-            name: "non-matching Player".to_string(),
+            name: "non-matching Player".to_string().into(),
             steam_id: 1235,
             player_info: PlayerInfo {
                 client_id: 0,
                 name: "non-matching Player".to_string(),
                 steam_id: 1235,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player3 = Player {
             id: 5,
-            name: "non-matching Player".to_string(),
+            name: "non-matching Player".to_string().into(),
             steam_id: 1236,
             player_info: PlayerInfo {
                 client_id: 5,
                 name: "non-matching Player".to_string(),
                 steam_id: 1236,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         Python::with_gil(|py| {
@@ -4161,7 +4182,8 @@ def handler():
                 steam_id: 1234,
                 team: team_t::TEAM_FREE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player2 = Player {
@@ -4172,7 +4194,8 @@ def handler():
                 steam_id: 1235,
                 team: team_t::TEAM_RED as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player3 = Player {
@@ -4183,7 +4206,8 @@ def handler():
                 steam_id: 1236,
                 team: team_t::TEAM_BLUE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player4 = Player {
@@ -4194,7 +4218,8 @@ def handler():
                 steam_id: 1234,
                 team: team_t::TEAM_SPECTATOR as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         Python::with_gil(|py| {
@@ -4896,7 +4921,8 @@ def handler():
                 client_id: 0,
                 team: team_t::TEAM_RED as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player2 = Player {
@@ -4905,7 +4931,8 @@ def handler():
                 client_id: 1,
                 team: team_t::TEAM_RED as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -4935,7 +4962,8 @@ def handler():
                 client_id: 0,
                 team: team_t::TEAM_RED as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let player2 = Player {
@@ -4944,7 +4972,8 @@ def handler():
                 client_id: 1,
                 team: team_t::TEAM_BLUE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 

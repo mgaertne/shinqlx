@@ -176,12 +176,12 @@ fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
                     None
                 } else {
                     Some(Player {
-                        valid: true,
+                        valid: true.into(),
                         id: player_info.client_id,
                         user_info: player_info.userinfo.clone(),
                         steam_id: player_info.steam_id,
-                        name: player_info.name.clone(),
-                        player_info: player_info.clone(),
+                        name: spin::mutex::FairMutex::new(player_info.name.clone()),
+                        player_info: spin::mutex::FairMutex::new(player_info.clone()),
                     })
                 }
             })
@@ -197,12 +197,12 @@ fn player_by_name(py: Python<'_>, name: &str) -> Option<Player> {
                     None
                 } else {
                     Some(Player {
-                        valid: true,
+                        valid: true.into(),
                         id: player_info.client_id,
                         user_info: player_info.userinfo.clone(),
                         steam_id: player_info.steam_id,
-                        name: player_info.name.clone(),
-                        player_info: player_info.clone(),
+                        name: spin::mutex::FairMutex::new(player_info.name.clone()),
+                        player_info: spin::mutex::FairMutex::new(player_info.clone()),
                     })
                 }
             })
