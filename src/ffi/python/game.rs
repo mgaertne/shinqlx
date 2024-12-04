@@ -670,8 +670,6 @@ mod pyshinqlx_game_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use core::sync::atomic::AtomicBool;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::rstest;
