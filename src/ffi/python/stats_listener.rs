@@ -521,7 +521,6 @@ mod stats_listener_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
     use core::borrow::BorrowMut;
-    use core::sync::atomic::AtomicBool;
 
     use pretty_assertions::assert_eq;
     use rstest::*;
