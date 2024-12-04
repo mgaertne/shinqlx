@@ -407,7 +407,7 @@ impl StatsListener {
         let zmq_enabled_cvar = main_engine.find_cvar("zmq_stats_enable");
         if !zmq_enabled_cvar.is_some_and(|cvar| cvar.get_integer() != 0) {
             return Ok(Self {
-                done: AtomicBool::from(true),
+                done: true.into(),
                 address: Default::default(),
                 password: Default::default(),
             });
@@ -438,7 +438,7 @@ impl StatsListener {
             .unwrap_or_default();
 
         Ok(Self {
-            done: AtomicBool::from(false),
+            done: false.into(),
             address,
             password,
         })
@@ -561,7 +561,7 @@ mod stats_listener_tests {
                 assert_eq!(
                     result.expect("this should not happen"),
                     StatsListener {
-                        done: AtomicBool::from(true),
+                        done: true.into(),
                         address: "".into(),
                         password: "".into()
                     }
@@ -620,7 +620,7 @@ mod stats_listener_tests {
                 assert_eq!(
                     result.expect("this should not happen"),
                     StatsListener {
-                        done: AtomicBool::from(false),
+                        done: false.into(),
                         address: "tcp://127.0.0.1:27960".into(),
                         password: "".into()
                     }
@@ -678,7 +678,7 @@ mod stats_listener_tests {
                 assert_eq!(
                     result.expect("this should not happen"),
                     StatsListener {
-                        done: AtomicBool::from(false),
+                        done: false.into(),
                         address: "tcp://192.168.0.1:28960".into(),
                         password: "p4ssw0rd".into()
                     }
@@ -689,7 +689,7 @@ mod stats_listener_tests {
     #[test]
     fn stop_sets_done_field() {
         let listener = StatsListener {
-            done: AtomicBool::from(false),
+            done: false.into(),
             address: "".into(),
             password: "".into(),
         };
