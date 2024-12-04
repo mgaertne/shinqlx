@@ -10,8 +10,10 @@ use crate::{
     MAIN_ENGINE,
 };
 
+use core::sync::atomic::AtomicBool;
 use itertools::Itertools;
 use log::*;
+use std::sync::atomic::Ordering;
 
 use pyo3::exceptions::PyEnvironmentError;
 use pyo3::{
@@ -25,13 +27,18 @@ create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
 /// A class representing the game. That is, stuff like what map is being played,
 /// if it's in warmup, and so on. It also has methods to call in timeins, aborts,
 /// pauses, and so on.
-#[pyclass(module = "_game", name = "Game", get_all)]
-#[derive(PartialEq, Debug)]
+#[pyclass(module = "_game", name = "Game", frozen)]
+#[derive(Debug)]
 pub(crate) struct Game {
-    #[pyo3(name = "cached")]
-    cached: bool,
-    #[pyo3(name = "_valid")]
-    valid: bool,
+    cached: AtomicBool,
+    valid: AtomicBool,
+}
+
+impl PartialEq for Game {
+    fn eq(&self, other: &Self) -> bool {
+        self.cached.load(Ordering::SeqCst) == other.cached.load(Ordering::SeqCst)
+            && self.valid.load(Ordering::SeqCst) == other.valid.load(Ordering::SeqCst)
+    }
 }
 
 #[pymethods]
@@ -54,8 +61,8 @@ impl Game {
                     }
 
                     Ok(Game {
-                        cached,
-                        valid: true,
+                        cached: AtomicBool::from(cached),
+                        valid: AtomicBool::from(true),
                     })
                 },
             )
@@ -75,7 +82,7 @@ impl Game {
         format!("{}({}@{})", classname, factory_type, mapname)
     }
 
-    fn __str__(&mut self, py: Python<'_>) -> String {
+    fn __str__(&self, py: Python<'_>) -> String {
         let Ok(factory_type) = self.get_type(py) else {
             return "Invalid game".to_string();
         };
@@ -85,7 +92,7 @@ impl Game {
         format!("{} on {}", factory_type, mapname)
     }
 
-    fn __contains__(&mut self, py: Python<'_>, item: &str) -> PyResult<bool> {
+    fn __contains__(&self, py: Python<'_>, item: &str) -> PyResult<bool> {
         py.allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 Err(PyEnvironmentError::new_err(
@@ -95,7 +102,7 @@ impl Game {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                     if configstring.is_empty() {
-                        self.valid = false;
+                        self.valid.store(false, Ordering::SeqCst);
                         return Err(NonexistentGameError::new_err(
                             "Invalid game. Is the server loading a new map?",
                         ));
@@ -107,7 +114,7 @@ impl Game {
         })
     }
 
-    fn __getitem__(&mut self, py: Python<'_>, item: &str) -> PyResult<String> {
+    fn __getitem__(&self, py: Python<'_>, item: &str) -> PyResult<String> {
         py.allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 Err(PyEnvironmentError::new_err(
@@ -117,7 +124,7 @@ impl Game {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                     if configstring.is_empty() {
-                        self.valid = false;
+                        self.valid.store(false, Ordering::SeqCst);
                         return Err(NonexistentGameError::new_err(
                             "Invalid game. Is the server loading a new map?",
                         ));
@@ -131,10 +138,20 @@ impl Game {
         })
     }
 
+    #[getter(cached)]
+    fn get_cached(&self) -> bool {
+        self.cached.load(Ordering::SeqCst)
+    }
+
+    #[getter(_valid)]
+    fn get_valid(&self) -> bool {
+        self.valid.load(Ordering::SeqCst)
+    }
+
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars
     /// might not have attributes on this class, this could be useful.
     #[getter(cvars)]
-    fn get_cvars<'b>(&mut self, py: Python<'b>) -> PyResult<Bound<'b, PyDict>> {
+    fn get_cvars<'b>(&self, py: Python<'b>) -> PyResult<Bound<'b, PyDict>> {
         py.allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 Err(PyEnvironmentError::new_err(
@@ -143,7 +160,7 @@ impl Game {
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
                     if configstring.is_empty() {
-                        self.valid = false;
+                        self.valid.store(false, Ordering::SeqCst);
                         return Err(NonexistentGameError::new_err(
                             "Invalid game. Is the server loading a new map?",
                         ));
@@ -156,7 +173,7 @@ impl Game {
     }
 
     #[getter]
-    fn get_type(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_type(&self, py: Python<'_>) -> PyResult<String> {
         let factory_type = self.__getitem__(py, "g_gametype")?;
         match factory_type.parse::<i32>() {
             Ok(0) => Ok("Free for All".to_string()),
@@ -176,7 +193,7 @@ impl Game {
     }
 
     #[getter(type_short)]
-    fn get_type_short(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_type_short(&self, py: Python<'_>) -> PyResult<String> {
         let factory_type = self.__getitem__(py, "g_gametype")?;
         match factory_type.parse::<i32>() {
             Ok(0) => Ok("ffa".to_string()),
@@ -196,12 +213,12 @@ impl Game {
     }
 
     #[getter(map)]
-    fn get_map(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_map(&self, py: Python<'_>) -> PyResult<String> {
         self.__getitem__(py, "mapname")
     }
 
     #[setter(map)]
-    fn set_map(&mut self, py: Python<'_>, value: &str) -> PyResult<()> {
+    fn set_map(&self, py: Python<'_>, value: &str) -> PyResult<()> {
         py.allow_threads(|| {
             let mapchange_command = format!("map {}", value);
             console_command(&mapchange_command)
@@ -263,7 +280,7 @@ impl Game {
     }
 
     #[getter(state)]
-    fn get_state(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_state(&self, py: Python<'_>) -> PyResult<String> {
         let game_state = self.__getitem__(py, "g_gameState")?;
         if game_state == "PRE_GAME" {
             return Ok("warmup".to_string());
@@ -283,12 +300,12 @@ impl Game {
     }
 
     #[getter(factory)]
-    fn get_factory(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_factory(&self, py: Python<'_>) -> PyResult<String> {
         self.__getitem__(py, "g_factory")
     }
 
     #[setter(factory)]
-    fn set_factory(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_factory(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let mapname = self.get_map(py)?;
         py.allow_threads(|| {
             let mapchange_command = format!("map {mapname} {value}");
@@ -297,29 +314,29 @@ impl Game {
     }
 
     #[getter(factory_title)]
-    fn get_factory_title(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_factory_title(&self, py: Python<'_>) -> PyResult<String> {
         self.__getitem__(py, "g_factoryTitle")
     }
 
     #[getter(hostname)]
-    fn get_hostname(&mut self, py: Python<'_>) -> PyResult<String> {
+    fn get_hostname(&self, py: Python<'_>) -> PyResult<String> {
         self.__getitem__(py, "sv_hostname")
     }
 
     #[setter(hostname)]
-    fn set_hostname(&mut self, py: Python<'_>, value: String) -> PyResult<()> {
+    fn set_hostname(&self, py: Python<'_>, value: String) -> PyResult<()> {
         pyshinqlx_set_cvar(py, "sv_hostname", &value, None)?;
         Ok(())
     }
 
     #[getter(instagib)]
-    fn get_instagib(&mut self, py: Python<'_>) -> PyResult<bool> {
+    fn get_instagib(&self, py: Python<'_>) -> PyResult<bool> {
         let insta_cvar = self.__getitem__(py, "g_instagib")?;
         Ok(insta_cvar.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
     #[setter(instagib)]
-    fn set_instagib(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_instagib(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let string_cvar_value = match value.extract::<bool>() {
             Ok(true) => "1",
             Ok(false) => "0",
@@ -337,13 +354,13 @@ impl Game {
     }
 
     #[getter(loadout)]
-    fn get_loadout(&mut self, py: Python<'_>) -> PyResult<bool> {
+    fn get_loadout(&self, py: Python<'_>) -> PyResult<bool> {
         let loadout_cvar = self.__getitem__(py, "g_loadout")?;
         Ok(loadout_cvar.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
     #[setter(loadout)]
-    fn set_loadout(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_loadout(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let string_cvar_value = match value.extract::<bool>() {
             Ok(true) => "1",
             Ok(false) => "0",
@@ -361,115 +378,115 @@ impl Game {
     }
 
     #[getter(maxclients)]
-    fn get_maxclients(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_maxclients(&self, py: Python<'_>) -> PyResult<i32> {
         let maxclients_cvar = self.__getitem__(py, "sv_maxclients")?;
         Ok(maxclients_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(maxclients)]
-    fn set_maxclients(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_maxclients(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "sv_maxclients", &value_str, None)?;
         Ok(())
     }
 
     #[getter(timelimit)]
-    fn get_timelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_timelimit(&self, py: Python<'_>) -> PyResult<i32> {
         let timelimit_cvar = self.__getitem__(py, "timelimit")?;
         Ok(timelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(timelimit)]
-    fn set_timelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_timelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "timelimit", &value_str, None)?;
         Ok(())
     }
 
     #[getter(fraglimit)]
-    fn get_fraglimit(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_fraglimit(&self, py: Python<'_>) -> PyResult<i32> {
         let fraglimit_cvar = self.__getitem__(py, "fraglimit")?;
         Ok(fraglimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(fraglimit)]
-    fn set_fraglimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_fraglimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "fraglimit", &value_str, None)?;
         Ok(())
     }
 
     #[getter(roundlimit)]
-    fn get_roundlimit(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_roundlimit(&self, py: Python<'_>) -> PyResult<i32> {
         let roundlimit_cvar = self.__getitem__(py, "roundlimit")?;
         Ok(roundlimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(roundlimit)]
-    fn set_roundlimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_roundlimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "roundlimit", &value_str, None)?;
         Ok(())
     }
 
     #[getter(roundtimelimit)]
-    fn get_roundtimelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_roundtimelimit(&self, py: Python<'_>) -> PyResult<i32> {
         let roundtimelimit_cvar = self.__getitem__(py, "roundtimelimit")?;
         Ok(roundtimelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(roundtimelimit)]
-    fn set_roundtimelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_roundtimelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "roundtimelimit", &value_str, None)?;
         Ok(())
     }
 
     #[getter(scorelimit)]
-    fn get_scorelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_scorelimit(&self, py: Python<'_>) -> PyResult<i32> {
         let scorelimit_cvar = self.__getitem__(py, "scorelimit")?;
         Ok(scorelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(scorelimit)]
-    fn set_scorelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_scorelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "scorelimit", &value_str, None)?;
         Ok(())
     }
 
     #[getter(capturelimit)]
-    fn get_capturelimit(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_capturelimit(&self, py: Python<'_>) -> PyResult<i32> {
         let capturelimit_cvar = self.__getitem__(py, "capturelimit")?;
         Ok(capturelimit_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(capturelimit)]
-    fn set_capturelimit(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_capturelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         let value_str = format!("{}", value);
         pyshinqlx_set_cvar(py, "capturelimit", &value_str, None)?;
         Ok(())
     }
 
     #[getter(teamsize)]
-    fn get_teamsize(&mut self, py: Python<'_>) -> PyResult<i32> {
+    fn get_teamsize(&self, py: Python<'_>) -> PyResult<i32> {
         let teamsize_cvar = self.__getitem__(py, "teamsize")?;
         Ok(teamsize_cvar.parse::<i32>().unwrap_or_default())
     }
 
     #[setter(teamsize)]
-    fn set_teamsize(&mut self, py: Python<'_>, value: i32) -> PyResult<()> {
+    fn set_teamsize(&self, py: Python<'_>, value: i32) -> PyResult<()> {
         py.allow_threads(|| set_teamsize(value))
     }
 
     #[getter(tags)]
-    fn get_tags(&mut self, py: Python<'_>) -> PyResult<Vec<String>> {
+    fn get_tags(&self, py: Python<'_>) -> PyResult<Vec<String>> {
         let tags_cvar = self.__getitem__(py, "sv_tags")?;
         Ok(tags_cvar.split(',').map(|value| value.into()).collect())
     }
 
     #[setter(tags)]
-    fn set_tags(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_tags(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let string_cvar_value = match value.extract::<String>() {
             Ok(new_tags) => new_tags,
             Err(_) => match value.extract::<Vec<Py<PyAny>>>() {
@@ -506,7 +523,7 @@ impl Game {
     }
 
     #[setter(workshop_items)]
-    fn set_workshop_items(&mut self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_workshop_items(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
         let workshop_items_str = match value.extract::<Vec<Py<PyAny>>>() {
             Ok(new_workshop_items) => new_workshop_items
                 .iter()
@@ -653,6 +670,8 @@ mod pyshinqlx_game_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use core::sync::atomic::AtomicBool;
+
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::rstest;
@@ -697,8 +716,8 @@ mod pyshinqlx_game_tests {
                 assert_eq!(
                     result.expect("result was not OK"),
                     Game {
-                        cached: true,
-                        valid: true,
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     }
                 );
             });
@@ -712,8 +731,8 @@ mod pyshinqlx_game_tests {
             let game = Bound::new(
                 py,
                 Game {
-                    cached: true,
-                    valid: true,
+                    cached: AtomicBool::from(true),
+                    valid: AtomicBool::from(true),
                 },
             )
             .expect("this should not happen");
@@ -733,8 +752,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: true,
-                            valid: true,
+                            cached: AtomicBool::from(true),
+                            valid: AtomicBool::from(true),
                         },
                     )
                     .expect("this should not happen");
@@ -755,8 +774,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: true,
-                            valid: true,
+                            cached: AtomicBool::from(true),
+                            valid: AtomicBool::from(true),
                         },
                     )
                     .expect("this should not happen");
@@ -777,8 +796,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: true,
-                            valid: true,
+                            cached: AtomicBool::from(true),
+                            valid: AtomicBool::from(true),
                         },
                     )
                     .expect("this should not happen");
@@ -803,8 +822,8 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(
                         py,
                         Game {
-                            cached: true,
-                            valid: true,
+                            cached: AtomicBool::from(true),
+                            valid: AtomicBool::from(true),
                         },
                     )
                     .expect("this should not happen");
@@ -819,9 +838,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn str_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
             game.__str__(py)
         });
@@ -836,9 +855,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
                     game.__str__(py)
                 });
@@ -854,9 +873,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
                     game.__str__(py)
                 });
@@ -872,9 +891,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
                     game.__str__(py)
                 });
@@ -894,9 +913,9 @@ mod pyshinqlx_game_tests {
             )
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
                     game.__str__(py)
                 });
@@ -909,9 +928,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.__contains__(py, "asdf");
@@ -927,9 +946,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
+                let game = Game {
+                    cached: AtomicBool::from(true),
+                    valid: AtomicBool::from(true),
                 };
 
                 let result = game.__contains__(py, "asdf");
@@ -946,9 +965,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.__contains__(py, "asdf")
@@ -965,9 +984,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.__contains__(py, "qwertz")
@@ -984,9 +1003,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.__contains__(py, "asdf")
@@ -1003,9 +1022,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.__contains__(py, "asdf")
@@ -1019,9 +1038,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitem_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.__getitem__(py, "asdf");
@@ -1037,9 +1056,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
-                let mut game = Game {
-                    cached: true,
-                    valid: true,
+                let game = Game {
+                    cached: AtomicBool::from(true),
+                    valid: AtomicBool::from(true),
                 };
 
                 let result = game.__getitem__(py, "asdf");
@@ -1056,9 +1075,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.__getitem__(py, "asdf")
@@ -1075,9 +1094,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.__getitem__(py, "qwertz");
@@ -1094,9 +1113,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.__getitem__(py, "asdf");
@@ -1113,9 +1132,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.__getitem__(py, "asdf");
@@ -1129,9 +1148,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn cvars_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let cvars_result = game.get_cvars(py);
@@ -1147,9 +1166,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let cvars_result = game.get_cvars(py);
@@ -1167,9 +1186,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\42", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let cvars_result = game.get_cvars(py);
@@ -1192,9 +1211,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_type_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_type(py);
@@ -1210,9 +1229,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_type(py);
@@ -1251,9 +1270,9 @@ mod pyshinqlx_game_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_type(py);
@@ -1267,9 +1286,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_type_short_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_type_short(py);
@@ -1285,9 +1304,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_type_short(py);
@@ -1326,9 +1345,9 @@ mod pyshinqlx_game_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_type_short(py);
@@ -1345,9 +1364,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_map(py);
@@ -1364,9 +1383,9 @@ mod pyshinqlx_game_tests {
             .with_execute_console_command("map campgrounds", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_map(py, "campgrounds")
@@ -1390,8 +1409,8 @@ shinqlx._map_title = "eyetoeye"
             )
             .expect("this should not happen");
             let game = Game {
-                cached: true,
-                valid: true,
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             assert_eq!(
@@ -1416,8 +1435,8 @@ shinqlx._map_subtitle1 = "Clan Arena"
             )
             .expect("this should not happen");
             let game = Game {
-                cached: true,
-                valid: true,
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             assert_eq!(
@@ -1442,8 +1461,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             )
             .expect("this should not happen");
             let game = Game {
-                cached: true,
-                valid: true,
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             assert_eq!(
@@ -1459,8 +1478,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_red_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: true,
-                valid: true,
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_red_score(py);
@@ -1477,8 +1496,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: true,
-                        valid: true,
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_red_score(py);
@@ -1496,8 +1515,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: true,
-                        valid: true,
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_red_score(py);
@@ -1512,8 +1531,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn get_blue_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let game = Game {
-                cached: true,
-                valid: true,
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_blue_score(py);
@@ -1530,8 +1549,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: true,
-                        valid: true,
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_blue_score(py);
@@ -1549,8 +1568,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 Python::with_gil(|py| {
                     let game = Game {
-                        cached: true,
-                        valid: true,
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.get_blue_score(py);
@@ -1564,9 +1583,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_state_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_state(py);
@@ -1594,9 +1613,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             )
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_state(py)
@@ -1610,9 +1629,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_factory_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_factory(py);
@@ -1628,9 +1647,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_factory\ca", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_factory(py)
@@ -1648,9 +1667,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\theatreofpain", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_factory(py, "ffa".to_string())
@@ -1664,9 +1683,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_factory_title_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let mut game = Game {
-                cached: true,
-                valid: true,
+            let game = Game {
+                cached: AtomicBool::from(true),
+                valid: AtomicBool::from(true),
             };
 
             let result = game.get_factory_title(py);
@@ -1682,9 +1701,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_factoryTitle\Clan Arena", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_factory_title(py)
@@ -1701,9 +1720,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_hostname\Awesome server!", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_hostname(py)
@@ -1728,9 +1747,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_hostname(py, "More awesome server!".to_string())
@@ -1753,9 +1772,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_instagib\{mode}"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_instagib(py)
@@ -1786,9 +1805,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_instagib(py, PyBool::new(py, value_set).to_owned().into_any())
@@ -1819,9 +1838,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_instagib(
@@ -1850,9 +1869,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.set_instagib(py, PyString::new(py, "asdf").into_any());
@@ -1875,9 +1894,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_loadout\{mode}"), 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_loadout(py)
@@ -1908,9 +1927,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_loadout(py, PyBool::new(py, value_set).to_owned().into_any())
@@ -1941,9 +1960,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_loadout(
@@ -1972,9 +1991,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.set_loadout(py, PyString::new(py, "asdf").into_any());
@@ -1991,9 +2010,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_maxclients\8", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_maxclients(py)
@@ -2018,9 +2037,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_maxclients(py, 32).expect("this should not happen");
@@ -2036,9 +2055,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\timelimit\20", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_timelimit(py)
@@ -2063,9 +2082,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_timelimit(py, 30).expect("this should not happen");
@@ -2081,9 +2100,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\fraglimit\10", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_fraglimit(py)
@@ -2108,9 +2127,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_fraglimit(py, 20).expect("this should not happen");
@@ -2126,9 +2145,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\roundlimit\11", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_roundlimit(py)
@@ -2153,9 +2172,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_roundlimit(py, 13).expect("this should not happen");
@@ -2171,9 +2190,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\roundtimelimit\240", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_roundtimelimit(py)
@@ -2198,9 +2217,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_roundtimelimit(py, 150)
@@ -2217,9 +2236,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\scorelimit\10", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_scorelimit(py)
@@ -2244,9 +2263,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_scorelimit(py, 8).expect("this should not happen");
@@ -2262,9 +2281,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\capturelimit\10", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_capturelimit(py)
@@ -2289,9 +2308,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.set_capturelimit(py, 20);
@@ -2308,9 +2327,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\teamsize\4", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_teamsize(py)
@@ -2335,9 +2354,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_teamsize(py, 8).expect("this should not happen");
@@ -2353,9 +2372,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_tags\tag1,tag2,tag3", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_tags(py)
@@ -2383,9 +2402,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_tags(py, PyString::new(py, "tag1,tag2,tag3").into_any())
@@ -2410,9 +2429,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_tags(
@@ -2440,9 +2459,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.set_tags(
@@ -2466,8 +2485,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .run(|| {
                 let result = Python::with_gil(|py| {
                     let game = Game {
-                        cached: true,
-                        valid: true,
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.get_workshop_items(py)
@@ -2492,9 +2511,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     game.set_workshop_items(
@@ -2524,9 +2543,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let mut game = Game {
-                        cached: true,
-                        valid: true,
+                    let game = Game {
+                        cached: AtomicBool::from(true),
+                        valid: AtomicBool::from(true),
                     };
 
                     let result = game.set_workshop_items(
