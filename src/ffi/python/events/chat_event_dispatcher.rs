@@ -1,4 +1,4 @@
-use super::super::{Player, COMMANDS};
+use super::super::{CommandInvokerMethods, Player, COMMANDS};
 use super::prelude::*;
 
 use pyo3::exceptions::PyEnvironmentError;
@@ -86,8 +86,8 @@ fn try_handle_input(
         )),
         |commands| {
             commands
-                .borrow(py)
-                .handle_input(py, player, cmd, channel.to_owned())
+                .bind(py)
+                .handle_input(player, cmd, channel.as_any())
         },
     )
 }
@@ -99,7 +99,7 @@ mod chat_event_dispatcher_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::ffi::python::{
         channels::TeamChatChannel,
-        commands::{Command, CommandInvoker, CommandPriorities},
+        commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
         events::EventDispatcherMethods,
         pyshinqlx_setup,
         pyshinqlx_test_support::{default_test_player, test_plugin},
@@ -578,15 +578,13 @@ def handler(*args, **kwargs):
                     .expect("could not get module from code")
                     .getattr("handler")
                     .expect("could not get handler");
-                    let command_invoker = CommandInvoker::py_new();
                     let command = Command::py_new(
-                        py,
-                        plugin,
-                        PyString::new(py, "asdf").into_any(),
-                        cmd_handler,
+                        &plugin,
+                        PyString::new(py, "asdf").as_any(),
+                        &cmd_handler,
                         0,
-                        py.None().bind(py).to_owned(),
-                        py.None().bind(py).to_owned(),
+                        py.None().bind(py),
+                        py.None().bind(py),
                         false,
                         0,
                         false,
@@ -594,14 +592,13 @@ def handler(*args, **kwargs):
                     )
                     .expect("could not create command");
                     let py_command = Bound::new(py, command).expect("this should not happen");
+
+                    let command_invoker =
+                        Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
                     command_invoker
-                        .add_command(py, py_command, CommandPriorities::PRI_NORMAL as usize)
+                        .add_command(&py_command, CommandPriorities::PRI_NORMAL as usize)
                         .expect("could not add command to command invoker");
-                    COMMANDS.store(Some(
-                        Py::new(py, command_invoker)
-                            .expect("could not create command invoker in python")
-                            .into(),
-                    ));
+                    COMMANDS.store(Some(command_invoker.unbind().into()));
 
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");

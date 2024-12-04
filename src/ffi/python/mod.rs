@@ -23,7 +23,7 @@ pub(crate) mod prelude {
         AbstractChannel, AbstractChannelMethods, ChatChannel, ClientCommandChannel, ConsoleChannel,
         TeamChatChannel, TellChannel, MAX_MSG_LENGTH,
     };
-    pub(crate) use super::commands::{Command, CommandInvoker};
+    pub(crate) use super::commands::{Command, CommandInvoker, CommandInvokerMethods};
     pub(crate) use super::database::{AbstractDatabase, Redis};
     pub(crate) use super::embed::*;
     pub(crate) use super::events::{
@@ -2325,11 +2325,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                             Err(PyEnvironmentError::new_err(
                                 "could not get access to commands",
                             )),
-                            |commands| {
-                                commands
-                                    .borrow(py)
-                                    .remove_command(py, cmd.downcast()?.clone())
-                            },
+                            |commands| commands.bind(py).remove_command(cmd.downcast()?),
                         ) {
                             log_exception(py, err);
                         };
@@ -4368,8 +4364,8 @@ while not shinqlx.next_frame_tasks.empty():
                 .expect("could not get capturing hook")
                 .unbind(),
             permission: 0,
-            channels: vec![],
-            exclude_channels: vec![],
+            channels: vec![].into(),
+            exclude_channels: vec![].into(),
             client_cmd_pass: false,
             client_cmd_perm: 0,
             prefix: true,
