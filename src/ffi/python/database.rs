@@ -5,12 +5,13 @@ use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
 
 use pyo3::prelude::*;
-use pyo3::{exceptions::PyRuntimeError, types::IntoPyDict};
 use pyo3::{
-    exceptions::{PyEnvironmentError, PyKeyError, PyNotImplementedError, PyValueError},
+    exceptions::{
+        PyEnvironmentError, PyKeyError, PyNotImplementedError, PyRuntimeError, PyValueError,
+    },
     intern,
-    types::{PyBool, PyDict, PyString, PyTuple},
-    PyTraverseError, PyVisit,
+    types::{IntoPyDict, PyBool, PyDict, PyString, PyTuple},
+    IntoPyObjectExt, PyTraverseError, PyVisit,
 };
 
 use core::cmp::max;
@@ -25,9 +26,9 @@ pub(crate) struct AbstractDatabase {
 #[pymethods]
 impl AbstractDatabase {
     #[new]
-    fn py_new(_py: Python<'_>, plugin: Bound<'_, PyAny>) -> Self {
+    fn py_new(_py: Python<'_>, plugin: &Bound<'_, PyAny>) -> Self {
         Self {
-            plugin: plugin.unbind(),
+            plugin: plugin.clone().unbind(),
         }
     }
 
@@ -51,7 +52,7 @@ impl AbstractDatabase {
 
     /// Abstract method. Should set the permission of a player.
     #[allow(unused_variables)]
-    fn set_permission(&self, player: Bound<'_, PyAny>, level: i32) -> PyResult<()> {
+    fn set_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
@@ -59,7 +60,7 @@ impl AbstractDatabase {
 
     /// Abstract method. Should return the permission of a player.
     #[allow(unused_variables)]
-    fn get_permission(&self, player: Bound<'_, PyAny>) -> PyResult<i32> {
+    fn get_permission(&self, player: &Bound<'_, PyAny>) -> PyResult<i32> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
@@ -70,7 +71,7 @@ impl AbstractDatabase {
     /// always True.
     #[allow(unused_variables)]
     #[pyo3(signature = (player, level=5), text_signature = "(player, level=5)")]
-    fn has_permission(&self, player: Bound<'_, PyAny>, level: i32) -> PyResult<bool> {
+    fn has_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
@@ -79,21 +80,21 @@ impl AbstractDatabase {
     /// Abstract method. Should set specified player flag to value.
     #[allow(unused_variables)]
     #[pyo3(signature = (player, flag, value=true), text_signature = "(player, flag, value=true)")]
-    fn set_flag(&self, player: Bound<'_, PyAny>, flag: &str, value: bool) -> PyResult<bool> {
+    fn set_flag(&self, player: &Bound<'_, PyAny>, flag: &str, value: bool) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
     }
 
     /// Should clear specified player flag.
-    fn clear_flag(&self, player: Bound<'_, PyAny>, flag: &str) -> PyResult<bool> {
+    fn clear_flag(&self, player: &Bound<'_, PyAny>, flag: &str) -> PyResult<bool> {
         self.set_flag(player, flag, false)
     }
 
     /// Abstract method. Should return specified player flag
     #[allow(unused_variables)]
     #[pyo3(signature = (player, flag, default=false), text_signature = "(player, flag, default=false)")]
-    fn get_flag(&self, player: Bound<'_, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
+    fn get_flag(&self, player: &Bound<'_, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
@@ -126,7 +127,7 @@ pub(crate) struct Redis {}
 #[pymethods]
 impl Redis {
     #[new]
-    fn py_new(py: Python<'_>, plugin: Bound<'_, PyAny>) -> (Self, AbstractDatabase) {
+    fn py_new(py: Python<'_>, plugin: &Bound<'_, PyAny>) -> (Self, AbstractDatabase) {
         let redis_type = py.get_type::<Self>();
         let counter = redis_type
             .getattr(intern!(py, "_counter"))
@@ -137,7 +138,7 @@ impl Redis {
         (
             Self {},
             AbstractDatabase {
-                plugin: plugin.unbind(),
+                plugin: plugin.clone().unbind(),
             },
         )
     }
@@ -180,7 +181,7 @@ impl Redis {
             })
     }
 
-    fn __setitem__(slf_: &Bound<'_, Self>, key: &str, item: Bound<'_, PyAny>) -> PyResult<()> {
+    fn __setitem__(slf_: &Bound<'_, Self>, key: &str, item: &Bound<'_, PyAny>) -> PyResult<()> {
         let redis_connection = Self::get_redis(slf_)?;
         let returned = redis_connection
             .call_method1(intern!(slf_.py(), "set"), (key, item))
@@ -219,7 +220,7 @@ impl Redis {
     #[pyo3(name = "set_permission")]
     fn set_permission(
         slf_: &Bound<'_, Self>,
-        player: Bound<'_, PyAny>,
+        player: &Bound<'_, PyAny>,
         level: i32,
     ) -> PyResult<()> {
         let key = if let Ok(rust_player) = player.extract::<Player>() {
@@ -228,11 +229,11 @@ impl Redis {
             format!("minqlx:players:{}:permission", player.str()?)
         };
 
-        Self::__setitem__(slf_, &key, level.into_pyobject(slf_.py())?.into_any())
+        Self::__setitem__(slf_, &key, &level.into_bound_py_any(slf_.py())?)
     }
 
     /// Gets the permission of a player.
-    fn get_permission(slf_: &Bound<'_, Self>, player: Bound<'_, PyAny>) -> PyResult<i32> {
+    fn get_permission(slf_: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<i32> {
         let steam_id = if let Ok(rust_player) = player.extract::<Player>() {
             Ok(rust_player.steam_id)
         } else if let Ok(rust_int) = player.extract::<i64>() {
@@ -268,7 +269,7 @@ impl Redis {
     #[pyo3(name = "has_permission", signature = (player, level = 5), text_signature = "(player, level=5)")]
     fn has_permission(
         slf_: &Bound<'_, Self>,
-        player: Bound<'_, PyAny>,
+        player: &Bound<'_, PyAny>,
         level: i32,
     ) -> PyResult<bool> {
         Self::get_permission(slf_, player).map(|value| value >= level)
@@ -278,7 +279,7 @@ impl Redis {
     #[pyo3(name = "set_flag", signature = (player, flag, value = true), text_signature = "(player, flag, value = True)")]
     fn set_flag(
         slf_: &Bound<'_, Self>,
-        player: Bound<'_, PyAny>,
+        player: &Bound<'_, PyAny>,
         flag: &str,
         value: bool,
     ) -> PyResult<()> {
@@ -290,14 +291,14 @@ impl Redis {
 
         let redis_value = if value { 1i32 } else { 0i32 };
 
-        Self::__setitem__(slf_, &key, redis_value.into_pyobject(slf_.py())?.into_any())
+        Self::__setitem__(slf_, &key, &redis_value.into_bound_py_any(slf_.py())?)
     }
 
     /// returns the specified player flag
     #[pyo3(name = "get_flag", signature = (player, flag, default = false), text_signature = "(player, flag, default=False)")]
     fn get_flag(
         slf_: &Bound<'_, Self>,
-        player: Bound<'_, PyAny>,
+        player: &Bound<'_, PyAny>,
         flag: &str,
         default: bool,
     ) -> PyResult<bool> {
@@ -390,7 +391,7 @@ impl Redis {
                                     "unix_socket_path",
                                     PyString::new(slf_.py(), &cvar_host.get_string()).into_any(),
                                 ),
-                                ("db", redis_db_cvar.into_pyobject(slf_.py())?.into_any()),
+                                ("db", redis_db_cvar.into_bound_py_any(slf_.py())?),
                                 (
                                     "password",
                                     PyString::new(slf_.py(), &password_cvar.get_string())
@@ -418,7 +419,7 @@ impl Redis {
                             &[
                                 ("host", PyString::new(slf_.py(), redis_hostname).into_any()),
                                 ("port", PyString::new(slf_.py(), redis_port).into_any()),
-                                ("db", redis_db_cvar.into_pyobject(slf_.py())?.into_any()),
+                                ("db", redis_db_cvar.into_bound_py_any(slf_.py())?),
                                 (
                                     "password",
                                     PyString::new(slf_.py(), &password_cvar.get_string())
@@ -465,8 +466,8 @@ impl Redis {
                                     "unix_socket_path",
                                     PyString::new(slf_.py(), hostname).into_any(),
                                 ),
-                                ("db", database.into_pyobject(slf_.py())?.into_any()),
-                                ("password", password.into_pyobject(slf_.py())?.into_any()),
+                                ("db", database.into_bound_py_any(slf_.py())?),
+                                ("password", password.into_bound_py_any(slf_.py())?),
                                 (
                                     "decode_responses",
                                     PyBool::new(slf_.py(), true).to_owned().into_any(),
@@ -487,8 +488,8 @@ impl Redis {
                             &[
                                 ("host", PyString::new(slf_.py(), redis_hostname).into_any()),
                                 ("port", PyString::new(slf_.py(), redis_port).into_any()),
-                                ("db", database.into_pyobject(slf_.py())?.into_any()),
-                                ("password", password.into_pyobject(slf_.py())?.into_any()),
+                                ("db", database.into_bound_py_any(slf_.py())?),
+                                ("password", password.into_bound_py_any(slf_.py())?),
                                 (
                                     "decode_responses",
                                     PyBool::new(slf_.py(), true).to_owned().into_any(),
@@ -676,8 +677,8 @@ impl Redis {
     fn zincrby<'py>(
         slf_: &Bound<'py, Self>,
         name: &str,
-        value: Bound<'py, PyAny>,
-        amount: Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
+        amount: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let redis_connection = Self::get_redis(slf_)?;
 
@@ -688,8 +689,8 @@ impl Redis {
     fn setx<'py>(
         slf_: &Bound<'py, Self>,
         name: &str,
-        value: Bound<'py, PyAny>,
-        time: Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
+        time: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let redis_connection = Self::get_redis(slf_)?;
 
@@ -700,8 +701,8 @@ impl Redis {
     fn lrem<'py>(
         slf_: &Bound<'py, Self>,
         name: &str,
-        value: Bound<'py, PyAny>,
-        count: Bound<'py, PyAny>,
+        value: &Bound<'py, PyAny>,
+        count: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let redis_connection = Self::get_redis(slf_)?;
 

@@ -376,15 +376,22 @@ static IN_PROGRESS: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
 
 /// Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 /// we get stats from it.
-#[pyclass(module = "_zmq", name = "StatsListener", get_all)]
-#[derive(Debug, PartialEq)]
+#[pyclass(module = "_zmq", name = "StatsListener", frozen)]
+#[derive(Debug)]
 pub(crate) struct StatsListener {
-    #[pyo3(name = "done")]
-    done: bool,
-    #[pyo3(name = "address")]
+    done: AtomicBool,
+    #[pyo3(name = "address", get)]
     pub(crate) address: String,
-    #[pyo3(name = "password")]
+    #[pyo3(name = "password", get)]
     password: String,
+}
+
+impl PartialEq for StatsListener {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+            && self.password == other.password
+            && self.done.load(Ordering::SeqCst) == other.done.load(Ordering::SeqCst)
+    }
 }
 
 #[pymethods]
@@ -400,7 +407,7 @@ impl StatsListener {
         let zmq_enabled_cvar = main_engine.find_cvar("zmq_stats_enable");
         if !zmq_enabled_cvar.is_some_and(|cvar| cvar.get_integer() != 0) {
             return Ok(Self {
-                done: true,
+                done: AtomicBool::from(true),
                 address: Default::default(),
                 password: Default::default(),
             });
@@ -431,14 +438,19 @@ impl StatsListener {
             .unwrap_or_default();
 
         Ok(Self {
-            done: false,
+            done: AtomicBool::from(false),
             address,
             password,
         })
     }
 
-    fn stop(&mut self) {
-        self.done = true;
+    #[getter]
+    fn get_done(&self) -> bool {
+        self.done.load(Ordering::SeqCst)
+    }
+
+    fn stop(&self) {
+        self.done.store(true, Ordering::SeqCst);
     }
 
     /// Receives until 'self.done' is set to True.
@@ -509,6 +521,7 @@ mod stats_listener_tests {
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
 
     use core::borrow::BorrowMut;
+    use core::sync::atomic::AtomicBool;
 
     use pretty_assertions::assert_eq;
     use rstest::*;
@@ -548,7 +561,7 @@ mod stats_listener_tests {
                 assert_eq!(
                     result.expect("this should not happen"),
                     StatsListener {
-                        done: true,
+                        done: AtomicBool::from(true),
                         address: "".into(),
                         password: "".into()
                     }
@@ -607,7 +620,7 @@ mod stats_listener_tests {
                 assert_eq!(
                     result.expect("this should not happen"),
                     StatsListener {
-                        done: false,
+                        done: AtomicBool::from(false),
                         address: "tcp://127.0.0.1:27960".into(),
                         password: "".into()
                     }
@@ -665,7 +678,7 @@ mod stats_listener_tests {
                 assert_eq!(
                     result.expect("this should not happen"),
                     StatsListener {
-                        done: false,
+                        done: AtomicBool::from(false),
                         address: "tcp://192.168.0.1:28960".into(),
                         password: "p4ssw0rd".into()
                     }
@@ -675,15 +688,15 @@ mod stats_listener_tests {
 
     #[test]
     fn stop_sets_done_field() {
-        let mut listener = StatsListener {
-            done: false,
+        let listener = StatsListener {
+            done: AtomicBool::from(false),
             address: "".into(),
             password: "".into(),
         };
 
         listener.stop();
 
-        assert_eq!(listener.done, true);
+        assert_eq!(listener.get_done(), true);
     }
 }
 
@@ -838,9 +851,9 @@ mod handle_zmq_msg_tests {
         let stats_msg = r#"{"DATA": {}, "TYPE": "STATS"}"#;
 
         Python::with_gil(|py| {
-            let event_dispatcher = Py::new(py, EventDispatcherManager::default())
+            let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                 .expect("could not create event dispatcher manager in python");
-            EVENT_DISPATCHERS.store(Some(event_dispatcher.into()));
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
             let result = try_handle_zmq_msg(py, stats_msg);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
