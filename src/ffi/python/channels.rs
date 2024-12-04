@@ -740,7 +740,8 @@ test_channel.reply("asdf")
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -799,7 +800,8 @@ test_channel.reply("asdf")
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -860,7 +862,8 @@ test_channel.reply("asdf")
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -961,7 +964,8 @@ test_channel.reply("asdf")
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -1704,7 +1708,8 @@ tell_channel = shinqlx.ClientCommandChannel(player)
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 

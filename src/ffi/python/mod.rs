@@ -487,7 +487,10 @@ pub(crate) fn client_id(
         let clean_name = clean_text(&player_name).to_lowercase();
         return all_players
             .iter()
-            .find(|&player| clean_text(&player.name).to_lowercase() == clean_name)
+            .find(|&player| {
+                let player_name = &*player.name.lock();
+                clean_text(player_name).to_lowercase() == clean_name
+            })
             .map(|player| player.id);
     }
 
@@ -4345,12 +4348,12 @@ while not shinqlx.next_frame_tasks.empty():
 
     pub(crate) fn default_test_player() -> Player {
         Player {
-            valid: true,
+            valid: true.into(),
             id: 2,
-            player_info: default_test_player_info(),
+            player_info: default_test_player_info().into(),
             user_info: "".to_string(),
             steam_id: 1234567890,
-            name: "".to_string(),
+            name: "".to_string().into(),
         }
     }
 

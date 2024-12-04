@@ -5,7 +5,10 @@ use crate::ffi::c::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
 
+use core::sync::atomic::AtomicBool;
 use itertools::Itertools;
+use std::sync::atomic::Ordering;
+
 use pyo3::{
     basic::CompareOp,
     create_exception,
@@ -64,21 +67,42 @@ impl TryFrom<&str> for weapon_t {
 ///    To update it, use :meth:`~.Player.update`. Note that if you update it
 ///    and the player has disconnected, it will raise a
 ///    :exc:`shinqlx.NonexistentPlayerError` exception.
-#[pyclass(module = "_player", name = "Player", subclass, get_all)]
-#[derive(PartialEq, Debug, Clone)]
+#[pyclass(module = "_player", name = "Player", subclass, frozen)]
+#[derive(Debug)]
 pub(crate) struct Player {
-    #[pyo3(name = "_valid")]
-    pub(crate) valid: bool,
-    #[pyo3(name = "_id")]
+    pub(crate) valid: AtomicBool,
+    #[pyo3(name = "_id", get)]
     pub(crate) id: i32,
-    #[pyo3(name = "_info")]
-    pub(crate) player_info: PlayerInfo,
-    #[pyo3(name = "_userinfo")]
+    pub(crate) player_info: spin::mutex::FairMutex<PlayerInfo>,
+    #[pyo3(name = "_userinfo", get)]
     pub(crate) user_info: String,
-    #[pyo3(name = "_steam_id")]
+    #[pyo3(name = "_steam_id", get)]
     pub(crate) steam_id: i64,
-    #[pyo3(name = "_name")]
-    pub(crate) name: String,
+    pub(crate) name: spin::mutex::FairMutex<String>,
+}
+
+impl Clone for Player {
+    fn clone(&self) -> Self {
+        Self {
+            valid: self.valid.load(Ordering::SeqCst).into(),
+            id: self.id,
+            player_info: spin::mutex::FairMutex::from(self.player_info.lock().clone()),
+            user_info: self.user_info.clone(),
+            steam_id: self.steam_id,
+            name: spin::mutex::FairMutex::from(self.name.lock().clone()),
+        }
+    }
+}
+
+impl PartialEq for Player {
+    fn eq(&self, other: &Self) -> bool {
+        self.valid.load(Ordering::SeqCst) == other.valid.load(Ordering::SeqCst)
+            && self.id == other.id
+            && *self.player_info.lock() == *other.player_info.lock()
+            && self.user_info == other.user_info
+            && self.steam_id == other.steam_id
+            && *self.name.lock() == *other.name.lock()
+    }
 }
 
 #[pymethods]
@@ -98,12 +122,12 @@ impl Player {
         };
 
         Ok(Player {
-            valid: true,
+            valid: true.into(),
             id: client_id,
             user_info: player_info.userinfo.clone(),
             steam_id: player_info.steam_id,
-            player_info,
-            name,
+            player_info: spin::mutex::FairMutex::from(player_info),
+            name: spin::mutex::FairMutex::from(name),
         })
     }
 
@@ -124,11 +148,11 @@ impl Player {
     }
 
     fn __str__(&self) -> String {
-        self.name.clone()
+        self.name.lock().clone()
     }
 
     fn __contains__(&self, py: Python<'_>, item: &str) -> PyResult<bool> {
-        if !self.valid {
+        if !self.valid.load(Ordering::SeqCst) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -141,7 +165,7 @@ impl Player {
     }
 
     fn __getitem__(&self, py: Python<'_>, item: &str) -> PyResult<String> {
-        if !self.valid {
+        if !self.valid.load(Ordering::SeqCst) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -190,24 +214,24 @@ impl Player {
     ///         invalidated, but anything else will make it throw an exception too.
     ///
     ///         :raises: shinqlx.NonexistentPlayerError
-    fn update(&mut self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| self.player_info = PlayerInfo::from(self.id));
+    fn update(&self, py: Python<'_>) -> PyResult<()> {
+        py.allow_threads(|| *self.player_info.lock() = PlayerInfo::from(self.id));
 
-        if self.player_info.steam_id != self.steam_id {
-            self.valid = false;
+        if self.player_info.lock().steam_id != self.steam_id {
+            self.valid.store(false, Ordering::SeqCst);
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
         py.allow_threads(|| {
-            let name = if self.player_info.name.is_empty() {
-                let cvars = parse_variables(&self.player_info.userinfo);
+            let name = if self.player_info.lock().name.is_empty() {
+                let cvars = parse_variables(&self.player_info.lock().userinfo);
                 cvars.get("name").unwrap_or_default()
             } else {
-                self.player_info.name.clone()
+                self.player_info.lock().name.clone()
             };
-            self.name = name;
+            *self.name.lock() = name;
         });
 
         Ok(())
@@ -218,14 +242,14 @@ impl Player {
     signature = (e = "The player does not exist anymore. Did the player disconnect?"),
     text_signature = "(e = \"The player does not exist anymore. Did the player disconnect?\")"
     )]
-    fn invalidate(&mut self, e: &str) -> PyResult<()> {
-        self.valid = false;
+    fn invalidate(&self, e: &str) -> PyResult<()> {
+        self.valid.store(false, Ordering::SeqCst);
         Err(NonexistentPlayerError::new_err(e.to_string()))
     }
 
     #[getter(cvars)]
     fn get_cvars<'a>(&self, py: Python<'a>) -> PyResult<Bound<'a, PyDict>> {
-        if !self.valid {
+        if !self.valid.load(Ordering::SeqCst) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -304,10 +328,10 @@ impl Player {
     #[getter(name)]
     fn get_name(&self, py: Python<'_>) -> String {
         py.allow_threads(|| {
-            if self.name.ends_with("^7") {
-                self.name.clone()
+            if self.name.lock().ends_with("^7") {
+                self.name.lock().clone()
             } else {
-                format!("{}^7", self.name)
+                format!("{}^7", self.name.lock())
             }
         })
     }
@@ -328,7 +352,7 @@ impl Player {
     /// Removes color tags from the name.
     #[getter(clean_name)]
     pub(crate) fn get_clean_name(&self, py: Python<'_>) -> String {
-        py.allow_threads(|| clean_text(&self.name))
+        py.allow_threads(|| clean_text(&(&*self.name.lock())))
     }
 
     #[getter(qport)]
@@ -344,7 +368,7 @@ impl Player {
 
     #[getter(team)]
     pub(crate) fn get_team(&self, py: Python<'_>) -> PyResult<String> {
-        py.allow_threads(|| match team_t::try_from(self.player_info.team) {
+        py.allow_threads(|| match team_t::try_from(self.player_info.lock().team) {
             Ok(team_t::TEAM_FREE) => Ok("free".to_string()),
             Ok(team_t::TEAM_RED) => Ok("red".to_string()),
             Ok(team_t::TEAM_BLUE) => Ok("blue".to_string()),
@@ -384,7 +408,7 @@ impl Player {
     #[setter(colors)]
     fn set_colors(&self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("color1", &format!("{}", new.0));
             new_cvars.set("color2", &format!("{}", new.1));
             new_cvars.into()
@@ -408,7 +432,7 @@ impl Player {
     #[setter(model)]
     fn set_model(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("model", &value);
             new_cvars.into()
         });
@@ -431,7 +455,7 @@ impl Player {
     #[setter(headmodel)]
     fn set_headmodel(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("headmodel", &value);
             new_cvars.into()
         });
@@ -460,7 +484,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("handicap", &new_handicap);
             new_cvars.into()
         });
@@ -495,7 +519,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("autohop", &new_autohop);
             new_cvars.into()
         });
@@ -530,7 +554,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("autoaction", &new_autoaction);
             new_cvars.into()
         });
@@ -565,7 +589,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
             new_cvars.set("cg_predictitems", &new_predictitems);
             new_cvars.into()
         });
@@ -586,16 +610,16 @@ impl Player {
     /// In other words, if you need to make sure a player is in-game, check if ``player.connection_state == "active"``.
     #[getter(connection_state)]
     fn get_connection_state(&self, py: Python<'_>) -> PyResult<String> {
-        py.allow_threads(
-            || match clientState_t::try_from(self.player_info.connection_state) {
+        py.allow_threads(|| {
+            match clientState_t::try_from(self.player_info.lock().connection_state) {
                 Ok(clientState_t::CS_FREE) => Ok("free".to_string()),
                 Ok(clientState_t::CS_ZOMBIE) => Ok("zombie".to_string()),
                 Ok(clientState_t::CS_CONNECTED) => Ok("connected".to_string()),
                 Ok(clientState_t::CS_PRIMED) => Ok("primed".to_string()),
                 Ok(clientState_t::CS_ACTIVE) => Ok("active".to_string()),
                 _ => Err(PyValueError::new_err("invalid clientState")),
-            },
-        )
+            }
+        })
     }
 
     #[getter(state)]
@@ -605,13 +629,15 @@ impl Player {
 
     #[getter(privileges)]
     fn get_privileges(&self, py: Python<'_>) -> Option<String> {
-        py.allow_threads(|| match privileges_t::from(self.player_info.privileges) {
-            privileges_t::PRIV_MOD => Some("mod".to_string()),
-            privileges_t::PRIV_ADMIN => Some("admin".to_string()),
-            privileges_t::PRIV_ROOT => Some("root".to_string()),
-            privileges_t::PRIV_BANNED => Some("banned".to_string()),
-            _ => None,
-        })
+        py.allow_threads(
+            || match privileges_t::from(self.player_info.lock().privileges) {
+                privileges_t::PRIV_MOD => Some("mod".to_string()),
+                privileges_t::PRIV_ADMIN => Some("admin".to_string()),
+                privileges_t::PRIV_ROOT => Some("root".to_string()),
+                privileges_t::PRIV_BANNED => Some("banned".to_string()),
+                _ => None,
+            },
+        )
     }
 
     #[setter(privileges)]
@@ -641,7 +667,7 @@ impl Player {
     #[setter(country)]
     fn set_country(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.userinfo.clone());
+            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo.clone());
             new_cvars.set("country", &value);
             new_cvars.into()
         });
@@ -651,9 +677,9 @@ impl Player {
         Ok(())
     }
 
-    #[getter(valid)]
+    #[getter(_valid)]
     fn get_valid(&self, py: Python<'_>) -> bool {
-        py.allow_threads(|| self.valid)
+        py.allow_threads(|| self.valid.load(Ordering::SeqCst))
     }
 
     #[getter(stats)]
@@ -1341,12 +1367,12 @@ impl Player {
                 .iter()
                 .filter_map(|opt_player_info| {
                     opt_player_info.as_ref().map(|player_info| Player {
-                        valid: true,
+                        valid: true.into(),
                         id: player_info.client_id,
                         user_info: player_info.userinfo.clone(),
                         steam_id: player_info.steam_id,
-                        name: player_info.name.clone(),
-                        player_info: player_info.clone(),
+                        name: spin::mutex::FairMutex::new(player_info.name.clone()),
+                        player_info: spin::mutex::FairMutex::new(player_info.clone()),
                     })
                 })
                 .collect())
@@ -1365,6 +1391,7 @@ mod pyshinqlx_player_tests {
         shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
     };
     use crate::prelude::*;
+    use std::sync::atomic::Ordering;
 
     use mockall::{predicate, Sequence};
     use pretty_assertions::assert_eq;
@@ -1416,11 +1443,12 @@ mod pyshinqlx_player_tests {
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                name: "UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".to_string().into(),
                 player_info: PlayerInfo {
                     name: "UnnamedPlayer".to_string(),
                     ..default_test_player_info()
-                },
+                }
+                .into(),
                 ..default_test_player()
             }
         );
@@ -1441,9 +1469,10 @@ mod pyshinqlx_player_tests {
                 player_info: PlayerInfo {
                     userinfo: r"\name\UnnamedPlayer".to_string(),
                     ..default_test_player_info()
-                },
+                }
+                .into(),
                 user_info: r"\name\UnnamedPlayer".to_string(),
-                name: "UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".to_string().into(),
                 ..default_test_player()
             }
         );
@@ -1467,11 +1496,12 @@ mod pyshinqlx_player_tests {
         assert_eq!(
             result.expect("result was not OK"),
             Player {
-                name: "UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".to_string().into(),
                 player_info: PlayerInfo {
                     name: "UnnamedPlayer".to_string(),
                     ..default_test_player_info()
-                },
+                }
+                .into(),
                 ..default_test_player()
             }
         );
@@ -1487,8 +1517,9 @@ mod pyshinqlx_player_tests {
                     player_info: PlayerInfo {
                         name: "UnnamedPlayer".to_string(),
                         ..default_test_player_info()
-                    },
-                    name: "UnnamedPlayer".to_string(),
+                    }
+                    .into(),
+                    name: "UnnamedPlayer".to_string().into(),
                     ..default_test_player()
                 },
             )
@@ -1504,8 +1535,9 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 name: "^1Unnamed^2Player".to_string(),
                 ..default_test_player_info()
-            },
-            name: "^1Unnamed^2Player".to_string(),
+            }
+            .into(),
+            name: "^1Unnamed^2Player".to_string().into(),
             ..default_test_player()
         };
         assert_eq!(player.__str__(), "^1Unnamed^2Player");
@@ -1515,7 +1547,7 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn contains_with_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
-            valid: false,
+            valid: false.into(),
             ..default_test_player()
         };
 
@@ -1532,7 +1564,8 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 userinfo: r"\asdf\some value".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             user_info: r"\asdf\some value".to_string(),
             ..default_test_player()
         };
@@ -1548,7 +1581,8 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 userinfo: r"\name\^1Unnamed^2Player".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             user_info: r"\name\^1Unnamed^2Player".to_string(),
             ..default_test_player()
         };
@@ -1561,7 +1595,7 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn getitem_with_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
-            valid: false,
+            valid: false.into(),
             ..default_test_player()
         };
 
@@ -1578,7 +1612,8 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 userinfo: r"\asdf\some value".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             user_info: r"\asdf\some value".to_string(),
             ..default_test_player()
         };
@@ -1594,7 +1629,8 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 userinfo: r"\name\^1Unnamed^2Player".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             user_info: r"\name\^1Unnamed^2Player".to_string(),
             ..default_test_player()
         };
@@ -1609,7 +1645,7 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn cvars_with_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
-            valid: false,
+            valid: false.into(),
             ..default_test_player()
         };
 
@@ -1626,7 +1662,8 @@ mod pyshinqlx_player_tests {
             player_info: PlayerInfo {
                 userinfo: r"\asdf\some value".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             user_info: r"\asdf\some value".to_string(),
             ..default_test_player()
         };
@@ -1836,7 +1873,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                 mock_client
             });
 
-        let mut player = Player {
+        let player = Player {
             steam_id: 1234567890,
             ..default_test_player()
         };
@@ -1845,7 +1882,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
             let result = player.update(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
-        assert_eq!(player.valid, false);
+        assert_eq!(player.valid.load(Ordering::SeqCst), false);
     }
 
     #[rstest]
@@ -1900,7 +1937,7 @@ assert(player._valid)
                 Some(&[("player", player.into_pyobject(py)?)].into_py_dict(py)?),
             )
         });
-        assert!(result.is_ok());
+        assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
     }
 
     #[rstest]
@@ -1940,14 +1977,14 @@ assert(player._valid)
                 mock_client
             });
 
-        let mut player = Player {
+        let player = Player {
             steam_id: 1234567890,
             ..default_test_player()
         };
 
         Python::with_gil(|py| player.update(py).unwrap());
-        assert_eq!(player.valid, true);
-        assert_eq!(player.name, "NewUnnamedPlayer");
+        assert_eq!(player.valid.load(Ordering::SeqCst), true);
+        assert_eq!(&*player.name.lock(), "NewUnnamedPlayer");
     }
 
     #[rstest]
@@ -1987,22 +2024,22 @@ assert(player._valid)
                 mock_client
             });
 
-        let mut player = Player {
+        let player = Player {
             steam_id: 1234567890,
             ..default_test_player()
         };
 
         Python::with_gil(|py| player.update(py).unwrap());
-        assert_eq!(player.valid, true);
-        assert_eq!(player.name, "NewUnnamedPlayer");
+        assert_eq!(player.valid.load(Ordering::SeqCst), true);
+        assert_eq!(&*player.name.lock(), "NewUnnamedPlayer");
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn invalidate_invalidates_player(_pyshinqlx_setup: ()) {
-        let mut player = default_test_player();
+        let player = default_test_player();
         let result = player.invalidate("invalid player");
-        assert_eq!(player.valid, false);
+        assert_eq!(player.valid.load(Ordering::SeqCst), false);
         Python::with_gil(|py| {
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
@@ -2054,7 +2091,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         assert_eq!(Python::with_gil(|py| player.get_ip(py)), "");
@@ -2068,7 +2106,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\ip\127.0.0.1".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2083,7 +2122,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\ip\127.0.0.1:27666".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2187,11 +2227,12 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_name_for_color_terminated_name(_pyshinqlx_setup: ()) {
         let player = Player {
-            name: "UnnamedPlayer^7".to_string(),
+            name: "UnnamedPlayer^7".to_string().into(),
             player_info: PlayerInfo {
                 name: "UnnamedPlayer^7".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2205,11 +2246,12 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_name_for_color_unterminated_name(_pyshinqlx_setup: ()) {
         let player = Player {
-            name: "UnnamedPlayer".to_string(),
+            name: "UnnamedPlayer".to_string().into(),
             player_info: PlayerInfo {
                 name: "UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2247,7 +2289,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2262,7 +2305,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_clean_name_returns_cleaned_name(_pyshinqlx_setup: ()) {
         let player = Player {
-            name: "^7^1S^3hi^4N^10^7".to_string(),
+            name: "^7^1S^3hi^4N^10^7".to_string().into(),
             ..default_test_player()
         };
 
@@ -2278,7 +2321,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2295,7 +2339,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\qport\27666".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2312,7 +2357,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\qport\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2336,7 +2382,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 team: team as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2355,7 +2402,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 team: 42,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2402,7 +2450,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2419,7 +2468,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\color1\42\colors2\21".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2436,7 +2486,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\color1\asdf\color2\42".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2453,7 +2504,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\color1\42\color2\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2490,7 +2542,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2508,7 +2561,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2526,7 +2580,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\model\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2562,7 +2617,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2580,7 +2636,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2598,7 +2655,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\headmodel\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2634,7 +2692,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2652,7 +2711,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2670,7 +2730,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\handicap\42".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2706,7 +2767,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2726,7 +2788,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2744,7 +2807,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2762,7 +2826,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\autohop\1".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2778,7 +2843,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\autohop\0".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2794,7 +2860,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\autohop\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2832,7 +2899,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2852,7 +2920,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2870,7 +2939,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2888,7 +2958,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\autoaction\1".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2904,7 +2975,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\autoaction\0".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2920,7 +2992,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\autoaction\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2958,7 +3031,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2979,7 +3053,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -2997,7 +3072,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: "".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3015,7 +3091,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\cg_predictitems\1".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3031,7 +3108,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\cg_predictitems\0".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3047,7 +3125,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\cg_predictitems\asdf".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3085,7 +3164,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3106,7 +3186,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3132,7 +3213,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 connection_state: client_state as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3147,7 +3229,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 connection_state: 42,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3288,7 +3371,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 privileges,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3349,7 +3433,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\country\de".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3385,7 +3470,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 userinfo: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -3399,7 +3485,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_valid_for_valid_player(_pyshinqlx_setup: ()) {
         let player = Player {
-            valid: true,
+            valid: true.into(),
             ..default_test_player()
         };
         Python::with_gil(|py| assert_eq!(player.get_valid(py), true));
@@ -3409,7 +3495,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_valid_for_invalid_player(_pyshinqlx_setup: ()) {
         let player = Player {
-            valid: false,
+            valid: false.into(),
             ..default_test_player()
         };
         Python::with_gil(|py| assert_eq!(player.get_valid(py), false));
@@ -6710,7 +6796,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -6774,7 +6861,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -6846,7 +6934,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 connection_state: clientState_t::CS_ACTIVE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -7008,7 +7097,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 team: team_t::TEAM_SPECTATOR as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let other_player = Player {
@@ -7016,7 +7106,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 team: team_t::TEAM_SPECTATOR as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -7035,7 +7126,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 team: team_t::TEAM_RED as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
         let other_player = Player {
@@ -7043,7 +7135,8 @@ assert(player._valid)
             player_info: PlayerInfo {
                 team: team_t::TEAM_BLUE as i32,
                 ..default_test_player_info()
-            },
+            }
+            .into(),
             ..default_test_player()
         };
 
@@ -7183,7 +7276,7 @@ assert(player._valid)
                 all_players.expect("result was not ok"),
                 vec![
                     Player {
-                        valid: true,
+                        valid: true.into(),
                         id: 0,
                         player_info: PlayerInfo {
                             client_id: 0,
@@ -7193,13 +7286,14 @@ assert(player._valid)
                             steam_id: 1234,
                             team: team_t::TEAM_RED as i32,
                             privileges: 0,
-                        },
-                        name: "Mocked Player".to_string(),
+                        }
+                        .into(),
+                        name: "Mocked Player".to_string().into(),
                         steam_id: 1234,
                         user_info: "asdf".to_string(),
                     },
                     Player {
-                        valid: true,
+                        valid: true.into(),
                         id: 2,
                         player_info: PlayerInfo {
                             client_id: 2,
@@ -7209,8 +7303,9 @@ assert(player._valid)
                             steam_id: 1234,
                             team: team_t::TEAM_RED as i32,
                             privileges: 0,
-                        },
-                        name: "Mocked Player".to_string(),
+                        }
+                        .into(),
+                        name: "Mocked Player".to_string().into(),
                         steam_id: 1234,
                         user_info: "asdf".to_string(),
                     },
@@ -7235,7 +7330,7 @@ static _DUMMY_USERINFO: &str = r#"
 \rate\25000
 \country\NO"#;
 
-#[pyclass(module = "_player", name = "AbstractDummyPlayer", extends = Player, subclass)]
+#[pyclass(module = "_player", name = "AbstractDummyPlayer", extends = Player, subclass, frozen)]
 pub(crate) struct AbstractDummyPlayer;
 
 #[pymethods]
@@ -7397,7 +7492,7 @@ shinqlx.AbstractDummyPlayer().tell("asdf")
     }
 }
 
-#[pyclass(module = "_player", name = "RconDummyPlayer", extends = AbstractDummyPlayer)]
+#[pyclass(module = "_player", name = "RconDummyPlayer", extends = AbstractDummyPlayer, frozen)]
 pub(crate) struct RconDummyPlayer;
 
 #[pymethods]
