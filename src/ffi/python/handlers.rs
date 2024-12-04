@@ -14,8 +14,8 @@ use super::prelude::{
 };
 use super::{
     get_cvar, is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+    CommandInvokerMethods, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
+    EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
 };
 use crate::{
     quake_live_engine::{FindCVar, GetConfigstring},
@@ -50,13 +50,8 @@ fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
             .map_or(py.None(), |channel| channel.clone_ref(py).into_any());
 
         commands
-            .borrow(py)
-            .handle_input(
-                py,
-                &player,
-                cmd,
-                shinqlx_console_channel.bind(py).to_owned(),
-            )
+            .bind(py)
+            .handle_input(&player, cmd, shinqlx_console_channel.bind(py).as_any())
             .map(|_| None)
     })
 }
@@ -107,8 +102,6 @@ mod handle_rcon_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_rcon_with_command_invoker_in_place(_pyshinqlx_setup: ()) {
-        let command_invoker = CommandInvoker::py_new();
-
         Python::with_gil(|py| {
             let plugin = test_plugin(py);
             let capturing_hook = capturing_hook(py);
@@ -116,33 +109,27 @@ mod handle_rcon_tests {
                 .getattr("hook")
                 .expect("could not get handler from test module");
             let command = Command::py_new(
-                py,
-                plugin,
-                PyString::new(py, "asdf").into_any(),
-                cmd_handler,
+                &plugin,
+                PyString::new(py, "asdf").as_any(),
+                &cmd_handler,
                 0,
-                py.None().bind(py).to_owned(),
-                py.None().bind(py).to_owned(),
+                py.None().bind(py),
+                py.None().bind(py),
                 false,
                 0,
                 false,
                 "",
             )
             .expect("could not create command");
-            let py_command = Py::new(py, command).expect("this should not happen");
+            let py_command = Bound::new(py, command).expect("this should not happen");
 
+            let command_invoker =
+                Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             command_invoker
-                .add_command(
-                    py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
-                )
+                .add_command(&py_command, CommandPriorities::PRI_NORMAL as usize)
                 .expect("could not add command to command invoker");
-            COMMANDS.store(Some(
-                Py::new(py, command_invoker)
-                    .expect("could not create CommandInvoker in Python")
-                    .into(),
-            ));
+            COMMANDS.store(Some(command_invoker.unbind().into()));
+
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -181,34 +168,26 @@ def raising_exception_hook(*args, **kwargs):
                 .expect("could not get raising_exception_hook function");
 
             let command = Command::py_new(
-                py,
-                plugin,
-                PyString::new(py, "asdf").into_any(),
-                cmd_handler,
+                &plugin,
+                PyString::new(py, "asdf").as_any(),
+                &cmd_handler,
                 0,
-                py.None().bind(py).to_owned(),
-                py.None().bind(py).to_owned(),
+                py.None().bind(py),
+                py.None().bind(py),
                 false,
                 0,
                 false,
                 "",
             )
             .expect("could not create command");
-            let py_command = Py::new(py, command).expect("this should not happen");
+            let py_command = Bound::new(py, command).expect("this should not happen");
 
-            let command_invoker = CommandInvoker::py_new();
+            let command_invoker =
+                Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             command_invoker
-                .add_command(
-                    py,
-                    py_command.into_bound(py),
-                    CommandPriorities::PRI_NORMAL as usize,
-                )
+                .add_command(&py_command, CommandPriorities::PRI_NORMAL as usize)
                 .expect("could not add command to command invoker");
-            COMMANDS.store(Some(
-                Py::new(py, command_invoker)
-                    .expect("could not create CommandInvoker in Python")
-                    .into(),
-            ));
+            COMMANDS.store(Some(command_invoker.unbind().into()));
 
             let result = handle_rcon(py, "asdf");
             assert!(result.is_some_and(|value| value));

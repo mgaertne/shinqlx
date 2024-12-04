@@ -2,8 +2,8 @@ use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities,
     console_command, demote, is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger,
-    set_teamsize, tempban, unban, unlock, unmute, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS,
-    CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+    set_teamsize, tempban, unban, unlock, unmute, CommandInvokerMethods, BLUE_TEAM_CHAT_CHANNEL,
+    CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
 };
 
 #[cfg(test)]
@@ -266,8 +266,8 @@ impl Plugin {
     #[allow(clippy::too_many_arguments)]
     fn add_command(
         slf: &Bound<'_, Self>,
-        name: Bound<'_, PyAny>,
-        handler: Bound<'_, PyAny>,
+        name: &Bound<'_, PyAny>,
+        handler: &Bound<'_, PyAny>,
         permission: i32,
         channels: Option<Bound<'_, PyAny>>,
         exclude_channels: Option<Bound<'_, PyAny>>,
@@ -281,34 +281,31 @@ impl Plugin {
         let py_exclude_channels = exclude_channels.unwrap_or(PyTuple::empty(slf.py()).into_any());
 
         let new_command = Command::py_new(
-            slf.py(),
-            slf.clone().into_any(),
+            slf,
             name,
             handler,
             permission,
-            py_channels,
-            py_exclude_channels,
+            &py_channels,
+            &py_exclude_channels,
             client_cmd_pass,
             client_cmd_perm,
             prefix,
             usage,
         )?;
-        let py_command = Py::new(slf.py(), new_command)?;
+        let py_command = Bound::new(slf.py(), new_command)?;
 
         slf.try_borrow_mut().map_or(
             Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
             |mut plugin| {
-                plugin.commands.push(py_command.clone_ref(slf.py()));
+                plugin.commands.push(py_command.clone().unbind());
                 Ok(())
             },
         )?;
 
         COMMANDS.load().as_ref().map_or(Ok(()), |commands| {
-            commands.borrow(slf.py()).add_command(
-                slf.py(),
-                py_command.into_bound(slf.py()),
-                priority as usize,
-            )
+            commands
+                .bind(slf.py())
+                .add_command(&py_command, priority as usize)
         })
     }
 
@@ -1929,8 +1926,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").into_any(),
-                command_handler,
+                PyString::new(py, "slap").as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
@@ -1993,8 +1990,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").into_any(),
-                command_handler,
+                PyString::new(py, "slap").as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
@@ -2050,8 +2047,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").into_any(),
-                command_handler.clone(),
+                PyString::new(py, "slap").as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
@@ -2116,8 +2113,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").into_any(),
-                command_handler.clone(),
+                PyString::new(py, "slap").as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
@@ -2135,8 +2132,8 @@ def handler():
                     .expect("could not downcast instance to plugin"),
                 PyTuple::new(py, ["slay", "asdf"])
                     .expect("this should not happen")
-                    .into_any(),
-                command_handler.clone(),
+                    .as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
@@ -2209,8 +2206,8 @@ def handler():
                     .expect("could not downcast instance to plugin"),
                 PyTuple::new(py, ["slay", "asdf"])
                     .expect("this should not happen")
-                    .into_any(),
-                command_handler.clone(),
+                    .as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
@@ -2278,8 +2275,8 @@ def handler():
                 plugin_instance
                     .downcast::<Plugin>()
                     .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").into_any(),
-                command_handler.clone(),
+                PyString::new(py, "slap").as_any(),
+                &command_handler,
                 0,
                 None,
                 None,
