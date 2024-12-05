@@ -46,7 +46,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
 
         let super_class = self.borrow().into_super();
         let borrowed_player = player.borrow();
-        let player_str = &*borrowed_player.name.lock();
+        let player_str = &*borrowed_player.name.read();
         let dbgstr = format!("{}({}, {})", ClientCommandDispatcher::name, player_str, cmd);
         dispatcher_debug_log(self.py(), &dbgstr);
         let plugins = super_class.plugins.read();

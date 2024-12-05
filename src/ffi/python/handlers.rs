@@ -9052,7 +9052,7 @@ mod handle_console_print_tests {
     }
 }
 
-#[pyclass(module = "_handlers", name = "PrintRedirector")]
+#[pyclass(module = "_handlers", name = "PrintRedirector", frozen)]
 pub(crate) struct PrintRedirector {
     channel: PyObject,
     print_buffer: parking_lot::RwLock<String>,

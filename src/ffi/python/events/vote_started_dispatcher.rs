@@ -6,7 +6,7 @@ use pyo3::types::{PyString, PyTuple};
 /// will have the caller set to None.
 #[pyclass(module = "_events", name = "VoteStartedDispatcher", extends = EventDispatcher, frozen)]
 pub(crate) struct VoteStartedDispatcher {
-    player: spin::mutex::FairMutex<PyObject>,
+    player: parking_lot::RwLock<PyObject>,
 }
 
 #[pymethods]
@@ -52,7 +52,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
         let player = &self
             .borrow()
             .player
-            .try_lock()
+            .try_read()
             .unwrap()
             .clone_ref(self.py())
             .into_bound(self.py())
@@ -67,7 +67,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
     }
 
     fn caller(&self, player: &Bound<'py, PyAny>) {
-        *self.borrow().player.lock() = player.clone().unbind();
+        *self.borrow().player.write() = player.clone().unbind();
     }
 }
 

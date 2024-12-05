@@ -2,8 +2,9 @@ use super::prelude::*;
 use super::{
     addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities,
     console_command, demote, is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger,
-    set_teamsize, tempban, unban, unlock, unmute, CommandInvokerMethods, BLUE_TEAM_CHAT_CHANNEL,
-    CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+    set_teamsize, tempban, unban, unlock, unmute, CommandInvokerMethods, EventDispatcherMethods,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+    RED_TEAM_CHAT_CHANNEL,
 };
 
 #[cfg(test)]
@@ -45,11 +46,11 @@ use pyo3::{
 ///     I/O is the bane of single-threaded applications. You do **not** want blocking operations
 ///     in code called by commands or events. That could make players lag. Helper decorators
 ///     like :func:`shinqlx.thread` can be useful.
-#[pyclass(name = "Plugin", module = "_plugin", subclass)]
+#[pyclass(name = "Plugin", module = "_plugin", subclass, frozen)]
 pub(crate) struct Plugin {
-    hooks: Vec<(String, PyObject, i32)>,
-    commands: Vec<Py<Command>>,
-    db_instance: PyObject,
+    hooks: parking_lot::RwLock<Vec<(String, PyObject, i32)>>,
+    commands: parking_lot::RwLock<Vec<Py<Command>>>,
+    db_instance: parking_lot::RwLock<PyObject>,
 }
 
 #[pymethods]
@@ -57,24 +58,30 @@ impl Plugin {
     #[new]
     fn py_new(py: Python<'_>) -> Self {
         Self {
-            hooks: vec![],
-            commands: vec![],
-            db_instance: py.None(),
+            hooks: vec![].into(),
+            commands: vec![].into(),
+            db_instance: py.None().into(),
         }
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         self.hooks
+            .read()
             .iter()
-            .map(|hook| visit.call(&hook.1))
+            .map(|(_, handler, _)| visit.call(handler))
             .collect::<Result<Vec<_>, PyTraverseError>>()?;
-
-        visit.call(&self.db_instance)?;
+        self.commands
+            .read()
+            .iter()
+            .map(|cmd| visit.call(cmd))
+            .collect::<Result<Vec<_>, PyTraverseError>>()?;
+        visit.call(&*self.db_instance.read())?;
         Ok(())
     }
 
-    fn __clear__(&mut self) {
-        self.hooks.clear();
+    fn __clear__(&self) {
+        self.hooks.write().clear();
+        self.commands.write().clear();
     }
 
     fn __str__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -99,13 +106,18 @@ impl Plugin {
             return Err(PyRuntimeError::new_err(error_msg));
         }
 
-        let mut plugin = slf.borrow_mut();
-        if plugin.db_instance.bind(slf.py()).is_none() {
+        let plugin = slf.borrow();
+        if plugin.db_instance.read().bind(slf.py()).is_none() {
             let db_instance = db_class.call1((slf,))?;
-            plugin.db_instance = db_instance.unbind();
+            *plugin.db_instance.write() = db_instance.unbind();
         }
 
-        Ok(plugin.db_instance.clone_ref(slf.py()).into_bound(slf.py()))
+        let returned = plugin
+            .db_instance
+            .read()
+            .clone_ref(slf.py())
+            .into_bound(slf.py());
+        Ok(returned)
     }
 
     /// The name of the plugin.
@@ -129,6 +141,7 @@ impl Plugin {
     #[getter(hooks)]
     fn get_hooks<'py>(&self, py: Python<'py>) -> Vec<(String, Bound<'py, PyAny>, i32)> {
         self.hooks
+            .read()
             .iter()
             .map(|(name, handler, permission)| {
                 (
@@ -144,6 +157,7 @@ impl Plugin {
     #[getter(commands)]
     fn get_commands(&self, py: Python<'_>) -> Vec<Py<Command>> {
         self.commands
+            .read()
             .iter()
             .map(|command| command.clone_ref(py))
             .collect()
@@ -195,11 +209,12 @@ impl Plugin {
                 },
             )?;
 
-        slf.try_borrow_mut().map_or(
+        slf.try_borrow().map_or(
             Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
-            |mut plugin| {
+            |plugin| {
                 plugin
                     .hooks
+                    .write()
                     .push((event.clone(), handler.unbind(), priority));
                 Ok(())
             },
@@ -224,19 +239,22 @@ impl Plugin {
                 |event_dispatcher| {
                     let plugin_type = slf.get_type();
                     let plugin_name = plugin_type.name()?;
-                    event_dispatcher.call_method1(
-                        intern!(slf.py(), "remove_hook"),
-                        (plugin_name, &handler, priority),
+                    EventDispatcherMethods::remove_hook(
+                        event_dispatcher.downcast()?,
+                        &plugin_name.to_string(),
+                        &handler,
+                        priority,
                     )?;
                     Ok(())
                 },
             )?;
 
-        slf.try_borrow_mut().map_or(
+        slf.try_borrow().map_or(
             Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
-            |mut plugin| {
+            |plugin| {
                 plugin
                     .hooks
+                    .write()
                     .retain(|(hook_event, hook_handler, hook_priority)| {
                         hook_event != &event
                             || hook_handler
@@ -294,10 +312,10 @@ impl Plugin {
         )?;
         let py_command = Bound::new(slf.py(), new_command)?;
 
-        slf.try_borrow_mut().map_or(
+        slf.try_borrow().map_or(
             Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
-            |mut plugin| {
-                plugin.commands.push(py_command.clone().unbind());
+            |plugin| {
+                plugin.commands.write().push(py_command.clone().unbind());
                 Ok(())
             },
         )?;
@@ -339,6 +357,7 @@ impl Plugin {
 
         slf.borrow()
             .commands
+            .read()
             .iter()
             .find(|&existing_command| {
                 existing_command.bind(slf.py()).borrow().name.len() == names.len()
@@ -371,10 +390,10 @@ impl Plugin {
                 )
             })?;
 
-        slf.try_borrow_mut().map_or(
+        slf.try_borrow().map_or(
             Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
-            |mut plugin| {
-                plugin.commands.retain(|existing_command| {
+            |plugin| {
+                plugin.commands.write().retain(|existing_command| {
                     existing_command.bind(slf.py()).borrow().name.len() != names.len()
                         || !existing_command
                             .bind(slf.py())
@@ -782,7 +801,7 @@ impl Plugin {
         player_list: Option<Vec<Player>>,
     ) -> Option<String> {
         if let Ok(player) = name.extract::<Player>() {
-            return Some(player.name.lock().clone());
+            return Some(player.name.read().clone());
         }
 
         let Ok(searched_name) = name.str().map(|value| value.to_string()) else {
@@ -795,7 +814,7 @@ impl Plugin {
         players
             .iter()
             .find(|&player| player.get_clean_name(cls.py()).to_lowercase() == clean_name)
-            .map(|found_player| found_player.name.lock().clone())
+            .map(|found_player| found_player.name.read().clone())
     }
 
     /// Get a player's client id from the name, client ID,
@@ -830,7 +849,7 @@ impl Plugin {
             players
                 .iter()
                 .filter(|player| {
-                    let player_name = &*player.name.lock();
+                    let player_name = &*player.name.read();
                     clean_text(player_name)
                         .to_lowercase()
                         .contains(&cleaned_text)
@@ -1418,9 +1437,10 @@ mod plugin_tests {
                 hooks: vec![
                     ("asdf".to_string(), py.None(), 1),
                     ("qwertz".to_string(), py.None(), 0),
-                ],
+                ]
+                .into(),
                 commands: Default::default(),
-                db_instance: py.None(),
+                db_instance: py.None().into(),
             };
 
             let hooks = plugin.get_hooks(py);
@@ -1443,7 +1463,7 @@ mod plugin_tests {
             let plugin = Plugin {
                 hooks: Default::default(),
                 commands: Default::default(),
-                db_instance: py.None(),
+                db_instance: py.None().into(),
             };
 
             assert_eq!(plugin.get_commands(py).len(), 0);
@@ -1458,7 +1478,7 @@ mod plugin_tests {
             let plugin = Plugin {
                 hooks: Default::default(),
                 commands: Default::default(),
-                db_instance: py.None(),
+                db_instance: py.None().into(),
             };
 
             assert!(plugin.get_game(py).is_none());
@@ -1476,7 +1496,7 @@ mod plugin_tests {
                     let plugin = Plugin {
                         hooks: Default::default(),
                         commands: Default::default(),
-                        db_instance: py.None(),
+                        db_instance: py.None().into(),
                     };
 
                     assert!(plugin.get_game(py).is_some());
