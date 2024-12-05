@@ -73,12 +73,12 @@ pub(crate) struct Player {
     pub(crate) valid: AtomicBool,
     #[pyo3(name = "_id", get)]
     pub(crate) id: i32,
-    pub(crate) player_info: spin::mutex::FairMutex<PlayerInfo>,
+    pub(crate) player_info: parking_lot::RwLock<PlayerInfo>,
     #[pyo3(name = "_userinfo", get)]
     pub(crate) user_info: String,
     #[pyo3(name = "_steam_id", get)]
     pub(crate) steam_id: i64,
-    pub(crate) name: spin::mutex::FairMutex<String>,
+    pub(crate) name: parking_lot::RwLock<String>,
 }
 
 impl Clone for Player {
@@ -86,10 +86,10 @@ impl Clone for Player {
         Self {
             valid: self.valid.load(Ordering::SeqCst).into(),
             id: self.id,
-            player_info: self.player_info.lock().clone().into(),
+            player_info: self.player_info.read().clone().into(),
             user_info: self.user_info.clone(),
             steam_id: self.steam_id,
-            name: self.name.lock().clone().into(),
+            name: self.name.read().clone().into(),
         }
     }
 }
@@ -98,10 +98,10 @@ impl PartialEq for Player {
     fn eq(&self, other: &Self) -> bool {
         self.valid.load(Ordering::SeqCst) == other.valid.load(Ordering::SeqCst)
             && self.id == other.id
-            && *self.player_info.lock() == *other.player_info.lock()
+            && *self.player_info.read() == *other.player_info.read()
             && self.user_info == other.user_info
             && self.steam_id == other.steam_id
-            && *self.name.lock() == *other.name.lock()
+            && *self.name.read() == *other.name.read()
     }
 }
 
@@ -148,7 +148,7 @@ impl Player {
     }
 
     fn __str__(&self) -> String {
-        self.name.lock().clone()
+        self.name.read().clone()
     }
 
     fn __contains__(&self, py: Python<'_>, item: &str) -> PyResult<bool> {
@@ -215,9 +215,9 @@ impl Player {
     ///
     ///         :raises: shinqlx.NonexistentPlayerError
     fn update(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| *self.player_info.lock() = PlayerInfo::from(self.id));
+        py.allow_threads(|| *self.player_info.write() = PlayerInfo::from(self.id));
 
-        if self.player_info.lock().steam_id != self.steam_id {
+        if self.player_info.read().steam_id != self.steam_id {
             self.valid.store(false, Ordering::SeqCst);
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
@@ -225,13 +225,13 @@ impl Player {
         }
 
         py.allow_threads(|| {
-            let name = if self.player_info.lock().name.is_empty() {
-                let cvars = parse_variables(&self.player_info.lock().userinfo);
+            let name = if self.player_info.read().name.is_empty() {
+                let cvars = parse_variables(&self.player_info.read().userinfo);
                 cvars.get("name").unwrap_or_default()
             } else {
-                self.player_info.lock().name.clone()
+                self.player_info.read().name.clone()
             };
-            *self.name.lock() = name;
+            *self.name.write() = name;
         });
 
         Ok(())
@@ -328,10 +328,10 @@ impl Player {
     #[getter(name)]
     fn get_name(&self, py: Python<'_>) -> String {
         py.allow_threads(|| {
-            if self.name.lock().ends_with("^7") {
-                self.name.lock().clone()
+            if self.name.read().ends_with("^7") {
+                self.name.read().clone()
             } else {
-                format!("{}^7", self.name.lock())
+                format!("{}^7", self.name.read())
             }
         })
     }
@@ -352,7 +352,7 @@ impl Player {
     /// Removes color tags from the name.
     #[getter(clean_name)]
     pub(crate) fn get_clean_name(&self, py: Python<'_>) -> String {
-        py.allow_threads(|| clean_text(&(&*self.name.lock())))
+        py.allow_threads(|| clean_text(&(&*self.name.read())))
     }
 
     #[getter(qport)]
@@ -368,7 +368,7 @@ impl Player {
 
     #[getter(team)]
     pub(crate) fn get_team(&self, py: Python<'_>) -> PyResult<String> {
-        py.allow_threads(|| match team_t::try_from(self.player_info.lock().team) {
+        py.allow_threads(|| match team_t::try_from(self.player_info.read().team) {
             Ok(team_t::TEAM_FREE) => Ok("free".to_string()),
             Ok(team_t::TEAM_RED) => Ok("red".to_string()),
             Ok(team_t::TEAM_BLUE) => Ok("blue".to_string()),
@@ -408,7 +408,7 @@ impl Player {
     #[setter(colors)]
     fn set_colors(&self, py: Python<'_>, new: (i32, i32)) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("color1", &format!("{}", new.0));
             new_cvars.set("color2", &format!("{}", new.1));
             new_cvars.into()
@@ -432,7 +432,7 @@ impl Player {
     #[setter(model)]
     fn set_model(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("model", &value);
             new_cvars.into()
         });
@@ -455,7 +455,7 @@ impl Player {
     #[setter(headmodel)]
     fn set_headmodel(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("headmodel", &value);
             new_cvars.into()
         });
@@ -484,7 +484,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("handicap", &new_handicap);
             new_cvars.into()
         });
@@ -519,7 +519,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("autohop", &new_autohop);
             new_cvars.into()
         });
@@ -554,7 +554,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("autoaction", &new_autoaction);
             new_cvars.into()
         });
@@ -589,7 +589,7 @@ impl Player {
         }
 
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo);
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo);
             new_cvars.set("cg_predictitems", &new_predictitems);
             new_cvars.into()
         });
@@ -611,7 +611,7 @@ impl Player {
     #[getter(connection_state)]
     fn get_connection_state(&self, py: Python<'_>) -> PyResult<String> {
         py.allow_threads(|| {
-            match clientState_t::try_from(self.player_info.lock().connection_state) {
+            match clientState_t::try_from(self.player_info.read().connection_state) {
                 Ok(clientState_t::CS_FREE) => Ok("free".to_string()),
                 Ok(clientState_t::CS_ZOMBIE) => Ok("zombie".to_string()),
                 Ok(clientState_t::CS_CONNECTED) => Ok("connected".to_string()),
@@ -630,7 +630,7 @@ impl Player {
     #[getter(privileges)]
     fn get_privileges(&self, py: Python<'_>) -> Option<String> {
         py.allow_threads(
-            || match privileges_t::from(self.player_info.lock().privileges) {
+            || match privileges_t::from(self.player_info.read().privileges) {
                 privileges_t::PRIV_MOD => Some("mod".to_string()),
                 privileges_t::PRIV_ADMIN => Some("admin".to_string()),
                 privileges_t::PRIV_ROOT => Some("root".to_string()),
@@ -667,7 +667,7 @@ impl Player {
     #[setter(country)]
     fn set_country(&self, py: Python<'_>, value: String) -> PyResult<()> {
         let new_cvars_string: String = py.allow_threads(|| {
-            let mut new_cvars = parse_variables(&self.player_info.lock().userinfo.clone());
+            let mut new_cvars = parse_variables(&self.player_info.read().userinfo.clone());
             new_cvars.set("country", &value);
             new_cvars.into()
         });
@@ -1371,8 +1371,8 @@ impl Player {
                         id: player_info.client_id,
                         user_info: player_info.userinfo.clone(),
                         steam_id: player_info.steam_id,
-                        name: spin::mutex::FairMutex::new(player_info.name.clone()),
-                        player_info: spin::mutex::FairMutex::new(player_info.clone()),
+                        name: player_info.name.clone().into(),
+                        player_info: player_info.clone().into(),
                     })
                 })
                 .collect())
@@ -1984,7 +1984,7 @@ assert(player._valid)
 
         Python::with_gil(|py| player.update(py).unwrap());
         assert_eq!(player.valid.load(Ordering::SeqCst), true);
-        assert_eq!(&*player.name.lock(), "NewUnnamedPlayer");
+        assert_eq!(&*player.name.read(), "NewUnnamedPlayer");
     }
 
     #[rstest]
@@ -2031,7 +2031,7 @@ assert(player._valid)
 
         Python::with_gil(|py| player.update(py).unwrap());
         assert_eq!(player.valid.load(Ordering::SeqCst), true);
-        assert_eq!(&*player.name.lock(), "NewUnnamedPlayer");
+        assert_eq!(&*player.name.read(), "NewUnnamedPlayer");
     }
 
     #[rstest]

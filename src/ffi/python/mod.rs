@@ -31,19 +31,20 @@ pub(crate) mod prelude {
         ClientCommandDispatcherMethods, CommandDispatcher, CommandDispatcherMethods,
         ConsolePrintDispatcher, ConsolePrintDispatcherMethods, DamageDispatcher,
         DamageDispatcherMethods, DeathDispatcher, EventDispatcher, EventDispatcherManager,
-        EventDispatcherManagerMethods, FrameEventDispatcher, FrameEventDispatcherMethods,
-        GameCountdownDispatcher, GameCountdownDispatcherMethods, GameEndDispatcher,
-        GameStartDispatcher, KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods,
-        KamikazeUseDispatcher, KamikazeUseDispatcherMethods, KillDispatcher, MapDispatcher,
-        MapDispatcherMethods, NewGameDispatcher, NewGameDispatcherMethods, PlayerConnectDispatcher,
-        PlayerConnectDispatcherMethods, PlayerDisconnectDispatcher,
-        PlayerDisconnectDispatcherMethods, PlayerLoadedDispatcher, PlayerLoadedDispatcherMethods,
-        PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods, RoundCountdownDispatcher,
-        RoundCountdownDispatcherMethods, RoundEndDispatcher, RoundStartDispatcher,
-        RoundStartDispatcherMethods, ServerCommandDispatcher, ServerCommandDispatcherMethods,
-        SetConfigstringDispatcher, SetConfigstringDispatcherMethods, StatsDispatcher,
-        TeamSwitchAttemptDispatcher, TeamSwitchAttemptDispatcherMethods, TeamSwitchDispatcher,
-        UnloadDispatcher, UnloadDispatcherMethods, UserinfoDispatcher, UserinfoDispatcherMethods,
+        EventDispatcherManagerMethods, EventDispatcherMethods, FrameEventDispatcher,
+        FrameEventDispatcherMethods, GameCountdownDispatcher, GameCountdownDispatcherMethods,
+        GameEndDispatcher, GameStartDispatcher, KamikazeExplodeDispatcher,
+        KamikazeExplodeDispatcherMethods, KamikazeUseDispatcher, KamikazeUseDispatcherMethods,
+        KillDispatcher, MapDispatcher, MapDispatcherMethods, NewGameDispatcher,
+        NewGameDispatcherMethods, PlayerConnectDispatcher, PlayerConnectDispatcherMethods,
+        PlayerDisconnectDispatcher, PlayerDisconnectDispatcherMethods, PlayerLoadedDispatcher,
+        PlayerLoadedDispatcherMethods, PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods,
+        RoundCountdownDispatcher, RoundCountdownDispatcherMethods, RoundEndDispatcher,
+        RoundStartDispatcher, RoundStartDispatcherMethods, ServerCommandDispatcher,
+        ServerCommandDispatcherMethods, SetConfigstringDispatcher,
+        SetConfigstringDispatcherMethods, StatsDispatcher, TeamSwitchAttemptDispatcher,
+        TeamSwitchAttemptDispatcherMethods, TeamSwitchDispatcher, UnloadDispatcher,
+        UnloadDispatcherMethods, UserinfoDispatcher, UserinfoDispatcherMethods,
         VoteCalledDispatcher, VoteCalledDispatcherMethods, VoteDispatcher, VoteDispatcherMethods,
         VoteEndedDispatcher, VoteEndedDispatcherMethods, VoteStartedDispatcher,
         VoteStartedDispatcherMethods,
@@ -488,7 +489,7 @@ pub(crate) fn client_id(
         return all_players
             .iter()
             .find(|&player| {
-                let player_name = &*player.name.lock();
+                let player_name = &*player.name.read();
                 clean_text(player_name).to_lowercase() == clean_name
             })
             .map(|player| player.id);

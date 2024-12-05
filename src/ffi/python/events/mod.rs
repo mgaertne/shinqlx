@@ -1692,7 +1692,7 @@ def default_hook(*args, **kwargs):
 #[pyclass(name = "EventDispatcherManager", module = "_events", mapping, frozen)]
 #[derive(Default)]
 pub(crate) struct EventDispatcherManager {
-    dispatchers: spin::mutex::FairMutex<Vec<(String, PyObject)>>,
+    dispatchers: parking_lot::RwLock<Vec<(String, PyObject)>>,
 }
 
 #[pymethods]
@@ -1704,7 +1704,7 @@ impl EventDispatcherManager {
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
         self.dispatchers
-            .lock()
+            .read()
             .iter()
             .map(|(_, plugins)| visit.call(plugins))
             .collect::<Result<Vec<_>, PyTraverseError>>()
@@ -1712,7 +1712,7 @@ impl EventDispatcherManager {
     }
 
     fn __clear__(&self) {
-        self.dispatchers.lock().clear();
+        self.dispatchers.write().clear();
     }
 
     #[getter(_dispatchers)]
@@ -1760,7 +1760,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
     fn __contains__(&self, key: &str) -> bool {
         self.borrow()
             .dispatchers
-            .lock()
+            .read()
             .iter()
             .any(|(event_name, _)| key == event_name)
     }
@@ -1768,7 +1768,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
     fn __getitem__(&self, key: &str) -> PyResult<Bound<'py, PyAny>> {
         self.borrow()
             .dispatchers
-            .lock()
+            .read()
             .iter()
             .find(|(event_name, _)| key == event_name)
             .map_or_else(
@@ -1783,7 +1783,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
     fn get_dispatchers(&self) -> PyResult<Bound<'py, PyDict>> {
         self.borrow()
             .dispatchers
-            .lock()
+            .read()
             .iter()
             .map(|(dispatcher_name, dispatch_function)| {
                 (
@@ -1815,7 +1815,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
 
         self.borrow()
             .dispatchers
-            .lock()
+            .write()
             .push((dispatcher_name_str, dispatcher.call0()?.unbind()));
 
         Ok(())
@@ -1837,7 +1837,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             return Err(PyValueError::new_err("Event name not found."));
         }
 
-        match self.borrow().dispatchers.try_lock() {
+        match self.borrow().dispatchers.try_write() {
             None => {
                 let remove_dispatcher_by_name_func = PyModule::from_code(
                     self.py(),

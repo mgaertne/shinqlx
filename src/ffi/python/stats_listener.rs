@@ -180,8 +180,8 @@ fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
                         id: player_info.client_id,
                         user_info: player_info.userinfo.clone(),
                         steam_id: player_info.steam_id,
-                        name: spin::mutex::FairMutex::new(player_info.name.clone()),
-                        player_info: spin::mutex::FairMutex::new(player_info.clone()),
+                        name: player_info.name.clone().into(),
+                        player_info: player_info.clone().into(),
                     })
                 }
             })
@@ -201,8 +201,8 @@ fn player_by_name(py: Python<'_>, name: &str) -> Option<Player> {
                         id: player_info.client_id,
                         user_info: player_info.userinfo.clone(),
                         steam_id: player_info.steam_id,
-                        name: spin::mutex::FairMutex::new(player_info.name.clone()),
-                        player_info: spin::mutex::FairMutex::new(player_info.clone()),
+                        name: player_info.name.clone().into(),
+                        player_info: player_info.clone().into(),
                     })
                 }
             })
