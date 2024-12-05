@@ -4,13 +4,12 @@ use core::array;
 use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
-use spin::mutex::FairMutex;
 
 use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 #[pyclass(frozen)]
 struct Vector3Iter {
-    iter: FairMutex<array::IntoIter<i32, 3>>,
+    iter: parking_lot::RwLock<array::IntoIter<i32, 3>>,
 }
 
 #[pymethods]
@@ -20,7 +19,7 @@ impl Vector3Iter {
     }
 
     fn __next__(slf: PyRef<'_, Self>) -> Option<i32> {
-        slf.iter.lock().next()
+        slf.iter.write().next()
     }
 }
 
