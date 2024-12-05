@@ -457,14 +457,14 @@ mod parsed_variables_tests {
 
 pub(crate) fn client_id(
     py: Python<'_>,
-    name: Bound<'_, PyAny>,
+    name: &Bound<'_, PyAny>,
     player_list: Option<Vec<Player>>,
 ) -> Option<i32> {
     if name.is_none() {
         return None;
     }
 
-    if let Ok(value) = name.extract::<i32>() {
+    if let Ok(value) = name.to_string().parse::<i32>() {
         if (0..64).contains(&value) {
             return Some(value);
         }
@@ -477,7 +477,7 @@ pub(crate) fn client_id(
     let all_players = player_list
         .unwrap_or_else(|| Player::all_players(&py.get_type::<Player>(), py).unwrap_or_default());
 
-    if let Ok(steam_id) = name.extract::<i64>() {
+    if let Ok(steam_id) = name.to_string().parse::<i64>() {
         return all_players
             .iter()
             .find(|&player| player.steam_id == steam_id)
@@ -609,7 +609,7 @@ fn unlock(team: Option<&str>) -> PyResult<()> {
     )
 }
 
-fn put(py: Python<'_>, player: Bound<'_, PyAny>, team: &str) -> PyResult<()> {
+fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
@@ -622,7 +622,7 @@ fn put(py: Python<'_>, player: Bound<'_, PyAny>, team: &str) -> PyResult<()> {
     })
 }
 
-fn mute(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let mute_cmd = format!("mute {}", player_id);
@@ -631,7 +631,7 @@ fn mute(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn unmute(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let unmute_cmd = format!("unmute {}", player_id);
@@ -640,7 +640,7 @@ fn unmute(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn tempban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let tempban_cmd = format!("tempban {}", player_id);
@@ -649,7 +649,7 @@ fn tempban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn ban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let ban_cmd = format!("ban {}", player_id);
@@ -658,7 +658,7 @@ fn ban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn unban(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn unban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let unban_cmd = format!("unban {}", player_id);
@@ -672,7 +672,7 @@ fn opsay(msg: &str) -> PyResult<()> {
     console_command(&opsay_cmd)
 }
 
-fn addadmin(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let addadmin_cmd = format!("addadmin {}", player_id);
@@ -681,7 +681,7 @@ fn addadmin(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn addmod(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let addmod_cmd = format!("addmod {}", player_id);
@@ -690,7 +690,7 @@ fn addmod(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn demote(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
+fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let demote_cmd = format!("demote {}", player_id);
@@ -699,7 +699,7 @@ fn demote(py: Python<'_>, player: Bound<'_, PyAny>) -> PyResult<()> {
     })
 }
 
-fn addscore(py: Python<'_>, player: Bound<'_, PyAny>, score: i32) -> PyResult<()> {
+fn addscore(py: Python<'_>, player: &Bound<'_, PyAny>, score: i32) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
             let addscore_cmd = format!("addscore {} {}", player_id, score);

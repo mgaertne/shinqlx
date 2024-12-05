@@ -5,9 +5,10 @@ use crate::ffi::c::prelude::*;
 use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
 use crate::MAIN_ENGINE;
 
-use core::sync::atomic::AtomicBool;
+use core::fmt::{Display, Formatter};
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use itertools::Itertools;
-use std::sync::atomic::Ordering;
 
 use pyo3::{
     basic::CompareOp,
@@ -17,7 +18,7 @@ use pyo3::{
         PyValueError,
     },
     types::{IntoPyDict, PyBool, PyDict, PyNotImplemented, PyType},
-    BoundObject, IntoPyObject,
+    BoundObject, IntoPyObjectExt,
 };
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
@@ -67,7 +68,7 @@ impl TryFrom<&str> for weapon_t {
 ///    To update it, use :meth:`~.Player.update`. Note that if you update it
 ///    and the player has disconnected, it will raise a
 ///    :exc:`shinqlx.NonexistentPlayerError` exception.
-#[pyclass(module = "_player", name = "Player", subclass, frozen)]
+#[pyclass(module = "_player", name = "Player", subclass, frozen, str)]
 #[derive(Debug)]
 pub(crate) struct Player {
     pub(crate) valid: AtomicBool,
@@ -102,6 +103,12 @@ impl PartialEq for Player {
             && self.user_info == other.user_info
             && self.steam_id == other.steam_id
             && *self.name.read() == *other.name.read()
+    }
+}
+
+impl Display for Player {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.name.read())
     }
 }
 
@@ -145,10 +152,6 @@ impl Player {
             return format!("{classname}({id}:'{clean_name}':-1)");
         };
         format!("{classname}({id}:'{clean_name}':{steam_id})")
-    }
-
-    fn __str__(&self) -> String {
-        self.name.read().clone()
     }
 
     fn __contains__(&self, py: Python<'_>, item: &str) -> PyResult<bool> {
@@ -259,7 +262,7 @@ impl Player {
     }
 
     #[setter(cvars)]
-    fn set_cvars(&self, py: Python<'_>, new_cvars: Bound<'_, PyDict>) -> PyResult<()> {
+    fn set_cvars(&self, py: Python<'_>, new_cvars: &Bound<'_, PyDict>) -> PyResult<()> {
         let new = new_cvars
             .iter()
             .map(|(key, value)| format!(r"\{key}\{value}"))
@@ -476,7 +479,7 @@ impl Player {
     }
 
     #[setter(handicap)]
-    fn set_handicap(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_handicap(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_handicap = value.str()?.to_string();
         if new_handicap.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_handicap}'");
@@ -511,7 +514,7 @@ impl Player {
     }
 
     #[setter(autohop)]
-    fn set_autohop(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_autohop(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_autohop = value.str()?.to_string();
         if new_autohop.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_autohop}'");
@@ -546,7 +549,7 @@ impl Player {
     }
 
     #[setter(autoaction)]
-    fn set_autoaction(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_autoaction(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_autoaction = value.str()?.to_string();
         if new_autoaction.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_autoaction}'");
@@ -581,7 +584,7 @@ impl Player {
     }
 
     #[setter(predictitems)]
-    fn set_predictitems(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_predictitems(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_predictitems = value.str()?.to_string();
         if new_predictitems.parse::<i32>().is_err() {
             let error_msg = format!("invalid literal for int() with base 10: '{new_predictitems}'");
@@ -710,7 +713,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(pos.into_pyobject(py)?.into_any()),
+            None => Ok(pos.into_bound_py_any(py)?),
             Some(py_kwargs) => {
                 let x = match py_kwargs.get_item("x")? {
                     None => pos.0,
@@ -750,7 +753,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(vel.into_pyobject(py)?.into_any()),
+            None => Ok(vel.into_bound_py_any(py)?),
             Some(py_kwargs) => {
                 let x = match py_kwargs.get_item("x")? {
                     None => vel.0,
@@ -790,7 +793,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(weaps.into_pyobject(py)?.into_any()),
+            None => Ok(weaps.into_bound_py_any(py)?),
             Some(py_kwargs) => {
                 let g = match py_kwargs.get_item("g")? {
                     None => weaps.0,
@@ -875,7 +878,7 @@ impl Player {
                 Some(state) => state.weapon,
             };
 
-            return Ok(weapon.into_pyobject(py)?.into_any());
+            return weapon.into_bound_py_any(py);
         };
 
         let Ok(converted_weapon) = (match weapon.extract::<i32>() {
@@ -909,7 +912,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(ammos.into_pyobject(py)?.into_any()),
+            None => Ok(ammos.into_bound_py_any(py)?),
             Some(py_kwargs) => {
                 let g = match py_kwargs.get_item("g")? {
                     None => ammos.0,
@@ -999,7 +1002,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(powerups.into_pyobject(py)?.into_any()),
+            None => Ok(powerups.into_bound_py_any(py)?),
             Some(py_kwargs) => {
                 let quad = match py_kwargs.get_item("quad")? {
                     None => powerups.0,
@@ -1091,7 +1094,7 @@ impl Player {
         };
 
         match kwargs {
-            None => Ok(flight.into_pyobject(py)?.into_any()),
+            None => Ok(flight.into_bound_py_any(py)?),
             Some(py_kwargs) => {
                 let fuel = match py_kwargs.get_item("fuel")? {
                     None => flight.0,
@@ -1125,7 +1128,7 @@ impl Player {
     }
 
     #[setter(noclip)]
-    fn set_noclip(&self, py: Python<'_>, value: Bound<'_, PyAny>) -> PyResult<()> {
+    fn set_noclip(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let noclip_value = match value.extract::<bool>() {
             Ok(value) => value,
             Err(_) => match value.extract::<i128>() {
@@ -1400,7 +1403,7 @@ mod pyshinqlx_player_tests {
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
         types::{IntoPyDict, PyBool, PyString},
-        IntoPyObject,
+        IntoPyObjectExt,
     };
 
     #[test]
@@ -1540,7 +1543,7 @@ mod pyshinqlx_player_tests {
             name: "^1Unnamed^2Player".to_string().into(),
             ..default_test_player()
         };
-        assert_eq!(player.__str__(), "^1Unnamed^2Player");
+        assert_eq!(format!("{}", player), "^1Unnamed^2Player");
     }
 
     #[rstest]
@@ -1703,8 +1706,8 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
                 None,
                 Some(
                     &[
-                        ("player_info", player_info.into_pyobject(py)?),
-                        ("player_info2", player_info2.into_pyobject(py)?),
+                        ("player_info", player_info.into_bound_py_any(py)?),
+                        ("player_info2", player_info2.into_bound_py_any(py)?),
                     ]
                     .into_py_dict(py)?,
                 ),
@@ -1730,7 +1733,7 @@ assert((shinqlx.Player(42, player_info) == 1234567891) == False)
 assert((shinqlx.Player(42, player_info) == "asdf") == False)
             "#,
                 None,
-                Some(&[("player_info", player_info.into_pyobject(py)?)].into_py_dict(py)?),
+                Some(&[("player_info", player_info.into_bound_py_any(py)?)].into_py_dict(py)?),
             )
         });
         assert!(result.is_ok());
@@ -1759,8 +1762,8 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
                 None,
                 Some(
                     &[
-                        ("player_info", player_info.into_pyobject(py)?),
-                        ("player_info2", player_info2.into_pyobject(py)?),
+                        ("player_info", player_info.into_bound_py_any(py)?),
+                        ("player_info2", player_info2.into_bound_py_any(py)?),
                     ]
                     .into_py_dict(py)?,
                 ),
@@ -1786,7 +1789,7 @@ assert(shinqlx.Player(42, player_info) != 1234567891)
 assert(shinqlx.Player(42, player_info) != "asdf")
             "#,
                 None,
-                Some(&[("player_info", player_info.into_pyobject(py)?)].into_py_dict(py)?),
+                Some(&[("player_info", player_info.into_bound_py_any(py)?)].into_py_dict(py)?),
             )
         });
         assert!(result.is_ok());
@@ -1818,13 +1821,13 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                         (
                             "player_info",
                             player_info
-                                .into_pyobject(py)
+                                .into_bound_py_any(py)
                                 .expect("this should not happen"),
                         ),
                         (
                             "player_info2",
                             player_info2
-                                .into_pyobject(py)
+                                .into_bound_py_any(py)
                                 .expect("this should not happen"),
                         ),
                     ]
@@ -1934,7 +1937,7 @@ player.update()
 assert(player._valid)
             "#,
                 None,
-                Some(&[("player", player.into_pyobject(py)?)].into_py_dict(py)?),
+                Some(&[("player", Bound::new(py, player)?)].into_py_dict(py)?),
             )
         });
         assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
@@ -2074,7 +2077,7 @@ assert(player._valid)
             let result = Python::with_gil(|py| {
                 player.set_cvars(
                     py,
-                    [("asdf", "qwertz"), ("name", "UnnamedPlayer")]
+                    &[("asdf", "qwertz"), ("name", "UnnamedPlayer")]
                         .into_py_dict(py)
                         .expect("this should not happen"),
                 )
@@ -2774,7 +2777,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result =
-                Python::with_gil(|py| player.set_handicap(py, PyString::new(py, "50").into_any()));
+                Python::with_gil(|py| player.set_handicap(py, PyString::new(py, "50").as_any()));
             assert!(result.is_ok());
         });
     }
@@ -2794,7 +2797,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_handicap(py, PyString::new(py, "asdf").into_any());
+            let result = player.set_handicap(py, PyString::new(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2906,7 +2909,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result =
-                Python::with_gil(|py| player.set_autohop(py, 0i32.into_pyobject(py)?.into_any()));
+                Python::with_gil(|py| player.set_autohop(py, &0i32.into_bound_py_any(py)?));
             assert!(result.is_ok());
         });
     }
@@ -2926,7 +2929,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_autohop(py, PyString::new(py, "asdf").into_any());
+            let result = player.set_autohop(py, PyString::new(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3037,9 +3040,8 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                player.set_autoaction(py, 0i32.into_pyobject(py)?.into_any())
-            });
+            let result =
+                Python::with_gil(|py| player.set_autoaction(py, &0i32.into_bound_py_any(py)?));
             assert!(result.is_ok());
         });
     }
@@ -3059,7 +3061,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_autoaction(py, PyString::new(py, "asdf").into_any());
+            let result = player.set_autoaction(py, PyString::new(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3170,9 +3172,8 @@ assert(player._valid)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                player.set_predictitems(py, 0i32.into_pyobject(py)?.into_any())
-            });
+            let result =
+                Python::with_gil(|py| player.set_predictitems(py, &0i32.into_bound_py_any(py)?));
             assert!(result.is_ok());
         });
     }
@@ -3192,7 +3193,7 @@ assert(player._valid)
         };
 
         Python::with_gil(|py| {
-            let result = player.set_predictitems(py, PyString::new(py, "asdf").into_any());
+            let result = player.set_predictitems(py, PyString::new(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -4547,9 +4548,8 @@ assert(player._valid)
                     py,
                     Some(
                         weapon_index
-                            .into_pyobject(py)
-                            .expect("this should not happen")
-                            .into_any(),
+                            .into_bound_py_any(py)
+                            .expect("this should not happen"),
                     ),
                 );
                 assert_eq!(
@@ -4571,12 +4571,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let result = player.weapon(
                 py,
-                Some(
-                    42i32
-                        .into_pyobject(py)
-                        .expect("this should not happen")
-                        .into_any(),
-                ),
+                Some(42i32.into_bound_py_any(py).expect("this should not happen")),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5697,7 +5692,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_noclip(py, PyBool::new(py, noclip_value).to_owned().into_any())
+                player.set_noclip(py, PyBool::new(py, noclip_value).to_owned().as_any())
             });
 
             assert!(result.is_ok());
@@ -5754,9 +5749,8 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                player.set_noclip(py, noclip_value.into_pyobject(py)?.into_any())
-            });
+            let result =
+                Python::with_gil(|py| player.set_noclip(py, &noclip_value.into_bound_py_any(py)?));
 
             assert!(result.is_ok());
         });
@@ -5813,7 +5807,7 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result = Python::with_gil(|py| {
-                player.set_noclip(py, PyString::new(py, noclip_value).into_any())
+                player.set_noclip(py, PyString::new(py, noclip_value).as_any())
             });
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
@@ -5862,7 +5856,7 @@ assert(player._valid)
         let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_noclip(py, py.None().into_bound(py)));
+            let result = Python::with_gil(|py| player.set_noclip(py, py.None().bind(py)));
 
             assert!(result.as_ref().is_ok(), "{:?}", result.err());
         });
@@ -6875,9 +6869,7 @@ assert(player._valid)
                         &[
                             (
                                 "limit",
-                                5i32.into_pyobject(py)
-                                    .expect("this should not happen")
-                                    .into_any(),
+                                5i32.into_bound_py_any(py).expect("this should not happen"),
                             ),
                             ("delimiter", PyString::new(py, "_").into_any()),
                         ]
