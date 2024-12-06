@@ -11,7 +11,7 @@ use pyo3::exceptions::PyEnvironmentError;
 pub(crate) fn pyshinqlx_set_cvar_once(
     py: Python<'_>,
     cvar: &str,
-    value: Bound<'_, PyAny>,
+    value: &Bound<'_, PyAny>,
     flags: i32,
 ) -> PyResult<bool> {
     let value_string = value.to_string();
@@ -51,7 +51,7 @@ mod set_cvar_once_tests {
     fn set_cvar_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result =
-                pyshinqlx_set_cvar_once(py, "sv_maxclients", PyString::new(py, "64").into_any(), 0);
+                pyshinqlx_set_cvar_once(py, "sv_maxclients", PyString::new(py, "64").as_any(), 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -77,7 +77,7 @@ mod set_cvar_once_tests {
                     pyshinqlx_set_cvar_once(
                         py,
                         "sv_maxclients",
-                        64i32.into_bound_py_any(py).expect("this should not happen"),
+                        &64i32.into_bound_py_any(py).expect("this should not happen"),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })
@@ -105,7 +105,7 @@ mod set_cvar_once_tests {
                     pyshinqlx_set_cvar_once(
                         py,
                         "sv_maxclients",
-                        PyString::new(py, "64").into_any(),
+                        PyString::new(py, "64").as_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })
