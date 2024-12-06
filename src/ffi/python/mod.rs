@@ -19,36 +19,19 @@ mod vector3;
 mod weapons;
 
 pub(crate) mod prelude {
+    #[allow(unused_imports)]
     pub(crate) use super::channels::{
-        AbstractChannel, AbstractChannelMethods, ChatChannel, ClientCommandChannel, ConsoleChannel,
-        TeamChatChannel, TellChannel, MAX_MSG_LENGTH,
+        AbstractChannel, AbstractChannelMethods, ChatChannel, ChatChannelMethods,
+        ClientCommandChannel, ClientCommandChannelMethods, ConsoleChannel, TeamChatChannel,
+        TellChannel, TellChannelMethods, MAX_MSG_LENGTH,
     };
-    pub(crate) use super::commands::{Command, CommandInvoker, CommandInvokerMethods};
+    #[allow(unused_imports)]
+    pub(crate) use super::commands::{
+        Command, CommandInvoker, CommandInvokerMethods, CommandMethods,
+    };
     pub(crate) use super::database::{AbstractDatabase, Redis};
     pub(crate) use super::embed::*;
-    pub(crate) use super::events::{
-        ChatEventDispatcher, ChatEventDispatcherMethods, ClientCommandDispatcher,
-        ClientCommandDispatcherMethods, CommandDispatcher, CommandDispatcherMethods,
-        ConsolePrintDispatcher, ConsolePrintDispatcherMethods, DamageDispatcher,
-        DamageDispatcherMethods, DeathDispatcher, EventDispatcher, EventDispatcherManager,
-        EventDispatcherManagerMethods, EventDispatcherMethods, FrameEventDispatcher,
-        FrameEventDispatcherMethods, GameCountdownDispatcher, GameCountdownDispatcherMethods,
-        GameEndDispatcher, GameStartDispatcher, KamikazeExplodeDispatcher,
-        KamikazeExplodeDispatcherMethods, KamikazeUseDispatcher, KamikazeUseDispatcherMethods,
-        KillDispatcher, MapDispatcher, MapDispatcherMethods, NewGameDispatcher,
-        NewGameDispatcherMethods, PlayerConnectDispatcher, PlayerConnectDispatcherMethods,
-        PlayerDisconnectDispatcher, PlayerDisconnectDispatcherMethods, PlayerLoadedDispatcher,
-        PlayerLoadedDispatcherMethods, PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods,
-        RoundCountdownDispatcher, RoundCountdownDispatcherMethods, RoundEndDispatcher,
-        RoundStartDispatcher, RoundStartDispatcherMethods, ServerCommandDispatcher,
-        ServerCommandDispatcherMethods, SetConfigstringDispatcher,
-        SetConfigstringDispatcherMethods, StatsDispatcher, TeamSwitchAttemptDispatcher,
-        TeamSwitchAttemptDispatcherMethods, TeamSwitchDispatcher, UnloadDispatcher,
-        UnloadDispatcherMethods, UserinfoDispatcher, UserinfoDispatcherMethods,
-        VoteCalledDispatcher, VoteCalledDispatcherMethods, VoteDispatcher, VoteDispatcherMethods,
-        VoteEndedDispatcher, VoteEndedDispatcherMethods, VoteStartedDispatcher,
-        VoteStartedDispatcherMethods,
-    };
+    pub(crate) use super::events::*;
     pub(crate) use super::flight::Flight;
     pub(crate) use super::game::{Game, NonexistentGameError};
     #[cfg(test)]
@@ -167,6 +150,7 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyException, PyValueError},
     intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyString, PyTuple, PyType},
+    IntoPyObjectExt,
 };
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -994,8 +978,8 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                     ),
                 )?;
                 py.import("logging.handlers").and_then(|handlers_submodule| {
-                    let py_max_logssize = max_logssize.into_pyobject(py)?.into_any();
-                    let py_num_max_logs = num_max_logs.into_pyobject(py)?.into_any();
+                    let py_max_logssize = max_logssize.into_bound_py_any(py)?;
+                    let py_num_max_logs = num_max_logs.into_bound_py_any(py)?;
                     handlers_submodule
                         .call_method(
                             "RotatingFileHandler",
@@ -1988,9 +1972,7 @@ mod stats_listener_tests {
                     shinqlx_module
                         .setattr(
                             intern!(py, "_stats"),
-                            stats_listener
-                                .into_pyobject(py)
-                                .expect("this should not happen"),
+                            Bound::new(py, stats_listener).expect("this should not happen"),
                         )
                         .expect("this should not happen");
 
@@ -2418,11 +2400,7 @@ mod pyshinqlx_plugins_tests {
         PluginUnloadError, DEFAULT_PLUGINS, EVENT_DISPATCHERS,
     };
 
-    use super::pyshinqlx_setup_fixture::*;
-    use super::{
-        EventDispatcherManager, EventDispatcherManagerMethods, GameEndDispatcher, Plugin,
-        UnloadDispatcher,
-    };
+    use super::prelude::*;
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
     use crate::prelude::*;
@@ -2437,7 +2415,6 @@ mod pyshinqlx_plugins_tests {
 
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::intern;
-    use pyo3::prelude::*;
     use pyo3::types::PyDict;
 
     static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
@@ -3267,54 +3244,38 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
 #[pyfunction(name = "initialize_cvars")]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
-    pyshinqlx_set_cvar_once(py, "qlx_owner", PyString::new(py, "-1").into_any(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_owner", PyString::new(py, "-1").as_any(), 0)?;
     pyshinqlx_set_cvar_once(
         py,
         "qlx_plugins",
-        PyString::new(py, &DEFAULT_PLUGINS.join(", ")).into_any(),
+        PyString::new(py, &DEFAULT_PLUGINS.join(", ")).as_any(),
         0,
     )?;
     pyshinqlx_set_cvar_once(
         py,
         "qlx_pluginsPath",
-        PyString::new(py, "shinqlx-plugins").into_any(),
+        PyString::new(py, "shinqlx-plugins").as_any(),
         0,
     )?;
-    pyshinqlx_set_cvar_once(py, "qlx_database", PyString::new(py, "Redis").into_any(), 0)?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_commandPrefix",
-        PyString::new(py, "!").into_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(py, "qlx_logs", PyString::new(py, "2").into_any(), 0)?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_logsSize",
-        PyString::new(py, "3000000").into_any(),
-        0,
-    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_database", PyString::new(py, "Redis").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", PyString::new(py, "!").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_logs", PyString::new(py, "2").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_logsSize", PyString::new(py, "3000000").as_any(), 0)?;
 
     pyshinqlx_set_cvar_once(
         py,
         "qlx_redisAddress",
-        PyString::new(py, "127.0.0.1").into_any(),
+        PyString::new(py, "127.0.0.1").as_any(),
         0,
     )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_redisDatabase",
-        PyString::new(py, "0").into_any(),
-        0,
-    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", PyString::new(py, "0").as_any(), 0)?;
     pyshinqlx_set_cvar_once(
         py,
         "qlx_redisUnixSocket",
-        PyString::new(py, "0").into_any(),
+        PyString::new(py, "0").as_any(),
         0,
     )?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", PyString::new(py, "").into_any(), 0)
-        .map(|_| ())
+    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", PyString::new(py, "").as_any(), 0).map(|_| ())
 }
 
 fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -3350,15 +3311,12 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[cfg(test)]
 mod initialize_cvars_tests {
     use super::initialize_cvars;
-
-    use super::pyshinqlx_setup_fixture::*;
+    use super::prelude::*;
 
     use crate::prelude::*;
 
     use mockall::predicate;
     use rstest::rstest;
-
-    use pyo3::prelude::*;
 
     #[rstest]
     #[case("qlx_owner", "-1")]

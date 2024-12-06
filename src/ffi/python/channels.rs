@@ -392,8 +392,8 @@ impl ConsoleChannel {
     pub(crate) fn reply(
         slf: &Bound<'_, Self>,
         msg: &str,
-        #[allow(unused_variables)] limit: i32,
-        #[allow(unused_variables)] delimiter: &str,
+        limit: i32,
+        delimiter: &str,
     ) -> PyResult<()> {
         slf.reply(msg, limit, delimiter)
     }
@@ -417,8 +417,6 @@ impl AbstractChannelMethods for Bound<'_, ConsoleChannel> {
 
 #[cfg(test)]
 mod console_channel_tests {
-    use super::AbstractChannelMethods;
-
     use crate::ffi::python::prelude::*;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use crate::prelude::*;
@@ -513,7 +511,6 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
         let fmt = self.borrow().fmt.clone();
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = self
-            .into_pyobject(self.py())?
             .call_method0(intern!(self.py(), "recipients"))?
             .extract()?;
 
@@ -605,8 +602,6 @@ impl ChatChannelMethods for Bound<'_, ChatChannel> {
 
 #[cfg(test)]
 mod chat_channel_tests {
-    use super::{AbstractChannelMethods, ChatChannel, ChatChannelMethods};
-
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::{
         default_test_player, default_test_player_info, run_all_frame_tasks,
@@ -1081,8 +1076,6 @@ impl TellChannelMethods for Bound<'_, TellChannel> {
 
 #[cfg(test)]
 mod tell_channel_tests {
-    use super::{ChatChannelMethods, TellChannelMethods};
-
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::*;
@@ -1108,7 +1101,7 @@ tell_channel = shinqlx.TellChannel(player)
                 Some(
                     &vec![(
                         "player",
-                        player.into_pyobject(py).expect("this should not happen"),
+                        Bound::new(py, player).expect("this should not happen"),
                     )]
                     .into_py_dict(py)
                     .expect("this should not happen"),
@@ -1270,8 +1263,6 @@ impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
 
 #[cfg(test)]
 mod team_chat_channel_tests {
-    use super::ChatChannelMethods;
-
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -1506,8 +1497,6 @@ impl ClientCommandChannelMethods for Bound<'_, ClientCommandChannel> {
 
 #[cfg(test)]
 mod client_command_channel_tests {
-    use super::{ClientCommandChannelMethods, TellChannelMethods};
-
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::*;
@@ -1535,7 +1524,7 @@ tell_channel = shinqlx.ClientCommandChannel(player)
                 Some(
                     &vec![(
                         "player",
-                        player.into_pyobject(py).expect("this should not happen"),
+                        Bound::new(py, player).expect("this should not happen"),
                     )]
                     .into_py_dict(py)
                     .expect("this should not happen"),

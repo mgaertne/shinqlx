@@ -1,21 +1,10 @@
 use crate::ffi::c::prelude::*;
 
-use super::prelude::{
-    parse_variables, AbstractChannel, ChatEventDispatcherMethods, ClientCommandDispatcherMethods,
-    ConsolePrintDispatcherMethods, DamageDispatcherMethods, FrameEventDispatcherMethods,
-    GameCountdownDispatcherMethods, KamikazeExplodeDispatcherMethods, KamikazeUseDispatcherMethods,
-    MapDispatcherMethods, NewGameDispatcherMethods, Player, PlayerConnectDispatcherMethods,
-    PlayerDisconnectDispatcherMethods, PlayerLoadedDispatcherMethods, PlayerSpawnDispatcherMethods,
-    RconDummyPlayer, RoundCountdownDispatcherMethods, RoundStartDispatcherMethods,
-    ServerCommandDispatcherMethods, SetConfigstringDispatcherMethods,
-    TeamSwitchAttemptDispatcherMethods, UserinfoDispatcherMethods, VoteCalledDispatcherMethods,
-    VoteDispatcherMethods, VoteEndedDispatcherMethods, VoteStartedDispatcherMethods,
-    MAX_MSG_LENGTH,
-};
+use super::prelude::*;
 use super::{
     get_cvar, is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
-    CommandInvokerMethods, BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL,
-    EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
 };
 use crate::{
     quake_live_engine::{FindCVar, GetConfigstring},
@@ -73,10 +62,7 @@ mod handle_rcon_tests {
 
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::{
-        commands::{Command, CommandPriorities},
-        events::EventDispatcherManagerMethods,
-        pyshinqlx_test_support::*,
-        COMMANDS, EVENT_DISPATCHERS,
+        commands::CommandPriorities, pyshinqlx_test_support::*, COMMANDS, EVENT_DISPATCHERS,
     };
     use crate::prelude::*;
 
@@ -3385,7 +3371,7 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
     let Ok(player) = (0..MAX_CLIENTS as i32)
         .find(|&id| id == client_id)
         .map_or(Ok(py.None().bind(py).to_owned()), |id| {
-            Player::py_new(id, None).and_then(|player| Ok(player.into_pyobject(py)?.into_any()))
+            Player::py_new(id, None).and_then(|player| Ok(Bound::new(py, player)?.into_any()))
         })
     else {
         return Ok(PyBool::new(py, true).to_owned().into_any().unbind());
@@ -8213,27 +8199,20 @@ fn try_handle_damage(
             )),
             |damage_dispatcher| {
                 let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
-                    Player::py_new(target_id, None)?
-                        .into_pyobject(py)?
-                        .into_any()
+                    Bound::new(py, Player::py_new(target_id, None)?)?.into_any()
                 } else {
-                    target_id.into_pyobject(py)?.into_any()
+                    target_id.into_bound_py_any(py)?
                 };
 
                 let attacker_player = attacker_id.and_then(|attacker_id| {
                     if (0..MAX_CLIENTS as i32).contains(&attacker_id) {
                         Player::py_new(attacker_id, None)
                             .and_then(|player| {
-                                player
-                                    .into_pyobject(py)
-                                    .map(|py_player| py_player.into_any())
+                                Bound::new(py, player).map(|py_player| py_player.into_any())
                             })
                             .ok()
                     } else {
-                        attacker_id
-                            .into_pyobject(py)
-                            .ok()
-                            .map(|value| value.into_any())
+                        attacker_id.into_bound_py_any(py).ok()
                     }
                 });
 
@@ -8800,7 +8779,7 @@ mod handle_console_print_tests {
     use crate::ffi::python::prelude::ConsoleChannel;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, types::PyBool, IntoPyObjectExt};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8972,10 +8951,8 @@ mod handle_console_print_tests {
                         .expect("this should not happen");
                 PRINT_REDIRECTION.store(Some(
                     print_redirector
-                        .into_pyobject(py)
+                        .into_py_any(py)
                         .expect("this should not happen")
-                        .into_any()
-                        .unbind()
                         .into(),
                 ));
 

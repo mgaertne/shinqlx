@@ -267,6 +267,7 @@ mod pyshinqlx_dispatcher_tests {
     use pyo3::{
         exceptions::PyException,
         types::{PyBool, PyString, PyTuple},
+        IntoPyObjectExt,
     };
 
     #[test]
@@ -557,10 +558,8 @@ mod pyshinqlx_dispatcher_tests {
         let player_connect_handler_ctx = handle_player_connect_context();
         player_connect_handler_ctx.expect().returning(|py, _, _| {
             PyException::new_err("asdf")
-                .into_pyobject(py)
+                .into_py_any(py)
                 .expect("this should not happen")
-                .into_any()
-                .unbind()
         });
 
         let result = client_connect_dispatcher(42, false);
@@ -623,10 +622,8 @@ mod pyshinqlx_dispatcher_tests {
         let handle_player_disconnect_ctx = handle_player_disconnect_context();
         handle_player_disconnect_ctx.expect().returning(|py, _, _| {
             PyException::new_err("")
-                .into_pyobject(py)
+                .into_py_any(py)
                 .expect("this should not happen")
-                .into_any()
-                .unbind()
         });
 
         client_disconnect_dispatcher(42, "ragequit");
@@ -669,10 +666,8 @@ mod pyshinqlx_dispatcher_tests {
         let handle_player_loaded_ctx = handle_player_loaded_context();
         handle_player_loaded_ctx.expect().returning(|py, _| {
             PyException::new_err("")
-                .into_pyobject(py)
+                .into_py_any(py)
                 .expect("this should not happen")
-                .into_any()
-                .unbind()
         });
 
         client_loaded_dispatcher(123);
@@ -957,10 +952,8 @@ mod pyshinqlx_dispatcher_tests {
         let handle_player_spawn_ctx = handle_player_spawn_context();
         handle_player_spawn_ctx.expect().returning(|py, _| {
             PyException::new_err("")
-                .into_pyobject(py)
+                .into_py_any(py)
                 .expect("this should not happen")
-                .into_any()
-                .unbind()
         });
 
         client_spawn_dispatcher(123);
@@ -1004,10 +997,8 @@ mod pyshinqlx_dispatcher_tests {
 
         handle_kamikaze_use_ctx.expect().returning(|py, _| {
             PyException::new_err("")
-                .into_pyobject(py)
+                .into_py_any(py)
                 .expect("this should not happen")
-                .into_any()
-                .unbind()
         });
         kamikaze_use_dispatcher(123);
     }
@@ -1049,10 +1040,8 @@ mod pyshinqlx_dispatcher_tests {
         let handle_kamikaze_explode_ctx = handle_kamikaze_explode_context();
         handle_kamikaze_explode_ctx.expect().returning(|py, _, _| {
             PyException::new_err("")
-                .into_pyobject(py)
+                .into_py_any(py)
                 .expect("this should not happen")
-                .into_any()
-                .unbind()
         });
 
         kamikaze_explode_dispatcher(123, true);

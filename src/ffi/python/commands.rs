@@ -1,8 +1,5 @@
 use super::prelude::*;
-use super::{
-    get_cvar, owner, pyshinqlx_get_logger, CommandDispatcherMethods, PythonReturnCodes,
-    EVENT_DISPATCHERS,
-};
+use super::{get_cvar, owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
 
 use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
@@ -356,14 +353,8 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
 
 #[cfg(test)]
 mod command_tests {
-    use super::{Command, CommandMethods};
-
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
-    use crate::ffi::python::{
-        prelude::{ChatChannel, ConsoleChannel, TeamChatChannel},
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
+    use crate::ffi::python::{prelude::*, pyshinqlx_test_support::*};
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
@@ -591,23 +582,24 @@ class mocked_db:
                 true,
                 "",
             );
-            assert!(command.is_ok_and(|cmd| cmd
-                .channels
-                .read()
-                .iter()
-                .map(|channel| channel.clone_ref(py))
-                .collect::<Vec<PyObject>>()
-                .into_pyobject(py)
-                .expect("this should not happen")
-                .eq(PyList::new(
-                    py,
-                    [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any()
-                    ]
-                )
-                .expect("this should not happen"))
-                .expect("this should not happen")));
+            assert!(command.is_ok_and(|cmd| PyList::new(
+                py,
+                cmd.channels
+                    .read()
+                    .iter()
+                    .map(|channel| channel.clone_ref(py))
+                    .collect::<Vec<PyObject>>()
+            )
+            .expect("this should not happen")
+            .eq(PyList::new(
+                py,
+                [
+                    chat_channel.clone().as_any(),
+                    console_channel.clone().as_any()
+                ]
+            )
+            .expect("this should not happen"))
+            .expect("this should not happen")));
         });
     }
 
@@ -644,23 +636,24 @@ class mocked_db:
                 true,
                 "",
             );
-            assert!(command.is_ok_and(|cmd| cmd
-                .exclude_channels
-                .read()
-                .iter()
-                .map(|channel| channel.clone_ref(py))
-                .collect::<Vec<PyObject>>()
-                .into_pyobject(py)
-                .expect("this should not happen")
-                .eq(PyList::new(
-                    py,
-                    [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any()
-                    ]
-                )
-                .expect("this should not happen"))
-                .expect("this should not happen")));
+            assert!(command.is_ok_and(|cmd| PyList::new(
+                py,
+                cmd.exclude_channels
+                    .read()
+                    .iter()
+                    .map(|channel| channel.clone_ref(py))
+                    .collect::<Vec<PyObject>>()
+            )
+            .expect("this should not happen")
+            .eq(PyList::new(
+                py,
+                [
+                    chat_channel.clone().as_any(),
+                    console_channel.clone().as_any()
+                ]
+            )
+            .expect("this should not happen"))
+            .expect("this should not happen")));
         });
     }
 
@@ -2026,13 +2019,9 @@ def remove_command(cmd):
 
 #[cfg(test)]
 mod command_invoker_tests {
-    use super::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities};
+    use super::CommandPriorities;
 
-    use crate::ffi::python::channels::{ChatChannel, ClientCommandChannel, TeamChatChannel};
-    use crate::ffi::python::events::{
-        CommandDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-    };
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
+    use crate::ffi::python::prelude::*;
     use crate::ffi::python::pyshinqlx_test_support::{
         capturing_hook, default_command, default_test_player, returning_false_hook,
         run_all_frame_tasks,
