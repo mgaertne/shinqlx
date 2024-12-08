@@ -618,7 +618,7 @@ mod hooks_tests {
                     .return_const(true);
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
+                    .withf(|cmd, &func| cmd == "slap" && ptr::fn_addr_eq(func, DUMMY_FN))
                     .times(1);
             })
             .run(|| {
@@ -641,7 +641,7 @@ mod hooks_tests {
                     .times(1);
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| cmd == "slap" && func == DUMMY_FN)
+                    .withf(|cmd, &func| cmd == "slap" && ptr::fn_addr_eq(func, DUMMY_FN))
                     .times(1);
             })
             .run(|| {
@@ -685,7 +685,9 @@ mod hooks_tests {
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_module_offset()
-                    .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
+                    .withf(|module_name, &offset| {
+                        module_name == "qagame" && ptr::fn_addr_eq(offset, DUMMY_FN)
+                    })
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
@@ -708,7 +710,7 @@ mod hooks_tests {
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_module_offset()
-                    .withf(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
+                    .withf_st(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
