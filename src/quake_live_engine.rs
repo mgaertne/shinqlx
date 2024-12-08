@@ -1635,7 +1635,10 @@ mod quake_live_engine_tests {
     };
     use crate::quake_live_functions::QuakeLiveFunction;
 
-    use crate::ffi::c::prelude::{qboolean, CVarBuilder};
+    use crate::ffi::c::prelude::{
+        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, usercmd_t,
+        vec3_t, CVarBuilder,
+    };
     use crate::ffi::python::prelude::pyshinqlx_initialize_context;
     use crate::ffi::python::PythonInitializationError;
 
@@ -1643,7 +1646,7 @@ mod quake_live_engine_tests {
     use pretty_assertions::assert_eq;
 
     use core::borrow::BorrowMut;
-    use core::ffi::CStr;
+    use core::ffi::{c_char, c_int, CStr};
     use core::ptr;
     use core::sync::atomic::Ordering;
     use mockall::predicate;
@@ -1844,70 +1847,68 @@ mod quake_live_engine_tests {
     #[serial]
     fn initialize_static_initializes_everything_successfully() {
         let add_cmd_ctx = Cmd_AddCommand_context();
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) } == c"cmd"
-                    && func == cmd_send_server_command
+                    && ptr::fn_addr_eq(func, cmd_send_server_command as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) } == c"cp"
-                    && func == cmd_center_print
+                    && ptr::fn_addr_eq(func, cmd_center_print as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) } == c"print"
-                    && func == cmd_regular_print
+                    && ptr::fn_addr_eq(func, cmd_regular_print as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
-                !cmd.is_null() && unsafe { CStr::from_ptr(cmd) } == c"slap" && func == cmd_slap
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) } == c"slap"
+                    && ptr::fn_addr_eq(func, cmd_slap as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
-                !cmd.is_null() && unsafe { CStr::from_ptr(cmd) } == c"slay" && func == cmd_slay
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) } == c"slay"
+                    && ptr::fn_addr_eq(func, cmd_slay as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
-                !cmd.is_null() && unsafe { CStr::from_ptr(cmd) } == c"qlx" && func == cmd_py_rcon
+                !cmd.is_null()
+                    && unsafe { CStr::from_ptr(cmd) } == c"qlx"
+                    && ptr::fn_addr_eq(func, cmd_py_rcon as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) } == c"pycmd"
-                    && func == cmd_py_command
+                    && ptr::fn_addr_eq(func, cmd_py_command as extern "C" fn())
             })
             .times(1);
-        #[allow(clippy::fn_address_comparisons)]
         add_cmd_ctx
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
                     && unsafe { CStr::from_ptr(cmd) } == c"pyrestart"
-                    && func == cmd_restart_python
+                    && ptr::fn_addr_eq(func, cmd_restart_python as extern "C" fn())
             })
             .times(1);
 
@@ -2014,7 +2015,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn unhook_vm_when_restarted() {
         let quake_engine = default_quake_engine();
@@ -2026,7 +2026,10 @@ mod quake_live_engine_tests {
         quake_engine.unhook_vm(true);
         assert!(quake_engine
             .g_init_game_orig()
-            .is_ok_and(|func| func == G_InitGame));
+            .is_ok_and(|func| ptr::fn_addr_eq(
+                func,
+                G_InitGame as extern "C" fn(c_int, c_int, c_int)
+            )));
     }
 
     #[test]
@@ -2054,8 +2057,8 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
+    #[allow(unpredictable_function_pointer_comparisons)]
     fn com_printf_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
             static_functions: default_static_functions().into(),
@@ -2064,7 +2067,7 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.com_printf_orig();
-        assert!(result.is_ok_and(|func| func == Com_Printf));
+        assert!(result.is_ok_and(|func| { func == Com_Printf }));
     }
 
     #[test]
@@ -2077,7 +2080,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cmd_addcommand_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2087,7 +2089,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_addcommand_orig();
-        assert!(result.is_ok_and(|func| func == Cmd_AddCommand));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cmd_AddCommand as extern "C" fn(*const c_char, unsafe extern "C" fn())
+        )));
     }
 
     #[test]
@@ -2101,7 +2106,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cmd_args_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2111,7 +2115,8 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_args_orig();
-        assert!(result.is_ok_and(|func| func == Cmd_Args));
+        assert!(result
+            .is_ok_and(|func| ptr::fn_addr_eq(func, Cmd_Args as extern "C" fn() -> *const c_char)));
     }
 
     #[test]
@@ -2125,7 +2130,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cmd_argv_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2135,7 +2139,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_argv_orig();
-        assert!(result.is_ok_and(|func| func == Cmd_Argv));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cmd_Argv as extern "C" fn(c_int) -> *const c_char
+        )));
     }
 
     #[test]
@@ -2150,7 +2157,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cmd_tokenizestring_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2160,7 +2166,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_tokenizestring_orig();
-        assert!(result.is_ok_and(|func| func == Cmd_Tokenizestring));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cmd_Tokenizestring as extern "C" fn(*const c_char) -> *const c_char
+        )));
     }
 
     #[test]
@@ -2173,7 +2182,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cbuf_executetext_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2183,7 +2191,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cbuf_executetext_orig();
-        assert!(result.is_ok_and(|func| func == Cbuf_ExecuteText));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cbuf_ExecuteText as extern "C" fn(cbufExec_t, *const c_char)
+        )));
     }
 
     #[test]
@@ -2196,7 +2207,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cvar_findvar_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2206,7 +2216,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cvar_findvar_orig();
-        assert!(result.is_ok_and(|func| func == Cvar_FindVar));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cvar_FindVar as extern "C" fn(*const c_char) -> *mut cvar_t
+        )));
     }
 
     #[test]
@@ -2220,7 +2233,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cvar_get_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2230,7 +2242,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cvar_get_orig();
-        assert!(result.is_ok_and(|func| func == Cvar_Get));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cvar_Get as extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t
+        )));
     }
 
     #[test]
@@ -2243,7 +2258,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cvar_getlimit_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2253,7 +2267,17 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cvar_getlimit_orig();
-        assert!(result.is_ok_and(|func| func == Cvar_GetLimit));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cvar_GetLimit
+                as extern "C" fn(
+                    *const c_char,
+                    *const c_char,
+                    *const c_char,
+                    *const c_char,
+                    c_int,
+                ) -> *mut cvar_t
+        )));
     }
 
     #[test]
@@ -2266,7 +2290,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cvar_set2_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2276,7 +2299,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cvar_set2_orig();
-        assert!(result.is_ok_and(|func| func == Cvar_Set2));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cvar_Set2 as extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t
+        )));
     }
 
     #[test]
@@ -2291,7 +2317,7 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
+    #[allow(unpredictable_function_pointer_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_sendservercommand_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2316,7 +2342,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_executeclientcommand_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2326,7 +2351,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_executeclientcommand_orig();
-        assert!(result.is_ok_and(|func| func == SV_ExecuteClientCommand));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_ExecuteClientCommand as extern "C" fn(*mut client_t, *const c_char, qboolean)
+        )));
     }
 
     #[test]
@@ -2339,7 +2367,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_shutdown_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2349,7 +2376,8 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_shutdown_orig();
-        assert!(result.is_ok_and(|func| func == SV_Shutdown));
+        assert!(result
+            .is_ok_and(|func| ptr::fn_addr_eq(func, SV_Shutdown as extern "C" fn(*const c_char))));
     }
 
     #[test]
@@ -2363,7 +2391,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_map_f_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2373,7 +2400,7 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_map_f_orig();
-        assert!(result.is_ok_and(|func| func == SV_Map_f));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(func, SV_Map_f as extern "C" fn())));
     }
 
     #[test]
@@ -2388,7 +2415,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_cliententerworld_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2398,7 +2424,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_cliententerworld_orig();
-        assert!(result.is_ok_and(|func| func == SV_ClientEnterWorld));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_ClientEnterWorld as extern "C" fn(*mut client_t, *mut usercmd_t)
+        )));
     }
 
     #[test]
@@ -2413,7 +2442,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_setconfigstring_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2423,7 +2451,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_setconfigstring_orig();
-        assert!(result.is_ok_and(|func| func == SV_SetConfigstring));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_SetConfigstring as extern "C" fn(c_int, *const c_char)
+        )));
     }
 
     #[test]
@@ -2438,7 +2469,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_getconfigstring_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2448,7 +2478,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_getconfigstring_orig();
-        assert!(result.is_ok_and(|func| func == SV_GetConfigstring));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_GetConfigstring as extern "C" fn(c_int, *mut c_char, c_int)
+        )));
     }
 
     #[test]
@@ -2461,7 +2494,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_dropclient_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2471,7 +2503,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_dropclient_orig();
-        assert!(result.is_ok_and(|func| func == SV_DropClient));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_DropClient as extern "C" fn(*mut client_t, *const c_char)
+        )));
     }
 
     #[test]
@@ -2486,7 +2521,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sys_moduleoffset_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2496,7 +2530,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sys_setmoduleoffset_orig();
-        assert!(result.is_ok_and(|func| func == Sys_SetModuleOffset));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Sys_SetModuleOffset as extern "C" fn(*mut c_char, unsafe extern "C" fn())
+        )));
     }
 
     #[test]
@@ -2509,7 +2546,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_spawnserver_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2519,7 +2555,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_spawnserver_orig();
-        assert!(result.is_ok_and(|func| func == SV_SpawnServer));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_SpawnServer as extern "C" fn(*mut c_char, qboolean)
+        )));
     }
 
     #[test]
@@ -2536,7 +2575,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cmd_executestring_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2546,7 +2584,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_executestring_orig();
-        assert!(result.is_ok_and(|func| func == Cmd_ExecuteString));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            Cmd_ExecuteString as extern "C" fn(*const c_char)
+        )));
     }
 
     #[test]
@@ -2560,7 +2601,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn cmd_argc_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2570,7 +2610,9 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_argc_orig();
-        assert!(result.is_ok_and(|func| func == Cmd_Argc));
+        assert!(
+            result.is_ok_and(|func| ptr::fn_addr_eq(func, Cmd_Argc as extern "C" fn() -> c_int))
+        );
     }
 
     #[test]
@@ -2795,7 +2837,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn g_init_game_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
@@ -2805,7 +2846,10 @@ mod quake_live_engine_tests {
             .store(G_InitGame as usize, Ordering::SeqCst);
 
         let result = quake_engine.g_init_game_orig();
-        assert!(result.is_ok_and(|func| func == G_InitGame));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            G_InitGame as extern "C" fn(c_int, c_int, c_int)
+        )));
     }
 
     #[test]
@@ -2818,7 +2862,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn g_shutdown_game_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
@@ -2828,7 +2871,9 @@ mod quake_live_engine_tests {
             .store(G_ShutdownGame as usize, Ordering::SeqCst);
 
         let result = quake_engine.g_shutdown_game_orig();
-        assert!(result.is_ok_and(|func| func == G_ShutdownGame));
+        assert!(
+            result.is_ok_and(|func| ptr::fn_addr_eq(func, G_ShutdownGame as extern "C" fn(c_int)))
+        );
     }
 
     #[test]
@@ -2842,7 +2887,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn g_run_frame_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
@@ -2852,7 +2896,7 @@ mod quake_live_engine_tests {
             .store(G_RunFrame as usize, Ordering::SeqCst);
 
         let result = quake_engine.g_run_frame_orig();
-        assert!(result.is_ok_and(|func| func == G_RunFrame));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(func, G_RunFrame as extern "C" fn(c_int))));
     }
 
     #[test]
@@ -2866,7 +2910,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn g_addevent_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
@@ -2876,7 +2919,10 @@ mod quake_live_engine_tests {
             .store(G_AddEvent as usize, Ordering::SeqCst);
 
         let result = quake_engine.g_addevent_orig();
-        assert!(result.is_ok_and(|func| func == G_AddEvent));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            G_AddEvent as extern "C" fn(*mut gentity_t, entity_event_t, c_int)
+        )));
     }
 
     #[test]
@@ -2890,7 +2936,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn g_free_entity_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
@@ -2900,7 +2945,10 @@ mod quake_live_engine_tests {
             .store(G_FreeEntity as usize, Ordering::SeqCst);
 
         let result = quake_engine.g_free_entity_orig();
-        assert!(result.is_ok_and(|func| func == G_FreeEntity));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            G_FreeEntity as extern "C" fn(*mut gentity_t)
+        )));
     }
 
     #[test]
@@ -2914,7 +2962,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(clippy::fn_address_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn launch_item_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
@@ -2924,7 +2971,10 @@ mod quake_live_engine_tests {
             .store(LaunchItem as usize, Ordering::SeqCst);
 
         let result = quake_engine.launch_item_orig();
-        assert!(result.is_ok_and(|func| func == LaunchItem));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            LaunchItem as extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t
+        )));
     }
 }
 
