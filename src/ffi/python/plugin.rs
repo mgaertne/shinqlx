@@ -812,7 +812,7 @@ impl Plugin {
 
         players
             .iter()
-            .find(|&player| player.get_clean_name(cls.py()).to_lowercase() == clean_name)
+            .find(|&player| clean_text(&(&*player.name.read())).to_lowercase() == clean_name)
             .map(|found_player| found_player.name.read().clone())
     }
 

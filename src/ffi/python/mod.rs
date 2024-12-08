@@ -60,8 +60,9 @@ pub(crate) mod prelude {
         handle_server_command, handle_set_configstring, register_handlers,
     };
     pub(crate) use super::holdable::Holdable;
+    #[allow(unused_imports)]
     pub(crate) use super::player::{
-        AbstractDummyPlayer, NonexistentPlayerError, Player, RconDummyPlayer,
+        AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
     };
     pub(crate) use super::player_info::PlayerInfo;
     pub(crate) use super::player_state::PlayerState;
