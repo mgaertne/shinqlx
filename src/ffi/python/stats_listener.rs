@@ -13,7 +13,7 @@ use pyo3::{
 };
 
 use serde_json::{from_str, Value};
-use zmq::{Context, SocketType, DONTWAIT, POLLIN};
+use zmq::{Context, Socket, SocketType, DONTWAIT, POLLIN};
 
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import("json")
@@ -376,7 +376,7 @@ static IN_PROGRESS: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
 
 /// Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 /// we get stats from it.
-#[pyclass(module = "_zmq", name = "StatsListener", frozen)]
+#[pyclass(module = "_zmq", name = "StatsListener", frozen, eq)]
 #[derive(Debug)]
 pub(crate) struct StatsListener {
     done: AtomicBool,
@@ -445,18 +445,44 @@ impl StatsListener {
     }
 
     #[getter]
-    fn get_done(&self) -> bool {
-        self.done.load(Ordering::SeqCst)
+    fn get_done(slf: &Bound<'_, Self>) -> bool {
+        slf.get_done()
     }
 
-    fn stop(&self) {
-        self.done.store(true, Ordering::SeqCst);
+    fn stop(slf: &Bound<'_, Self>) {
+        slf.stop()
     }
 
     /// Receives until 'self.done' is set to True.
-    pub(crate) fn keep_receiving(slf: &Bound<'_, Self>, py: Python<'_>) -> PyResult<()> {
+    pub(crate) fn keep_receiving(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.keep_receiving()
+    }
+
+    #[pyo3(name = "_poll_zmq")]
+    fn poll_zmq(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf._poll_zmq()
+    }
+}
+
+pub(crate) trait StatsListenerMethods<'py> {
+    fn get_done(&self) -> bool;
+    fn stop(&self);
+    fn keep_receiving(&self) -> PyResult<()>;
+    fn _poll_zmq(&self) -> PyResult<()>;
+}
+
+impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
+    fn get_done(&self) -> bool {
+        self.borrow().done.load(Ordering::SeqCst)
+    }
+
+    fn stop(&self) {
+        self.borrow().done.store(true, Ordering::SeqCst);
+    }
+
+    fn keep_receiving(&self) -> PyResult<()> {
         PyModule::from_code(
-            py,
+            self.py(),
             cr#"
 import threading
 
@@ -466,53 +492,55 @@ def run_zmq_thread(poller):
             c"",
             c"",
         )?
-        .call_method1(intern!(py, "run_zmq_thread"), (slf,))?;
+        .call_method1(intern!(self.py(), "run_zmq_thread"), (self,))?;
 
         Ok(())
     }
 
-    #[pyo3(name = "_poll_zmq")]
-    fn poll_zmq(&self, py: Python<'_>) -> PyResult<()> {
-        let socket = py
-            .allow_threads(|| {
-                let zmq_context = Context::new();
-
-                let socket = zmq_context.socket(SocketType::SUB)?;
-                socket.set_plain_username(Some("stats"))?;
-                socket.set_plain_password(Some(&self.password))?;
-
-                socket.set_zap_domain("stats")?;
-
-                socket.connect(&self.address)?;
-                socket.set_subscribe("".as_bytes())?;
-
-                Ok(socket)
-            })
-            .map_err(|err: zmq::Error| {
+    fn _poll_zmq(&self) -> PyResult<()> {
+        let socket = get_zmq_socket(&self.borrow().address, &self.borrow().password).map_err(
+            |err: zmq::Error| {
                 let error_msg = format!("zmq error: {:?}", err);
                 PyIOError::new_err(error_msg)
-            })?;
+            },
+        )?;
 
         loop {
-            if !py
+            if !self
+                .py()
                 .allow_threads(|| socket.poll(POLLIN, 250))
                 .is_ok_and(|value| value == 1)
             {
                 continue;
             }
 
-            if let Ok(zmq_msg) = py.allow_threads(|| socket.recv_msg(DONTWAIT)) {
+            if let Ok(zmq_msg) = self.py().allow_threads(|| socket.recv_msg(DONTWAIT)) {
                 if let Some(zmq_str) = zmq_msg.as_str() {
-                    handle_zmq_msg(py, zmq_str);
+                    handle_zmq_msg(self.py(), zmq_str);
                 }
             }
         }
     }
 }
 
+fn get_zmq_socket(address: &str, password: &str) -> zmq::Result<Socket> {
+    let zmq_context = Context::new();
+
+    let socket = zmq_context.socket(SocketType::SUB)?;
+    socket.set_plain_username(Some("stats"))?;
+    socket.set_plain_password(Some(password))?;
+
+    socket.set_zap_domain("stats")?;
+
+    socket.connect(address)?;
+    socket.set_subscribe("".as_bytes())?;
+
+    Ok(socket)
+}
+
 #[cfg(test)]
 mod stats_listener_tests {
-    use super::StatsListener;
+    use super::{StatsListener, StatsListenerMethods};
 
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
 
@@ -685,17 +713,24 @@ mod stats_listener_tests {
             });
     }
 
-    #[test]
-    fn stop_sets_done_field() {
-        let listener = StatsListener {
-            done: false.into(),
-            address: "".into(),
-            password: "".into(),
-        };
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn stop_sets_done_field(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let listener = Bound::new(
+                py,
+                StatsListener {
+                    done: false.into(),
+                    address: "".into(),
+                    password: "".into(),
+                },
+            )
+            .expect("this should not happen");
 
-        listener.stop();
+            listener.stop();
 
-        assert_eq!(listener.get_done(), true);
+            assert_eq!(listener.get_done(), true);
+        });
     }
 }
 
