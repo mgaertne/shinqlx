@@ -73,478 +73,280 @@ impl Game {
         let Ok(classname) = slf.get_type().qualname() else {
             return "Game(N/A@N/A)".to_string();
         };
-        let Ok(factory_type) = slf.getattr("type") else {
+        let Ok(factory_type) = slf.get_gametype() else {
             return format!("{}(N/A@N/A)", classname);
         };
-        let Ok(mapname) = slf.getattr("map") else {
+        let Ok(mapname) = slf.get_map() else {
             return format!("{}(N/A@N/A)", classname);
         };
         format!("{}({}@{})", classname, factory_type, mapname)
     }
 
-    fn __str__(&self, py: Python<'_>) -> String {
-        let Ok(factory_type) = self.get_type(py) else {
+    fn __str__(slf: &Bound<'_, Self>) -> String {
+        let Ok(factory_type) = slf.get_gametype() else {
             return "Invalid game".to_string();
         };
-        let Ok(mapname) = self.get_map(py) else {
+        let Ok(mapname) = slf.get_map() else {
             return "Invalid game".to_string();
         };
         format!("{} on {}", factory_type, mapname)
     }
 
-    fn __contains__(&self, py: Python<'_>, item: &str) -> PyResult<bool> {
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+    fn __contains__(slf: &Bound<'_, Self>, item: &str) -> PyResult<bool> {
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            )),
+            |main_engine| {
+                let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
-                    if configstring.is_empty() {
-                        self.valid.store(false, Ordering::SeqCst);
-                        return Err(NonexistentGameError::new_err(
-                            "Invalid game. Is the server loading a new map?",
-                        ));
-                    }
+                if configstring.is_empty() {
+                    slf.borrow().valid.store(false, Ordering::SeqCst);
+                    return Err(NonexistentGameError::new_err(
+                        "Invalid game. Is the server loading a new map?",
+                    ));
+                }
 
-                    Ok(parse_variables(&configstring).get(item).is_some())
-                },
-            )
-        })
+                Ok(parse_variables(&configstring).get(item).is_some())
+            },
+        )
     }
 
-    fn __getitem__(&self, py: Python<'_>, item: &str) -> PyResult<String> {
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+    fn __getitem__(slf: &Bound<'_, Self>, item: &str) -> PyResult<String> {
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            )),
+            |main_engine| {
+                let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
-                    if configstring.is_empty() {
-                        self.valid.store(false, Ordering::SeqCst);
-                        return Err(NonexistentGameError::new_err(
-                            "Invalid game. Is the server loading a new map?",
-                        ));
-                    }
+                if configstring.is_empty() {
+                    slf.borrow().valid.store(false, Ordering::SeqCst);
+                    return Err(NonexistentGameError::new_err(
+                        "Invalid game. Is the server loading a new map?",
+                    ));
+                }
 
-                    parse_variables(&configstring)
-                        .get(item)
-                        .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
-                },
-            )
-        })
+                parse_variables(&configstring)
+                    .get(item)
+                    .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+            },
+        )
     }
 
     #[getter(cached)]
-    fn get_cached(&self) -> bool {
-        self.cached.load(Ordering::SeqCst)
+    fn get_cached(slf: &Bound<'_, Self>) -> bool {
+        slf.get_cached()
     }
 
     #[getter(_valid)]
-    fn get_valid(&self) -> bool {
-        self.valid.load(Ordering::SeqCst)
+    fn get_valid(slf: &Bound<'_, Self>) -> bool {
+        slf.get_valid()
     }
 
     /// A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars
     /// might not have attributes on this class, this could be useful.
     #[getter(cvars)]
-    fn get_cvars<'b>(&self, py: Python<'b>) -> PyResult<Bound<'b, PyDict>> {
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
-                    if configstring.is_empty() {
-                        self.valid.store(false, Ordering::SeqCst);
-                        return Err(NonexistentGameError::new_err(
-                            "Invalid game. Is the server loading a new map?",
-                        ));
-                    }
-                    Ok(parse_variables(&configstring))
-                },
-            )
-        })
-        .and_then(|parsed_variables| parsed_variables.into_py_dict(py))
+    fn get_cvars<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyDict>> {
+        slf.get_cvars()
     }
 
     #[getter]
-    fn get_type(&self, py: Python<'_>) -> PyResult<String> {
-        let factory_type = self.__getitem__(py, "g_gametype")?;
-        match factory_type.parse::<i32>() {
-            Ok(0) => Ok("Free for All".to_string()),
-            Ok(1) => Ok("Duel".to_string()),
-            Ok(2) => Ok("Race".to_string()),
-            Ok(3) => Ok("Team Deathmatch".to_string()),
-            Ok(4) => Ok("Clan Arena".to_string()),
-            Ok(5) => Ok("Capture the Flag".to_string()),
-            Ok(6) => Ok("One Flag".to_string()),
-            Ok(8) => Ok("Harvester".to_string()),
-            Ok(9) => Ok("Freeze Tag".to_string()),
-            Ok(10) => Ok("Domination".to_string()),
-            Ok(11) => Ok("Attack and Defend".to_string()),
-            Ok(12) => Ok("Red Rover".to_string()),
-            _ => Ok("unknown".to_string()),
-        }
+    fn get_gametype(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_gametype()
     }
 
     #[getter(type_short)]
-    fn get_type_short(&self, py: Python<'_>) -> PyResult<String> {
-        let factory_type = self.__getitem__(py, "g_gametype")?;
-        match factory_type.parse::<i32>() {
-            Ok(0) => Ok("ffa".to_string()),
-            Ok(1) => Ok("duel".to_string()),
-            Ok(2) => Ok("race".to_string()),
-            Ok(3) => Ok("tdm".to_string()),
-            Ok(4) => Ok("ca".to_string()),
-            Ok(5) => Ok("ctf".to_string()),
-            Ok(6) => Ok("1f".to_string()),
-            Ok(8) => Ok("har".to_string()),
-            Ok(9) => Ok("ft".to_string()),
-            Ok(10) => Ok("dom".to_string()),
-            Ok(11) => Ok("ad".to_string()),
-            Ok(12) => Ok("rr".to_string()),
-            _ => Ok("N/A".to_string()),
-        }
+    fn get_gametype_short(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_gametype_short()
     }
 
     #[getter(map)]
-    fn get_map(&self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "mapname")
+    fn get_map(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_map()
     }
 
     #[setter(map)]
-    fn set_map(&self, py: Python<'_>, value: &str) -> PyResult<()> {
-        py.allow_threads(|| {
-            let mapchange_command = format!("map {}", value);
-            console_command(&mapchange_command)
-        })
+    fn set_map(slf: &Bound<'_, Self>, value: &str) -> PyResult<()> {
+        slf.set_map(value)
     }
 
     /// The full name of the map. Ex.: ``Longest Yard``.
     #[getter(map_title)]
-    fn get_map_title(&self, py: Python<'_>) -> PyResult<String> {
-        let base_module = py.import("shinqlx")?;
-        let map_title = base_module.getattr("_map_title")?;
-        map_title.extract::<String>()
+    fn get_map_title(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_map_title()
     }
 
     /// The map's subtitle. Usually either empty or has the author's name.
     #[getter(map_subtitle1)]
-    fn get_map_subtitle1(&self, py: Python<'_>) -> PyResult<String> {
-        let base_module = py.import("shinqlx")?;
-        let map_title = base_module.getattr("_map_subtitle1")?;
-        map_title.extract::<String>()
+    fn get_map_subtitle1(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_map_subtitle1()
     }
 
     /// The map's second subtitle. Usually either empty or has the author's name.
     #[getter(map_subtitle2)]
-    fn get_map_subtitle2(&self, py: Python<'_>) -> PyResult<String> {
-        let base_module = py.import("shinqlx")?;
-        let map_title = base_module.getattr("_map_subtitle2")?;
-        map_title.extract::<String>()
+    fn get_map_subtitle2(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_map_subtitle2()
     }
 
     #[getter(red_score)]
-    fn get_red_score(&self, py: Python<'_>) -> PyResult<i32> {
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
-                    Ok(configstring.parse::<i32>().unwrap_or_default())
-                },
-            )
-        })
+    fn get_red_score(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_red_score()
     }
 
     #[getter(blue_score)]
-    fn get_blue_score(&self, py: Python<'_>) -> PyResult<i32> {
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
-                    Ok(configstring.parse::<i32>().unwrap_or_default())
-                },
-            )
-        })
+    fn get_blue_score(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_blue_score()
     }
 
     #[getter(state)]
-    fn get_state(&self, py: Python<'_>) -> PyResult<String> {
-        let game_state = self.__getitem__(py, "g_gameState")?;
-        if game_state == "PRE_GAME" {
-            return Ok("warmup".to_string());
-        }
-
-        if game_state == "COUNT_DOWN" {
-            return Ok("countdown".to_string());
-        }
-
-        if game_state == "IN_PROGRESS" {
-            return Ok("in_progress".to_string());
-        }
-
-        warn!(target: "shinqlx", "Got unknown game state: {}", game_state);
-
-        Ok(game_state)
+    fn get_state(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_state()
     }
 
     #[getter(factory)]
-    fn get_factory(&self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "g_factory")
+    fn get_factory(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_factory()
     }
 
     #[setter(factory)]
-    fn set_factory(&self, py: Python<'_>, value: String) -> PyResult<()> {
-        let mapname = self.get_map(py)?;
-        py.allow_threads(|| {
-            let mapchange_command = format!("map {mapname} {value}");
-            console_command(&mapchange_command)
-        })
+    fn set_factory(slf: &Bound<'_, Self>, value: &str) -> PyResult<()> {
+        slf.set_factory(value)
     }
 
     #[getter(factory_title)]
-    fn get_factory_title(&self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "g_factoryTitle")
+    fn get_factory_title(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_factory_title()
     }
 
     #[getter(hostname)]
-    fn get_hostname(&self, py: Python<'_>) -> PyResult<String> {
-        self.__getitem__(py, "sv_hostname")
+    fn get_hostname(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_hostname()
     }
 
     #[setter(hostname)]
-    fn set_hostname(&self, py: Python<'_>, value: String) -> PyResult<()> {
-        pyshinqlx_set_cvar(py, "sv_hostname", &value, None)?;
-        Ok(())
+    fn set_hostname(slf: &Bound<'_, Self>, value: &str) -> PyResult<()> {
+        slf.set_hostname(value)
     }
 
     #[getter(instagib)]
-    fn get_instagib(&self, py: Python<'_>) -> PyResult<bool> {
-        let insta_cvar = self.__getitem__(py, "g_instagib")?;
-        Ok(insta_cvar.parse::<i32>().is_ok_and(|value| value != 0))
+    fn get_instagib(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        slf.get_instagib()
     }
 
     #[setter(instagib)]
-    fn set_instagib(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<bool>() {
-            Ok(true) => "1",
-            Ok(false) => "0",
-            Err(_) => match value.extract::<i32>() {
-                Ok(1) => "1",
-                Ok(0) => "0",
-                _ => {
-                    return Err(PyValueError::new_err(
-                        "instagib needs to be 0, 1, or a bool.",
-                    ));
-                }
-            },
-        };
-        pyshinqlx_set_cvar(py, "g_instagib", string_cvar_value, None).map(|_| ())
+    fn set_instagib(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.set_instagib(value)
     }
 
     #[getter(loadout)]
-    fn get_loadout(&self, py: Python<'_>) -> PyResult<bool> {
-        let loadout_cvar = self.__getitem__(py, "g_loadout")?;
-        Ok(loadout_cvar.parse::<i32>().is_ok_and(|value| value != 0))
+    fn get_loadout(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        slf.get_loadout()
     }
 
     #[setter(loadout)]
-    fn set_loadout(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<bool>() {
-            Ok(true) => "1",
-            Ok(false) => "0",
-            Err(_) => match value.extract::<i32>() {
-                Ok(1) => "1",
-                Ok(0) => "0",
-                _ => {
-                    return Err(PyValueError::new_err(
-                        "loadout needs to be 0, 1, or a bool.",
-                    ));
-                }
-            },
-        };
-        pyshinqlx_set_cvar(py, "g_loadout", string_cvar_value, None).map(|_| ())
+    fn set_loadout(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.set_loadout(value)
     }
 
     #[getter(maxclients)]
-    fn get_maxclients(&self, py: Python<'_>) -> PyResult<i32> {
-        let maxclients_cvar = self.__getitem__(py, "sv_maxclients")?;
-        Ok(maxclients_cvar.parse::<i32>().unwrap_or_default())
+    fn get_maxclients(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_maxclients()
     }
 
     #[setter(maxclients)]
-    fn set_maxclients(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "sv_maxclients", &value_str, None)?;
-        Ok(())
+    fn set_maxclients(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_maxclients(value)
     }
 
     #[getter(timelimit)]
-    fn get_timelimit(&self, py: Python<'_>) -> PyResult<i32> {
-        let timelimit_cvar = self.__getitem__(py, "timelimit")?;
-        Ok(timelimit_cvar.parse::<i32>().unwrap_or_default())
+    fn get_timelimit(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_timelimit()
     }
 
     #[setter(timelimit)]
-    fn set_timelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "timelimit", &value_str, None)?;
-        Ok(())
+    fn set_timelimit(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_timelimit(value)
     }
 
     #[getter(fraglimit)]
-    fn get_fraglimit(&self, py: Python<'_>) -> PyResult<i32> {
-        let fraglimit_cvar = self.__getitem__(py, "fraglimit")?;
-        Ok(fraglimit_cvar.parse::<i32>().unwrap_or_default())
+    fn get_fraglimit(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_fraglimit()
     }
 
     #[setter(fraglimit)]
-    fn set_fraglimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "fraglimit", &value_str, None)?;
-        Ok(())
+    fn set_fraglimit(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_fraglimit(value)
     }
 
     #[getter(roundlimit)]
-    fn get_roundlimit(&self, py: Python<'_>) -> PyResult<i32> {
-        let roundlimit_cvar = self.__getitem__(py, "roundlimit")?;
-        Ok(roundlimit_cvar.parse::<i32>().unwrap_or_default())
+    fn get_roundlimit(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_roundlimit()
     }
 
     #[setter(roundlimit)]
-    fn set_roundlimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "roundlimit", &value_str, None)?;
-        Ok(())
+    fn set_roundlimit(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_roundlimit(value)
     }
 
     #[getter(roundtimelimit)]
-    fn get_roundtimelimit(&self, py: Python<'_>) -> PyResult<i32> {
-        let roundtimelimit_cvar = self.__getitem__(py, "roundtimelimit")?;
-        Ok(roundtimelimit_cvar.parse::<i32>().unwrap_or_default())
+    fn get_roundtimelimit(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_roundtimelimit()
     }
 
     #[setter(roundtimelimit)]
-    fn set_roundtimelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "roundtimelimit", &value_str, None)?;
-        Ok(())
+    fn set_roundtimelimit(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_roundtimelimit(value)
     }
 
     #[getter(scorelimit)]
-    fn get_scorelimit(&self, py: Python<'_>) -> PyResult<i32> {
-        let scorelimit_cvar = self.__getitem__(py, "scorelimit")?;
-        Ok(scorelimit_cvar.parse::<i32>().unwrap_or_default())
+    fn get_scorelimit(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_scorelimit()
     }
 
     #[setter(scorelimit)]
-    fn set_scorelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "scorelimit", &value_str, None)?;
-        Ok(())
+    fn set_scorelimit(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_scorelimit(value)
     }
 
     #[getter(capturelimit)]
-    fn get_capturelimit(&self, py: Python<'_>) -> PyResult<i32> {
-        let capturelimit_cvar = self.__getitem__(py, "capturelimit")?;
-        Ok(capturelimit_cvar.parse::<i32>().unwrap_or_default())
+    fn get_capturelimit(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_capturelimit()
     }
 
     #[setter(capturelimit)]
-    fn set_capturelimit(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
-        pyshinqlx_set_cvar(py, "capturelimit", &value_str, None)?;
-        Ok(())
+    fn set_capturelimit(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_capturelimit(value)
     }
 
     #[getter(teamsize)]
-    fn get_teamsize(&self, py: Python<'_>) -> PyResult<i32> {
-        let teamsize_cvar = self.__getitem__(py, "teamsize")?;
-        Ok(teamsize_cvar.parse::<i32>().unwrap_or_default())
+    fn get_teamsize(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_teamsize()
     }
 
     #[setter(teamsize)]
-    fn set_teamsize(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        py.allow_threads(|| set_teamsize(value))
+    fn set_teamsize(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_teamsize(value)
     }
 
     #[getter(tags)]
-    fn get_tags(&self, py: Python<'_>) -> PyResult<Vec<String>> {
-        let tags_cvar = self.__getitem__(py, "sv_tags")?;
-        Ok(tags_cvar.split(',').map(|value| value.into()).collect())
+    fn get_tags(slf: &Bound<'_, Self>) -> PyResult<Vec<String>> {
+        slf.get_tags()
     }
 
     #[setter(tags)]
-    fn set_tags(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<String>() {
-            Ok(new_tags) => new_tags,
-            Err(_) => match value.extract::<Vec<Py<PyAny>>>() {
-                Ok(new_tags_list) => new_tags_list
-                    .iter()
-                    .map(|value| value.to_string())
-                    .join(","),
-                Err(_e) => {
-                    return Err(PyValueError::new_err(
-                        "tags need to be a string or an iterable returning strings.",
-                    ));
-                }
-            },
-        };
-        pyshinqlx_set_cvar(py, "sv_tags", &string_cvar_value, None).map(|_| ())
+    fn set_tags(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.set_tags(value)
     }
 
     #[getter(workshop_items)]
-    fn get_workshop_items(&self, py: Python<'_>) -> PyResult<Vec<u64>> {
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    let configstring = main_engine.get_configstring(CS_STEAM_WORKSHOP_IDS as u16);
-                    Ok(configstring
-                        .split(' ')
-                        .filter_map(|value| value.parse::<u64>().ok())
-                        .collect())
-                },
-            )
-        })
+    fn get_workshop_items(slf: &Bound<'_, Self>) -> PyResult<Vec<u64>> {
+        slf.get_workshop_items()
     }
 
     #[setter(workshop_items)]
-    fn set_workshop_items(&self, py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let workshop_items_str = match value.extract::<Vec<Py<PyAny>>>() {
-            Ok(new_workshop_items) => new_workshop_items
-                .iter()
-                .map(|value| value.to_string())
-                .join(" "),
-            Err(_) => {
-                return Err(PyValueError::new_err("The value needs to be an iterable."));
-            }
-        };
-
-        py.allow_threads(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
-                |main_engine| {
-                    main_engine.set_configstring(CS_STEAM_WORKSHOP_IDS as i32, &workshop_items_str);
-                    Ok(())
-                },
-            )
-        })
+    fn set_workshop_items(slf: &Bound<'_, Self>, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.set_workshop_items(value)
     }
 
     #[classmethod]
@@ -663,9 +465,420 @@ impl Game {
     }
 }
 
+pub(crate) trait GameMethods<'py> {
+    fn get_cached(&self) -> bool;
+    fn get_valid(&self) -> bool;
+    fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>>;
+    fn get_gametype(&self) -> PyResult<String>;
+    fn get_gametype_short(&self) -> PyResult<String>;
+    fn get_map(&self) -> PyResult<String>;
+    fn set_map(&self, value: &str) -> PyResult<()>;
+    fn get_map_title(&self) -> PyResult<String>;
+    fn get_map_subtitle1(&self) -> PyResult<String>;
+    fn get_map_subtitle2(&self) -> PyResult<String>;
+    fn get_red_score(&self) -> PyResult<i32>;
+    fn get_blue_score(&self) -> PyResult<i32>;
+    fn get_state(&self) -> PyResult<String>;
+    fn get_factory(&self) -> PyResult<String>;
+    fn set_factory(&self, value: &str) -> PyResult<()>;
+    fn get_factory_title(&self) -> PyResult<String>;
+    fn get_hostname(&self) -> PyResult<String>;
+    fn set_hostname(&self, value: &str) -> PyResult<()>;
+    fn get_instagib(&self) -> PyResult<bool>;
+    fn set_instagib(&self, value: &Bound<'_, PyAny>) -> PyResult<()>;
+    fn get_loadout(&self) -> PyResult<bool>;
+    fn set_loadout(&self, value: &Bound<'_, PyAny>) -> PyResult<()>;
+    fn get_maxclients(&self) -> PyResult<i32>;
+    fn set_maxclients(&self, value: i32) -> PyResult<()>;
+    fn get_timelimit(&self) -> PyResult<i32>;
+    fn set_timelimit(&self, value: i32) -> PyResult<()>;
+    fn get_fraglimit(&self) -> PyResult<i32>;
+    fn set_fraglimit(&self, value: i32) -> PyResult<()>;
+    fn get_roundlimit(&self) -> PyResult<i32>;
+    fn set_roundlimit(&self, value: i32) -> PyResult<()>;
+    fn get_roundtimelimit(&self) -> PyResult<i32>;
+    fn set_roundtimelimit(&self, value: i32) -> PyResult<()>;
+    fn get_scorelimit(&self) -> PyResult<i32>;
+    fn set_scorelimit(&self, value: i32) -> PyResult<()>;
+    fn get_capturelimit(&self) -> PyResult<i32>;
+    fn set_capturelimit(&self, value: i32) -> PyResult<()>;
+    fn get_teamsize(&self) -> PyResult<i32>;
+    fn set_teamsize(&self, value: i32) -> PyResult<()>;
+    fn get_tags(&self) -> PyResult<Vec<String>>;
+    fn set_tags(&self, value: &Bound<'_, PyAny>) -> PyResult<()>;
+    fn get_workshop_items(&self) -> PyResult<Vec<u64>>;
+    fn set_workshop_items(&self, value: &Bound<'_, PyAny>) -> PyResult<()>;
+}
+
+impl<'py> GameMethods<'py> for Bound<'py, Game> {
+    fn get_cached(&self) -> bool {
+        self.borrow().cached.load(Ordering::SeqCst)
+    }
+
+    fn get_valid(&self) -> bool {
+        self.borrow().valid.load(Ordering::SeqCst)
+    }
+
+    fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>> {
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+                    if configstring.is_empty() {
+                        self.borrow().valid.store(false, Ordering::SeqCst);
+                        return Err(NonexistentGameError::new_err(
+                            "Invalid game. Is the server loading a new map?",
+                        ));
+                    }
+                    Ok(parse_variables(&configstring))
+                },
+            )
+            .and_then(|parsed_variables| parsed_variables.into_py_dict(self.py()))
+    }
+
+    fn get_gametype(&self) -> PyResult<String> {
+        let factory_type = self.get_item("g_gametype")?.to_string();
+        match factory_type.parse::<i32>() {
+            Ok(0) => Ok("Free for All".to_string()),
+            Ok(1) => Ok("Duel".to_string()),
+            Ok(2) => Ok("Race".to_string()),
+            Ok(3) => Ok("Team Deathmatch".to_string()),
+            Ok(4) => Ok("Clan Arena".to_string()),
+            Ok(5) => Ok("Capture the Flag".to_string()),
+            Ok(6) => Ok("One Flag".to_string()),
+            Ok(8) => Ok("Harvester".to_string()),
+            Ok(9) => Ok("Freeze Tag".to_string()),
+            Ok(10) => Ok("Domination".to_string()),
+            Ok(11) => Ok("Attack and Defend".to_string()),
+            Ok(12) => Ok("Red Rover".to_string()),
+            _ => Ok("unknown".to_string()),
+        }
+    }
+
+    fn get_gametype_short(&self) -> PyResult<String> {
+        let factory_type = self.get_item("g_gametype")?.to_string();
+        match factory_type.parse::<i32>() {
+            Ok(0) => Ok("ffa".to_string()),
+            Ok(1) => Ok("duel".to_string()),
+            Ok(2) => Ok("race".to_string()),
+            Ok(3) => Ok("tdm".to_string()),
+            Ok(4) => Ok("ca".to_string()),
+            Ok(5) => Ok("ctf".to_string()),
+            Ok(6) => Ok("1f".to_string()),
+            Ok(8) => Ok("har".to_string()),
+            Ok(9) => Ok("ft".to_string()),
+            Ok(10) => Ok("dom".to_string()),
+            Ok(11) => Ok("ad".to_string()),
+            Ok(12) => Ok("rr".to_string()),
+            _ => Ok("N/A".to_string()),
+        }
+    }
+
+    fn get_map(&self) -> PyResult<String> {
+        self.get_item("mapname").map(|value| value.to_string())
+    }
+
+    fn set_map(&self, value: &str) -> PyResult<()> {
+        self.py().allow_threads(|| {
+            let mapchange_command = format!("map {value}");
+            console_command(&mapchange_command)
+        })
+    }
+
+    fn get_map_title(&self) -> PyResult<String> {
+        let base_module = self.py().import("shinqlx")?;
+        let map_title = base_module.getattr("_map_title")?;
+        map_title.extract::<String>()
+    }
+
+    fn get_map_subtitle1(&self) -> PyResult<String> {
+        let base_module = self.py().import("shinqlx")?;
+        let map_title = base_module.getattr("_map_subtitle1")?;
+        map_title.extract::<String>()
+    }
+
+    fn get_map_subtitle2(&self) -> PyResult<String> {
+        let base_module = self.py().import("shinqlx")?;
+        let map_title = base_module.getattr("_map_subtitle2")?;
+        map_title.extract::<String>()
+    }
+
+    fn get_red_score(&self) -> PyResult<i32> {
+        self.py().allow_threads(|| {
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
+                    Ok(configstring.parse::<i32>().unwrap_or_default())
+                },
+            )
+        })
+    }
+
+    fn get_blue_score(&self) -> PyResult<i32> {
+        self.py().allow_threads(|| {
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
+                    Ok(configstring.parse::<i32>().unwrap_or_default())
+                },
+            )
+        })
+    }
+
+    fn get_state(&self) -> PyResult<String> {
+        let game_state = self.get_item("g_gameState")?.to_string();
+        if game_state == "PRE_GAME" {
+            return Ok("warmup".to_string());
+        }
+
+        if game_state == "COUNT_DOWN" {
+            return Ok("countdown".to_string());
+        }
+
+        if game_state == "IN_PROGRESS" {
+            return Ok("in_progress".to_string());
+        }
+
+        warn!(target: "shinqlx", "Got unknown game state: {}", game_state);
+
+        Ok(game_state)
+    }
+
+    fn get_factory(&self) -> PyResult<String> {
+        self.get_item("g_factory").map(|value| value.to_string())
+    }
+
+    fn set_factory(&self, value: &str) -> PyResult<()> {
+        let mapname = self.get_map()?;
+        self.py().allow_threads(|| {
+            let mapchange_command = format!("map {mapname} {value}");
+            console_command(&mapchange_command)
+        })
+    }
+
+    fn get_factory_title(&self) -> PyResult<String> {
+        self.get_item("g_factoryTitle")
+            .map(|value| value.to_string())
+    }
+
+    fn get_hostname(&self) -> PyResult<String> {
+        self.get_item("sv_hostname").map(|value| value.to_string())
+    }
+
+    fn set_hostname(&self, value: &str) -> PyResult<()> {
+        pyshinqlx_set_cvar(self.py(), "sv_hostname", value, None)?;
+        Ok(())
+    }
+
+    fn get_instagib(&self) -> PyResult<bool> {
+        let insta_cvar = self.get_item("g_instagib")?.to_string();
+        Ok(insta_cvar.parse::<i32>().is_ok_and(|value| value != 0))
+    }
+
+    fn set_instagib(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        let string_cvar_value = match value.extract::<bool>() {
+            Ok(true) => "1",
+            Ok(false) => "0",
+            Err(_) => match value.extract::<i32>() {
+                Ok(1) => "1",
+                Ok(0) => "0",
+                _ => {
+                    return Err(PyValueError::new_err(
+                        "instagib needs to be 0, 1, or a bool.",
+                    ));
+                }
+            },
+        };
+        pyshinqlx_set_cvar(self.py(), "g_instagib", string_cvar_value, None).map(|_| ())
+    }
+
+    fn get_loadout(&self) -> PyResult<bool> {
+        let loadout_cvar = self.get_item("g_loadout")?.to_string();
+        Ok(loadout_cvar.parse::<i32>().is_ok_and(|value| value != 0))
+    }
+
+    fn set_loadout(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        let string_cvar_value = match value.extract::<bool>() {
+            Ok(true) => "1",
+            Ok(false) => "0",
+            Err(_) => match value.extract::<i32>() {
+                Ok(1) => "1",
+                Ok(0) => "0",
+                _ => {
+                    return Err(PyValueError::new_err(
+                        "loadout needs to be 0, 1, or a bool.",
+                    ));
+                }
+            },
+        };
+        pyshinqlx_set_cvar(self.py(), "g_loadout", string_cvar_value, None).map(|_| ())
+    }
+
+    fn get_maxclients(&self) -> PyResult<i32> {
+        let maxclients_cvar = self.get_item("sv_maxclients")?.to_string();
+        Ok(maxclients_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_maxclients(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "sv_maxclients", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_timelimit(&self) -> PyResult<i32> {
+        let timelimit_cvar = self.get_item("timelimit")?.to_string();
+        Ok(timelimit_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_timelimit(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "timelimit", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_fraglimit(&self) -> PyResult<i32> {
+        let fraglimit_cvar = self.get_item("fraglimit")?.to_string();
+        Ok(fraglimit_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_fraglimit(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "fraglimit", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_roundlimit(&self) -> PyResult<i32> {
+        let roundlimit_cvar = self.get_item("roundlimit")?.to_string();
+        Ok(roundlimit_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_roundlimit(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "roundlimit", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_roundtimelimit(&self) -> PyResult<i32> {
+        let roundtimelimit_cvar = self.get_item("roundtimelimit")?.to_string();
+        Ok(roundtimelimit_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_roundtimelimit(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "roundtimelimit", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_scorelimit(&self) -> PyResult<i32> {
+        let scorelimit_cvar = self.get_item("scorelimit")?.to_string();
+        Ok(scorelimit_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_scorelimit(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "scorelimit", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_capturelimit(&self) -> PyResult<i32> {
+        let capturelimit_cvar = self.get_item("capturelimit")?.to_string();
+        Ok(capturelimit_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_capturelimit(&self, value: i32) -> PyResult<()> {
+        let value_str = format!("{}", value);
+        pyshinqlx_set_cvar(self.py(), "capturelimit", &value_str, None)?;
+        Ok(())
+    }
+
+    fn get_teamsize(&self) -> PyResult<i32> {
+        let teamsize_cvar = self.get_item("teamsize")?.to_string();
+        Ok(teamsize_cvar.parse::<i32>().unwrap_or_default())
+    }
+
+    fn set_teamsize(&self, value: i32) -> PyResult<()> {
+        self.py().allow_threads(|| set_teamsize(value))
+    }
+
+    fn get_tags(&self) -> PyResult<Vec<String>> {
+        let tags_cvar = self.get_item("sv_tags")?.to_string();
+        Ok(tags_cvar.split(',').map(|value| value.into()).collect())
+    }
+
+    fn set_tags(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        let string_cvar_value = match value.extract::<String>() {
+            Ok(new_tags) => new_tags,
+            Err(_) => match value.extract::<Vec<Py<PyAny>>>() {
+                Ok(new_tags_list) => new_tags_list
+                    .iter()
+                    .map(|value| value.to_string())
+                    .join(","),
+                Err(_e) => {
+                    return Err(PyValueError::new_err(
+                        "tags need to be a string or an iterable returning strings.",
+                    ));
+                }
+            },
+        };
+        pyshinqlx_set_cvar(self.py(), "sv_tags", &string_cvar_value, None).map(|_| ())
+    }
+
+    fn get_workshop_items(&self) -> PyResult<Vec<u64>> {
+        self.py().allow_threads(|| {
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                )),
+                |main_engine| {
+                    let configstring = main_engine.get_configstring(CS_STEAM_WORKSHOP_IDS as u16);
+                    Ok(configstring
+                        .split(' ')
+                        .filter_map(|value| value.parse::<u64>().ok())
+                        .collect())
+                },
+            )
+        })
+    }
+
+    fn set_workshop_items(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
+        let workshop_items_str = match value.extract::<Vec<Py<PyAny>>>() {
+            Ok(new_workshop_items) => new_workshop_items
+                .iter()
+                .map(|value| value.to_string())
+                .join(" "),
+            Err(_) => {
+                return Err(PyValueError::new_err("The value needs to be an iterable."));
+            }
+        };
+
+        self.py().allow_threads(|| {
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                )),
+                |main_engine| {
+                    main_engine.set_configstring(CS_STEAM_WORKSHOP_IDS as i32, &workshop_items_str);
+                    Ok(())
+                },
+            )
+        })
+    }
+}
+
 #[cfg(test)]
 mod pyshinqlx_game_tests {
-    use super::NonexistentGameError;
+    use super::{Game, GameMethods, NonexistentGameError};
     use crate::ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS};
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -679,6 +892,13 @@ mod pyshinqlx_game_tests {
         types::{PyBool, PyList, PyString},
         IntoPyObjectExt,
     };
+
+    fn default_game() -> Game {
+        Game {
+            valid: true.into(),
+            cached: true.into(),
+        }
+    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -712,13 +932,7 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "asdf", 1)
             .run(|| {
                 let result = Python::with_gil(|py| Game::py_new(py, true));
-                assert_eq!(
-                    result.expect("result was not OK"),
-                    Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    }
-                );
+                assert_eq!(result.expect("result was not OK"), default_game());
             });
     }
 
@@ -726,18 +940,13 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
-            let game = Bound::new(
-                py,
-                Game {
-                    cached: true.into(),
-                    valid: true.into(),
-                },
-            )
-            .expect("this should not happen");
-            Game::__repr__(&game)
+        Python::with_gil(|py| {
+            let game = Bound::new(py, default_game()).expect("this should not happen");
+
+            let result = game.repr();
+
+            assert!(result.is_ok_and(|repr| repr == "Game(N/A@N/A)"));
         });
-        assert_eq!(result, "Game(N/A@N/A)");
     }
 
     #[rstest]
@@ -747,18 +956,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1..)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Bound::new(
-                        py,
-                        Game {
-                            cached: true.into(),
-                            valid: true.into(),
-                        },
-                    )
-                    .expect("this should not happen");
-                    Game::__repr__(&game)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.repr();
+
+                    assert!(result.is_ok_and(|repr| repr == "Game(N/A@N/A)"));
                 });
-                assert_eq!(result, "Game(N/A@N/A)");
             });
     }
 
@@ -769,18 +973,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Bound::new(
-                        py,
-                        Game {
-                            cached: true.into(),
-                            valid: true.into(),
-                        },
-                    )
-                    .expect("this should not happen");
-                    Game::__repr__(&game)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.repr();
+
+                    assert!(result.is_ok_and(|repr| repr == "Game(N/A@N/A)"));
                 });
-                assert_eq!(result, "Game(N/A@N/A)");
             });
     }
 
@@ -791,18 +990,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1..)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Bound::new(
-                        py,
-                        Game {
-                            cached: true.into(),
-                            valid: true.into(),
-                        },
-                    )
-                    .expect("this should not happen");
-                    Game::__repr__(&game)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.repr();
+
+                    assert!(result.is_ok_and(|repr| repr == "Game(N/A@N/A)"));
                 });
-                assert_eq!(result, "Game(N/A@N/A)");
             });
     }
 
@@ -817,18 +1011,13 @@ mod pyshinqlx_game_tests {
                 1..,
             )
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Bound::new(
-                        py,
-                        Game {
-                            cached: true.into(),
-                            valid: true.into(),
-                        },
-                    )
-                    .expect("this should not happen");
-                    Game::__repr__(&game)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.repr();
+
+                    assert!(result.is_ok_and(|repr| repr == "Game(Clan Arena@thunderstruck)"));
                 });
-                assert_eq!(result, "Game(Clan Arena@thunderstruck)");
             });
     }
 
@@ -836,14 +1025,13 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
-            game.__str__(py)
+        Python::with_gil(|py| {
+            let game = Bound::new(py, default_game()).expect("this should not happen");
+
+            let result = game.str();
+
+            assert!(result.is_ok_and(|game_str| game_str == "Invalid game"));
         });
-        assert_eq!(result, "Invalid game");
     }
 
     #[rstest]
@@ -853,14 +1041,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
-                    game.__str__(py)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.str();
+
+                    assert!(result.is_ok_and(|game_str| game_str == "Invalid game"));
                 });
-                assert_eq!(result, "Invalid game");
             });
     }
 
@@ -871,14 +1058,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
-                    game.__str__(py)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.str();
+
+                    assert!(result.is_ok_and(|game_str| game_str == "Invalid game"));
                 });
-                assert_eq!(result, "Invalid game");
             });
     }
 
@@ -889,14 +1075,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
-                    game.__str__(py)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.str();
+
+                    assert!(result.is_ok_and(|game_str| game_str == "Invalid game"));
                 });
-                assert_eq!(result, "Invalid game");
             });
     }
 
@@ -911,14 +1096,13 @@ mod pyshinqlx_game_tests {
                 1..,
             )
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
-                    game.__str__(py)
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let result = game.str();
+
+                    assert!(result.is_ok_and(|game_str| game_str == "Clan Arena on thunderstruck"));
                 });
-                assert_eq!(result, "Clan Arena on thunderstruck");
             });
     }
 
@@ -927,12 +1111,10 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn contains_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.__contains__(py, "asdf");
+            let result = game.contains("asdf");
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
     }
@@ -945,12 +1127,10 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
-                let game = Game {
-                    cached: true.into(),
-                    valid: true.into(),
-                };
+                let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                let result = game.__contains__(py, "asdf");
+                let result = game.contains("asdf");
+
                 assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
             });
         });
@@ -963,15 +1143,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.__contains__(py, "asdf")
+                    let result = game.contains("asdf");
+
+                    assert_eq!(result.expect("result was not OK"), true);
                 });
-                assert_eq!(result.expect("result was not OK"), true);
             });
     }
 
@@ -982,15 +1160,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.__contains__(py, "qwertz")
+                    let result = game.contains("qwertz");
+
+                    assert_eq!(result.expect("result was not OK"), false);
                 });
-                assert_eq!(result.expect("result was not OK"), false);
             });
     }
 
@@ -1001,15 +1177,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.__contains__(py, "asdf")
+                    let result = game.contains("asdf");
+
+                    assert_eq!(result.expect("result was not OK"), false);
                 });
-                assert_eq!(result.expect("result was not OK"), false);
             });
     }
 
@@ -1020,15 +1194,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.__contains__(py, "asdf")
+                    let result = game.contains("asdf");
+
+                    assert_eq!(result.expect("result was not OK"), false);
                 });
-                assert_eq!(result.expect("result was not OK"), false);
             });
     }
 
@@ -1037,12 +1209,10 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn getitem_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.__getitem__(py, "asdf");
+            let result = game.get_item("asdf");
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
     }
@@ -1055,12 +1225,10 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
         .run(|| {
             Python::with_gil(|py| {
-                let game = Game {
-                    cached: true.into(),
-                    valid: true.into(),
-                };
+                let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                let result = game.__getitem__(py, "asdf");
+                let result = game.get_item("asdf");
+
                 assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
             });
         });
@@ -1073,15 +1241,13 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.__getitem__(py, "asdf")
+                    let result = game.get_item("asdf");
+
+                    assert!(result.is_ok_and(|py_result| py_result.to_string() == "12"));
                 });
-                assert_eq!(result.expect("result was not OK"), "12");
             });
     }
 
@@ -1093,12 +1259,10 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.__getitem__(py, "qwertz");
+                    let result = game.get_item("qwertz");
+
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
             });
@@ -1112,12 +1276,10 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.__getitem__(py, "asdf");
+                    let result = game.get_item("asdf");
+
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
             });
@@ -1131,12 +1293,10 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.__getitem__(py, "asdf");
+                    let result = game.get_item("asdf");
+
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
             });
@@ -1147,12 +1307,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn cvars_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let cvars_result = game.get_cvars(py);
+            let cvars_result = game.get_cvars();
             assert!(cvars_result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1165,12 +1322,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let cvars_result = game.get_cvars(py);
+                    let cvars_result = game.get_cvars();
                     assert!(cvars_result
                         .is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
                 });
@@ -1185,12 +1339,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\42", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let cvars_result = game.get_cvars(py);
+                    let cvars_result = game.get_cvars();
                     assert!(
                         cvars_result.is_ok_and(|cvars| cvars.get_item("asdf").is_ok_and(
                             |opt_value| {
@@ -1210,12 +1361,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_type_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_type(py);
+            let result = game.get_gametype();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1228,12 +1376,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_type(py);
+                    let result = game.get_gametype();
                     assert_eq!(result.expect("result was not OK"), "unknown");
                 });
             });
@@ -1269,12 +1414,9 @@ mod pyshinqlx_game_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_type(py);
+                    let result = game.get_gametype();
                     assert_eq!(result.expect("result was not OK"), expected_string);
                 });
             });
@@ -1285,12 +1427,9 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_type_short_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_type_short(py);
+            let result = game.get_gametype_short();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1303,12 +1442,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_type_short(py);
+                    let result = game.get_gametype_short();
                     assert_eq!(result.expect("result was not OK"), "N/A");
                 });
             });
@@ -1344,12 +1480,9 @@ mod pyshinqlx_game_tests {
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_type_short(py);
+                    let result = game.get_gametype_short();
                     assert_eq!(result.expect("result was not OK"), expected_string);
                 });
             });
@@ -1363,12 +1496,9 @@ mod pyshinqlx_game_tests {
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_map(py);
+                    let result = game.get_map();
                     assert_eq!(result.expect("result was not OK"), "thunderstruck");
                 });
             });
@@ -1382,13 +1512,9 @@ mod pyshinqlx_game_tests {
             .with_execute_console_command("map campgrounds", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_map(py, "campgrounds")
-                        .expect("this should not happen");
+                    game.set_map("campgrounds").expect("this should not happen");
                 });
             });
     }
@@ -1407,15 +1533,10 @@ shinqlx._map_title = "eyetoeye"
                 None,
             )
             .expect("this should not happen");
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
 
-            assert_eq!(
-                game.get_map_title(py).expect("result was not OK"),
-                "eyetoeye"
-            );
+            let game = Bound::new(py, default_game()).expect("this should not happen");
+
+            assert_eq!(game.get_map_title().expect("result was not OK"), "eyetoeye");
         });
     }
 
@@ -1433,13 +1554,11 @@ shinqlx._map_subtitle1 = "Clan Arena"
                 None,
             )
             .expect("this should not happen");
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
             assert_eq!(
-                game.get_map_subtitle1(py).expect("result was not OK"),
+                game.get_map_subtitle1().expect("result was not OK"),
                 "Clan Arena"
             );
         });
@@ -1459,13 +1578,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 None,
             )
             .expect("this should not happen");
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
             assert_eq!(
-                game.get_map_subtitle2(py).expect("result was not OK"),
+                game.get_map_subtitle2().expect("result was not OK"),
                 "Awesome map!"
             );
         });
@@ -1476,12 +1593,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_red_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_red_score(py);
+            let result = game.get_red_score();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1494,12 +1608,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SCORES1 as u16, "7", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_red_score(py);
+                    let result = game.get_red_score();
                     assert_eq!(result.expect("result was not OK"), 7);
                 });
             });
@@ -1513,12 +1624,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SCORES1 as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_red_score(py);
+                    let result = game.get_red_score();
                     assert_eq!(result.expect("result was not OK"), 0);
                 });
             });
@@ -1529,12 +1637,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_blue_score_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_blue_score(py);
+            let result = game.get_blue_score();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1547,12 +1652,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SCORES2 as u16, "5", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_blue_score(py);
+                    let result = game.get_blue_score();
                     assert_eq!(result.expect("result was not OK"), 5);
                 });
             });
@@ -1566,12 +1668,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SCORES2 as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_blue_score(py);
+                    let result = game.get_blue_score();
                     assert_eq!(result.expect("result was not OK"), 0);
                 });
             });
@@ -1582,12 +1681,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_state_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_state(py);
+            let result = game.get_state();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1611,15 +1707,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_state(py)
+                    let result = game.get_state();
+
+                    assert_eq!(result.expect("result was not OK"), expected_return);
                 });
-                assert_eq!(result.expect("result was not OK"), expected_return);
             });
     }
 
@@ -1628,12 +1722,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_factory_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_factory(py);
+            let result = game.get_factory();
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1645,15 +1737,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_factory\ca", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_factory(py)
+                    let result = game.get_factory();
+
+                    assert_eq!(result.expect("result was not OK"), "ca");
                 });
-                assert_eq!(result.expect("result was not OK"), "ca");
             });
     }
 
@@ -1666,13 +1756,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\theatreofpain", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_factory(py, "ffa".to_string())
-                        .expect("this should not happen");
+                    game.set_factory("ffa").expect("this should not happen");
                 });
             });
     }
@@ -1682,12 +1768,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn get_factory_title_with_no_main_engine(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let game = Game {
-                cached: true.into(),
-                valid: true.into(),
-            };
+            let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_factory_title(py);
+            let result = game.get_factory_title();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1699,15 +1782,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_factoryTitle\Clan Arena", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_factory_title(py)
+                    let result = game.get_factory_title();
+
+                    assert_eq!(result.expect("result was not OK"), "Clan Arena");
                 });
-                assert_eq!(result.expect("result was not OK"), "Clan Arena");
             });
     }
 
@@ -1718,15 +1799,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_hostname\Awesome server!", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_hostname(py)
+                    let result = game.get_hostname();
+
+                    assert_eq!(result.expect("result was not OK"), "Awesome server!");
                 });
-                assert_eq!(result.expect("result was not OK"), "Awesome server!");
             });
     }
 
@@ -1746,12 +1825,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_hostname(py, "More awesome server!".to_string())
+                    game.set_hostname("More awesome server!")
                         .expect("this should not happen");
                 });
             });
@@ -1770,15 +1846,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_instagib\{mode}"), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_instagib(py)
+                    let result = game.get_instagib();
+
+                    assert_eq!(result.expect("result was not OK"), expected);
                 });
-                assert_eq!(result.expect("result was not OK"), expected);
             });
     }
 
@@ -1804,12 +1878,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_instagib(py, PyBool::new(py, value_set).as_any())
+                    game.set_instagib(PyBool::new(py, value_set).as_any())
                         .expect("this should not happen");
                 });
             });
@@ -1837,13 +1908,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_instagib(
-                        py,
                         &value_set
                             .into_bound_py_any(py)
                             .expect("this should not happen"),
@@ -1867,12 +1934,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_instagib(py, PyString::new(py, "asdf").as_any());
+                    let result = game.set_instagib(PyString::new(py, "asdf").as_any());
+
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -1891,15 +1956,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_loadout\{mode}"), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_loadout(py)
+                    let result = game.get_loadout();
+
+                    assert_eq!(result.expect("result was not OK"), expected);
                 });
-                assert_eq!(result.expect("result was not OK"), expected);
             });
     }
 
@@ -1925,12 +1988,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_loadout(py, PyBool::new(py, value_set).as_any())
+                    game.set_loadout(PyBool::new(py, value_set).as_any())
                         .expect("this should not happen");
                 });
             });
@@ -1958,13 +2018,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_loadout(
-                        py,
                         &value_set
                             .into_bound_py_any(py)
                             .expect("this should not happen"),
@@ -1988,12 +2044,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_loadout(py, PyString::new(py, "asdf").as_any());
+                    let result = game.set_loadout(PyString::new(py, "asdf").as_any());
+
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2006,15 +2060,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_maxclients\8", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_maxclients(py)
+                    let result = game.get_maxclients();
+
+                    assert_eq!(result.expect("result was not OK"), 8);
                 });
-                assert_eq!(result.expect("result was not OK"), 8);
             });
     }
 
@@ -2034,12 +2086,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_maxclients(py, 32).expect("this should not happen");
+                    game.set_maxclients(32).expect("this should not happen");
                 });
             });
     }
@@ -2051,15 +2100,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\timelimit\20", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_timelimit(py)
+                    let result = game.get_timelimit();
+
+                    assert_eq!(result.expect("result was not OK"), 20);
                 });
-                assert_eq!(result.expect("result was not OK"), 20);
             });
     }
 
@@ -2079,12 +2126,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_timelimit(py, 30).expect("this should not happen");
+                    game.set_timelimit(30).expect("this should not happen");
                 });
             });
     }
@@ -2096,15 +2140,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\fraglimit\10", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_fraglimit(py)
+                    let result = game.get_fraglimit();
+
+                    assert_eq!(result.expect("result was not OK"), 10);
                 });
-                assert_eq!(result.expect("result was not OK"), 10);
             });
     }
 
@@ -2124,12 +2166,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_fraglimit(py, 20).expect("this should not happen");
+                    game.set_fraglimit(20).expect("this should not happen");
                 });
             });
     }
@@ -2141,15 +2180,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\roundlimit\11", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_roundlimit(py)
+                    let result = game.get_roundlimit();
+
+                    assert_eq!(result.expect("result was not OK"), 11);
                 });
-                assert_eq!(result.expect("result was not OK"), 11);
             });
     }
 
@@ -2169,12 +2206,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_roundlimit(py, 13).expect("this should not happen");
+                    game.set_roundlimit(13).expect("this should not happen");
                 });
             });
     }
@@ -2186,15 +2220,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\roundtimelimit\240", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_roundtimelimit(py)
+                    let result = game.get_roundtimelimit();
+
+                    assert_eq!(result.expect("result was not OK"), 240);
                 });
-                assert_eq!(result.expect("result was not OK"), 240);
             });
     }
 
@@ -2214,12 +2246,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_roundtimelimit(py, 150)
+                    game.set_roundtimelimit(150)
                         .expect("this should not happen");
                 });
             });
@@ -2232,15 +2261,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\scorelimit\10", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_scorelimit(py)
+                    let result = game.get_scorelimit();
+
+                    assert_eq!(result.expect("result was not OK"), 10);
                 });
-                assert_eq!(result.expect("result was not OK"), 10);
             });
     }
 
@@ -2260,12 +2287,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_scorelimit(py, 8).expect("this should not happen");
+                    game.set_scorelimit(8).expect("this should not happen");
                 });
             });
     }
@@ -2277,15 +2301,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\capturelimit\10", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_capturelimit(py)
+                    let result = game.get_capturelimit();
+
+                    assert_eq!(result.expect("result was not OK"), 10);
                 });
-                assert_eq!(result.expect("result was not OK"), 10);
             });
     }
 
@@ -2305,12 +2327,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_capturelimit(py, 20);
+                    let result = game.set_capturelimit(20);
+
                     assert!(result.is_ok());
                 });
             });
@@ -2323,15 +2343,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\teamsize\4", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_teamsize(py)
+                    let result = game.get_teamsize();
+
+                    assert_eq!(result.expect("result was not OK"), 4);
                 });
-                assert_eq!(result.expect("result was not OK"), 4);
             });
     }
 
@@ -2351,12 +2369,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_teamsize(py, 8).expect("this should not happen");
+                    game.set_teamsize(8).expect("this should not happen");
                 });
             });
     }
@@ -2368,18 +2383,16 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_tags\tag1,tag2,tag3", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_tags(py)
+                    let result = game.get_tags();
+
+                    assert_eq!(
+                        result.expect("result was not OK"),
+                        vec!["tag1", "tag2", "tag3"]
+                    );
                 });
-                assert_eq!(
-                    result.expect("result was not OK"),
-                    vec!["tag1", "tag2", "tag3"]
-                );
             });
     }
 
@@ -2399,12 +2412,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_tags(py, PyString::new(py, "tag1,tag2,tag3").as_any())
+                    game.set_tags(PyString::new(py, "tag1,tag2,tag3").as_any())
                         .expect("this should not happen");
                 });
             });
@@ -2426,13 +2436,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_tags(
-                        py,
                         PyList::new(py, ["tag1", "tag2", "tag3"])
                             .expect("this should not happen")
                             .as_any(),
@@ -2456,15 +2462,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_tags(
-                        py,
-                        &42i32.into_bound_py_any(py).expect("this should not happen"),
-                    );
+                    let result = game
+                        .set_tags(&42i32.into_bound_py_any(py).expect("this should not happen"));
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2477,15 +2478,13 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_STEAM_WORKSHOP_IDS as u16, "1234 5678 9101", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.get_workshop_items(py)
+                    let result = game.get_workshop_items();
+
+                    assert_eq!(result.expect("result was not OK"), vec![1234, 5678, 9101]);
                 });
-                assert_eq!(result.expect("result was not OK"), vec![1234, 5678, 9101]);
             });
     }
 
@@ -2505,13 +2504,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_workshop_items(
-                        py,
                         PyList::new(py, [1234, 5678, 9101])
                             .expect("this should not happen")
                             .as_any(),
@@ -2537,13 +2532,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
             })
             .run(|| {
                 Python::with_gil(|py| {
-                    let game = Game {
-                        cached: true.into(),
-                        valid: true.into(),
-                    };
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.set_workshop_items(
-                        py,
                         &42i32.into_bound_py_any(py).expect("this should not happen"),
                     );
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
