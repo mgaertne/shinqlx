@@ -91,180 +91,64 @@ impl Plugin {
     /// The database instance.
     #[getter(db)]
     fn get_db<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
-        let plugin_name = Self::get_name(slf)?;
-        let Ok(db_class) = slf
-            .py()
-            .get_type::<Plugin>()
-            .getattr(intern!(slf.py(), "database"))
-        else {
-            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
-            return Err(PyRuntimeError::new_err(error_msg));
-        };
-
-        if db_class.is_none() {
-            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
-            return Err(PyRuntimeError::new_err(error_msg));
-        }
-
-        let plugin = slf.borrow();
-        if plugin.db_instance.read().bind(slf.py()).is_none() {
-            let db_instance = db_class.call1((slf,))?;
-            *plugin.db_instance.write() = db_instance.unbind();
-        }
-
-        let returned = plugin
-            .db_instance
-            .read()
-            .clone_ref(slf.py())
-            .into_bound(slf.py());
-        Ok(returned)
+        slf.get_db()
     }
 
     /// The name of the plugin.
     #[getter(name)]
     fn get_name(slf: &Bound<'_, Self>) -> PyResult<String> {
-        slf.get_type().name().map(|value| value.to_string())
+        slf.get_name()
     }
 
     /// A dictionary containing plugin names as keys and plugin instances
     /// as values of all currently loaded plugins.
     #[getter(plugins)]
     fn get_plugins<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyDict>> {
-        let loaded_plugins = slf
-            .py()
-            .get_type::<Plugin>()
-            .getattr(intern!(slf.py(), "_loaded_plugins"))?;
-
-        Ok(loaded_plugins.downcast()?.clone())
+        slf.get_plugins()
     }
 
     /// A list of all the hooks this plugin has.
     #[getter(hooks)]
     fn get_hooks(slf: &Bound<'_, Self>) -> Vec<(String, Py<PyAny>, i32)> {
-        slf.borrow()
-            .hooks
-            .read()
-            .iter()
-            .map(|(name, handler, permission)| {
-                (name.clone(), handler.clone_ref(slf.py()), *permission)
-            })
-            .collect()
+        slf.get_hooks()
     }
 
     /// A list of all the commands this plugin has registered.
     #[getter(commands)]
     fn get_commands(slf: &Bound<'_, Self>) -> Vec<Py<Command>> {
-        slf.borrow()
-            .commands
-            .read()
-            .iter()
-            .map(|command| command.clone_ref(slf.py()))
-            .collect()
+        slf.get_commands()
     }
 
     /// A Game instance.
     #[getter(game)]
     fn get_game(slf: &Bound<'_, Self>) -> Option<Game> {
-        Game::py_new(slf.py(), true).ok()
+        slf.get_game()
     }
 
     /// An instance of :class:`logging.Logger`, but initialized for this plugin.
     #[getter(logger)]
     pub(crate) fn get_logger<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
-        slf.get_type()
-            .name()
-            .map(|value| value.to_string())
-            .and_then(|plugin_name| {
-                pyshinqlx_get_logger(
-                    slf.py(),
-                    Some(PyString::new(slf.py(), &plugin_name).into_any()),
-                )
-            })
+        slf.get_logger()
     }
 
     #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
-        event: String,
+        event: &str,
         handler: &Bound<'_, PyAny>,
         priority: i32,
     ) -> PyResult<()> {
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(slf.py()).get_item(&event).ok())
-            .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to event dispatcher",
-                )),
-                |event_dispatcher| {
-                    let plugin_type = slf.get_type();
-                    let plugin_name = plugin_type.name()?;
-                    event_dispatcher.call_method1(
-                        intern!(slf.py(), "add_hook"),
-                        (plugin_name, &handler, priority),
-                    )?;
-                    Ok(())
-                },
-            )?;
-
-        slf.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
-            |plugin| {
-                plugin
-                    .hooks
-                    .write()
-                    .push((event.clone(), handler.clone().unbind(), priority));
-                Ok(())
-            },
-        )
+        slf.add_hook(event, handler, priority)
     }
 
     #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
-        event: String,
+        event: &str,
         handler: &Bound<'_, PyAny>,
         priority: i32,
     ) -> PyResult<()> {
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(slf.py()).get_item(&event).ok())
-            .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to event dispatchers",
-                )),
-                |event_dispatcher| {
-                    let plugin_type = slf.get_type();
-                    let plugin_name = plugin_type.name()?;
-                    EventDispatcherMethods::remove_hook(
-                        event_dispatcher.downcast()?,
-                        &plugin_name.to_string(),
-                        handler,
-                        priority,
-                    )?;
-                    Ok(())
-                },
-            )?;
-
-        slf.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
-            |plugin| {
-                plugin
-                    .hooks
-                    .write()
-                    .retain(|(hook_event, hook_handler, hook_priority)| {
-                        hook_event != &event
-                            || hook_handler
-                                .bind(slf.py())
-                                .ne(handler.as_ref())
-                                .unwrap_or(false)
-                            || hook_priority != &priority
-                    });
-                Ok(())
-            },
-        )
+        slf.remove_hook(event, handler, priority)
     }
 
     #[pyo3(
@@ -294,36 +178,18 @@ impl Plugin {
         prefix: bool,
         usage: &str,
     ) -> PyResult<()> {
-        let py_channels = channels.unwrap_or(slf.py().None().into_bound(slf.py()));
-        let py_exclude_channels = exclude_channels.unwrap_or(PyTuple::empty(slf.py()).into_any());
-
-        let new_command = Command::py_new(
-            slf,
+        slf.add_command(
             name,
             handler,
             permission,
-            &py_channels,
-            &py_exclude_channels,
+            channels,
+            exclude_channels,
+            priority,
             client_cmd_pass,
             client_cmd_perm,
             prefix,
             usage,
-        )?;
-        let py_command = Bound::new(slf.py(), new_command)?;
-
-        slf.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
-            |plugin| {
-                plugin.commands.write().push(py_command.clone().unbind());
-                Ok(())
-            },
-        )?;
-
-        COMMANDS.load().as_ref().map_or(Ok(()), |commands| {
-            commands
-                .bind(slf.py())
-                .add_command(&py_command, priority as usize)
-        })
+        )
     }
 
     fn remove_command(
@@ -331,86 +197,7 @@ impl Plugin {
         name: &Bound<'_, PyAny>,
         handler: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        let mut names = vec![];
-        name.downcast::<PyList>().ok().iter().for_each(|py_list| {
-            py_list.iter().for_each(|py_alias| {
-                py_alias
-                    .extract::<String>()
-                    .ok()
-                    .iter()
-                    .for_each(|alias| names.push(alias.clone()));
-            })
-        });
-        name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
-            py_tuple.iter().for_each(|py_alias| {
-                py_alias
-                    .extract::<String>()
-                    .ok()
-                    .iter()
-                    .for_each(|alias| names.push(alias.clone()));
-            })
-        });
-        name.extract::<String>().ok().iter().for_each(|py_string| {
-            names.push(py_string.clone());
-        });
-
-        slf.borrow()
-            .commands
-            .read()
-            .iter()
-            .find(|&existing_command| {
-                existing_command.bind(slf.py()).borrow().name.len() == names.len()
-                    && existing_command
-                        .bind(slf.py())
-                        .borrow()
-                        .name
-                        .iter()
-                        .all(|name| names.contains(name))
-                    && existing_command
-                        .bind(slf.py())
-                        .borrow()
-                        .handler
-                        .bind(slf.py())
-                        .eq(handler)
-                        .unwrap_or(false)
-            })
-            .map_or(Ok(slf.py().None()), |command| {
-                COMMANDS.load().as_ref().map_or(
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to commands",
-                    )),
-                    |commands| {
-                        commands.call_method1(
-                            slf.py(),
-                            intern!(slf.py(), "remove_command"),
-                            (command,),
-                        )
-                    },
-                )
-            })?;
-
-        slf.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
-            |plugin| {
-                plugin.commands.write().retain(|existing_command| {
-                    existing_command.bind(slf.py()).borrow().name.len() != names.len()
-                        || !existing_command
-                            .bind(slf.py())
-                            .borrow()
-                            .name
-                            .iter()
-                            .all(|name| names.contains(name))
-                        || existing_command
-                            .bind(slf.py())
-                            .borrow()
-                            .handler
-                            .bind(slf.py())
-                            .ne(handler)
-                            .unwrap_or(true)
-                });
-                Ok(())
-            },
-        )
+        slf.remove_command(name, handler)
     }
 
     /// Gets the value of a cvar as a string.
@@ -1050,15 +837,7 @@ impl Plugin {
             return Err(PyValueError::new_err("The second player is invalid."));
         };
 
-        let team1 = player1.get_team(cls.py())?;
-        let team2 = player2.get_team(cls.py())?;
-
-        if team1 == team2 {
-            return Err(PyValueError::new_err("Both player are on the same team."));
-        }
-
-        Bound::new(cls.py(), player1)?.put(&team2)?;
-        Bound::new(cls.py(), player2)?.put(&team1).map(|_| ())
+        Bound::new(cls.py(), player1)?.switch(&Bound::new(cls.py(), player2)?)
     }
 
     #[classmethod]
@@ -1245,8 +1024,325 @@ impl Plugin {
     }
 }
 
+pub(crate) trait PluginMethods<'py> {
+    fn get_db(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn get_name(&self) -> PyResult<String>;
+    fn get_plugins(&self) -> PyResult<Bound<'py, PyDict>>;
+    fn get_hooks(&self) -> Vec<(String, Py<PyAny>, i32)>;
+    fn get_commands(&self) -> Vec<Py<Command>>;
+    fn get_game(&self) -> Option<Game>;
+    fn get_logger(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn add_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()>;
+    fn remove_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()>;
+    #[allow(clippy::too_many_arguments)]
+    fn add_command(
+        &self,
+        name: &Bound<'_, PyAny>,
+        handler: &Bound<'_, PyAny>,
+        permission: i32,
+        channels: Option<Bound<'_, PyAny>>,
+        exclude_channels: Option<Bound<'_, PyAny>>,
+        priority: u32,
+        client_cmd_pass: bool,
+        client_cmd_perm: i32,
+        prefix: bool,
+        usage: &str,
+    ) -> PyResult<()>;
+    fn remove_command(&self, name: &Bound<'py, PyAny>, handler: &Bound<'py, PyAny>)
+        -> PyResult<()>;
+}
+
+impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
+    fn get_db(&self) -> PyResult<Bound<'py, PyAny>> {
+        let plugin_name = self.get_name()?;
+        let Ok(db_class) = self
+            .py()
+            .get_type::<Plugin>()
+            .getattr(intern!(self.py(), "database"))
+        else {
+            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+            return Err(PyRuntimeError::new_err(error_msg));
+        };
+
+        if db_class.is_none() {
+            let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
+            return Err(PyRuntimeError::new_err(error_msg));
+        }
+
+        let plugin = self.borrow();
+        if plugin.db_instance.read().bind(self.py()).is_none() {
+            let db_instance = db_class.call1((self,))?;
+            *plugin.db_instance.write() = db_instance.unbind();
+        }
+
+        let returned = plugin
+            .db_instance
+            .read()
+            .clone_ref(self.py())
+            .into_bound(self.py());
+        Ok(returned)
+    }
+
+    fn get_name(&self) -> PyResult<String> {
+        self.get_type().name().map(|value| value.to_string())
+    }
+
+    fn get_plugins(&self) -> PyResult<Bound<'py, PyDict>> {
+        let loaded_plugins = self
+            .py()
+            .get_type::<Plugin>()
+            .getattr(intern!(self.py(), "_loaded_plugins"))?;
+
+        Ok(loaded_plugins.downcast()?.clone())
+    }
+
+    fn get_hooks(&self) -> Vec<(String, Py<PyAny>, i32)> {
+        self.borrow()
+            .hooks
+            .read()
+            .iter()
+            .map(|(name, handler, permission)| {
+                (name.clone(), handler.clone_ref(self.py()), *permission)
+            })
+            .collect()
+    }
+
+    fn get_commands(&self) -> Vec<Py<Command>> {
+        self.borrow()
+            .commands
+            .read()
+            .iter()
+            .map(|command| command.clone_ref(self.py()))
+            .collect()
+    }
+
+    fn get_game(&self) -> Option<Game> {
+        Game::py_new(self.py(), true).ok()
+    }
+
+    fn get_logger(&self) -> PyResult<Bound<'py, PyAny>> {
+        self.get_type()
+            .name()
+            .map(|value| value.to_string())
+            .and_then(|plugin_name| {
+                pyshinqlx_get_logger(
+                    self.py(),
+                    Some(PyString::new(self.py(), &plugin_name).into_any()),
+                )
+            })
+    }
+
+    fn add_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
+        EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to event dispatcher",
+                )),
+                |event_dispatcher| {
+                    let plugin_type = self.get_type();
+                    let plugin_name = plugin_type.name()?;
+                    event_dispatcher.call_method1(
+                        intern!(self.py(), "add_hook"),
+                        (plugin_name, &handler, priority),
+                    )?;
+                    Ok(())
+                },
+            )?;
+
+        self.try_borrow().map_or(
+            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
+            |plugin| {
+                plugin
+                    .hooks
+                    .write()
+                    .push((event.to_string(), handler.clone().unbind(), priority));
+                Ok(())
+            },
+        )
+    }
+
+    fn remove_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
+        EVENT_DISPATCHERS
+            .load()
+            .as_ref()
+            .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
+            .map_or(
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to event dispatchers",
+                )),
+                |event_dispatcher| {
+                    let plugin_type = self.get_type();
+                    let plugin_name = plugin_type.name()?;
+                    EventDispatcherMethods::remove_hook(
+                        event_dispatcher.downcast()?,
+                        &plugin_name.to_string(),
+                        handler,
+                        priority,
+                    )?;
+                    Ok(())
+                },
+            )?;
+
+        self.try_borrow().map_or(
+            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
+            |plugin| {
+                plugin
+                    .hooks
+                    .write()
+                    .retain(|(hook_event, hook_handler, hook_priority)| {
+                        hook_event != event
+                            || hook_handler
+                                .bind(self.py())
+                                .ne(handler.as_ref())
+                                .unwrap_or(false)
+                            || hook_priority != &priority
+                    });
+                Ok(())
+            },
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn add_command(
+        &self,
+        name: &Bound<'_, PyAny>,
+        handler: &Bound<'_, PyAny>,
+        permission: i32,
+        channels: Option<Bound<'_, PyAny>>,
+        exclude_channels: Option<Bound<'_, PyAny>>,
+        priority: u32,
+        client_cmd_pass: bool,
+        client_cmd_perm: i32,
+        prefix: bool,
+        usage: &str,
+    ) -> PyResult<()> {
+        let py_channels = channels.unwrap_or(self.py().None().into_bound(self.py()));
+        let py_exclude_channels = exclude_channels.unwrap_or(PyTuple::empty(self.py()).into_any());
+
+        let new_command = Command::py_new(
+            self,
+            name,
+            handler,
+            permission,
+            &py_channels,
+            &py_exclude_channels,
+            client_cmd_pass,
+            client_cmd_perm,
+            prefix,
+            usage,
+        )?;
+        let py_command = Bound::new(self.py(), new_command)?;
+
+        self.try_borrow().map_or(
+            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
+            |plugin| {
+                plugin.commands.write().push(py_command.clone().unbind());
+                Ok(())
+            },
+        )?;
+
+        COMMANDS.load().as_ref().map_or(Ok(()), |commands| {
+            commands
+                .bind(self.py())
+                .add_command(&py_command, priority as usize)
+        })
+    }
+
+    fn remove_command(
+        &self,
+        name: &Bound<'py, PyAny>,
+        handler: &Bound<'py, PyAny>,
+    ) -> PyResult<()> {
+        let mut names = vec![];
+        name.downcast::<PyList>().ok().iter().for_each(|py_list| {
+            py_list.iter().for_each(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .iter()
+                    .for_each(|alias| names.push(alias.clone()));
+            })
+        });
+        name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
+            py_tuple.iter().for_each(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .iter()
+                    .for_each(|alias| names.push(alias.clone()));
+            })
+        });
+        name.extract::<String>().ok().iter().for_each(|py_string| {
+            names.push(py_string.clone());
+        });
+
+        self.borrow()
+            .commands
+            .read()
+            .iter()
+            .find(|&existing_command| {
+                existing_command.bind(self.py()).borrow().name.len() == names.len()
+                    && existing_command
+                        .bind(self.py())
+                        .borrow()
+                        .name
+                        .iter()
+                        .all(|name| names.contains(name))
+                    && existing_command
+                        .bind(self.py())
+                        .borrow()
+                        .handler
+                        .bind(self.py())
+                        .eq(handler)
+                        .unwrap_or(false)
+            })
+            .map_or(Ok(self.py().None()), |command| {
+                COMMANDS.load().as_ref().map_or(
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to commands",
+                    )),
+                    |commands| {
+                        commands.call_method1(
+                            self.py(),
+                            intern!(self.py(), "remove_command"),
+                            (command,),
+                        )
+                    },
+                )
+            })?;
+
+        self.try_borrow().map_or(
+            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
+            |plugin| {
+                plugin.commands.write().retain(|existing_command| {
+                    existing_command.bind(self.py()).borrow().name.len() != names.len()
+                        || !existing_command
+                            .bind(self.py())
+                            .borrow()
+                            .name
+                            .iter()
+                            .all(|name| names.contains(name))
+                        || existing_command
+                            .bind(self.py())
+                            .borrow()
+                            .handler
+                            .bind(self.py())
+                            .ne(handler)
+                            .unwrap_or(true)
+                });
+                Ok(())
+            },
+        )
+    }
+}
+
 #[cfg(test)]
 mod plugin_tests {
+    use super::PluginMethods;
+
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
@@ -1279,10 +1375,11 @@ mod plugin_tests {
     fn plugin_can_be_subclassed_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
-            extended_plugin.call0()?;
-            Ok::<(), PyErr>(())
+
+            let result = extended_plugin.call0();
+
+            assert!(result.is_ok());
         })
-        .unwrap();
     }
 
     #[rstest]
@@ -1315,15 +1412,15 @@ mod plugin_tests {
                         .call0()
                         .expect("could not create plugin instance");
 
-                    Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    )
-                    .expect("this should not happen");
+                    plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        )
+                        .expect("this should not happen");
 
                     let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
                     assert!(result.is_ok());
@@ -1336,12 +1433,12 @@ mod plugin_tests {
     fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin.call0()?;
-            let plugin_str = plugin_instance.str()?;
-            assert_eq!(plugin_str.to_string(), "test_plugin");
-            Ok::<(), PyErr>(())
-        })
-        .unwrap();
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
+
+            let plugin_str = plugin_instance.str();
+
+            assert!(plugin_str.is_ok_and(|plugin_name| plugin_name == "test_plugin"));
+        });
     }
 
     #[rstest]
@@ -1349,15 +1446,18 @@ mod plugin_tests {
     fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
+            py.get_type::<Plugin>()
+                .delattr("database")
+                .expect("this should not happen");
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
-            let _ = py.get_type::<Plugin>().delattr("database");
+            let result = plugin_instance
+                .downcast()
+                .expect("this should not happen")
+                .get_db();
 
-            let plugin_instance = extended_plugin.call0()?;
-            let result = plugin_instance.getattr("db");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
-            Ok::<(), PyErr>(())
         })
-        .unwrap();
     }
 
     #[rstest]
@@ -1365,15 +1465,18 @@ mod plugin_tests {
     fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
+            py.get_type::<Plugin>()
+                .setattr("database", py.None())
+                .expect("this should not happen");
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
-            py.get_type::<Plugin>().setattr("database", py.None())?;
+            let result = plugin_instance
+                .downcast()
+                .expect("this should not happen")
+                .get_db();
 
-            let plugin_instance = extended_plugin.call0()?;
-            let result = plugin_instance.getattr("db");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyRuntimeError>(py)),);
-            Ok::<(), PyErr>(())
         })
-        .unwrap();
     }
 
     #[rstest]
@@ -1381,51 +1484,64 @@ mod plugin_tests {
     fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
-
             let redis_type = py.get_type::<Redis>();
             py.get_type::<Plugin>()
-                .setattr("database", redis_type.as_ref())?;
+                .setattr("database", redis_type.as_ref())
+                .expect("this should not happen");
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
-            let plugin_instance = extended_plugin.call0()?;
-            let result = plugin_instance.getattr("db");
+            let result = plugin_instance
+                .downcast()
+                .expect("this should not happen")
+                .get_db();
+
             assert!(result.is_ok_and(|db| db.is_instance(&redis_type).unwrap()));
-            Ok::<(), PyErr>(())
         })
-        .unwrap();
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn name_property_returns_plugin_typename(_pyshinqlx_setup: ()) {
-        let res: PyResult<()> = Python::with_gil(|py| {
+        Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin.call0()?;
-            let plugin_str = plugin_instance.getattr("name")?;
-            assert_eq!(plugin_str.extract::<&str>()?, "test_plugin");
-            Ok(())
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
+
+            let plugin_str = plugin_instance
+                .downcast::<Plugin>()
+                .expect("this should not happen")
+                .get_name();
+
+            assert!(plugin_str.is_ok_and(|plugin_name| plugin_name == "test_plugin"));
         });
-        assert!(res.is_ok());
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
-        let res: PyResult<()> = Python::with_gil(|py| {
+        Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
 
             let loaded_plugins = PyDict::new(py);
-            loaded_plugins.set_item("asdf", "asdfplugin")?;
-            loaded_plugins.set_item("qwertz", "qwertzplugin")?;
-            let _ = py
-                .get_type::<Plugin>()
-                .setattr("_loaded_plugins", &loaded_plugins);
+            loaded_plugins
+                .set_item("asdf", "asdfplugin")
+                .expect("this should not happen");
+            loaded_plugins
+                .set_item("qwertz", "qwertzplugin")
+                .expect("this should not happen");
+            py.get_type::<Plugin>()
+                .setattr("_loaded_plugins", &loaded_plugins)
+                .expect("this should not happen");
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
-            let plugin_instance = extended_plugin.call0()?;
-            let plugins = Plugin::get_plugins(plugin_instance.downcast()?)?;
-            assert!(plugins.downcast::<PyDict>()?.eq(loaded_plugins)?);
-            Ok(())
+            let plugins = plugin_instance
+                .downcast::<Plugin>()
+                .expect("this should not happen")
+                .get_plugins();
+
+            assert!(plugins.is_ok_and(|plugins_dict| plugins_dict
+                .eq(loaded_plugins)
+                .expect("this should not happen")));
         });
-        assert!(res.is_ok());
     }
 
     #[rstest]
@@ -1446,7 +1562,7 @@ mod plugin_tests {
             )
             .expect("this should not happen");
 
-            let hooks = Plugin::get_hooks(&plugin);
+            let hooks = plugin.get_hooks();
             assert_eq!(hooks.len(), 2);
             let elem1 = hooks.first();
             assert!(elem1.is_some_and(|(hook1, pyobj1, prio1)| hook1 == "asdf"
@@ -1473,7 +1589,7 @@ mod plugin_tests {
             )
             .expect("this should not happen");
 
-            assert_eq!(Plugin::get_commands(&plugin).len(), 0);
+            assert_eq!(plugin.get_commands().len(), 0);
         });
     }
 
@@ -1492,7 +1608,7 @@ mod plugin_tests {
             )
             .expect("this should not happen");
 
-            assert!(Plugin::get_game(&plugin).is_none());
+            assert!(plugin.get_game().is_none());
         });
     }
 
@@ -1514,7 +1630,7 @@ mod plugin_tests {
                     )
                     .expect("this should not happen");
 
-                    assert!(Plugin::get_game(&plugin).is_some());
+                    assert!(plugin.get_game().is_some());
                 });
             });
     }
@@ -1524,25 +1640,29 @@ mod plugin_tests {
     fn get_logger(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let logger_type = py
-                .import("logging")?
+                .import("logging")
+                .expect("this should not happen")
                 .getattr("Logger")
                 .expect("could not get logging.Logger");
 
             let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin.call0()?;
-            let result = plugin_instance.getattr("logger");
-            assert!(result
-                .as_ref()
-                .is_ok_and(|logger| logger.is_instance(&logger_type).unwrap()
+            let plugin_instance = extended_plugin.call0().expect("this should not happen");
+
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("this should not happen")
+                .get_logger();
+
+            assert!(
+                result.is_ok_and(|logger| logger.is_instance(&logger_type).unwrap()
                     && logger
                         .getattr("name")
                         .expect("could not get logger name")
                         .str()
                         .unwrap()
-                        == "shinqlx.test_plugin"),);
-            Ok::<(), PyErr>(())
+                        == "shinqlx.test_plugin"),
+            );
         })
-        .expect("python result was not ok.");
     }
 
     #[rstest]
@@ -1557,14 +1677,14 @@ mod plugin_tests {
                 .call0()
                 .expect("could not create plugin instance");
 
-            let result = Plugin::add_hook(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                "team_switch".to_string(),
-                py.None().bind(py),
-                CommandPriorities::PRI_NORMAL as i32,
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_hook(
+                    "team_switch",
+                    py.None().bind(py),
+                    CommandPriorities::PRI_NORMAL as i32,
+                );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1599,14 +1719,14 @@ mod plugin_tests {
                         .call0()
                         .expect("could not create plugin instance");
 
-                    let result = Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    );
+                    let result = plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        );
                     assert!(result.is_ok());
                     assert_eq!(
                         plugin_instance
@@ -1651,14 +1771,15 @@ mod plugin_tests {
                         .call0()
                         .expect("could not create plugin instance");
 
-                    let result = Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    );
+                    let result = plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        );
+
                     assert!(result.is_ok());
                     assert!(EVENT_DISPATCHERS
                         .load()
@@ -1697,21 +1818,20 @@ mod plugin_tests {
     fn remove_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let extended_plugin = test_plugin(py);
-
             EVENT_DISPATCHERS.store(None);
-
             let plugin_instance = extended_plugin
                 .call0()
                 .expect("could not create plugin instance");
 
-            let result = Plugin::remove_hook(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                "team_switch".to_string(),
-                py.None().bind(py),
-                CommandPriorities::PRI_NORMAL as i32,
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .remove_hook(
+                    "team_switch",
+                    py.None().bind(py),
+                    CommandPriorities::PRI_NORMAL as i32,
+                );
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -1746,24 +1866,25 @@ mod plugin_tests {
                         .call0()
                         .expect("could not create plugin instance");
 
-                    Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    )
-                    .expect("could not add command");
+                    plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        )
+                        .expect("could not add command");
 
-                    let result = Plugin::remove_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    );
+                    let result = plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .remove_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        );
+
                     assert!(result.is_ok());
                     assert!(EVENT_DISPATCHERS
                         .load()
@@ -1826,24 +1947,25 @@ mod plugin_tests {
                         .call0()
                         .expect("could not create plugin instance");
 
-                    Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    )
-                    .expect("could not add command");
+                    plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        )
+                        .expect("could not add command");
 
-                    let result = Plugin::remove_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    );
+                    let result = plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .remove_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        );
+
                     assert!(result.is_ok());
                     assert!(plugin_instance
                         .getattr("hooks")
@@ -1887,34 +2009,35 @@ mod plugin_tests {
                         .call0()
                         .expect("could not create plugin instance");
 
-                    Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    )
-                    .expect("could not add command");
+                    plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        )
+                        .expect("could not add command");
 
-                    Plugin::add_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_HIGH as i32,
-                    )
-                    .expect("could not add command");
+                    plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .add_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_HIGH as i32,
+                        )
+                        .expect("could not add command");
 
-                    let result = Plugin::remove_hook(
-                        plugin_instance
-                            .downcast::<Plugin>()
-                            .expect("could not downcast instance to plugin"),
-                        "team_switch_attempt".to_string(),
-                        py.None().bind(py),
-                        CommandPriorities::PRI_NORMAL as i32,
-                    );
+                    let result = plugin_instance
+                        .downcast::<Plugin>()
+                        .expect("could not downcast instance to plugin")
+                        .remove_hook(
+                            "team_switch_attempt",
+                            py.None().bind(py),
+                            CommandPriorities::PRI_NORMAL as i32,
+                        );
+
                     assert!(result.is_ok());
                     assert_eq!(
                         plugin_instance
@@ -1958,21 +2081,22 @@ def handler():
                 .call0()
                 .expect("could not create plugin instance");
 
-            let result = Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::new(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                );
+
             assert!(result.is_ok());
             assert!(COMMANDS
                 .load()
@@ -2022,21 +2146,22 @@ def handler():
                 .call0()
                 .expect("could not create plugin instance");
 
-            let result = Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::new(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                );
+
             assert!(result.is_ok());
             assert_eq!(
                 plugin_instance
@@ -2079,30 +2204,28 @@ def handler():
                 .call0()
                 .expect("could not create plugin instance");
 
-            Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            )
-            .expect("could not add command");
+            plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::new(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
 
-            let result = Plugin::remove_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .remove_command(PyString::new(py, "slap").as_any(), &command_handler);
+
             assert!(result.is_ok());
             assert!(COMMANDS
                 .load()
@@ -2145,51 +2268,52 @@ def handler():
                 .call0()
                 .expect("could not create plugin instance");
 
-            Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            )
-            .expect("could not add command");
+            plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::new(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
 
-            Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyTuple::new(py, ["slay", "asdf"])
-                    .expect("this should not happen")
-                    .as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            )
-            .expect("could not add command");
+            plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyTuple::new(py, ["slay", "asdf"])
+                        .expect("this should not happen")
+                        .as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
 
-            let result = Plugin::remove_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyTuple::new(py, ["slay", "asdf"])
-                    .expect("this should not happen")
-                    .as_any(),
-                &command_handler,
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .remove_command(
+                    PyTuple::new(py, ["slay", "asdf"])
+                        .expect("this should not happen")
+                        .as_any(),
+                    &command_handler,
+                );
+
             assert!(result.is_ok());
             run_all_frame_tasks(py).expect("could not run all frame tasks");
             assert_eq!(
@@ -2236,34 +2360,35 @@ def handler():
                 .call0()
                 .expect("could not create plugin instance");
 
-            Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyTuple::new(py, ["slay", "asdf"])
-                    .expect("this should not happen")
-                    .as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            )
-            .expect("could not add command");
+            plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyTuple::new(py, ["slay", "asdf"])
+                        .expect("this should not happen")
+                        .as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
 
-            let result = Plugin::remove_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyTuple::new(py, ["slay", "asdf"])
-                    .expect("this should not happen")
-                    .as_any(),
-                &command_handler,
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .remove_command(
+                    PyTuple::new(py, ["slay", "asdf"])
+                        .expect("this should not happen")
+                        .as_any(),
+                    &command_handler,
+                );
+
             assert!(result.is_ok());
             run_all_frame_tasks(py).expect("could not run all frame tasks");
             assert!(COMMANDS
@@ -2307,30 +2432,28 @@ def handler():
                 .call0()
                 .expect("could not create plugin instance");
 
-            Plugin::add_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-                0,
-                None,
-                None,
-                CommandPriorities::PRI_NORMAL as u32,
-                false,
-                0,
-                true,
-                "",
-            )
-            .expect("could not add command");
+            plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::new(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
 
-            let result = Plugin::remove_command(
-                plugin_instance
-                    .downcast::<Plugin>()
-                    .expect("could not downcast instance to plugin"),
-                PyString::new(py, "slap").as_any(),
-                &command_handler,
-            );
+            let result = plugin_instance
+                .downcast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .remove_command(PyString::new(py, "slap").as_any(), &command_handler);
+
             assert!(result.is_ok());
             assert!(plugin_instance
                 .getattr("commands")
