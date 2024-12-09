@@ -460,7 +460,7 @@ pub(crate) fn client_id(
     }
 
     let all_players = player_list
-        .unwrap_or_else(|| Player::all_players(&py.get_type::<Player>(), py).unwrap_or_default());
+        .unwrap_or_else(|| Player::all_players(&py.get_type::<Player>()).unwrap_or_default());
 
     if let Ok(steam_id) = name.to_string().parse::<i64>() {
         return all_players

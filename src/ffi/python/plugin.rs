@@ -636,7 +636,7 @@ impl Plugin {
     /// Get a list of all the players on the server.
     #[classmethod]
     fn players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
-        Player::all_players(&cls.py().get_type::<Player>(), cls.py())
+        Player::all_players(&cls.py().get_type::<Player>())
     }
 
     /// Get a Player instance from the name, client ID,
@@ -1057,8 +1057,8 @@ impl Plugin {
             return Err(PyValueError::new_err("Both player are on the same team."));
         }
 
-        player1.put(cls.py(), &team2)?;
-        player2.put(cls.py(), &team1).map(|_| ())
+        Bound::new(cls.py(), player1)?.put(&team2)?;
+        Bound::new(cls.py(), player2)?.put(&team1).map(|_| ())
     }
 
     #[classmethod]

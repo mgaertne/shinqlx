@@ -502,229 +502,135 @@ impl Player {
     }
 
     #[getter(health)]
-    fn get_health(&self, py: Python<'_>) -> PyResult<i32> {
-        pyshinqlx_player_state(py, self.id)
-            .map(|opt_state| opt_state.map(|state| state.health).unwrap_or(0))
+    fn get_health(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_health()
     }
 
     #[setter(health)]
-    fn set_health(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        pyshinqlx_set_health(py, self.id, value)?;
-        Ok(())
+    fn set_health(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_health(value)
     }
 
     #[getter(armor)]
-    fn get_armor(&self, py: Python<'_>) -> PyResult<i32> {
-        pyshinqlx_player_state(py, self.id)
-            .map(|opt_state| opt_state.map(|state| state.armor).unwrap_or(0))
+    fn get_armor(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_armor()
     }
 
     #[setter(armor)]
-    fn set_armor(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        pyshinqlx_set_armor(py, self.id, value)?;
-        Ok(())
+    fn set_armor(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_armor(value)
     }
 
     #[getter(is_alive)]
-    fn get_is_alive(&self, py: Python<'_>) -> PyResult<bool> {
-        pyshinqlx_player_state(py, self.id)
-            .map(|opt_state| opt_state.map(|state| state.is_alive).unwrap_or(false))
+    fn get_is_alive(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        slf.get_is_alive()
     }
 
     #[setter(is_alive)]
-    fn set_is_alive(&self, py: Python<'_>, value: bool) -> PyResult<()> {
-        let current = self.get_is_alive(py)?;
-
-        if !current && value {
-            pyshinqlx_player_spawn(py, self.id)?;
-        }
-
-        if current && !value {
-            // TODO: Proper death and not just setting health to 0.
-            self.set_health(py, 0)?;
-        }
-        Ok(())
+    fn set_is_alive(slf: &Bound<'_, Self>, value: bool) -> PyResult<()> {
+        slf.set_is_alive(value)
     }
 
     #[getter(is_frozen)]
-    fn get_is_frozen(&self, py: Python<'_>) -> PyResult<bool> {
-        pyshinqlx_player_state(py, self.id)
-            .map(|opt_state| opt_state.map(|state| state.is_frozen).unwrap_or(false))
+    fn get_is_frozen(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        slf.get_is_frozen()
     }
 
     #[getter(is_chatting)]
-    fn get_is_chatting(&self, py: Python<'_>) -> PyResult<bool> {
-        pyshinqlx_player_state(py, self.id)
-            .map(|opt_state| opt_state.map(|state| state.is_chatting).unwrap_or(false))
+    fn get_is_chatting(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        slf.get_is_chatting()
     }
 
     #[getter(score)]
-    fn get_score(&self, py: Python<'_>) -> PyResult<i32> {
-        pyshinqlx_player_stats(py, self.id)
-            .map(|opt_stats| opt_stats.map(|stats| stats.score).unwrap_or(0))
+    fn get_score(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_score()
     }
 
     #[setter(score)]
-    fn set_score(&self, py: Python<'_>, value: i32) -> PyResult<()> {
-        pyshinqlx_set_score(py, self.id, value)?;
-        Ok(())
+    fn set_score(slf: &Bound<'_, Self>, value: i32) -> PyResult<()> {
+        slf.set_score(value)
     }
 
     #[getter(channel)]
-    fn get_channel(&self, py: Python<'_>) -> Option<Py<TellChannel>> {
-        Py::new(py, TellChannel::py_new(self)).ok()
+    fn get_channel<'py>(slf: &Bound<'py, Self>) -> Option<Bound<'py, TellChannel>> {
+        slf.get_channel()
     }
 
-    fn center_print(&self, py: Python<'_>, msg: &str) -> PyResult<()> {
-        let cmd = format!(r#"cp "{msg}""#);
-        pyshinqlx_send_server_command(py, Some(self.id), &cmd).map(|_| ())
+    fn center_print(slf: &Bound<'_, Self>, msg: &str) -> PyResult<()> {
+        slf.center_print(msg)
     }
 
     #[pyo3(signature = (msg, **kwargs))]
     fn tell<'py>(
-        &self,
-        py: Python<'py>,
+        slf: &Bound<'py, Self>,
         msg: &str,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        self.get_channel(py).map_or(
-            Err(PyNotImplementedError::new_err("Player TellChannel")),
-            |tell_channel| {
-                let limit = kwargs
-                    .and_then(|pydict| {
-                        pydict
-                            .get_item("limit")
-                            .ok()
-                            .flatten()
-                            .and_then(|value| value.extract::<i32>().ok())
-                    })
-                    .unwrap_or(100i32);
-
-                let delimiter = kwargs
-                    .and_then(|pydict| {
-                        pydict
-                            .get_item("delimiter")
-                            .ok()
-                            .flatten()
-                            .and_then(|value| value.extract::<String>().ok())
-                    })
-                    .unwrap_or(" ".to_owned());
-
-                tell_channel
-                    .bind(py)
-                    .as_super()
-                    .reply(msg, limit, &delimiter)
-            },
-        )
+        slf.tell(msg, kwargs)
     }
 
     #[pyo3(signature = (reason = ""), text_signature = "(reason = \"\")")]
-    fn kick(&self, py: Python<'_>, reason: &str) -> PyResult<()> {
-        pyshinqlx_kick(py, self.id, Some(reason))
+    fn kick(slf: &Bound<'_, Self>, reason: &str) -> PyResult<()> {
+        slf.kick(reason)
     }
 
-    fn ban(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let ban_cmd = format!("ban {}", self.id);
-            console_command(&ban_cmd)
-        })
+    fn ban(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.ban()
     }
 
-    fn tempban(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let tempban_cmd = format!("tempban {}", self.id);
-            console_command(&tempban_cmd)
-        })
+    fn tempban(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.tempban()
     }
 
-    fn addadmin(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let addadmin_cmd = format!("addadmin {}", self.id);
-            console_command(&addadmin_cmd)
-        })
+    fn addadmin(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.addadmin()
     }
 
-    fn addmod(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let addmod_cmd = format!("addmod {}", self.id);
-            console_command(&addmod_cmd)
-        })
+    fn addmod(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.addmod()
     }
 
-    fn demote(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let demote_cmd = format!("demote {}", self.id);
-            console_command(&demote_cmd)
-        })
+    fn demote(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.demote()
     }
 
-    fn mute(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let mute_cmd = format!("mute {}", self.id);
-            console_command(&mute_cmd)
-        })
+    fn mute(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.mute()
     }
 
-    fn unmute(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let unmute_cmd = format!("unmute {}", self.id);
-            console_command(&unmute_cmd)
-        })
+    fn unmute(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.unmute()
     }
 
-    pub(crate) fn put(&self, py: Python<'_>, team: &str) -> PyResult<()> {
-        py.allow_threads(|| {
-            if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-                return Err(PyValueError::new_err("Invalid team."));
-            }
-
-            let team_change_cmd = format!("put {} {}", self.id, team.to_lowercase());
-            console_command(&team_change_cmd)
-        })
+    pub(crate) fn put(slf: &Bound<'_, Self>, team: &str) -> PyResult<()> {
+        slf.put(team)
     }
 
-    fn addscore(&self, py: Python<'_>, score: i32) -> PyResult<()> {
-        py.allow_threads(|| {
-            let addscore_cmd = format!("addscore {} {}", self.id, score);
-            console_command(&addscore_cmd)
-        })
+    fn addscore(slf: &Bound<'_, Self>, score: i32) -> PyResult<()> {
+        slf.addscore(score)
     }
 
-    fn switch(&self, py: Python<'_>, other_player: Player) -> PyResult<()> {
-        let own_team = self.get_team(py)?;
-        let other_team = other_player.get_team(py)?;
-
-        if own_team == other_team {
-            return Err(PyValueError::new_err("Both players are on the same team."));
-        }
-
-        self.put(py, &other_team)?;
-        other_player.put(py, &own_team)
+    fn switch(slf: &Bound<'_, Self>, other_player: &Bound<'_, Player>) -> PyResult<()> {
+        slf.switch(other_player)
     }
 
     #[pyo3(signature = (damage = 0), text_signature = "(damage = 0)")]
-    fn slap(&self, py: Python<'_>, damage: i32) -> PyResult<()> {
-        py.allow_threads(|| {
-            let slap_cmd = format!("slap {} {}", self.id, damage);
-            console_command(&slap_cmd)
-        })
+    fn slap(slf: &Bound<'_, Self>, damage: i32) -> PyResult<()> {
+        slf.slap(damage)
     }
 
-    fn slay(&self, py: Python<'_>) -> PyResult<()> {
-        py.allow_threads(|| {
-            let slay_cmd = format!("slay {}", self.id);
-            console_command(&slay_cmd)
-        })
+    fn slay(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.slay()
     }
 
-    fn slay_with_mod(&self, py: Python<'_>, means_of_death: i32) -> PyResult<()> {
-        pyshinqlx_slay_with_mod(py, self.id, means_of_death).map(|_| ())
+    fn slay_with_mod(slf: &Bound<'_, Self>, means_of_death: i32) -> PyResult<()> {
+        slf.slay_with_mod(means_of_death)
     }
 
     #[classmethod]
-    pub(crate) fn all_players(_cls: &Bound<'_, PyType>, py: Python<'_>) -> PyResult<Vec<Player>> {
-        let players_info = pyshinqlx_players_info(py)?;
-        py.allow_threads(|| {
+    pub(crate) fn all_players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
+        let players_info = pyshinqlx_players_info(cls.py())?;
+        cls.py().allow_threads(|| {
             Ok(players_info
                 .iter()
                 .filter_map(|opt_player_info| {
@@ -6704,11 +6610,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_health(py));
-            assert_eq!(result.expect("result was not Ok"), 42);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_health();
+                assert_eq!(result.expect("result was not Ok"), 42);
+            });
         });
     }
 
@@ -6725,11 +6633,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_health(py));
-            assert_eq!(result.expect("result was not Ok"), 0);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_health();
+                assert_eq!(result.expect("result was not Ok"), 0);
+            });
         });
     }
 
@@ -6737,10 +6647,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_health_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_health(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_health();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -6759,12 +6669,14 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_health(py, 666));
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            assert!(result.is_ok());
+                let result = player.set_health(666);
+
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -6801,11 +6713,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_armor(py));
-            assert_eq!(result.expect("result was not Ok"), 42);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_armor();
+                assert_eq!(result.expect("result was not Ok"), 42);
+            });
         });
     }
 
@@ -6822,11 +6736,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_health(py));
-            assert_eq!(result.expect("result was not Ok"), 0);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_health();
+                assert_eq!(result.expect("result was not Ok"), 0);
+            });
         });
     }
 
@@ -6834,10 +6750,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_armor_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_armor(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_armor();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -6879,12 +6795,14 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_armor(py, 666));
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            assert!(result.is_ok());
+                let result = player.set_armor(666);
+
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -6927,11 +6845,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_is_alive(py));
-            assert_eq!(result.expect("result was not Ok"), is_alive);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_is_alive();
+                assert_eq!(result.expect("result was not Ok"), is_alive);
+            });
         });
     }
 
@@ -6948,11 +6868,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_is_alive(py));
-            assert_eq!(result.expect("result was not Ok"), false);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_is_alive();
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
         });
     }
 
@@ -6960,10 +6882,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_alive_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_is_alive(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_is_alive();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -6972,10 +6894,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_is_alive_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_is_alive(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_is_alive();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -7031,11 +6953,13 @@ assert(player._valid)
                 mock_game_entity
             });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, false));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.set_is_alive(false);
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7071,11 +6995,14 @@ assert(player._valid)
             mock_game_entity.expect_get_health();
             mock_game_entity
         });
-        let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, false));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.set_is_alive(false);
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7112,11 +7039,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, true));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.set_is_alive(true);
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7189,11 +7118,13 @@ assert(player._valid)
         let shinqlx_client_spawn_ctx = shinqlx_client_spawn_context();
         shinqlx_client_spawn_ctx.expect().times(1);
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_is_alive(py, true));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.set_is_alive(true);
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7239,11 +7170,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_is_frozen(py));
-            assert_eq!(result.expect("result was not Ok"), is_frozen);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_is_frozen();
+                assert_eq!(result.expect("result was not Ok"), is_frozen);
+            });
         });
     }
 
@@ -7260,11 +7193,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_is_frozen(py));
-            assert_eq!(result.expect("result was not Ok"), false);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_is_frozen();
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
         });
     }
 
@@ -7272,10 +7207,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_frozen_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_is_frozen(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_is_frozen();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -7322,11 +7257,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_is_chatting(py));
-            assert_eq!(result.expect("result was not Ok"), is_chatting);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_is_chatting();
+                assert_eq!(result.expect("result was not Ok"), is_chatting);
+            });
         });
     }
 
@@ -7343,11 +7280,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_is_chatting(py));
-            assert_eq!(result.expect("result was not Ok"), false);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_is_chatting();
+                assert_eq!(result.expect("result was not Ok"), false);
+            });
         });
     }
 
@@ -7355,10 +7294,10 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_chatting_with_no_main_engine(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_is_chatting(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_is_chatting();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -7367,10 +7306,10 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_score(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_score();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -7400,11 +7339,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_score(py));
-            assert_eq!(result.expect("result was not OK"), 42);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_score();
+                assert_eq!(result.expect("result was not OK"), 42);
+            });
         });
     }
 
@@ -7421,11 +7362,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.get_score(py));
-            assert_eq!(result.expect("result was not OK"), 0);
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.get_score();
+                assert_eq!(result.expect("result was not OK"), 0);
+            });
         });
     }
 
@@ -7433,10 +7376,10 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.set_score(py, 42);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.set_score(42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -7459,11 +7402,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_score(py, 42));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.set_score(42);
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7480,21 +7425,23 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.set_score(py, 42));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.set_score(42);
+                assert!(result.is_ok());
+            });
         });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_tell_channel(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.get_channel(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.get_channel();
             assert!(result.is_some());
         });
     }
@@ -7518,11 +7465,13 @@ assert(player._valid)
             .withf(|_, cmd| cmd == "cp \"asdf\"")
             .times(1);
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.center_print(py, "asdf"));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.center_print("asdf");
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7545,11 +7494,11 @@ assert(player._valid)
             .withf(|_client, msg| msg == "print \"asdf\n\"\n")
             .times(1);
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.tell(py, "asdf", None);
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.tell("asdf", None);
                 assert!(result.is_ok());
 
                 let _ = run_all_frame_tasks(py);
@@ -7595,19 +7544,22 @@ assert(player._valid)
             .withf(|_client, msg| msg == "print \"These \nare \nfour \nlines\n\"\n")
             .times(1);
 
-        let player = Player {
-            player_info: PlayerInfo {
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.tell(
+                let player = Bound::new(
                     py,
+                    Player {
+                        player_info: PlayerInfo {
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
+                .expect("this should not happen");
+
+                let result = player.tell(
                     "These are four lines",
                     Some(
                         &[("limit", 5)]
@@ -7660,19 +7612,22 @@ assert(player._valid)
             .withf(|_client, msg| msg == "print \"These_\nare_\nfour_\nlines\n\"\n")
             .times(1);
 
-        let player = Player {
-            player_info: PlayerInfo {
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let result = player.tell(
+                let player = Bound::new(
                     py,
+                    Player {
+                        player_info: PlayerInfo {
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
+                .expect("this should not happen");
+
+                let result = player.tell(
                     "These_are_four_lines",
                     Some(
                         &[
@@ -7731,18 +7686,24 @@ assert(player._valid)
             .withf(|_client, reason| reason == "you stink, go away!")
             .times(1);
 
-        let player = Player {
-            player_info: PlayerInfo {
-                connection_state: clientState_t::CS_ACTIVE as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| player.kick(py, "you stink, go away!"));
-            assert!(result.is_ok());
+            Python::with_gil(|py| {
+                let player = Bound::new(
+                    py,
+                    Player {
+                        player_info: PlayerInfo {
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
+                .expect("this should not happen");
+
+                let result = player.kick("you stink, go away!");
+                assert!(result.is_ok());
+            });
         });
     }
 
@@ -7750,13 +7711,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn ban_bans_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("ban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.ban(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.ban();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7764,13 +7728,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.tempban(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.tempban();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7778,13 +7745,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.addadmin(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.addadmin();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7792,13 +7762,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn addmod_adds_player_to_mods(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.addmod(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.addmod();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7806,13 +7779,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn demote_demotes_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("demote 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.demote(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.demote();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7820,13 +7796,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn mute_mutes_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("mute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.mute(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.mute();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7834,13 +7813,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.unmute(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.unmute();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7848,10 +7830,10 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn put_with_invalid_team(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         Python::with_gil(|py| {
-            let result = player.put(py, "invalid team");
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = player.put("invalid team");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -7865,13 +7847,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.put(py, new_team));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.put(new_team);
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7879,13 +7864,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.addscore(py, 42));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.addscore(42);
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7893,27 +7881,35 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn switch_with_player_on_same_team(_pyshinqlx_setup: ()) {
-        let player = Player {
-            id: 2,
-            player_info: PlayerInfo {
-                team: team_t::TEAM_SPECTATOR as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-        let other_player = Player {
-            id: 1,
-            player_info: PlayerInfo {
-                team: team_t::TEAM_SPECTATOR as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-
         Python::with_gil(|py| {
-            let result = player.switch(py, other_player);
+            let player = Bound::new(
+                py,
+                Player {
+                    id: 2,
+                    player_info: PlayerInfo {
+                        team: team_t::TEAM_SPECTATOR as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
+            .expect("this should not happen");
+            let other_player = Bound::new(
+                py,
+                Player {
+                    id: 1,
+                    player_info: PlayerInfo {
+                        team: team_t::TEAM_SPECTATOR as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
+            .expect("this should not happen");
+
+            let result = player.switch(&other_player);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -7922,31 +7918,41 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn switch_with_player_on_different_team(_pyshinqlx_setup: ()) {
-        let player = Player {
-            id: 2,
-            player_info: PlayerInfo {
-                team: team_t::TEAM_RED as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-        let other_player = Player {
-            id: 1,
-            player_info: PlayerInfo {
-                team: team_t::TEAM_BLUE as i32,
-                ..default_test_player_info()
-            }
-            .into(),
-            ..default_test_player()
-        };
-
         MockEngineBuilder::default()
             .with_execute_console_command("put 2 blue", 1)
             .with_execute_console_command("put 1 red", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.switch(py, other_player));
-                assert!(result.as_ref().is_ok(), "{:?}", result.as_ref().unwrap());
+                Python::with_gil(|py| {
+                    let player = Bound::new(
+                        py,
+                        Player {
+                            id: 2,
+                            player_info: PlayerInfo {
+                                team: team_t::TEAM_RED as i32,
+                                ..default_test_player_info()
+                            }
+                            .into(),
+                            ..default_test_player()
+                        },
+                    )
+                    .expect("this should not happen");
+                    let other_player = Bound::new(
+                        py,
+                        Player {
+                            id: 1,
+                            player_info: PlayerInfo {
+                                team: team_t::TEAM_BLUE as i32,
+                                ..default_test_player_info()
+                            }
+                            .into(),
+                            ..default_test_player()
+                        },
+                    )
+                    .expect("this should not happen");
+
+                    let result = player.switch(&other_player);
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7954,13 +7960,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn slap_slaps_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("slap 2 42", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.slap(py, 42));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.slap(42);
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7968,13 +7977,16 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn slay_slays_player(_pyshinqlx_setup: ()) {
-        let player = default_test_player();
-
         MockEngineBuilder::default()
             .with_execute_console_command("slay 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| player.slay(py));
-                assert!(result.is_ok());
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.slay();
+                    assert!(result.is_ok());
+                });
             });
     }
 
@@ -7994,13 +8006,13 @@ assert(player._valid)
             mock_game_entity
         });
 
-        let player = default_test_player();
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                player.slay_with_mod(py, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+            Python::with_gil(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.slay_with_mod(meansOfDeath_t::MOD_PROXIMITY_MINE as i32);
+                assert!(result.is_ok());
             });
-            assert!(result.is_ok());
         });
     }
 
@@ -8071,8 +8083,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
-            let all_players =
-                Python::with_gil(|py| Player::all_players(&py.get_type::<Player>(), py));
+            let all_players = Python::with_gil(|py| Player::all_players(&py.get_type::<Player>()));
             assert_eq!(
                 all_players.expect("result was not ok"),
                 vec![
@@ -8153,13 +8164,45 @@ impl AbstractDummyPlayer {
     }
 
     #[getter(id)]
+    fn get_id(slf: &Bound<'_, Self>) -> PyResult<i32> {
+        slf.get_id()
+    }
+
+    #[getter(steam_id)]
+    fn get_steam_id(slf: &Bound<'_, Self>) -> PyResult<i64> {
+        slf.get_steam_id()
+    }
+
+    fn update(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.update()
+    }
+
+    #[getter(channel)]
+    fn get_channel<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
+        slf.get_channel()
+    }
+
+    #[pyo3(signature = (msg, **kwargs))]
+    fn tell(slf: &Bound<'_, Self>, msg: &str, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<()> {
+        slf.tell(msg, kwargs)
+    }
+}
+
+pub(crate) trait AbstractDummyPlayerMethods<'py> {
+    fn get_id(&self) -> PyResult<i32>;
+    fn get_steam_id(&self) -> PyResult<i64>;
+    fn update(&self) -> PyResult<()>;
+    fn get_channel(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn tell(&self, msg: &str, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<()>;
+}
+
+impl<'py> AbstractDummyPlayerMethods<'py> for Bound<'py, AbstractDummyPlayer> {
     fn get_id(&self) -> PyResult<i32> {
         Err(PyAttributeError::new_err(
             "Dummy players do not have client IDs.",
         ))
     }
 
-    #[getter(steam_id)]
     fn get_steam_id(&self) -> PyResult<i64> {
         Err(PyNotImplementedError::new_err(
             "steam_id property needs to be implemented.",
@@ -8170,18 +8213,16 @@ impl AbstractDummyPlayer {
         Ok(())
     }
 
-    #[getter(channel)]
-    fn get_channel(&self) -> PyResult<Bound<'_, PyAny>> {
+    fn get_channel(&self) -> PyResult<Bound<'py, PyAny>> {
         Err(PyNotImplementedError::new_err(
             "channel property needs to be implemented.",
         ))
     }
 
-    #[pyo3(signature = (msg, **kwargs))]
     fn tell(
         &self,
         #[allow(unused_variables)] msg: &str,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyDict>>,
+        #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "tell() needs to be implemented.",
@@ -8191,6 +8232,8 @@ impl AbstractDummyPlayer {
 
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
+    use super::{AbstractDummyPlayer, AbstractDummyPlayerMethods};
+
     use crate::ffi::python::prelude::*;
 
     use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
@@ -8216,14 +8259,11 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
-                cr#"
-import shinqlx
-shinqlx.AbstractDummyPlayer().id
-            "#,
-                None,
-                None,
-            );
+            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
+                .expect("this should not happen");
+
+            let result = player.get_id();
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyAttributeError>(py)));
         });
     }
@@ -8232,14 +8272,11 @@ shinqlx.AbstractDummyPlayer().id
     #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
-                cr#"
-import shinqlx
-shinqlx.AbstractDummyPlayer().steam_id
-            "#,
-                None,
-                None,
-            );
+            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
+                .expect("this should not happen");
+
+            let result = player.get_steam_id();
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -8248,14 +8285,11 @@ shinqlx.AbstractDummyPlayer().steam_id
     #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
-                cr#"
-import shinqlx
-shinqlx.AbstractDummyPlayer().update()
-            "#,
-                None,
-                None,
-            );
+            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
+                .expect("this should not happen");
+
+            let result = player.update();
+
             assert!(result.is_ok());
         });
     }
@@ -8264,14 +8298,11 @@ shinqlx.AbstractDummyPlayer().update()
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
-                cr#"
-import shinqlx
-shinqlx.AbstractDummyPlayer().channel
-            "#,
-                None,
-                None,
-            );
+            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
+                .expect("this should not happen");
+
+            let result = player.get_channel();
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -8280,14 +8311,11 @@ shinqlx.AbstractDummyPlayer().channel
     #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = py.run(
-                cr#"
-import shinqlx
-shinqlx.AbstractDummyPlayer().tell("asdf")
-            "#,
-                None,
-                None,
-            );
+            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
+                .expect("this should not happen");
+
+            let result = player.tell("asdf", None);
+
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
@@ -8304,38 +8332,63 @@ impl RconDummyPlayer {
     }
 
     #[getter(steam_id)]
-    fn get_steam_id(&self, py: Python<'_>) -> PyResult<i64> {
-        py.allow_threads(|| owner().map(|opt_value| opt_value.unwrap_or_default()))
+    fn get_steam_id(slf: &Bound<'_, Self>) -> PyResult<i64> {
+        slf.get_steam_id()
     }
 
     #[getter(channel)]
-    fn get_channel(slf: PyRef<'_, Self>) -> PyResult<Py<ConsoleChannel>> {
+    fn get_channel<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, ConsoleChannel>> {
+        slf.get_channel()
+    }
+
+    #[pyo3(signature = (msg, **kwargs))]
+    fn tell<'py>(
+        slf: &Bound<'py, Self>,
+        msg: &str,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<()> {
+        slf.tell(msg, kwargs)
+    }
+}
+
+pub(crate) trait RconDummyPlayerMethods<'py> {
+    fn get_steam_id(&self) -> PyResult<i64>;
+    fn get_channel(&self) -> PyResult<Bound<'py, ConsoleChannel>>;
+    fn tell(&self, msg: &str, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<()>;
+}
+
+impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
+    fn get_steam_id(&self) -> PyResult<i64> {
+        self.py()
+            .allow_threads(|| owner().map(|opt_value| opt_value.unwrap_or_default()))
+    }
+
+    fn get_channel(&self) -> PyResult<Bound<'py, ConsoleChannel>> {
         CONSOLE_CHANNEL.load().as_ref().map_or(
             Err(PyEnvironmentError::new_err(
                 "could not get access to CONSOLE_CHANNEL",
             )),
-            |console_channel| Ok(console_channel.clone_ref(slf.py())),
+            |console_channel| Ok(console_channel.bind(self.py()).clone()),
         )
     }
 
-    #[pyo3(signature = (msg, **kwargs))]
     fn tell(
-        slf: PyRef<'_, Self>,
+        &self,
         msg: &str,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyDict>>,
+        #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
         CONSOLE_CHANNEL.load().as_ref().map_or(
             Err(PyEnvironmentError::new_err(
                 "could not get access to CONSOLE_CHANNEL",
             )),
-            |console_channel| console_channel.bind(slf.py()).reply(msg, 100, " "),
+            |console_channel| console_channel.bind(self.py()).reply(msg, 100, " "),
         )
     }
 }
 
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
-    use super::RconDummyPlayer;
+    use super::{RconDummyPlayer, RconDummyPlayerMethods};
 
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::CONSOLE_CHANNEL;
@@ -8389,9 +8442,9 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             .run(|| {
                 Python::with_gil(|py| {
                     let rcon_dummy_player =
-                        Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                        Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
 
-                    let result = rcon_dummy_player.bind(py).borrow().get_steam_id(py);
+                    let result = rcon_dummy_player.get_steam_id();
                     assert!(result.is_ok_and(|value| value == 1234567890));
                 });
             });
@@ -8405,9 +8458,9 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
 
         Python::with_gil(|py| {
             let rcon_dummy_player =
-                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
 
-            let result = RconDummyPlayer::get_channel(rcon_dummy_player.bind(py).borrow());
+            let result = rcon_dummy_player.get_channel();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -8422,9 +8475,9 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
             CONSOLE_CHANNEL.store(Some(console_channel.into()));
 
             let rcon_dummy_player =
-                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
 
-            let result = RconDummyPlayer::get_channel(rcon_dummy_player.bind(py).borrow());
+            let result = rcon_dummy_player.get_channel();
             assert!(result.is_ok());
         });
     }
@@ -8437,9 +8490,9 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
 
         Python::with_gil(|py| {
             let rcon_dummy_player =
-                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
 
-            let result = RconDummyPlayer::tell(rcon_dummy_player.bind(py).borrow(), "asdf", None);
+            let result = rcon_dummy_player.tell("asdf", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -8456,13 +8509,13 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
 
         Python::with_gil(|py| {
             let console_channel =
-                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
-            CONSOLE_CHANNEL.store(Some(console_channel.into()));
+                Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+            CONSOLE_CHANNEL.store(Some(console_channel.unbind().into()));
 
             let rcon_dummy_player =
-                Py::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
 
-            let result = RconDummyPlayer::tell(rcon_dummy_player.bind(py).borrow(), "asdf", None);
+            let result = rcon_dummy_player.tell("asdf", None);
             assert!(result.is_ok());
         });
     }
