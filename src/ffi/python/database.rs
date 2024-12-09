@@ -40,64 +40,61 @@ impl AbstractDatabase {
     fn __clear__(&self) {}
 
     #[getter(logger)]
-    fn get_logger<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let plugin_name = self
-            .plugin
-            .bind(py)
-            .get_type()
-            .name()
-            .map(|value| value.to_string())?;
-        pyshinqlx_get_logger(py, Some(PyString::new(py, &plugin_name).into_any()))
+    fn get_logger<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
+        slf.get_logger()
     }
 
     /// Abstract method. Should set the permission of a player.
-    #[allow(unused_variables)]
-    fn set_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<()> {
-        Err(PyNotImplementedError::new_err(
-            "The abstract base database can't do database actions.",
-        ))
+    fn set_permission(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        level: i32,
+    ) -> PyResult<()> {
+        slf.set_permission(player, level)
     }
 
     /// Abstract method. Should return the permission of a player.
-    #[allow(unused_variables)]
-    fn get_permission(&self, player: &Bound<'_, PyAny>) -> PyResult<i32> {
-        Err(PyNotImplementedError::new_err(
-            "The abstract base database can't do database actions.",
-        ))
+    fn get_permission(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<i32> {
+        slf.get_permission(player)
     }
 
     /// Abstract method. Should return whether or not a player has more than or equal
     /// to a certain permission level. Should only take a value of 0 to 5, where 0 is
     /// always True.
-    #[allow(unused_variables)]
     #[pyo3(signature = (player, level=5), text_signature = "(player, level=5)")]
-    fn has_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<bool> {
-        Err(PyNotImplementedError::new_err(
-            "The abstract base database can't do database actions.",
-        ))
+    fn has_permission(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        level: i32,
+    ) -> PyResult<bool> {
+        slf.has_permission(player, level)
     }
 
     /// Abstract method. Should set specified player flag to value.
-    #[allow(unused_variables)]
     #[pyo3(signature = (player, flag, value=true), text_signature = "(player, flag, value=true)")]
-    fn set_flag(&self, player: &Bound<'_, PyAny>, flag: &str, value: bool) -> PyResult<bool> {
-        Err(PyNotImplementedError::new_err(
-            "The abstract base database can't do database actions.",
-        ))
+    fn set_flag(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        flag: &str,
+        value: bool,
+    ) -> PyResult<()> {
+        slf.set_flag(player, flag, value)
     }
 
     /// Should clear specified player flag.
-    fn clear_flag(&self, player: &Bound<'_, PyAny>, flag: &str) -> PyResult<bool> {
-        self.set_flag(player, flag, false)
+    fn clear_flag(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>, flag: &str) -> PyResult<()> {
+        slf.clear_flag(player, flag)
     }
 
     /// Abstract method. Should return specified player flag
-    #[allow(unused_variables)]
     #[pyo3(signature = (player, flag, default=false), text_signature = "(player, flag, default=false)")]
-    fn get_flag(&self, player: &Bound<'_, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
-        Err(PyNotImplementedError::new_err(
-            "The abstract base database can't do database actions.",
-        ))
+    fn get_flag(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        flag: &str,
+        default: bool,
+    ) -> PyResult<bool> {
+        slf.get_flag(player, flag, default)
     }
 
     /// Abstract method. Should return a connection to the database. Exactly what a
@@ -105,14 +102,89 @@ impl AbstractDatabase {
     /// to the implementation.
     ///
     /// A :class:`shinqlx.Plugin` subclass can set
-    fn connect<'py>(&self) -> PyResult<Bound<'py, PyAny>> {
+    fn connect<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
+        slf.connect()
+    }
+
+    /// Abstract method. If the database has a connection state, this method should
+    /// close the connection.
+    fn close(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.close()
+    }
+}
+
+pub(crate) trait AbstractDatabaseMethods<'py> {
+    fn get_logger(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn set_permission(&self, player: &Bound<'py, PyAny>, level: i32) -> PyResult<()>;
+    fn get_permission(&self, player: &Bound<'py, PyAny>) -> PyResult<i32>;
+    fn has_permission(&self, player: &Bound<'py, PyAny>, level: i32) -> PyResult<bool>;
+    fn set_flag(&self, player: &Bound<'py, PyAny>, flag: &str, value: bool) -> PyResult<()>;
+    fn clear_flag(&self, player: &Bound<'py, PyAny>, flag: &str) -> PyResult<()>;
+    fn get_flag(&self, player: &Bound<'py, PyAny>, flag: &str, default: bool) -> PyResult<bool>;
+    fn connect(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn close(&self) -> PyResult<()>;
+}
+
+impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
+    fn get_logger(&self) -> PyResult<Bound<'py, PyAny>> {
+        let plugin_name = self
+            .borrow()
+            .plugin
+            .bind(self.py())
+            .get_type()
+            .name()
+            .map(|value| value.to_string())?;
+        pyshinqlx_get_logger(
+            self.py(),
+            Some(PyString::new(self.py(), &plugin_name).into_any()),
+        )
+    }
+
+    #[allow(unused_variables)]
+    fn set_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
     }
 
-    /// Abstract method. If the database has a connection state, this method should
-    /// close the connection.
+    #[allow(unused_variables)]
+    fn get_permission(&self, player: &Bound<'_, PyAny>) -> PyResult<i32> {
+        Err(PyNotImplementedError::new_err(
+            "The abstract base database can't do database actions.",
+        ))
+    }
+
+    #[allow(unused_variables)]
+    fn has_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<bool> {
+        Err(PyNotImplementedError::new_err(
+            "The abstract base database can't do database actions.",
+        ))
+    }
+
+    #[allow(unused_variables)]
+    fn set_flag(&self, player: &Bound<'_, PyAny>, flag: &str, value: bool) -> PyResult<()> {
+        Err(PyNotImplementedError::new_err(
+            "The abstract base database can't do database actions.",
+        ))
+    }
+
+    fn clear_flag(&self, player: &Bound<'_, PyAny>, flag: &str) -> PyResult<()> {
+        self.set_flag(player, flag, false)
+    }
+
+    #[allow(unused_variables)]
+    fn get_flag(&self, player: &Bound<'_, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
+        Err(PyNotImplementedError::new_err(
+            "The abstract base database can't do database actions.",
+        ))
+    }
+
+    fn connect(&self) -> PyResult<Bound<'py, PyAny>> {
+        Err(PyNotImplementedError::new_err(
+            "The abstract base database can't do database actions.",
+        ))
+    }
+
     fn close(&self) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
@@ -156,8 +228,8 @@ impl Redis {
     }
 
     #[getter(r)]
-    fn get_redis<'py>(slf_: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
-        Self::connect(slf_, None, 0, false, None)
+    fn get_redis<'py>(slf: &Bound<'py, Self>) -> PyResult<Bound<'py, PyAny>> {
+        slf.get_redis()
     }
 
     fn __contains__(slf_: &Bound<'_, Self>, key: &str) -> PyResult<bool> {
@@ -219,21 +291,153 @@ impl Redis {
     /// Sets the permission of a player.
     #[pyo3(name = "set_permission")]
     fn set_permission(
-        slf_: &Bound<'_, Self>,
+        slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
         level: i32,
     ) -> PyResult<()> {
+        slf.set_permission(player, level)
+    }
+
+    /// Gets the permission of a player.
+    fn get_permission(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<i32> {
+        slf.get_permission(player)
+    }
+
+    /// Checks if the player has higher than or equal to *level*.
+    #[pyo3(name = "has_permission", signature = (player, level = 5), text_signature = "(player, level=5)")]
+    fn has_permission(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        level: i32,
+    ) -> PyResult<bool> {
+        slf.has_permission(player, level)
+    }
+
+    /// Sets specified player flag
+    #[pyo3(name = "set_flag", signature = (player, flag, value = true), text_signature = "(player, flag, value = True)")]
+    fn set_flag(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        flag: &str,
+        value: bool,
+    ) -> PyResult<()> {
+        slf.set_flag(player, flag, value)
+    }
+
+    /// returns the specified player flag
+    #[pyo3(name = "get_flag", signature = (player, flag, default = false), text_signature = "(player, flag, default=False)")]
+    fn get_flag(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        flag: &str,
+        default: bool,
+    ) -> PyResult<bool> {
+        slf.get_flag(player, flag, default)
+    }
+
+    /// Returns a connection to a Redis database. If *host* is None, it will
+    /// fall back to the settings in the config and ignore the rest of the arguments.
+    /// It will also share the connection across any plugins using the default
+    /// configuration. Passing *host* will make it connect to a specific database
+    /// that is not shared at all. Subsequent calls to this will return the connection
+    /// initialized the first call unless it has been closed.
+    #[pyo3(name = "connect", signature = (host = None, database = 0, unix_socket = false, password = None), text_signature = "(host = None, database = 0, unix_socket = false, password = None)")]
+    fn connect<'py>(
+        slf: &Bound<'py, Self>,
+        host: Option<&str>,
+        database: i64,
+        unix_socket: bool,
+        password: Option<&str>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        match host {
+            None => slf.connect(),
+            Some(hostname) => {
+                slf.connect_with_parameters(hostname, database, unix_socket, password)
+            }
+        }
+    }
+
+    /// Close the Redis connection if the config was overridden. Otherwise only do so
+    /// if this is the last plugin using the default connection.
+    fn close(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.close()
+    }
+
+    #[pyo3(name = "mset", signature = (*args, **kwargs))]
+    fn mset<'py>(
+        slf: &Bound<'py, Self>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.mset(args, kwargs)
+    }
+
+    #[pyo3(name = "msetnx", signature = (*args, **kwargs))]
+    fn msetnx<'py>(
+        slf: &Bound<'py, Self>,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.msetnx(args, kwargs)
+    }
+
+    #[pyo3(name = "zadd", signature = (name, *args, **kwargs))]
+    fn zadd<'py>(
+        slf: &Bound<'py, Self>,
+        name: &str,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.zadd(name, args, kwargs)
+    }
+
+    #[pyo3(name = "zincrby", signature = (name, *, value, amount), text_signature = "(name, *, value, amount)")]
+    fn zincrby<'py>(
+        slf: &Bound<'py, Self>,
+        name: &str,
+        value: &Bound<'py, PyAny>,
+        amount: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.zincrby(name, value, amount)
+    }
+
+    #[pyo3(name = "setx", signature = (name, *, value, time), text_signature = "(name, *, value, time)")]
+    fn setx<'py>(
+        slf: &Bound<'py, Self>,
+        name: &str,
+        value: &Bound<'py, PyAny>,
+        time: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.setx(name, value, time)
+    }
+
+    #[pyo3(name = "lrem", signature = (name, *, value, count), text_signature = "(name, *, value, count)")]
+    fn lrem<'py>(
+        slf: &Bound<'py, Self>,
+        name: &str,
+        value: &Bound<'py, PyAny>,
+        count: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        slf.lrem(name, value, count)
+    }
+}
+
+impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
+    fn get_logger(&self) -> PyResult<Bound<'py, PyAny>> {
+        self.as_super().get_logger()
+    }
+
+    fn set_permission(&self, player: &Bound<'py, PyAny>, level: i32) -> PyResult<()> {
         let key = if let Ok(rust_player) = player.extract::<Player>() {
             format!("minqlx:players:{}:permission", rust_player.steam_id)
         } else {
             format!("minqlx:players:{}:permission", player.str()?)
         };
 
-        Self::__setitem__(slf_, &key, &level.into_bound_py_any(slf_.py())?)
+        self.set_item(&key, &level.into_bound_py_any(self.py())?)
     }
 
-    /// Gets the permission of a player.
-    fn get_permission(slf_: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<i32> {
+    fn get_permission(&self, player: &Bound<'py, PyAny>) -> PyResult<i32> {
         let steam_id = if let Ok(rust_player) = player.extract::<Player>() {
             Ok(rust_player.steam_id)
         } else if let Ok(rust_int) = player.extract::<i64>() {
@@ -254,10 +458,10 @@ impl Redis {
         }
 
         let key = format!("minqlx:players:{steam_id}:permission");
-        if !Self::__contains__(slf_, &key)? {
+        if !self.contains(&key)? {
             return Ok(0);
         }
-        Self::__getitem__(slf_, &key).and_then(|value| {
+        self.get_item(&key).and_then(|value| {
             value.to_string().parse::<i32>().map_err(|_| {
                 let error_msg = format!("invalid literal for int() with base 10: '{value}",);
                 PyValueError::new_err(error_msg)
@@ -265,24 +469,11 @@ impl Redis {
         })
     }
 
-    /// Checks if the player has higher than or equal to *level*.
-    #[pyo3(name = "has_permission", signature = (player, level = 5), text_signature = "(player, level=5)")]
-    fn has_permission(
-        slf_: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
-        level: i32,
-    ) -> PyResult<bool> {
-        Self::get_permission(slf_, player).map(|value| value >= level)
+    fn has_permission(&self, player: &Bound<'py, PyAny>, level: i32) -> PyResult<bool> {
+        self.get_permission(player).map(|value| value >= level)
     }
 
-    /// Sets specified player flag
-    #[pyo3(name = "set_flag", signature = (player, flag, value = true), text_signature = "(player, flag, value = True)")]
-    fn set_flag(
-        slf_: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
-        flag: &str,
-        value: bool,
-    ) -> PyResult<()> {
+    fn set_flag(&self, player: &Bound<'py, PyAny>, flag: &str, value: bool) -> PyResult<()> {
         let key = if let Ok(rust_player) = player.extract::<Player>() {
             format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag)
         } else {
@@ -291,285 +482,334 @@ impl Redis {
 
         let redis_value = if value { 1i32 } else { 0i32 };
 
-        Self::__setitem__(slf_, &key, &redis_value.into_bound_py_any(slf_.py())?)
+        self.set_item(&key, &redis_value.into_bound_py_any(self.py())?)
     }
 
-    /// returns the specified player flag
-    #[pyo3(name = "get_flag", signature = (player, flag, default = false), text_signature = "(player, flag, default=False)")]
-    fn get_flag(
-        slf_: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
-        flag: &str,
-        default: bool,
-    ) -> PyResult<bool> {
+    fn clear_flag(&self, player: &Bound<'py, PyAny>, flag: &str) -> PyResult<()> {
+        self.as_super().clear_flag(player, flag)
+    }
+
+    fn get_flag(&self, player: &Bound<'py, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
         let key = if let Ok(rust_player) = player.extract::<Player>() {
             format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag)
         } else {
             format!("minqlx:players:{}:flags:{}", player.str()?, flag)
         };
 
-        if !Self::__contains__(slf_, &key)? {
+        if !self.contains(&key)? {
             return Ok(default);
         }
 
-        Self::__getitem__(slf_, &key).map(|value| value.to_string() != "0")
+        self.get_item(&key).map(|value| value.to_string() != "0")
     }
 
-    /// Returns a connection to a Redis database. If *host* is None, it will
-    /// fall back to the settings in the config and ignore the rest of the arguments.
-    /// It will also share the connection across any plugins using the default
-    /// configuration. Passing *host* will make it connect to a specific database
-    /// that is not shared at all. Subsequent calls to this will return the connection
-    /// initialized the first call unless it has been closed.
-    #[pyo3(name = "connect", signature = (host = None, database = 0, unix_socket = false, password = None), text_signature = "(host = None, database = 0, unix_socket = false, password = None)")]
-    fn connect<'py>(
-        slf_: &Bound<'py, Self>,
-        host: Option<&str>,
-        database: i64,
-        unix_socket: bool,
-        password: Option<&str>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        if let Ok(redis_connection) = slf_.getattr(intern!(slf_.py(), "_conn")) {
+    fn connect(&self) -> PyResult<Bound<'py, PyAny>> {
+        if let Ok(redis_connection) = self.getattr(intern!(self.py(), "_conn")) {
             if !redis_connection.is_none() {
                 return Ok(redis_connection);
             }
         }
 
-        if let Ok(class_connection) = slf_
+        if let Ok(class_connection) = self
             .py()
             .get_type::<Redis>()
-            .getattr(intern!(slf_.py(), "_conn"))
+            .getattr(intern!(self.py(), "_conn"))
         {
             if !class_connection.is_none() {
                 return Ok(class_connection);
             }
         }
 
-        let py_redis = slf_.py().import(intern!(slf_.py(), "redis"))?;
-        let strict_redis = py_redis.getattr(intern!(slf_.py(), "StrictRedis"))?;
-        match host {
-            None => {
-                let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                    return Err(PyEnvironmentError::new_err(
-                        "could not get access to main engine.",
-                    ));
-                };
+        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
+        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
 
-                let Some(cvar_host) = main_engine.find_cvar("qlx_redisAddress") else {
-                    return Err(PyValueError::new_err("cvar qlx_redisAddress misconfigured"));
-                };
-                let Some(redis_db_cvar) = main_engine
-                    .find_cvar("qlx_redisDatabase")
-                    .and_then(|cvar| cvar.get_string().parse::<i64>().ok())
-                else {
-                    return Err(PyValueError::new_err(
-                        "cvar qlx_redisDatabase misconfigured.",
-                    ));
-                };
-                let Some(unix_socket_cvar) =
-                    main_engine.find_cvar("qlx_redisUnixSocket").map(|cvar| {
-                        let cvar_string = cvar.get_string();
-                        !cvar_string.is_empty() && cvar_string != "0"
-                    })
-                else {
-                    return Err(PyValueError::new_err(
-                        "cvar qlx_redisUnixSocket misconfigured.",
-                    ));
-                };
-                let Some(password_cvar) = main_engine.find_cvar("qlx_redisPassword") else {
-                    return Err(PyValueError::new_err(
-                        "cvar qlx_redisPassword misconfigured.",
-                    ));
-                };
+        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to main engine.",
+            ));
+        };
 
-                let class_connection = if unix_socket_cvar {
-                    strict_redis.call(
-                        PyTuple::empty(slf_.py()),
-                        Some(
-                            &[
-                                (
-                                    "unix_socket_path",
-                                    PyString::new(slf_.py(), &cvar_host.get_string()).into_any(),
-                                ),
-                                ("db", redis_db_cvar.into_bound_py_any(slf_.py())?),
-                                (
-                                    "password",
-                                    PyString::new(slf_.py(), &password_cvar.get_string())
-                                        .into_any(),
-                                ),
-                                (
-                                    "decode_responses",
-                                    PyBool::new(slf_.py(), true).to_owned().into_any(),
-                                ),
-                            ]
-                            .into_py_dict(slf_.py())?,
-                        ),
-                    )
-                } else {
-                    let hostname = cvar_host.get_string();
-                    let (redis_hostname, port) = hostname
-                        .split_once(':')
-                        .unwrap_or((hostname.as_ref(), "6379"));
-                    let redis_port = if port.is_empty() { "6379" } else { port };
-                    let connection_pool = py_redis.getattr(intern!(slf_.py(), "ConnectionPool"))?;
+        let Some(cvar_host) = main_engine.find_cvar("qlx_redisAddress") else {
+            return Err(PyValueError::new_err("cvar qlx_redisAddress misconfigured"));
+        };
+        let Some(redis_db_cvar) = main_engine
+            .find_cvar("qlx_redisDatabase")
+            .and_then(|cvar| cvar.get_string().parse::<i64>().ok())
+        else {
+            return Err(PyValueError::new_err(
+                "cvar qlx_redisDatabase misconfigured.",
+            ));
+        };
+        let Some(unix_socket_cvar) = main_engine.find_cvar("qlx_redisUnixSocket").map(|cvar| {
+            let cvar_string = cvar.get_string();
+            !cvar_string.is_empty() && cvar_string != "0"
+        }) else {
+            return Err(PyValueError::new_err(
+                "cvar qlx_redisUnixSocket misconfigured.",
+            ));
+        };
+        let Some(password_cvar) = main_engine.find_cvar("qlx_redisPassword") else {
+            return Err(PyValueError::new_err(
+                "cvar qlx_redisPassword misconfigured.",
+            ));
+        };
 
-                    let redis_pool = connection_pool.call(
-                        PyTuple::empty(slf_.py()),
-                        Some(
-                            &[
-                                ("host", PyString::new(slf_.py(), redis_hostname).into_any()),
-                                ("port", PyString::new(slf_.py(), redis_port).into_any()),
-                                ("db", redis_db_cvar.into_bound_py_any(slf_.py())?),
-                                (
-                                    "password",
-                                    PyString::new(slf_.py(), &password_cvar.get_string())
-                                        .into_any(),
-                                ),
-                                (
-                                    "decode_responses",
-                                    PyBool::new(slf_.py(), true).to_owned().into_any(),
-                                ),
-                            ]
-                            .into_py_dict(slf_.py())?,
+        let class_connection = if unix_socket_cvar {
+            strict_redis.call(
+                PyTuple::empty(self.py()),
+                Some(
+                    &[
+                        (
+                            "unix_socket_path",
+                            PyString::new(self.py(), &cvar_host.get_string()).into_any(),
                         ),
-                    )?;
-                    slf_.py()
-                        .get_type::<Redis>()
-                        .setattr(intern!(slf_.py(), "_pool"), &redis_pool)?;
-                    strict_redis.call(
-                        PyTuple::empty(slf_.py()),
-                        Some(
-                            &[
-                                ("connection_pool", redis_pool),
-                                (
-                                    "decode_responses",
-                                    PyBool::new(slf_.py(), true).to_owned().into_any(),
-                                ),
-                            ]
-                            .into_py_dict(slf_.py())?,
+                        ("db", redis_db_cvar.into_bound_py_any(self.py())?),
+                        (
+                            "password",
+                            PyString::new(self.py(), &password_cvar.get_string()).into_any(),
                         ),
-                    )
-                }?;
-                slf_.py()
-                    .get_type::<Redis>()
-                    .setattr(intern!(slf_.py(), "_conn"), &class_connection)?;
-                slf_.setattr(intern!(slf_.py(), "_conn"), slf_.py().None())?;
-                Ok(class_connection)
-            }
-            Some(hostname) => {
-                let instance_connection = if unix_socket {
-                    strict_redis.call(
-                        PyTuple::empty(slf_.py()),
-                        Some(
-                            &[
-                                (
-                                    "unix_socket_path",
-                                    PyString::new(slf_.py(), hostname).into_any(),
-                                ),
-                                ("db", database.into_bound_py_any(slf_.py())?),
-                                ("password", password.into_bound_py_any(slf_.py())?),
-                                (
-                                    "decode_responses",
-                                    PyBool::new(slf_.py(), true).to_owned().into_any(),
-                                ),
-                            ]
-                            .into_py_dict(slf_.py())?,
+                        (
+                            "decode_responses",
+                            PyBool::new(self.py(), true).to_owned().into_any(),
                         ),
-                    )
-                } else {
-                    let (redis_hostname, port) =
-                        hostname.split_once(':').unwrap_or((hostname, "6379"));
-                    let redis_port = if port.is_empty() { "6379" } else { port };
-                    let connection_pool = py_redis.getattr(intern!(slf_.py(), "ConnectionPool"))?;
+                    ]
+                    .into_py_dict(self.py())?,
+                ),
+            )
+        } else {
+            let hostname = cvar_host.get_string();
+            let (redis_hostname, port) = hostname
+                .split_once(':')
+                .unwrap_or((hostname.as_ref(), "6379"));
+            let redis_port = if port.is_empty() { "6379" } else { port };
+            let connection_pool = py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
 
-                    let redis_pool = connection_pool.call(
-                        PyTuple::empty(slf_.py()),
-                        Some(
-                            &[
-                                ("host", PyString::new(slf_.py(), redis_hostname).into_any()),
-                                ("port", PyString::new(slf_.py(), redis_port).into_any()),
-                                ("db", database.into_bound_py_any(slf_.py())?),
-                                ("password", password.into_bound_py_any(slf_.py())?),
-                                (
-                                    "decode_responses",
-                                    PyBool::new(slf_.py(), true).to_owned().into_any(),
-                                ),
-                            ]
-                            .into_py_dict(slf_.py())?,
+            let redis_pool = connection_pool.call(
+                PyTuple::empty(self.py()),
+                Some(
+                    &[
+                        ("host", PyString::new(self.py(), redis_hostname).into_any()),
+                        ("port", PyString::new(self.py(), redis_port).into_any()),
+                        ("db", redis_db_cvar.into_bound_py_any(self.py())?),
+                        (
+                            "password",
+                            PyString::new(self.py(), &password_cvar.get_string()).into_any(),
                         ),
-                    )?;
-                    slf_.setattr(intern!(slf_.py(), "_pool"), &redis_pool)?;
-                    strict_redis.call(
-                        PyTuple::empty(slf_.py()),
-                        Some(
-                            &[
-                                ("connection_pool", redis_pool),
-                                (
-                                    "decode_responses",
-                                    PyBool::new(slf_.py(), true).to_owned().into_any(),
-                                ),
-                            ]
-                            .into_py_dict(slf_.py())?,
+                        (
+                            "decode_responses",
+                            PyBool::new(self.py(), true).to_owned().into_any(),
                         ),
-                    )
-                }?;
-                slf_.setattr(intern!(slf_.py(), "_conn"), &instance_connection)?;
-                Ok(instance_connection)
-            }
-        }
+                    ]
+                    .into_py_dict(self.py())?,
+                ),
+            )?;
+            self.py()
+                .get_type::<Redis>()
+                .setattr(intern!(self.py(), "_pool"), &redis_pool)?;
+            strict_redis.call(
+                PyTuple::empty(self.py()),
+                Some(
+                    &[
+                        ("connection_pool", redis_pool),
+                        (
+                            "decode_responses",
+                            PyBool::new(self.py(), true).to_owned().into_any(),
+                        ),
+                    ]
+                    .into_py_dict(self.py())?,
+                ),
+            )
+        }?;
+        self.py()
+            .get_type::<Redis>()
+            .setattr(intern!(self.py(), "_conn"), &class_connection)?;
+        self.setattr(intern!(self.py(), "_conn"), self.py().None())?;
+        Ok(class_connection)
     }
 
-    /// Close the Redis connection if the config was overridden. Otherwise only do so
-    /// if this is the last plugin using the default connection.
-    fn close(slf_: &Bound<'_, Self>) -> PyResult<()> {
-        if slf_
-            .getattr(intern!(slf_.py(), "_conn"))
+    fn close(&self) -> PyResult<()> {
+        if self
+            .getattr(intern!(self.py(), "_conn"))
             .is_ok_and(|instance_connection| !instance_connection.is_none())
         {
-            slf_.setattr(intern!(slf_.py(), "_conn"), slf_.py().None())?;
-            if let Ok(instance_pool) = slf_.getattr(intern!(slf_.py(), "_pool")) {
+            self.setattr(intern!(self.py(), "_conn"), self.py().None())?;
+            if let Ok(instance_pool) = self.getattr(intern!(self.py(), "_pool")) {
                 if !instance_pool.is_none() {
-                    instance_pool.call_method0(intern!(slf_.py(), "disconnect"))?;
-                    slf_.setattr(intern!(slf_.py(), "_pool"), slf_.py().None())?;
+                    instance_pool.call_method0(intern!(self.py(), "disconnect"))?;
+                    self.setattr(intern!(self.py(), "_pool"), self.py().None())?;
                 }
             }
         };
 
-        let redis_type = slf_.py().get_type::<Redis>();
+        let redis_type = self.py().get_type::<Redis>();
         let class_counter = redis_type
-            .getattr(intern!(slf_.py(), "_counter"))
+            .getattr(intern!(self.py(), "_counter"))
             .and_then(|value| value.extract::<i32>())
             .unwrap_or(0);
         if class_counter <= 1
             && redis_type
-                .getattr(intern!(slf_.py(), "_conn"))
+                .getattr(intern!(self.py(), "_conn"))
                 .is_ok_and(|class_connection| !class_connection.is_none())
         {
-            redis_type.setattr(intern!(slf_.py(), "_conn"), slf_.py().None())?;
-            if let Ok(class_pool) = redis_type.getattr(intern!(slf_.py(), "_pool")) {
+            redis_type.setattr(intern!(self.py(), "_conn"), self.py().None())?;
+            if let Ok(class_pool) = redis_type.getattr(intern!(self.py(), "_pool")) {
                 if !class_pool.is_none() {
-                    class_pool.call_method0(intern!(slf_.py(), "disconnect"))?;
-                    redis_type.setattr(intern!(slf_.py(), "_pool"), slf_.py().None())?;
+                    class_pool.call_method0(intern!(self.py(), "disconnect"))?;
+                    redis_type.setattr(intern!(self.py(), "_pool"), self.py().None())?;
                 }
             }
         }
         Ok(())
     }
+}
 
-    #[pyo3(name = "mset", signature = (*args, **kwargs))]
-    fn mset<'py>(
-        slf_: &Bound<'py, Self>,
+pub(crate) trait RedisMethods<'py> {
+    fn get_redis(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn connect_with_parameters(
+        &self,
+        host: &str,
+        database: i64,
+        unix_socket: bool,
+        password: Option<&str>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+    fn mset(
+        &self,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+    fn msetnx(
+        &self,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+    fn zadd(
+        &self,
+        name: &str,
+        args: &Bound<'py, PyTuple>,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+    fn zincrby(
+        &self,
+        name: &str,
+        value: &Bound<'py, PyAny>,
+        amount: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+    fn setx(
+        &self,
+        name: &str,
+        value: &Bound<'py, PyAny>,
+        time: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+    fn lrem(
+        &self,
+        name: &str,
+        value: &Bound<'py, PyAny>,
+        count: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>>;
+}
+
+impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
+    fn get_redis(&self) -> PyResult<Bound<'py, PyAny>> {
+        self.as_super().connect()
+    }
+
+    fn connect_with_parameters(
+        &self,
+        host: &str,
+        database: i64,
+        unix_socket: bool,
+        password: Option<&str>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if let Ok(redis_connection) = self.getattr(intern!(self.py(), "_conn")) {
+            if !redis_connection.is_none() {
+                return Ok(redis_connection);
+            }
+        }
+
+        if let Ok(class_connection) = self
+            .py()
+            .get_type::<Redis>()
+            .getattr(intern!(self.py(), "_conn"))
+        {
+            if !class_connection.is_none() {
+                return Ok(class_connection);
+            }
+        }
+
+        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
+        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
+        let instance_connection = if unix_socket {
+            strict_redis.call(
+                PyTuple::empty(self.py()),
+                Some(
+                    &[
+                        (
+                            "unix_socket_path",
+                            PyString::new(self.py(), host).into_any(),
+                        ),
+                        ("db", database.into_bound_py_any(self.py())?),
+                        ("password", password.into_bound_py_any(self.py())?),
+                        (
+                            "decode_responses",
+                            PyBool::new(self.py(), true).to_owned().into_any(),
+                        ),
+                    ]
+                    .into_py_dict(self.py())?,
+                ),
+            )
+        } else {
+            let (redis_hostname, port) = host.split_once(':').unwrap_or((host, "6379"));
+            let redis_port = if port.is_empty() { "6379" } else { port };
+            let connection_pool = py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
+
+            let redis_pool = connection_pool.call(
+                PyTuple::empty(self.py()),
+                Some(
+                    &[
+                        ("host", PyString::new(self.py(), redis_hostname).into_any()),
+                        ("port", PyString::new(self.py(), redis_port).into_any()),
+                        ("db", database.into_bound_py_any(self.py())?),
+                        ("password", password.into_bound_py_any(self.py())?),
+                        (
+                            "decode_responses",
+                            PyBool::new(self.py(), true).to_owned().into_any(),
+                        ),
+                    ]
+                    .into_py_dict(self.py())?,
+                ),
+            )?;
+            self.setattr(intern!(self.py(), "_pool"), &redis_pool)?;
+            strict_redis.call(
+                PyTuple::empty(self.py()),
+                Some(
+                    &[
+                        ("connection_pool", redis_pool),
+                        (
+                            "decode_responses",
+                            PyBool::new(self.py(), true).to_owned().into_any(),
+                        ),
+                    ]
+                    .into_py_dict(self.py())?,
+                ),
+            )
+        }?;
+        self.setattr(intern!(self.py(), "_conn"), &instance_connection)?;
+        Ok(instance_connection)
+    }
+
+    fn mset(
+        &self,
         args: &Bound<'py, PyTuple>,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let redis_module = slf_.py().import(intern!(slf_.py(), "redis"))?;
-        let redis_error = redis_module.getattr(intern!(slf_.py(), "RedisError"))?;
+        let redis_module = self.py().import(intern!(self.py(), "redis"))?;
+        let redis_error = redis_module.getattr(intern!(self.py(), "RedisError"))?;
 
-        let mapping = PyDict::new(slf_.py());
+        let mapping = PyDict::new(self.py());
 
         if args.len() > 1 {
             let error = redis_error.call1((intern!(
-                slf_.py(),
+                self.py(),
                 "MSET requires **kwargs or a single dict arg"
             ),))?;
             return Err(PyErr::from_value(error));
@@ -578,7 +818,7 @@ impl Redis {
         if args.len() == 1 {
             let Ok(dict_arg) = args.get_item(0) else {
                 let error = redis_error.call1((intern!(
-                    slf_.py(),
+                    self.py(),
                     "MSET requires **kwargs or a single dict arg"
                 ),))?;
                 return Err(PyErr::from_value(error));
@@ -590,24 +830,23 @@ impl Redis {
             mapping.update(kwargs_dict.as_mapping())?;
         }
 
-        let redis_connection = Self::get_redis(slf_)?;
-        redis_connection.call_method1(intern!(slf_.py(), "mset"), (mapping,))
+        let redis_connection = self.get_redis()?;
+        redis_connection.call_method1(intern!(self.py(), "mset"), (mapping,))
     }
 
-    #[pyo3(name = "msetnx", signature = (*args, **kwargs))]
-    fn msetnx<'py>(
-        slf_: &Bound<'py, Self>,
+    fn msetnx(
+        &self,
         args: &Bound<'py, PyTuple>,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let redis_module = slf_.py().import(intern!(slf_.py(), "redis"))?;
-        let redis_error = redis_module.getattr(intern!(slf_.py(), "RedisError"))?;
+        let redis_module = self.py().import(intern!(self.py(), "redis"))?;
+        let redis_error = redis_module.getattr(intern!(self.py(), "RedisError"))?;
 
-        let mapping = PyDict::new(slf_.py());
+        let mapping = PyDict::new(self.py());
 
         if args.len() > 1 {
             let error = redis_error.call1((intern!(
-                slf_.py(),
+                self.py(),
                 "MSENXT requires **kwargs or a single dict arg"
             ),))?;
             return Err(PyErr::from_value(error));
@@ -616,7 +855,7 @@ impl Redis {
         if args.len() == 1 {
             let Ok(dict_arg) = args.get_item(0) else {
                 let error = redis_error.call1((intern!(
-                    slf_.py(),
+                    self.py(),
                     "MSETNX requires **kwargs or a single dict arg"
                 ),))?;
                 return Err(PyErr::from_value(error));
@@ -628,33 +867,32 @@ impl Redis {
             mapping.update(kwargs_dict.as_mapping())?;
         }
 
-        let redis_connection = Self::get_redis(slf_)?;
-        redis_connection.call_method1(intern!(slf_.py(), "msetnx"), (mapping,))
+        let redis_connection = Self::get_redis(self)?;
+        redis_connection.call_method1(intern!(self.py(), "msetnx"), (mapping,))
     }
 
-    #[pyo3(name = "zadd", signature = (name, *args, **kwargs))]
-    fn zadd<'py>(
-        slf_: &Bound<'py, Self>,
+    fn zadd(
+        &self,
         name: &str,
         args: &Bound<'py, PyTuple>,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let redis_connection = Self::get_redis(slf_)?;
+        let redis_connection = self.get_redis()?;
 
         if args.len() == 1 && args.get_item(0)?.is_instance_of::<PyDict>() {
-            let args_tuple = PyTuple::new(slf_.py(), [name].iter())?
+            let args_tuple = PyTuple::new(self.py(), [name].iter())?
                 .as_sequence()
                 .concat(args.as_sequence())?
                 .to_tuple()?;
-            return redis_connection.call_method(intern!(slf_.py(), "zadd"), args_tuple, kwargs);
+            return redis_connection.call_method(intern!(self.py(), "zadd"), args_tuple, kwargs);
         }
 
-        let redis_module = slf_.py().import(intern!(slf_.py(), "redis"))?;
-        let redis_error = redis_module.getattr(intern!(slf_.py(), "RedisError"))?;
+        let redis_module = self.py().import(intern!(self.py(), "redis"))?;
+        let redis_error = redis_module.getattr(intern!(self.py(), "RedisError"))?;
 
         if args.len() % 2 != 0 {
             let error = redis_error.call1((intern!(
-                slf_.py(),
+                self.py(),
                 "ZADD requires an equal number of values and scores"
             ),))?;
             return Err(PyErr::from_value(error));
@@ -667,45 +905,42 @@ impl Redis {
             .collect();
 
         redis_connection.call_method(
-            intern!(slf_.py(), "zadd"),
-            (name, pieces.into_py_dict(slf_.py())?),
+            intern!(self.py(), "zadd"),
+            (name, pieces.into_py_dict(self.py())?),
             kwargs,
         )
     }
 
-    #[pyo3(name = "zincrby", signature = (name, *, value, amount), text_signature = "(name, *, value, amount)")]
-    fn zincrby<'py>(
-        slf_: &Bound<'py, Self>,
+    fn zincrby(
+        &self,
         name: &str,
         value: &Bound<'py, PyAny>,
         amount: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let redis_connection = Self::get_redis(slf_)?;
+        let redis_connection = self.get_redis()?;
 
-        redis_connection.call_method1(intern!(slf_.py(), "zincrby"), (name, amount, value))
+        redis_connection.call_method1(intern!(self.py(), "zincrby"), (name, amount, value))
     }
 
-    #[pyo3(name = "setx", signature = (name, *, value, time), text_signature = "(name, *, value, time)")]
-    fn setx<'py>(
-        slf_: &Bound<'py, Self>,
+    fn setx(
+        &self,
         name: &str,
         value: &Bound<'py, PyAny>,
         time: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let redis_connection = Self::get_redis(slf_)?;
+        let redis_connection = self.get_redis()?;
 
-        redis_connection.call_method1(intern!(slf_.py(), "setx"), (name, value, time))
+        redis_connection.call_method1(intern!(self.py(), "setx"), (name, value, time))
     }
 
-    #[pyo3(name = "lrem", signature = (name, *, value, count), text_signature = "(name, *, value, count)")]
-    fn lrem<'py>(
-        slf_: &Bound<'py, Self>,
+    fn lrem(
+        &self,
         name: &str,
         value: &Bound<'py, PyAny>,
         count: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let redis_connection = Self::get_redis(slf_)?;
+        let redis_connection = self.get_redis()?;
 
-        redis_connection.call_method1(intern!(slf_.py(), "lrem"), (name, value, count))
+        redis_connection.call_method1(intern!(self.py(), "lrem"), (name, value, count))
     }
 }
