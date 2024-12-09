@@ -29,11 +29,15 @@ pub(crate) mod prelude {
     pub(crate) use super::commands::{
         Command, CommandInvoker, CommandInvokerMethods, CommandMethods,
     };
-    pub(crate) use super::database::{AbstractDatabase, Redis};
+    #[allow(unused_imports)]
+    pub(crate) use super::database::{
+        AbstractDatabase, AbstractDatabaseMethods, Redis, RedisMethods,
+    };
     pub(crate) use super::embed::*;
     pub(crate) use super::events::*;
     pub(crate) use super::flight::Flight;
-    pub(crate) use super::game::{Game, NonexistentGameError};
+    #[allow(unused_imports)]
+    pub(crate) use super::game::{Game, GameMethods, NonexistentGameError};
     #[cfg(test)]
     #[allow(unused_imports)]
     pub(crate) use super::handlers::mock_handlers::{
@@ -67,7 +71,7 @@ pub(crate) mod prelude {
     pub(crate) use super::player_info::PlayerInfo;
     pub(crate) use super::player_state::PlayerState;
     pub(crate) use super::player_stats::PlayerStats;
-    pub(crate) use super::plugin::Plugin;
+    pub(crate) use super::plugin::{Plugin, PluginMethods};
     pub(crate) use super::powerups::Powerups;
     pub(crate) use super::stats_listener::{StatsListener, StatsListenerMethods};
     pub(crate) use super::vector3::Vector3;
