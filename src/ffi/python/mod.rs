@@ -69,7 +69,7 @@ pub(crate) mod prelude {
     pub(crate) use super::player_stats::PlayerStats;
     pub(crate) use super::plugin::Plugin;
     pub(crate) use super::powerups::Powerups;
-    pub(crate) use super::stats_listener::StatsListener;
+    pub(crate) use super::stats_listener::{StatsListener, StatsListenerMethods};
     pub(crate) use super::vector3::Vector3;
     pub(crate) use super::weapons::Weapons;
 
@@ -3595,7 +3595,7 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                         logger.call_method1(intern!(module.py(), "handle"), (log_record,))
                     })?;
 
-                StatsListener::keep_receiving(&stats_value, module.py())?;
+                stats_value.keep_receiving()?;
             }
 
             logger
