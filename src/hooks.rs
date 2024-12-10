@@ -582,13 +582,12 @@ mod hooks_tests {
     }
 
     unsafe extern "C" fn dummy_function() {}
-    static DUMMY_FN: unsafe extern "C" fn() = dummy_function;
 
     #[test]
     #[serial]
     fn add_command_with_no_main_engine() {
         let cmd_string = c"";
-        shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+        shinqlx_cmd_addcommand(cmd_string.as_ptr(), dummy_function);
     }
 
     #[test]
@@ -603,7 +602,7 @@ mod hooks_tests {
                 mock_engine.expect_add_command().times(0);
             })
             .run(|| {
-                shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+                shinqlx_cmd_addcommand(cmd_string.as_ptr(), dummy_function);
             });
     }
 
@@ -618,11 +617,14 @@ mod hooks_tests {
                     .return_const(true);
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| cmd == "slap" && ptr::fn_addr_eq(func, DUMMY_FN))
+                    .withf(|cmd, &func| {
+                        cmd == "slap"
+                            && ptr::fn_addr_eq(func, dummy_function as unsafe extern "C" fn())
+                    })
                     .times(1);
             })
             .run(|| {
-                shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+                shinqlx_cmd_addcommand(cmd_string.as_ptr(), dummy_function);
             });
     }
 
@@ -641,11 +643,14 @@ mod hooks_tests {
                     .times(1);
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| cmd == "slap" && ptr::fn_addr_eq(func, DUMMY_FN))
+                    .withf(|cmd, &func| {
+                        cmd == "slap"
+                            && ptr::fn_addr_eq(func, dummy_function as unsafe extern "C" fn())
+                    })
                     .times(1);
             })
             .run(|| {
-                shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+                shinqlx_cmd_addcommand(cmd_string.as_ptr(), dummy_function);
             });
     }
 
@@ -666,7 +671,7 @@ mod hooks_tests {
                     .times(1);
             })
             .run(|| {
-                shinqlx_cmd_addcommand(cmd_string.as_ptr(), DUMMY_FN);
+                shinqlx_cmd_addcommand(cmd_string.as_ptr(), dummy_function);
             });
     }
 
@@ -674,7 +679,7 @@ mod hooks_tests {
     #[serial]
     fn sys_setmoduleoffset_no_main_engine() {
         let module_string = c"qagame";
-        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+        shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), dummy_function);
     }
 
     #[test]
@@ -686,17 +691,18 @@ mod hooks_tests {
                 mock_engine
                     .expect_set_module_offset()
                     .withf(|module_name, &offset| {
-                        module_name == "qagame" && ptr::fn_addr_eq(offset, DUMMY_FN)
+                        module_name == "qagame"
+                            && ptr::fn_addr_eq(offset, dummy_function as unsafe extern "C" fn())
                     })
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
-                    .withf(|&offset| offset == DUMMY_FN as usize)
+                    .withf(|&offset| offset == dummy_function as usize)
                     .returning(|_offset| Ok(()))
                     .times(1);
             })
             .run(|| {
-                shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+                shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), dummy_function);
             });
     }
 
@@ -710,16 +716,19 @@ mod hooks_tests {
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_module_offset()
-                    .withf_st(|module_name, &offset| module_name == "qagame" && offset == DUMMY_FN)
+                    .withf_st(|module_name, &offset| {
+                        module_name == "qagame"
+                            && ptr::fn_addr_eq(offset, dummy_function as unsafe extern "C" fn())
+                    })
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
-                    .with(predicate::eq(DUMMY_FN as usize))
+                    .withf(|&func| func == dummy_function as usize)
                     .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
                     .times(1);
             })
             .run(|| {
-                shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), DUMMY_FN);
+                shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), dummy_function);
             });
     }
 
