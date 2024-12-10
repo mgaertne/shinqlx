@@ -607,9 +607,9 @@ mod handle_client_command_tests {
         channels::TeamChatChannel,
         commands::CommandPriorities,
         events::{
-            ChatEventDispatcher, ClientCommandDispatcher, EventDispatcherManager,
-            EventDispatcherManagerMethods, TeamSwitchAttemptDispatcher, UserinfoDispatcher,
-            VoteCalledDispatcher, VoteDispatcher, VoteStartedDispatcher,
+            ChatEventDispatcher, ClientCommandDispatcher, EventDispatcher, EventDispatcherManager,
+            EventDispatcherManagerMethods, EventDispatcherMethods, TeamSwitchAttemptDispatcher,
+            UserinfoDispatcher, VoteCalledDispatcher, VoteDispatcher, VoteStartedDispatcher,
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
@@ -691,16 +691,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("client_command")
                         .and_then(|client_command_dispatcher| {
-                            client_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            client_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to client_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -825,14 +825,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("client_command")
                         .and_then(|client_command_dispatcher| {
-                            client_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            client_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to client_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -908,14 +908,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("client_command")
                         .and_then(|client_command_dispatcher| {
-                            client_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            client_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_other_string_hook(py),
+                                    &returning_other_string_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to client_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1001,16 +1001,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("chat")
                         .and_then(|chat_dispatcher| {
-                            chat_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            chat_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to chat dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1219,14 +1219,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("chat")
                         .and_then(|chat_dispatcher| {
-                            chat_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            chat_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to chat dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1321,16 +1321,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("chat")
                         .and_then(|chat_dispatcher| {
-                            chat_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            chat_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to chat dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1565,14 +1565,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("chat")
                         .and_then(|chat_dispatcher| {
-                            chat_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            chat_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to chat dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1654,16 +1654,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote_called")
                         .and_then(|vote_called_dispatcher| {
-                            vote_called_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_called_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_called dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1748,16 +1748,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote_called")
                         .and_then(|vote_called_dispatcher| {
-                            vote_called_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_called_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_called dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -1959,14 +1959,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote_called")
                         .and_then(|vote_called_dispatcher| {
-                            vote_called_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_called_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_called dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2056,16 +2056,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote")
                         .and_then(|vote_dispatcher| {
-                            vote_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2147,16 +2147,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote")
                         .and_then(|vote_dispatcher| {
-                            vote_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2246,16 +2246,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote")
                         .and_then(|vote_dispatcher| {
-                            vote_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2400,14 +2400,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("vote")
                         .and_then(|vote_dispatcher| {
-                            vote_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2496,16 +2496,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
-                            team_switch_attempt_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            team_switch_attempt_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to team_switch_attempt dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2593,16 +2593,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
-                            team_switch_attempt_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            team_switch_attempt_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to team_switch_attempt dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2690,16 +2690,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
-                            team_switch_attempt_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            team_switch_attempt_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to team_switch_attempt dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2841,14 +2841,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("team_switch_attempt")
                         .and_then(|team_switch_attempt_dispatcher| {
-                            team_switch_attempt_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            team_switch_attempt_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to team_switch_attempt dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -2927,16 +2927,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("userinfo")
                         .and_then(|userinfo_dispatcher| {
-                            userinfo_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            userinfo_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to userinfo dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3024,16 +3024,16 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("userinfo")
                         .and_then(|userinfo_dispatcher| {
-                            userinfo_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            userinfo_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to userinfo dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3184,14 +3184,14 @@ mod handle_client_command_tests {
                     event_dispatcher
                         .__getitem__("userinfo")
                         .and_then(|userinfo_dispatcher| {
-                            userinfo_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            userinfo_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to userinfo dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3284,16 +3284,16 @@ def returning_other_userinfo_hook(*args, **kwargs):
                     event_dispatcher
                         .__getitem__("userinfo")
                         .and_then(|userinfo_dispatcher| {
-                            userinfo_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            userinfo_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_other_userinfo_module
+                                    &returning_other_userinfo_module
                                         .getattr("returning_other_userinfo_hook")
                                         .expect("could not get hook from capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to userinfo dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3462,8 +3462,8 @@ mod handle_server_command_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{
-            EventDispatcherManager, EventDispatcherManagerMethods, ServerCommandDispatcher,
-            VoteEndedDispatcher,
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, ServerCommandDispatcher, VoteEndedDispatcher,
         },
         pyshinqlx_setup_fixture::*,
         pyshinqlx_test_support::*,
@@ -3505,16 +3505,16 @@ mod handle_server_command_tests {
                     event_dispatcher
                         .__getitem__("server_command")
                         .and_then(|server_command_dispatcher| {
-                            server_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            server_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to server_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3590,16 +3590,16 @@ mod handle_server_command_tests {
                     event_dispatcher
                         .__getitem__("server_command")
                         .and_then(|server_command_dispatcher| {
-                            server_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            server_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to server_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3653,14 +3653,14 @@ mod handle_server_command_tests {
                     event_dispatcher
                         .__getitem__("server_command")
                         .and_then(|server_command_dispatcher| {
-                            server_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            server_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to server_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3700,14 +3700,14 @@ mod handle_server_command_tests {
                     event_dispatcher
                         .__getitem__("server_command")
                         .and_then(|server_command_dispatcher| {
-                            server_command_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            server_command_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_other_string_hook(py),
+                                    &returning_other_string_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to server_command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3753,16 +3753,16 @@ mod handle_server_command_tests {
                     event_dispatcher
                         .__getitem__("vote_ended")
                         .and_then(|vote_ended_dispatcher| {
-                            vote_ended_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_ended_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_ended dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3814,16 +3814,16 @@ mod handle_server_command_tests {
                     event_dispatcher
                         .__getitem__("vote_ended")
                         .and_then(|vote_ended_dispatcher| {
-                            vote_ended_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_ended_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_ended dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -3955,9 +3955,9 @@ mod handle_frame_tests {
     use super::{handle_frame, transfer_next_frame_tasks, try_handle_frame, try_run_frame_tasks};
 
     use crate::ffi::python::{
-        commands::CommandPriorities, pyshinqlx_setup, pyshinqlx_test_support::*,
-        EventDispatcherManager, EventDispatcherManagerMethods, FrameEventDispatcher,
-        EVENT_DISPATCHERS,
+        commands::CommandPriorities, pyshinqlx_setup, pyshinqlx_test_support::*, EventDispatcher,
+        EventDispatcherManager, EventDispatcherManagerMethods, EventDispatcherMethods,
+        FrameEventDispatcher, EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
@@ -4104,16 +4104,16 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                     event_dispatcher
                         .__getitem__("frame")
                         .and_then(|frame_dispatcher| {
-                            frame_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            frame_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to frame dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -4302,16 +4302,16 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
                     event_dispatcher
                         .__getitem__("frame")
                         .and_then(|frame_dispatcher| {
-                            frame_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            frame_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to frame dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -4464,7 +4464,8 @@ mod handle_new_game_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{
-            EventDispatcherManager, EventDispatcherManagerMethods, MapDispatcher, NewGameDispatcher,
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, MapDispatcher, NewGameDispatcher,
         },
         pyshinqlx_setup,
         pyshinqlx_test_support::*,
@@ -4481,6 +4482,7 @@ mod handle_new_game_tests {
     use rstest::*;
 
     use crate::ffi::python::pyshinqlx_test_support::run_all_frame_tasks;
+
     use pyo3::exceptions::PyEnvironmentError;
     use pyo3::prelude::*;
 
@@ -4573,16 +4575,16 @@ mod handle_new_game_tests {
                     event_dispatcher
                         .__getitem__("new_game")
                         .and_then(|new_game_dispatcher| {
-                            new_game_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            new_game_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to new_game dispatcher");
                     run_all_frame_tasks(py).expect("this should not happen");
@@ -4693,31 +4695,31 @@ mod handle_new_game_tests {
                     event_dispatcher
                         .__getitem__("new_game")
                         .and_then(|new_game_dispatcher| {
-                            new_game_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            new_game_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to new_game dispatcher");
                     event_dispatcher
                         .__getitem__("map")
                         .and_then(|map_dispatcher| {
-                            map_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            map_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to map dispatcher");
                     run_all_frame_tasks(py).expect("this should not happen");
@@ -5395,9 +5397,9 @@ mod handle_set_configstring_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{
-            EventDispatcherManager, EventDispatcherManagerMethods, GameCountdownDispatcher,
-            RoundCountdownDispatcher, RoundStartDispatcher, SetConfigstringDispatcher,
-            VoteStartedDispatcher,
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, GameCountdownDispatcher, RoundCountdownDispatcher,
+            RoundStartDispatcher, SetConfigstringDispatcher, VoteStartedDispatcher,
         },
         pyshinqlx_setup,
         pyshinqlx_test_support::*,
@@ -5450,16 +5452,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("set_configstring")
                         .and_then(|set_configstring_dispatcher| {
-                            set_configstring_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            set_configstring_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -5501,14 +5503,14 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("set_configstring")
                         .and_then(|set_configstring_dispatcher| {
-                            set_configstring_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            set_configstring_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -5565,14 +5567,14 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("set_configstring")
                         .and_then(|set_configstring_dispatcher| {
-                            set_configstring_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            set_configstring_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_other_string_hook(py),
+                                    &returning_other_string_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -5615,16 +5617,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("vote_started")
                         .and_then(|vote_start_dispatcher| {
-                            vote_start_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_start_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -5668,16 +5670,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("vote_started")
                         .and_then(|vote_start_dispatcher| {
-                            vote_start_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_start_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -5722,16 +5724,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("vote_started")
                         .and_then(|vote_start_dispatcher| {
-                            vote_start_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            vote_start_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -5861,16 +5863,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("game_countdown")
                         .and_then(|game_countdown_dispatcher| {
-                            game_countdown_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            game_countdown_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to game_countdown dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6008,16 +6010,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("round_start")
                         .and_then(|round_start_dispatcher| {
-                            round_start_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            round_start_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to round_start dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6063,16 +6065,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("round_start")
                         .and_then(|round_start_dispatcher| {
-                            round_start_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            round_start_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to round_start dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6123,16 +6125,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("round_countdown")
                         .and_then(|round_countdown_dispatcher| {
-                            round_countdown_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            round_countdown_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to round_countdown dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6179,16 +6181,16 @@ mod handle_set_configstring_tests {
                     event_dispatcher
                         .__getitem__("round_countdown")
                         .and_then(|round_countdown_dispatcher| {
-                            round_countdown_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            round_countdown_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to round_countdown dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6493,7 +6495,10 @@ mod handle_player_connect_tests {
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, EventDispatcherManagerMethods, PlayerConnectDispatcher},
+        events::{
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, PlayerConnectDispatcher,
+        },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
@@ -6573,16 +6578,16 @@ mod handle_player_connect_tests {
                     event_dispatcher
                         .__getitem__("player_connect")
                         .and_then(|player_connect_dispatcher| {
-                            player_connect_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            player_connect_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to player_connect dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6710,14 +6715,14 @@ mod handle_player_connect_tests {
                     event_dispatcher
                         .__getitem__("player_connect")
                         .and_then(|player_connect_dispatcher| {
-                            player_connect_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            player_connect_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_other_string_hook(py),
+                                    &returning_other_string_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to player_connect dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -6830,7 +6835,10 @@ mod handle_player_loaded_tests {
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, EventDispatcherManagerMethods, PlayerLoadedDispatcher},
+        events::{
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, PlayerLoadedDispatcher,
+        },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
@@ -6910,16 +6918,16 @@ mod handle_player_loaded_tests {
                     event_dispatcher
                         .__getitem__("player_loaded")
                         .and_then(|player_loaded_dispatcher| {
-                            player_loaded_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            player_loaded_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to player_loaded dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -7096,7 +7104,8 @@ mod handle_player_disconnect_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{
-            EventDispatcherManager, EventDispatcherManagerMethods, PlayerDisconnectDispatcher,
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, PlayerDisconnectDispatcher,
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
@@ -7177,16 +7186,16 @@ mod handle_player_disconnect_tests {
                     event_dispatcher
                         .__getitem__("player_disconnect")
                         .and_then(|player_disconnect_dispatcher| {
-                            player_disconnect_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            player_disconnect_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to player_disconnect dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -7354,7 +7363,10 @@ mod handle_player_spawn_tests {
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, EventDispatcherManagerMethods, PlayerSpawnDispatcher},
+        events::{
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, PlayerSpawnDispatcher,
+        },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
@@ -7434,16 +7446,16 @@ mod handle_player_spawn_tests {
                     event_dispatcher
                         .__getitem__("player_spawn")
                         .and_then(|player_spawn_dispatcher| {
-                            player_spawn_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            player_spawn_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to player_spawn dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -7609,7 +7621,10 @@ mod handle_kamikaze_use_tests {
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{EventDispatcherManager, EventDispatcherManagerMethods, KamikazeUseDispatcher},
+        events::{
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, KamikazeUseDispatcher,
+        },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
@@ -7689,16 +7704,16 @@ mod handle_kamikaze_use_tests {
                     event_dispatcher
                         .__getitem__("kamikaze_use")
                         .and_then(|kamikaze_use_dispatcher| {
-                            kamikaze_use_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            kamikaze_use_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to kamikaze_use dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -7874,7 +7889,8 @@ mod handle_kamikaze_explode_tests {
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::{
-            EventDispatcherManager, EventDispatcherManagerMethods, KamikazeExplodeDispatcher,
+            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+            EventDispatcherMethods, KamikazeExplodeDispatcher,
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
@@ -7955,16 +7971,16 @@ mod handle_kamikaze_explode_tests {
                     event_dispatcher
                         .__getitem__("kamikaze_explode")
                         .and_then(|kamikaze_explode_dispatcher| {
-                            kamikaze_explode_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            kamikaze_explode_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to kamikaze_explode dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8042,16 +8058,16 @@ mod handle_kamikaze_explode_tests {
                     event_dispatcher
                         .__getitem__("kamikaze_explode")
                         .and_then(|kamikaze_explode_dispatcher| {
-                            kamikaze_explode_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            kamikaze_explode_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to kamikaze_explode dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8253,7 +8269,10 @@ mod handle_damage_tests {
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{DamageDispatcher, EventDispatcherManager, EventDispatcherManagerMethods},
+        events::{
+            DamageDispatcher, EventDispatcher, EventDispatcherManager,
+            EventDispatcherManagerMethods, EventDispatcherMethods,
+        },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
@@ -8336,16 +8355,16 @@ mod handle_damage_tests {
                     event_dispatcher
                         .__getitem__("damage")
                         .and_then(|damage_dispatcher| {
-                            damage_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            damage_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to damage dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8430,16 +8449,16 @@ mod handle_damage_tests {
                     event_dispatcher
                         .__getitem__("damage")
                         .and_then(|damage_dispatcher| {
-                            damage_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            damage_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to damage dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8524,16 +8543,16 @@ mod handle_damage_tests {
                     event_dispatcher
                         .__getitem__("damage")
                         .and_then(|damage_dispatcher| {
-                            damage_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            damage_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to damage dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8676,7 +8695,8 @@ mod handle_damage_tests {
     }
 }
 
-static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PyAny>>> = Lazy::new(ArcSwapOption::empty);
+static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PrintRedirector>>> =
+    Lazy::new(ArcSwapOption::empty);
 
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
@@ -8731,9 +8751,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
         .load()
         .iter()
         .for_each(|print_redirector| {
-            if let Err(e) = print_redirector.call_method1(py, intern!(py, "append"), (text,)) {
-                log_exception(py, &e);
-            }
+            print_redirector.bind(py).append(text);
         });
 
     let returned = result.extract::<String>().unwrap_or(text.to_string());
@@ -8756,12 +8774,16 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
 #[cfg(test)]
 mod handle_console_print_tests {
     use super::{
-        handle_console_print, try_handle_console_print, PrintRedirector, PRINT_REDIRECTION,
+        handle_console_print, try_handle_console_print, PrintRedirector, PrintRedirectorMethods,
+        PRINT_REDIRECTION,
     };
 
     use crate::ffi::python::{
         commands::CommandPriorities,
-        events::{ConsolePrintDispatcher, EventDispatcherManager, EventDispatcherManagerMethods},
+        events::{
+            ConsolePrintDispatcher, EventDispatcher, EventDispatcherManager,
+            EventDispatcherManagerMethods, EventDispatcherMethods,
+        },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
         EVENT_DISPATCHERS,
@@ -8779,7 +8801,7 @@ mod handle_console_print_tests {
     use crate::ffi::python::prelude::ConsoleChannel;
     use crate::hooks::mock_hooks::shinqlx_com_printf_context;
     use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool, IntoPyObjectExt};
+    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8810,16 +8832,16 @@ mod handle_console_print_tests {
                     event_dispatcher
                         .__getitem__("console_print")
                         .and_then(|console_print_dispatcher| {
-                            console_print_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            console_print_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    capturing_hook
+                                    &capturing_hook
                                         .getattr("hook")
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to console_print dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8863,14 +8885,14 @@ mod handle_console_print_tests {
                     event_dispatcher
                         .__getitem__("console_print")
                         .and_then(|console_print_dispatcher| {
-                            console_print_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            console_print_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_false_hook(py),
+                                    &returning_false_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to console_print dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8912,14 +8934,14 @@ mod handle_console_print_tests {
                     event_dispatcher
                         .__getitem__("console_print")
                         .and_then(|console_print_dispatcher| {
-                            console_print_dispatcher.call_method1(
-                                "add_hook",
-                                (
+                            console_print_dispatcher
+                                .downcast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
                                     "asdf",
-                                    returning_other_string_hook(py),
+                                    &returning_other_string_hook(py),
                                     CommandPriorities::PRI_NORMAL as i32,
-                                ),
-                            )
+                                )
                         })
                         .expect("could not add hook to console_print dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -8950,9 +8972,9 @@ mod handle_console_print_tests {
                     PrintRedirector::py_new(py, console_channel.into_bound(py).into_any())
                         .expect("this should not happen");
                 PRINT_REDIRECTION.store(Some(
-                    print_redirector
-                        .into_py_any(py)
+                    Bound::new(py, print_redirector)
                         .expect("this should not happen")
+                        .unbind()
                         .into(),
                 ));
 
@@ -8968,11 +8990,13 @@ mod handle_console_print_tests {
                     .extract::<String>(py)
                     .is_ok_and(|str_value| str_value == "asdf")));
 
-                PRINT_REDIRECTION.load().as_ref().map(|redirector| {
-                    redirector
-                        .call_method0(py, "flush")
-                        .expect("this should not happen")
-                });
+                PRINT_REDIRECTION
+                    .load()
+                    .as_ref()
+                    .iter()
+                    .for_each(|redirector| {
+                        redirector.bind(py).flush().expect("this should not happen")
+                    });
             });
         });
     }
@@ -9056,40 +9080,74 @@ impl PrintRedirector {
     }
 
     #[pyo3(name = "__enter__")]
-    fn context_manager_enter<'py>(slf: Bound<'py, Self>, _py: Python<'py>) -> Bound<'py, Self> {
-        PRINT_REDIRECTION.store(Some(Arc::new(slf.clone().into_any().unbind())));
-        slf
+    fn context_manager_enter(slf: Bound<'_, Self>) -> Bound<'_, Self> {
+        slf.context_manager_enter()
     }
 
     #[pyo3(name = "__exit__")]
-    #[allow(unused_variables)]
     fn context_manager_exit(
-        &self,
-        py: Python<'_>,
+        slf: &Bound<'_, Self>,
         exc_type: Py<PyAny>,
         exc_value: Py<PyAny>,
         exc_traceback: Py<PyAny>,
     ) -> PyResult<()> {
-        self.flush(py)?;
+        slf.context_manager_exit(exc_type, exc_value, exc_traceback)
+    }
+
+    fn flush(slf: &Bound<'_, Self>) -> PyResult<()> {
+        slf.flush()
+    }
+
+    fn append(slf: &Bound<'_, Self>, text: &str) {
+        slf.append(text)
+    }
+}
+
+pub(crate) trait PrintRedirectorMethods {
+    fn context_manager_enter(self) -> Self;
+    fn context_manager_exit(
+        &self,
+        exc_type: Py<PyAny>,
+        exc_value: Py<PyAny>,
+        exc_traceback: Py<PyAny>,
+    ) -> PyResult<()>;
+    fn flush(&self) -> PyResult<()>;
+    fn append(&self, text: &str);
+}
+
+impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
+    fn context_manager_enter(self) -> Self {
+        PRINT_REDIRECTION.store(Some(Arc::new(self.clone().unbind())));
+        self
+    }
+
+    #[allow(unused_variables)]
+    fn context_manager_exit(
+        &self,
+        exc_type: Py<PyAny>,
+        exc_value: Py<PyAny>,
+        exc_traceback: Py<PyAny>,
+    ) -> PyResult<()> {
+        self.flush()?;
         PRINT_REDIRECTION.store(None);
         Ok(())
     }
 
-    fn flush(&self, py: Python<'_>) -> PyResult<()> {
-        let mut print_buffer_guard = self.print_buffer.write();
-        let print_buffer_contents = print_buffer_guard.clone();
-        print_buffer_guard.clear();
+    fn flush(&self) -> PyResult<()> {
+        let print_buffer_contents = self.borrow().print_buffer.read().clone();
+        self.borrow().print_buffer.write().clear();
 
         let _ = self
+            .borrow()
             .channel
-            .call_method1(py, intern!(py, "reply"), (print_buffer_contents,))?;
+            .bind(self.py())
+            .call_method1(intern!(self.py(), "reply"), (print_buffer_contents,))?;
 
         Ok(())
     }
 
     fn append(&self, text: &str) {
-        let mut print_buffer_guard = self.print_buffer.write();
-        (*print_buffer_guard).push_str(text);
+        self.borrow().print_buffer.write().push_str(text);
     }
 }
 
