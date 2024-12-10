@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
-    types::{IntoPyDict, PyBool, PyList, PyTuple},
+    types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
     PyTraverseError, PyVisit,
 };
 
@@ -223,11 +223,11 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
 
-        let plugin = slf.plugin.clone_ref(self.py());
-        let plugin_name = plugin.getattr(self.py(), intern!(self.py(), "name"))?;
+        let plugin = slf.plugin.bind(self.py());
+        let plugin_name = plugin.downcast::<Plugin>()?.get_name()?;
         pyshinqlx_get_logger(
             self.py(),
-            Some(plugin_name.clone_ref(self.py()).into_bound(self.py())),
+            Some(PyString::new(self.py(), &plugin_name).into_any()),
         )
         .and_then(|logger| {
             let debug_level = self
@@ -338,15 +338,16 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
 
         self.borrow()
             .plugin
-            .getattr(self.py(), intern!(self.py(), "db"))
+            .bind(self.py())
+            .getattr(intern!(self.py(), "db"))
             .ok()
-            .filter(|value| !value.is_none(self.py()))
+            .filter(|value| !value.is_none())
             .and_then(|plugin_db| {
                 plugin_db
-                    .call_method1(self.py(), intern!(self.py(), "get_permission"), (player,))
+                    .call_method1(intern!(self.py(), "get_permission"), (&player,))
                     .ok()
             })
-            .and_then(|player_perm_result| player_perm_result.extract::<i32>(self.py()).ok())
+            .and_then(|player_perm_result| player_perm_result.extract::<i32>().ok())
             .is_some_and(|player_perm| player_perm >= perm)
     }
 }
@@ -390,7 +391,7 @@ class mocked_db:
     fn constructor_with_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 py.None().bind(py),
                 PyBool::new(py, true).as_any(),
                 0,
@@ -415,7 +416,7 @@ class mocked_db:
                 .expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 py.None().bind(py),
                 &capturing_hook
                     .getattr("hook")
@@ -442,7 +443,7 @@ class mocked_db:
                 .expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 py.None().bind(py),
                 &capturing_hook
                     .getattr("hook")
@@ -473,7 +474,7 @@ class mocked_db:
             let names_pylist = PyList::new(py, &names_vec).expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 PyTuple::new(py, names_pylist)
                     .expect("this should not happen")
                     .as_any(),
@@ -506,7 +507,7 @@ class mocked_db:
             let names_pylist = PyTuple::new(py, &names_vec).expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 PyTuple::new(py, names_pylist)
                     .expect("this should not happen")
                     .as_any(),
@@ -532,7 +533,7 @@ class mocked_db:
             let capturing_hook = capturing_hook(py);
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 PyString::new(py, "cmd_name").as_any(),
                 &capturing_hook
                     .getattr("hook")
@@ -561,7 +562,7 @@ class mocked_db:
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 PyString::new(py, "cmd_name").as_any(),
                 &capturing_hook
                     .getattr("hook")
@@ -615,7 +616,7 @@ class mocked_db:
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 PyString::new(py, "cmd_name").as_any(),
                 &capturing_hook
                     .getattr("hook")
@@ -669,7 +670,7 @@ class mocked_db:
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
 
             let command = Command::py_new(
-                &test_plugin(py),
+                &test_plugin(py).call0().expect("this should not happen"),
                 PyString::new(py, "cmd_name").as_any(),
                 &capturing_hook
                     .getattr("hook")
@@ -700,7 +701,10 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Command {
-                plugin: test_plugin(py).unbind(),
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
                 name: vec!["cmd".to_string()],
                 handler: capturing_hook
                     .getattr("hook")
@@ -738,7 +742,10 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Command {
-                plugin: test_plugin(py).unbind(),
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
                 name: vec![],
                 handler: capturing_hook
                     .getattr("hook")
@@ -772,7 +779,10 @@ class mocked_db:
             let command = Bound::new(
                 py,
                 Command {
-                    plugin: test_plugin(py).unbind(),
+                    plugin: test_plugin(py)
+                        .call0()
+                        .expect("this should not happen")
+                        .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
                         .getattr("hook")
@@ -817,7 +827,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin(py).unbind(),
+                            plugin: test_plugin(py)
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -849,7 +862,10 @@ class mocked_db:
             let command = Bound::new(
                 py,
                 Command {
-                    plugin: test_plugin(py).unbind(),
+                    plugin: test_plugin(py)
+                        .call0()
+                        .expect("this should not happen")
+                        .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
                         .getattr("hook")
@@ -890,7 +906,10 @@ class mocked_db:
             let command = Bound::new(
                 py,
                 Command {
-                    plugin: test_plugin(py).unbind(),
+                    plugin: test_plugin(py)
+                        .call0()
+                        .expect("this should not happen")
+                        .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
                         .getattr("hook")
@@ -943,7 +962,10 @@ class mocked_db:
             let command = Bound::new(
                 py,
                 Command {
-                    plugin: test_plugin(py).unbind(),
+                    plugin: test_plugin(py)
+                        .call0()
+                        .expect("this should not happen")
+                        .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
                         .getattr("hook")
@@ -997,7 +1019,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin(py).unbind(),
+                            plugin: test_plugin(py)
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1014,12 +1039,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        false
-                    ));
+                    assert!(command.is_eligible_player(&player, false));
                 });
             });
     }
@@ -1063,12 +1086,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        true
-                    ));
+                    assert!(command.is_eligible_player(&player, true));
                 });
             });
     }
@@ -1106,7 +1127,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin(py).unbind(),
+                            plugin: test_plugin(py)
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1123,12 +1147,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        false
-                    ));
+                    assert!(command.is_eligible_player(&player, false));
                 });
             });
     }
@@ -1156,7 +1178,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin(py).unbind(),
+                            plugin: test_plugin(py)
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1173,12 +1198,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        false
-                    ));
+                    assert!(command.is_eligible_player(&player, false));
                 });
             });
     }
@@ -1215,7 +1238,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin(py).unbind(),
+                            plugin: test_plugin(py)
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1232,12 +1258,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        true
-                    ));
+                    assert!(command.is_eligible_player(&player, true));
                 });
             });
     }
@@ -1265,7 +1289,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin(py).unbind(),
+                            plugin: test_plugin(py)
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1282,12 +1309,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        true
-                    ));
+                    assert!(command.is_eligible_player(&player, true));
                 });
             });
     }
@@ -1319,7 +1344,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin.unbind(),
+                            plugin: test_plugin
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1336,12 +1364,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(!command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        false
-                    ));
+                    assert!(!command.is_eligible_player(&player, false));
                 });
             });
     }
@@ -1373,7 +1399,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin.unbind(),
+                            plugin: test_plugin
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1390,12 +1419,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(!command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        true
-                    ));
+                    assert!(!command.is_eligible_player(&player, true));
                 });
             });
     }
@@ -1427,7 +1454,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin.unbind(),
+                            plugin: test_plugin
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1444,12 +1474,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        false
-                    ));
+                    assert!(command.is_eligible_player(&player, false));
                 });
             });
     }
@@ -1481,7 +1509,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin.unbind(),
+                            plugin: test_plugin
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1498,12 +1529,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(!command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        false
-                    ));
+                    assert!(!command.is_eligible_player(&player, false));
                 });
             });
     }
@@ -1535,7 +1564,10 @@ class mocked_db:
                     let command = Bound::new(
                         py,
                         Command {
-                            plugin: test_plugin.unbind(),
+                            plugin: test_plugin
+                                .call0()
+                                .expect("this should not happen")
+                                .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
                                 .getattr("hook")
@@ -1552,12 +1584,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        true
-                    ));
+                    assert!(command.is_eligible_player(&player, true));
                 });
             });
     }
@@ -1606,12 +1636,10 @@ class mocked_db:
                     )
                     .expect("this should not happen");
 
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
 
-                    assert!(!command.is_eligible_player(
-                        &Bound::new(py, player).expect("this should not happen"),
-                        true
-                    ));
+                    assert!(!command.is_eligible_player(&player, true));
                 });
             });
     }
@@ -1961,7 +1989,7 @@ def remove_command(cmd):
                 {
                     if !bound_cmd.borrow().usage.is_empty() {
                         let usage_msg = format!("^7Usage: ^6{} {}", name, bound_cmd.borrow().usage);
-                        channel.call_method1(intern!(self.py(), "reply"), (usage_msg,))?;
+                        channel.call_method1(intern!(self.py(), "reply"), (&usage_msg,))?;
                     }
                 } else if !cmd_result_return_code
                     .as_ref()
@@ -2345,9 +2373,10 @@ mod command_invoker_tests {
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
                     let client_command_channel =
-                        Bound::new(py, ClientCommandChannel::py_new(&player))
+                        Bound::new(py, ClientCommandChannel::py_new(player.get()))
                             .expect("this should not happen");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
@@ -2379,7 +2408,7 @@ mod command_invoker_tests {
                         .expect("this should not happen");
 
                     let result = command_invoker.handle_input(
-                        &Bound::new(py, player).expect("this should not happen"),
+                        &player,
                         "cmd_name",
                         client_command_channel.as_any(),
                     );
@@ -2401,9 +2430,10 @@ mod command_invoker_tests {
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
                     let client_command_channel =
-                        Bound::new(py, ClientCommandChannel::py_new(&player))
+                        Bound::new(py, ClientCommandChannel::py_new(player.get()))
                             .expect("this should not happen");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
@@ -2436,7 +2466,7 @@ mod command_invoker_tests {
                         .expect("this should not happen");
 
                     let result = command_invoker.handle_input(
-                        &Bound::new(py, player).expect("this should not happen"),
+                        &player,
                         "cmd_name",
                         client_command_channel.as_any(),
                     );
@@ -2471,9 +2501,10 @@ mod command_invoker_tests {
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
                 Python::with_gil(|py| {
-                    let player = default_test_player();
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
                     let client_command_channel =
-                        Bound::new(py, ClientCommandChannel::py_new(&player))
+                        Bound::new(py, ClientCommandChannel::py_new(player.get()))
                             .expect("this should not happen");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
@@ -2514,7 +2545,7 @@ def cmd_handler(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result = command_invoker.handle_input(
-                        &Bound::new(py, player).expect("this should not happen"),
+                        &player,
                         "cmd_name",
                         client_command_channel.as_any(),
                     );

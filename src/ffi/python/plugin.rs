@@ -1299,17 +1299,15 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                         .eq(handler)
                         .unwrap_or(false)
             })
-            .map_or(Ok(self.py().None()), |command| {
+            .map_or(Ok(()), |command| {
                 COMMANDS.load().as_ref().map_or(
                     Err(PyEnvironmentError::new_err(
                         "could not get access to commands",
                     )),
                     |commands| {
-                        commands.call_method1(
-                            self.py(),
-                            intern!(self.py(), "remove_command"),
-                            (command,),
-                        )
+                        commands
+                            .bind(self.py())
+                            .remove_command(command.bind(self.py()))
                     },
                 )
             })?;
@@ -1407,8 +1405,7 @@ mod plugin_tests {
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let extended_plugin = test_plugin(py);
-                    let plugin_instance = extended_plugin
+                    let plugin_instance = test_plugin(py)
                         .call0()
                         .expect("could not create plugin instance");
 
@@ -1432,8 +1429,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin.call0().expect("this should not happen");
+            let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let plugin_str = plugin_instance.str();
 
@@ -1503,8 +1499,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     fn name_property_returns_plugin_typename(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin.call0().expect("this should not happen");
+            let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let plugin_str = plugin_instance
                 .downcast::<Plugin>()
@@ -1645,8 +1640,7 @@ mod plugin_tests {
                 .getattr("Logger")
                 .expect("could not get logging.Logger");
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin.call0().expect("this should not happen");
+            let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let result = plugin_instance
                 .downcast::<Plugin>()
@@ -1672,8 +1666,7 @@ mod plugin_tests {
         EVENT_DISPATCHERS.store(None);
 
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -1714,8 +1707,7 @@ mod plugin_tests {
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let extended_plugin = test_plugin(py);
-                    let plugin_instance = extended_plugin
+                    let plugin_instance = test_plugin(py)
                         .call0()
                         .expect("could not create plugin instance");
 
@@ -1766,8 +1758,7 @@ mod plugin_tests {
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let extended_plugin = test_plugin(py);
-                    let plugin_instance = extended_plugin
+                    let plugin_instance = test_plugin(py)
                         .call0()
                         .expect("could not create plugin instance");
 
@@ -1817,9 +1808,8 @@ mod plugin_tests {
     #[serial]
     fn remove_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let extended_plugin = test_plugin(py);
             EVENT_DISPATCHERS.store(None);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -1861,8 +1851,7 @@ mod plugin_tests {
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let extended_plugin = test_plugin(py);
-                    let plugin_instance = extended_plugin
+                    let plugin_instance = test_plugin(py)
                         .call0()
                         .expect("could not create plugin instance");
 
@@ -1942,8 +1931,7 @@ mod plugin_tests {
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let extended_plugin = test_plugin(py);
-                    let plugin_instance = extended_plugin
+                    let plugin_instance = test_plugin(py)
                         .call0()
                         .expect("could not create plugin instance");
 
@@ -2004,8 +1992,7 @@ mod plugin_tests {
                         .expect("could not add vote_started dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let extended_plugin = test_plugin(py);
-                    let plugin_instance = extended_plugin
+                    let plugin_instance = test_plugin(py)
                         .call0()
                         .expect("could not create plugin instance");
 
@@ -2076,8 +2063,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -2141,8 +2127,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -2199,8 +2184,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -2263,8 +2247,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -2355,8 +2338,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
@@ -2427,8 +2409,7 @@ def handler():
                     .into(),
             ));
 
-            let extended_plugin = test_plugin(py);
-            let plugin_instance = extended_plugin
+            let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
 
