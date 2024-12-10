@@ -608,6 +608,7 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn add_command_with_main_engine_already_initialized() {
         let cmd_string = c"slap";
         MockEngineBuilder::default()
@@ -630,6 +631,7 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
         let cmd_string = c"slap";
         MockEngineBuilder::default()
@@ -684,6 +686,7 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn sys_setmoduleoffset_vm_init_ok() {
         let module_string = c"qagame";
         MockEngineBuilder::default()
