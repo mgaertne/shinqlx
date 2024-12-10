@@ -119,11 +119,15 @@ jobs:
 
   build:
     name: build & test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: [ check-tests, clippy-tests ]
     strategy:
       matrix:
-        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        os: [ubuntu-latest]
+        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        include:
+          - os: ubuntu-22.04
+            python-version: '3.8'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -140,11 +144,15 @@ jobs:
 
   minimal_build:
     name: build & test with minimal versions
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: [ check-tests, clippy-tests ]
     strategy:
       matrix:
-        python-version: [ '3.8', '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        os: [ubuntu-latest]
+        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        include:
+          - os: ubuntu-22.04
+            python-version: '3.8'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
