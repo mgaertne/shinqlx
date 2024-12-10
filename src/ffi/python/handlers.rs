@@ -89,7 +89,7 @@ mod handle_rcon_tests {
     #[serial]
     fn try_handle_rcon_with_command_invoker_in_place(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = test_plugin(py);
+            let plugin = test_plugin(py).call0().expect("this should not happen");
             let capturing_hook = capturing_hook(py);
             let cmd_handler = capturing_hook
                 .getattr("hook")
@@ -138,7 +138,7 @@ mod handle_rcon_tests {
         EVENT_DISPATCHERS.store(None);
 
         Python::with_gil(|py| {
-            let plugin = test_plugin(py);
+            let plugin = test_plugin(py).call0().expect("this should not happen");
             let raising_exception_handler = PyModule::from_code(
                 py,
                 cr#"

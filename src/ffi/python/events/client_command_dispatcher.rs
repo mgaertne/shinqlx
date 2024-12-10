@@ -645,7 +645,7 @@ def returns_string_hook(*args, **kwargs):
             .with_find_cvar(|cmd| cmd != "zmq_stats_enable", |_| None, 0..)
             .run(|| {
                 Python::with_gil(|py| {
-                    let plugin = test_plugin(py);
+                    let plugin = test_plugin(py).call0().expect("this should not happen");
                     let cmd_handler = PyModule::from_code(
                         py,
                         cr#"

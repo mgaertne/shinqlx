@@ -4324,7 +4324,10 @@ while not shinqlx.next_frame_tasks.empty():
     pub(crate) fn default_command(py: Python<'_>) -> Command {
         let capturing_hook = capturing_hook(py);
         Command {
-            plugin: test_plugin(py).unbind(),
+            plugin: test_plugin(py)
+                .call0()
+                .expect("this should not happen")
+                .unbind(),
             name: vec!["cmd_name".into()],
             handler: capturing_hook
                 .getattr("hook")
