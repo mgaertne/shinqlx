@@ -2058,7 +2058,6 @@ mod quake_live_engine_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
-    #[allow(unpredictable_function_pointer_comparisons)]
     fn com_printf_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
             static_functions: default_static_functions().into(),
@@ -2067,7 +2066,9 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.com_printf_orig();
-        assert!(result.is_ok_and(|func| { func == Com_Printf }));
+        assert!(result.is_ok_and(|func| {
+            ptr::fn_addr_eq(func, Com_Printf as unsafe extern "C" fn(*const c_char, ...))
+        }));
     }
 
     #[test]
@@ -2317,7 +2318,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[allow(unpredictable_function_pointer_comparisons)]
     #[cfg_attr(miri, ignore)]
     fn sv_sendservercommand_orig_when_orig_function_set() {
         let quake_engine = QuakeLiveEngine {
@@ -2327,7 +2327,10 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_sendservercommand_orig();
-        assert!(result.is_ok_and(|func| func == SV_SendServerCommand));
+        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
+            func,
+            SV_SendServerCommand as unsafe extern "C" fn(*mut client_t, *const c_char, ...)
+        )));
     }
 
     #[test]
