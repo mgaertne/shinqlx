@@ -405,7 +405,7 @@ impl StatsListener {
         };
 
         let zmq_enabled_cvar = main_engine.find_cvar("zmq_stats_enable");
-        if !zmq_enabled_cvar.is_some_and(|cvar| cvar.get_integer() != 0) {
+        if zmq_enabled_cvar.is_none_or(|cvar| cvar.get_integer() == 0) {
             return Ok(Self {
                 done: true.into(),
                 address: Default::default(),

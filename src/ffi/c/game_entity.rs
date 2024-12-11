@@ -83,7 +83,8 @@ impl TryFrom<u32> for GameEntity {
     }
 }
 
-#[no_mangle]
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
 pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     ent: *mut gentity_t,
     other: *mut gentity_t,
@@ -103,7 +104,8 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     });
 }
 
-#[no_mangle]
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine
