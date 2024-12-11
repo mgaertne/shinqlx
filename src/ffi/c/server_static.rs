@@ -1,6 +1,6 @@
 use super::prelude::*;
-use crate::prelude::*;
 use crate::MAIN_ENGINE;
+use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
 #[allow(non_snake_case)]
@@ -48,7 +48,7 @@ impl ServerStatic {
             return Err(QuakeLiveEngineError::InvalidId(client_id));
         }
 
-        Ok(unsafe {self.serverStatic_t.clients.offset(client_id as isize) })
+        Ok(unsafe { self.serverStatic_t.clients.offset(client_id as isize) })
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -56,7 +56,8 @@ impl ServerStatic {
         &self,
         client_t: &client_t,
     ) -> Result<i32, QuakeLiveEngineError> {
-        let offset = unsafe { (client_t as *const client_t).offset_from(self.serverStatic_t.clients) };
+        let offset =
+            unsafe { (client_t as *const client_t).offset_from(self.serverStatic_t.clients) };
 
         if !(0..MAX_CLIENTS as isize).contains(&offset) {
             return Err(QuakeLiveEngineError::ClientNotFound(
@@ -266,10 +267,7 @@ mod server_static_tests {
         let rust_server_static =
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
-        assert_eq!(
-            rust_server_static.try_determine_client_id(&client),
-            Ok(0)
-        );
+        assert_eq!(rust_server_static.try_determine_client_id(&client), Ok(0));
     }
 
     //noinspection DuplicatedCode

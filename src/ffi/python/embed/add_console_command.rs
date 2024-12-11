@@ -1,7 +1,7 @@
+use crate::MAIN_ENGINE;
 use crate::commands::cmd_py_command;
 use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::AddCommand;
-use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::PyEnvironmentError;
 

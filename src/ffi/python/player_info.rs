@@ -33,14 +33,17 @@ pub(crate) struct PlayerInfo {
 
 impl Display for PlayerInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-                self.client_id,
-                self.name,
-                self.connection_state,
-                self.userinfo,
-                self.steam_id,
-                self.team,
-                self.privileges)
+        write!(
+            f,
+            "PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
+            self.client_id,
+            self.name,
+            self.connection_state,
+            self.userinfo,
+            self.steam_id,
+            self.team,
+            self.privileges
+        )
     }
 }
 

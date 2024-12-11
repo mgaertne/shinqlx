@@ -40,8 +40,11 @@ impl From<Powerups> for [i32; 6] {
 
 impl Display for Powerups {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-                self.0, self.1, self.2, self.3, self.4, self.5)
+        write!(
+            f,
+            "Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
+            self.0, self.1, self.2, self.3, self.4, self.5
+        )
     }
 }
 
@@ -81,8 +84,10 @@ impl Powerups {
     }
 
     fn __repr__(&self) -> String {
-        format!("Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-                self.0, self.1, self.2, self.3, self.4, self.5)
+        format!(
+            "Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
+            self.0, self.1, self.2, self.3, self.4, self.5
+        )
     }
 }
 

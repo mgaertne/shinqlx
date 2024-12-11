@@ -1,7 +1,7 @@
 use super::prelude::*;
+use crate::MAIN_ENGINE;
 use crate::prelude::*;
 use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
-use crate::MAIN_ENGINE;
 
 use alloc::borrow::Cow;
 use core::borrow::BorrowMut;

@@ -94,8 +94,8 @@ pub(crate) use set_weapons::pyshinqlx_set_weapons;
 pub(crate) use slay_with_mod::pyshinqlx_slay_with_mod;
 pub(crate) use spawn_item::pyshinqlx_spawn_item;
 
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 use pyo3::PyResult;
+use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
 fn validate_client_id(client_id: i32) -> PyResult<()> {
     let maxclients = MAIN_ENGINE.load().as_ref().map_or(

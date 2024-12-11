@@ -1,10 +1,10 @@
 use super::prelude::*;
+use crate::MAIN_ENGINE;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
-use crate::MAIN_ENGINE;
 
 use core::ffi::c_char;
 

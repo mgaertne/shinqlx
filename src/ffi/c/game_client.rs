@@ -2,7 +2,7 @@ use super::prelude::*;
 use crate::prelude::*;
 
 use alloc::borrow::Cow;
-use core::ffi::{c_int, CStr};
+use core::ffi::{CStr, c_int};
 
 use arrayvec::ArrayVec;
 
@@ -821,10 +821,9 @@ mod game_client_tests {
         let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
             .expect("this should not happen");
         game_client.set_weapons([0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0]);
-        assert_eq!(
-            game_client.get_weapons(),
-            [0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0]
-        );
+        assert_eq!(game_client.get_weapons(), [
+            0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0
+        ]);
     }
 
     #[test]
@@ -835,10 +834,9 @@ mod game_client_tests {
         let mut game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
             .expect("this should not happen");
         game_client.set_ammos([10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]);
-        assert_eq!(
-            game_client.get_ammos(),
-            [10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1]
-        );
+        assert_eq!(game_client.get_ammos(), [
+            10, 20, 31, 40, 51, 61, 70, 80, 90, 42, 69, -1, 1, 1, -1
+        ]);
     }
 
     #[test]

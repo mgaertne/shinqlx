@@ -1,9 +1,9 @@
 use super::prelude::*;
-use crate::prelude::*;
 use crate::MAIN_ENGINE;
+use crate::prelude::*;
 
 use alloc::{borrow::Cow, ffi::CString};
-use core::ffi::{c_char, CStr};
+use core::ffi::{CStr, c_char};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -59,7 +59,9 @@ impl Client {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;
         };
-        server_static.try_determine_client_id(self.client_t).unwrap_or(-1)
+        server_static
+            .try_determine_client_id(self.client_t)
+            .unwrap_or(-1)
     }
 
     pub(crate) fn get_state(&self) -> clientState_t {
@@ -160,7 +162,7 @@ mod client_tests {
     use crate::quake_live_functions::QuakeLiveFunction;
 
     use core::borrow::BorrowMut;
-    use core::ffi::{c_char, CStr};
+    use core::ffi::{CStr, c_char};
     use once_cell::sync::OnceCell;
     use retour::GenericDetour;
 

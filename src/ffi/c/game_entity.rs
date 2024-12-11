@@ -1,16 +1,16 @@
 use super::prelude::*;
+use crate::MAIN_ENGINE;
 use crate::hooks::shinqlx_set_configstring;
 use crate::prelude::*;
 use crate::quake_live_engine::{
     ComPrintf, FreeEntity, GetConfigstring, RegisterDamage, StartKamikaze, TryLaunchItem,
 };
-use crate::MAIN_ENGINE;
 
 use alloc::{borrow::Cow, vec};
 use core::{
     borrow::BorrowMut,
     f32::consts::PI,
-    ffi::{c_char, c_float, c_int, CStr},
+    ffi::{CStr, c_char, c_float, c_int},
 };
 
 use arrayvec::ArrayVec;
@@ -790,12 +790,16 @@ mod game_entity_tests {
             .run(|| {
                 ShiNQlx_Switch_Touch_Item(entity.borrow_mut());
 
-                assert!(entity
-                    .touch
-                    .is_some_and(|func| func as usize == MOCK_TOUCH_ITEM_FN as usize));
-                assert!(entity
-                    .think
-                    .is_some_and(|func| func as usize == MOCK_FREE_ENTITY_FN as usize));
+                assert!(
+                    entity
+                        .touch
+                        .is_some_and(|func| func as usize == MOCK_TOUCH_ITEM_FN as usize)
+                );
+                assert!(
+                    entity
+                        .think
+                        .is_some_and(|func| func as usize == MOCK_FREE_ENTITY_FN as usize)
+                );
                 assert_eq!(entity.nextthink, 30234);
             });
     }
@@ -1734,9 +1738,11 @@ mod game_entity_tests {
             .expect("this should not happen");
         game_entity.set_think(Some(SWITCH_TOUCH_ITEM_FN));
 
-        assert!(gentity
-            .think
-            .is_some_and(|func| func as usize == SWITCH_TOUCH_ITEM_FN as usize));
+        assert!(
+            gentity
+                .think
+                .is_some_and(|func| func as usize == SWITCH_TOUCH_ITEM_FN as usize)
+        );
     }
 
     static TOUCH_ITEM_FN: unsafe extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t) =
@@ -1765,9 +1771,11 @@ mod game_entity_tests {
             .expect("this should not happen");
         game_entity.set_touch(Some(TOUCH_ITEM_FN));
 
-        assert!(gentity
-            .touch
-            .is_some_and(|func| func as usize == TOUCH_ITEM_FN as usize));
+        assert!(
+            gentity
+                .touch
+                .is_some_and(|func| func as usize == TOUCH_ITEM_FN as usize)
+        );
     }
 
     #[test]

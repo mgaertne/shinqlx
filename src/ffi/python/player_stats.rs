@@ -46,8 +46,17 @@ impl From<GameClient> for PlayerStats {
 
 impl Display for PlayerStats {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-                self.score, self.kills, self.deaths, self.damage_dealt, self.damage_taken, self.time, self.ping)
+        write!(
+            f,
+            "PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
+            self.score,
+            self.kills,
+            self.deaths,
+            self.damage_dealt,
+            self.damage_taken,
+            self.time,
+            self.ping
+        )
     }
 }
 
@@ -80,12 +89,18 @@ mod player_stats_tests {
 
     #[test]
     fn player_stats_to_str() {
-        assert_eq!(format!("{}", default_player_stats()), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
+        assert_eq!(
+            format!("{}", default_player_stats()),
+            "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)"
+        );
     }
 
     #[test]
     fn player_stats_repr() {
-        assert_eq!(default_player_stats().__repr__(), "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)");
+        assert_eq!(
+            default_player_stats().__repr__(),
+            "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)"
+        );
     }
 
     #[test]

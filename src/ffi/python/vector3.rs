@@ -114,9 +114,11 @@ mod vector3_tests {
                 .expect("this should not happen")
                 .getattr("tuple")
                 .expect("this should not happen");
-            assert!(vector3
-                .is_instance(&tuple.get_type())
-                .expect("result was not OK"));
+            assert!(
+                vector3
+                    .is_instance(&tuple.get_type())
+                    .expect("result was not OK")
+            );
         });
     }
 
