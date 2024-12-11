@@ -1,6 +1,6 @@
+use crate::MAIN_ENGINE;
 use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::{FindCVar, GetCVar};
-use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::PyEnvironmentError;
 
@@ -43,7 +43,7 @@ mod set_cvar_once_tests {
     use pretty_assertions::assert_eq;
     use rstest::*;
 
-    use pyo3::{exceptions::PyEnvironmentError, types::PyString, IntoPyObjectExt};
+    use pyo3::{IntoPyObjectExt, exceptions::PyEnvironmentError, types::PyString};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

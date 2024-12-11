@@ -34,10 +34,10 @@ mod vote_started_dispatcher;
 
 mod prelude {
     pub(crate) use super::{
-        dispatcher_debug_log, log_unexpected_return_value, EventDispatcher, EventDispatcherMethods,
+        EventDispatcher, EventDispatcherMethods, dispatcher_debug_log, log_unexpected_return_value,
     };
 
-    pub(crate) use super::super::{log_exception, pyshinqlx_get_logger, PythonReturnCodes};
+    pub(crate) use super::super::{PythonReturnCodes, log_exception, pyshinqlx_get_logger};
 
     pub(crate) use pyo3::intern;
     pub(crate) use pyo3::prelude::*;
@@ -107,9 +107,9 @@ pub(crate) use vote_ended_dispatcher::{VoteEndedDispatcher, VoteEndedDispatcherM
 pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
 use pyo3::{
+    PyTraverseError, PyVisit,
     exceptions::{PyAssertionError, PyKeyError, PyValueError},
     types::{PyBool, PyDict, PyTuple, PyType},
-    PyTraverseError, PyVisit,
 };
 
 use itertools::Itertools;
@@ -341,7 +341,7 @@ pub(crate) trait EventDispatcherMethods<'py> {
     ) -> PyResult<Bound<'py, PyAny>>;
     fn add_hook(&self, plugin: &str, handler: &Bound<'py, PyAny>, priority: i32) -> PyResult<()>;
     fn remove_hook(&self, plugin: &str, handler: &Bound<'py, PyAny>, priority: i32)
-        -> PyResult<()>;
+    -> PyResult<()>;
 }
 
 impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
@@ -615,7 +615,7 @@ def remove_hook(event, plugin, handler, priority):
 
 #[cfg(test)]
 mod event_dispatcher_tests {
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::ffi::python::commands::CommandPriorities;
     use crate::ffi::python::pyshinqlx_setup_fixture::*;
     use crate::prelude::*;
@@ -675,8 +675,11 @@ def custom_hook(*args, **kwargs):
             let dispatcher = custom_dispatcher(py);
 
             let result = dispatcher.getattr("plugins");
-            assert!(result
-                .is_ok_and(|value| value.downcast::<PyDict>().is_ok_and(|dict| dict.is_empty())));
+            assert!(
+                result.is_ok_and(|value| value
+                    .downcast::<PyDict>()
+                    .is_ok_and(|dict| dict.is_empty()))
+            );
         });
     }
 
@@ -754,9 +757,9 @@ def custom_hook(*args, **kwargs):
                         .expect("this should not happen");
 
                     let result = dispatcher.getattr("plugins");
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyDict>()
-                        .is_ok_and(|dict| dict.len() == 5)));
+                    assert!(result.is_ok_and(|value| {
+                        value.downcast::<PyDict>().is_ok_and(|dict| dict.len() == 5)
+                    }));
                 });
             });
     }
@@ -768,9 +771,11 @@ def custom_hook(*args, **kwargs):
             let dispatcher = custom_dispatcher(py);
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-            assert!(result.is_ok_and(|value| value
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true())));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            }));
         });
     }
 
@@ -820,9 +825,11 @@ def throws_exception_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -873,9 +880,11 @@ def returns_none_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -928,9 +937,11 @@ def returns_none_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -983,9 +994,11 @@ def returns_stop_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1038,9 +1051,11 @@ def returns_stop_event_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1093,9 +1108,11 @@ def returns_stop_all_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1146,9 +1163,11 @@ def returns_string_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1216,9 +1235,11 @@ def returns_string_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1286,9 +1307,11 @@ def returns_string_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>()
-                        .is_ok_and(|str_value| str_value == "return_handler string return")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>()
+                            .is_ok_and(|str_value| str_value == "return_handler string return")
+                    }));
                 });
             });
     }
@@ -1939,21 +1962,27 @@ mod event_dispatcher_manager_tests {
 
             let result = EventDispatcherManager::get_dispatchers(&event_dispatchers)
                 .expect("this should not happen");
-            assert!(result
-                .get_item("game_countdown")
-                .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
-                    dispatcher.is_instance_of::<GameCountdownDispatcher>()
-                })));
-            assert!(result
-                .get_item("game_start")
-                .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
-                    dispatcher.is_instance_of::<GameStartDispatcher>()
-                })));
-            assert!(result
-                .get_item("game_end")
-                .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
-                    dispatcher.is_instance_of::<GameEndDispatcher>()
-                })));
+            assert!(
+                result
+                    .get_item("game_countdown")
+                    .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
+                        dispatcher.is_instance_of::<GameCountdownDispatcher>()
+                    }))
+            );
+            assert!(
+                result
+                    .get_item("game_start")
+                    .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
+                        dispatcher.is_instance_of::<GameStartDispatcher>()
+                    }))
+            );
+            assert!(
+                result
+                    .get_item("game_end")
+                    .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
+                        dispatcher.is_instance_of::<GameEndDispatcher>()
+                    }))
+            );
         });
     }
 

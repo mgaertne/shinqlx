@@ -5,7 +5,7 @@ use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
 
 use alloc::borrow::Cow;
 use core::borrow::BorrowMut;
-use core::ffi::{c_float, CStr};
+use core::ffi::{CStr, c_float};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]

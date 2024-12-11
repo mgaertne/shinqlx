@@ -1,4 +1,3 @@
-use crate::MAIN_ENGINE;
 use crate::ffi::python::prelude::*;
 use crate::ffi::python::set_cvar;
 

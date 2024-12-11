@@ -1,10 +1,10 @@
 use super::prelude::*;
 use super::{
-    addadmin, addmod, addscore, addteamscore, ban, client_id, commands::CommandPriorities,
-    console_command, demote, is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger,
-    set_teamsize, tempban, unban, unlock, unmute, CommandInvokerMethods, EventDispatcherMethods,
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    RED_TEAM_CHAT_CHANNEL,
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
+    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, addadmin, addmod, addscore,
+    addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
+    is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban,
+    unlock, unmute,
 };
 
 #[cfg(test)]
@@ -20,11 +20,11 @@ use crate::{
 
 use pyo3::prelude::*;
 use pyo3::{
+    BoundObject, IntoPyObjectExt, PyTraverseError,
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
     intern,
     types::{PyBool, PyDict, PyList, PySet, PyString, PyTuple, PyType},
-    BoundObject, IntoPyObjectExt, PyTraverseError,
 };
 
 /// The base plugin class.
@@ -1049,7 +1049,7 @@ pub(crate) trait PluginMethods<'py> {
         usage: &str,
     ) -> PyResult<()>;
     fn remove_command(&self, name: &Bound<'py, PyAny>, handler: &Bound<'py, PyAny>)
-        -> PyResult<()>;
+    -> PyResult<()>;
 }
 
 impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
@@ -1346,8 +1346,8 @@ mod plugin_tests {
     use crate::prelude::*;
 
     use crate::ffi::python::{
-        events::EventDispatcherManagerMethods, pyshinqlx_test_support::*, BLUE_TEAM_CHAT_CHANNEL,
-        CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL,
+        BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+        RED_TEAM_CHAT_CHANNEL, events::EventDispatcherManagerMethods, pyshinqlx_test_support::*,
     };
     use crate::hooks::mock_hooks::{
         shinqlx_com_printf_context, shinqlx_drop_client_context,
@@ -1360,11 +1360,11 @@ mod plugin_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::{
+        IntoPyObjectExt,
         exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
         types::{
             IntoPyDict, PyBool, PyDate, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple,
         },
-        IntoPyObjectExt,
     };
     use rstest::rstest;
 
@@ -1533,9 +1533,11 @@ mod plugin_tests {
                 .expect("this should not happen")
                 .get_plugins();
 
-            assert!(plugins.is_ok_and(|plugins_dict| plugins_dict
-                .eq(loaded_plugins)
-                .expect("this should not happen")));
+            assert!(plugins.is_ok_and(|plugins_dict| {
+                plugins_dict
+                    .eq(loaded_plugins)
+                    .expect("this should not happen")
+            }));
         });
     }
 
@@ -1543,18 +1545,15 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     fn hooks_property_returns_plugin_hooks(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = Bound::new(
-                py,
-                Plugin {
-                    hooks: vec![
-                        ("asdf".to_string(), py.None(), 1),
-                        ("qwertz".to_string(), py.None(), 0),
-                    ]
-                    .into(),
-                    commands: Default::default(),
-                    db_instance: py.None().into(),
-                },
-            )
+            let plugin = Bound::new(py, Plugin {
+                hooks: vec![
+                    ("asdf".to_string(), py.None(), 1),
+                    ("qwertz".to_string(), py.None(), 0),
+                ]
+                .into(),
+                commands: Default::default(),
+                db_instance: py.None().into(),
+            })
             .expect("this should not happen");
 
             let hooks = plugin.get_hooks();
@@ -1574,14 +1573,11 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     fn commands_property_when_no_commands_exist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = Bound::new(
-                py,
-                Plugin {
-                    hooks: Default::default(),
-                    commands: Default::default(),
-                    db_instance: py.None().into(),
-                },
-            )
+            let plugin = Bound::new(py, Plugin {
+                hooks: Default::default(),
+                commands: Default::default(),
+                db_instance: py.None().into(),
+            })
             .expect("this should not happen");
 
             assert_eq!(plugin.get_commands().len(), 0);
@@ -1593,14 +1589,11 @@ mod plugin_tests {
     #[serial]
     fn game_property_when_no_game_running(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = Bound::new(
-                py,
-                Plugin {
-                    hooks: Default::default(),
-                    commands: Default::default(),
-                    db_instance: py.None().into(),
-                },
-            )
+            let plugin = Bound::new(py, Plugin {
+                hooks: Default::default(),
+                commands: Default::default(),
+                db_instance: py.None().into(),
+            })
             .expect("this should not happen");
 
             assert!(plugin.get_game().is_none());
@@ -1615,14 +1608,11 @@ mod plugin_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let plugin = Bound::new(
-                        py,
-                        Plugin {
-                            hooks: Default::default(),
-                            commands: Default::default(),
-                            db_instance: py.None().into(),
-                        },
-                    )
+                    let plugin = Bound::new(py, Plugin {
+                        hooks: Default::default(),
+                        commands: Default::default(),
+                        db_instance: py.None().into(),
+                    })
                     .expect("this should not happen");
 
                     assert!(plugin.get_game().is_some());
@@ -1647,15 +1637,15 @@ mod plugin_tests {
                 .expect("this should not happen")
                 .get_logger();
 
-            assert!(
-                result.is_ok_and(|logger| logger.is_instance(&logger_type).unwrap()
+            assert!(result.is_ok_and(|logger| {
+                logger.is_instance(&logger_type).unwrap()
                     && logger
                         .getattr("name")
                         .expect("could not get logger name")
                         .str()
                         .unwrap()
-                        == "shinqlx.test_plugin"),
-            );
+                        == "shinqlx.test_plugin"
+            }),);
         })
     }
 
@@ -1772,33 +1762,35 @@ mod plugin_tests {
                         );
 
                     assert!(result.is_ok());
-                    assert!(EVENT_DISPATCHERS
-                        .load()
-                        .as_ref()
-                        .expect("could not get access to event dispatchers")
-                        .getattr(py, "_dispatchers")
-                        .expect("could not get dispatchers")
-                        .downcast_bound::<PyDict>(py)
-                        .expect("could not downcast to dict")
-                        .get_item("team_switch_attempt")
-                        .expect("could not get team switch attempt dispatcher")
-                        .is_some_and(|team_switch_attempt_dispatcher| {
-                            team_switch_attempt_dispatcher
-                                .getattr("plugins")
-                                .expect("could not get plugins")
-                                .downcast::<PyDict>()
-                                .expect("could not downcast to dict")
-                                .get_item("test_plugin")
-                                .is_ok_and(|opt_plugin| {
-                                    opt_plugin.is_some_and(|plugin| {
-                                        plugin
-                                            .get_item(CommandPriorities::PRI_NORMAL as i32)
-                                            .is_ok_and(|normal_hooks| {
-                                                normal_hooks.len().is_ok_and(|len| len == 1)
-                                            })
+                    assert!(
+                        EVENT_DISPATCHERS
+                            .load()
+                            .as_ref()
+                            .expect("could not get access to event dispatchers")
+                            .getattr(py, "_dispatchers")
+                            .expect("could not get dispatchers")
+                            .downcast_bound::<PyDict>(py)
+                            .expect("could not downcast to dict")
+                            .get_item("team_switch_attempt")
+                            .expect("could not get team switch attempt dispatcher")
+                            .is_some_and(|team_switch_attempt_dispatcher| {
+                                team_switch_attempt_dispatcher
+                                    .getattr("plugins")
+                                    .expect("could not get plugins")
+                                    .downcast::<PyDict>()
+                                    .expect("could not downcast to dict")
+                                    .get_item("test_plugin")
+                                    .is_ok_and(|opt_plugin| {
+                                        opt_plugin.is_some_and(|plugin| {
+                                            plugin
+                                                .get_item(CommandPriorities::PRI_NORMAL as i32)
+                                                .is_ok_and(|normal_hooks| {
+                                                    normal_hooks.len().is_ok_and(|len| len == 1)
+                                                })
+                                        })
                                     })
-                                })
-                        }));
+                            })
+                    );
                 });
             });
     }
@@ -1875,33 +1867,35 @@ mod plugin_tests {
                         );
 
                     assert!(result.is_ok());
-                    assert!(EVENT_DISPATCHERS
-                        .load()
-                        .as_ref()
-                        .expect("could not get access to event dispatchers")
-                        .getattr(py, "_dispatchers")
-                        .expect("could not get dispatchers")
-                        .downcast_bound::<PyDict>(py)
-                        .expect("could not downcast to dict")
-                        .get_item("team_switch_attempt")
-                        .expect("could not get team switch attempt dispatcher")
-                        .is_some_and(|team_switch_attempt_dispatcher| {
-                            team_switch_attempt_dispatcher
-                                .getattr("plugins")
-                                .expect("could not get plugins")
-                                .downcast::<PyDict>()
-                                .expect("could not downcast to dict")
-                                .get_item("test_plugin")
-                                .is_ok_and(|opt_plugin| {
-                                    opt_plugin.is_some_and(|plugin| {
-                                        plugin
-                                            .get_item(CommandPriorities::PRI_NORMAL as i32)
-                                            .is_ok_and(|normal_hooks| {
-                                                normal_hooks.len().is_ok_and(|len| len == 0)
-                                            })
+                    assert!(
+                        EVENT_DISPATCHERS
+                            .load()
+                            .as_ref()
+                            .expect("could not get access to event dispatchers")
+                            .getattr(py, "_dispatchers")
+                            .expect("could not get dispatchers")
+                            .downcast_bound::<PyDict>(py)
+                            .expect("could not downcast to dict")
+                            .get_item("team_switch_attempt")
+                            .expect("could not get team switch attempt dispatcher")
+                            .is_some_and(|team_switch_attempt_dispatcher| {
+                                team_switch_attempt_dispatcher
+                                    .getattr("plugins")
+                                    .expect("could not get plugins")
+                                    .downcast::<PyDict>()
+                                    .expect("could not downcast to dict")
+                                    .get_item("test_plugin")
+                                    .is_ok_and(|opt_plugin| {
+                                        opt_plugin.is_some_and(|plugin| {
+                                            plugin
+                                                .get_item(CommandPriorities::PRI_NORMAL as i32)
+                                                .is_ok_and(|normal_hooks| {
+                                                    normal_hooks.len().is_ok_and(|len| len == 0)
+                                                })
+                                        })
                                     })
-                                })
-                        }));
+                            })
+                    );
                 });
             });
     }
@@ -1955,12 +1949,14 @@ mod plugin_tests {
                         );
 
                     assert!(result.is_ok());
-                    assert!(plugin_instance
-                        .getattr("hooks")
-                        .expect("could not get hooks")
-                        .downcast::<PyList>()
-                        .expect("could not downcast to list")
-                        .is_empty());
+                    assert!(
+                        plugin_instance
+                            .getattr("hooks")
+                            .expect("could not get hooks")
+                            .downcast::<PyList>()
+                            .expect("could not downcast to list")
+                            .is_empty()
+                    );
                 });
             });
     }
@@ -2084,22 +2080,24 @@ def handler():
                 );
 
             assert!(result.is_ok());
-            assert!(COMMANDS
-                .load()
-                .as_ref()
-                .expect("could not get access to commands")
-                .getattr(py, "commands")
-                .expect("could not get commands")
-                .downcast_bound::<PyList>(py)
-                .expect("could not downcast to list")
-                .get_item(0)
-                .expect("could not get first command")
-                .getattr("name")
-                .expect("could not get name attr")
-                .get_item(0)
-                .expect("could not get first name of command")
-                .str()
-                .is_ok_and(|value| value == "slap"));
+            assert!(
+                COMMANDS
+                    .load()
+                    .as_ref()
+                    .expect("could not get access to commands")
+                    .getattr(py, "commands")
+                    .expect("could not get commands")
+                    .downcast_bound::<PyList>(py)
+                    .expect("could not downcast to list")
+                    .get_item(0)
+                    .expect("could not get first command")
+                    .getattr("name")
+                    .expect("could not get name attr")
+                    .get_item(0)
+                    .expect("could not get first name of command")
+                    .str()
+                    .is_ok_and(|value| value == "slap")
+            );
         });
     }
 
@@ -2211,15 +2209,17 @@ def handler():
                 .remove_command(PyString::new(py, "slap").as_any(), &command_handler);
 
             assert!(result.is_ok());
-            assert!(COMMANDS
-                .load()
-                .as_ref()
-                .expect("could not get access to commands")
-                .getattr(py, "commands")
-                .expect("could not get commands")
-                .downcast_bound::<PyList>(py)
-                .expect("could not downcast to list")
-                .is_empty());
+            assert!(
+                COMMANDS
+                    .load()
+                    .as_ref()
+                    .expect("could not get access to commands")
+                    .getattr(py, "commands")
+                    .expect("could not get commands")
+                    .downcast_bound::<PyList>(py)
+                    .expect("could not downcast to list")
+                    .is_empty()
+            );
         });
     }
 
@@ -2373,15 +2373,17 @@ def handler():
 
             assert!(result.is_ok());
             run_all_frame_tasks(py).expect("could not run all frame tasks");
-            assert!(COMMANDS
-                .load()
-                .as_ref()
-                .expect("could not get access to commands")
-                .getattr(py, "commands")
-                .expect("could not get commands")
-                .downcast_bound::<PyList>(py)
-                .expect("could not downcast to list")
-                .is_empty(),);
+            assert!(
+                COMMANDS
+                    .load()
+                    .as_ref()
+                    .expect("could not get access to commands")
+                    .getattr(py, "commands")
+                    .expect("could not get commands")
+                    .downcast_bound::<PyList>(py)
+                    .expect("could not downcast to list")
+                    .is_empty(),
+            );
         });
     }
 
@@ -2436,12 +2438,14 @@ def handler():
                 .remove_command(PyString::new(py, "slap").as_any(), &command_handler);
 
             assert!(result.is_ok());
-            assert!(plugin_instance
-                .getattr("commands")
-                .expect("could not get commands")
-                .downcast::<PyList>()
-                .expect("could not downcast to list")
-                .is_empty(),);
+            assert!(
+                plugin_instance
+                    .getattr("commands")
+                    .expect("could not get commands")
+                    .downcast::<PyList>()
+                    .expect("could not downcast to list")
+                    .is_empty(),
+            );
         });
     }
 
@@ -2488,10 +2492,12 @@ def handler():
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "sv_maxclients", None);
-                    assert!(result
-                        .expect("result was not OK")
-                        .extract::<String>()
-                        .is_ok_and(|value| value == "16"));
+                    assert!(
+                        result
+                            .expect("result was not OK")
+                            .extract::<String>()
+                            .is_ok_and(|value| value == "16")
+                    );
                 });
             });
     }
@@ -2520,10 +2526,12 @@ def handler():
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
-                    assert!(result
-                        .expect("result was not OK")
-                        .extract::<String>()
-                        .is_ok_and(|value| value == "16"));
+                    assert!(
+                        result
+                            .expect("result was not OK")
+                            .extract::<String>()
+                            .is_ok_and(|value| value == "16")
+                    );
                 });
             });
     }
@@ -2571,10 +2579,12 @@ def handler():
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
-                    assert!(result
-                        .expect("result was not OK")
-                        .extract::<i32>()
-                        .is_ok_and(|value| value == 16));
+                    assert!(
+                        result
+                            .expect("result was not OK")
+                            .extract::<i32>()
+                            .is_ok_and(|value| value == 16)
+                    );
                 });
             });
     }
@@ -2651,10 +2661,12 @@ def handler():
                         "sv_maxclients",
                         Some(py_str_type.unbind()),
                     );
-                    assert!(result
-                        .expect("result was not OK")
-                        .extract::<f64>()
-                        .is_ok_and(|value| value == 16.0));
+                    assert!(
+                        result
+                            .expect("result was not OK")
+                            .extract::<f64>()
+                            .is_ok_and(|value| value == 16.0)
+                    );
                 });
             });
     }
@@ -3352,45 +3364,42 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
             let all_players = Python::with_gil(|py| Plugin::players(&py.get_type::<Plugin>()));
-            assert_eq!(
-                all_players.expect("result was not ok"),
-                vec![
-                    Player {
-                        id: 0,
-                        player_info: PlayerInfo {
-                            client_id: 0,
-                            name: "Mocked Player".into(),
-                            connection_state: clientState_t::CS_ACTIVE as i32,
-                            userinfo: "asdf".into(),
-                            steam_id: 1234,
-                            team: team_t::TEAM_RED as i32,
-                            ..default_test_player_info()
-                        }
-                        .into(),
-                        user_info: "asdf".into(),
+            assert_eq!(all_players.expect("result was not ok"), vec![
+                Player {
+                    id: 0,
+                    player_info: PlayerInfo {
+                        client_id: 0,
+                        name: "Mocked Player".into(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".into(),
                         steam_id: 1234,
-                        name: "Mocked Player".to_string().into(),
-                        ..default_test_player()
-                    },
-                    Player {
-                        id: 2,
-                        player_info: PlayerInfo {
-                            client_id: 2,
-                            name: "Mocked Player".into(),
-                            connection_state: clientState_t::CS_ACTIVE as i32,
-                            userinfo: "asdf".into(),
-                            steam_id: 1234,
-                            team: team_t::TEAM_RED as i32,
-                            ..default_test_player_info()
-                        }
-                        .into(),
-                        user_info: "asdf".into(),
+                        team: team_t::TEAM_RED as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: "asdf".into(),
+                    steam_id: 1234,
+                    name: "Mocked Player".to_string().into(),
+                    ..default_test_player()
+                },
+                Player {
+                    id: 2,
+                    player_info: PlayerInfo {
+                        client_id: 2,
+                        name: "Mocked Player".into(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".into(),
                         steam_id: 1234,
-                        name: "Mocked Player".to_string().into(),
-                        ..default_test_player()
-                    },
-                ]
-            );
+                        team: team_t::TEAM_RED as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: "asdf".into(),
+                    steam_id: 1234,
+                    name: "Mocked Player".to_string().into(),
+                    ..default_test_player()
+                },
+            ]);
         });
     }
 
@@ -3405,9 +3414,11 @@ def handler():
                     .as_any(),
                 None,
             );
-            assert!(result
-                .expect("result was not ok")
-                .is_some_and(|result_player| default_test_player() == result_player));
+            assert!(
+                result
+                    .expect("result was not ok")
+                    .is_some_and(|result_player| default_test_player() == result_player)
+            );
         });
     }
 
@@ -3455,9 +3466,8 @@ def handler():
                 &42i32.into_bound_py_any(py).expect("this should not happen"),
                 None,
             );
-            assert!(result
-                .expect("result was not ok")
-                .is_some_and(|player| player
+            assert!(result.expect("result was not ok").is_some_and(|player| {
+                player
                     == Player {
                         id: 42,
                         name: "Mocked Player".to_string().into(),
@@ -3474,7 +3484,8 @@ def handler():
                         }
                         .into(),
                         ..default_test_player()
-                    }));
+                    }
+            }));
         });
     }
 
@@ -3498,9 +3509,11 @@ def handler():
                     .expect("this should not happen"),
                 Some(vec![player.clone()]),
             );
-            assert!(result
-                .expect("result was not ok")
-                .is_some_and(|result_player| result_player == player));
+            assert!(
+                result
+                    .expect("result was not ok")
+                    .is_some_and(|result_player| result_player == player)
+            );
         });
     }
 
@@ -3537,9 +3550,11 @@ def handler():
                 PyString::new(py, "Mocked Player").as_any(),
                 Some(vec![player.clone()]),
             );
-            assert!(result
-                .expect("result was not ok")
-                .is_some_and(|result_player| result_player == player));
+            assert!(
+                result
+                    .expect("result was not ok")
+                    .is_some_and(|result_player| result_player == player)
+            );
         });
     }
 
@@ -4268,17 +4283,19 @@ def handler():
     fn teams_when_no_player_in_player_list(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Plugin::teams(&py.get_type::<Plugin>(), Some(vec![]));
-            assert!(result
-                .expect("result was not ok")
-                .eq([
-                    (PyString::new(py, "free").into_any(), PyList::empty(py)),
-                    (PyString::new(py, "red").into_any(), PyList::empty(py)),
-                    (PyString::new(py, "blue").into_any(), PyList::empty(py)),
-                    (PyString::new(py, "spectator").into_any(), PyList::empty(py))
-                ]
-                .into_py_dict(py)
-                .expect("this should not happen"))
-                .expect("comparison was not ok"),);
+            assert!(
+                result
+                    .expect("result was not ok")
+                    .eq([
+                        (PyString::new(py, "free").into_any(), PyList::empty(py)),
+                        (PyString::new(py, "red").into_any(), PyList::empty(py)),
+                        (PyString::new(py, "blue").into_any(), PyList::empty(py)),
+                        (PyString::new(py, "spectator").into_any(), PyList::empty(py))
+                    ]
+                    .into_py_dict(py)
+                    .expect("this should not happen"))
+                    .expect("comparison was not ok"),
+            );
         });
     }
 
@@ -4343,37 +4360,39 @@ def handler():
                     player1.clone(),
                 ]),
             );
-            assert!(result
-                .expect("result was not ok")
-                .eq([
-                    (
-                        PyString::new(py, "free").into_any(),
-                        vec![player1]
-                            .into_bound_py_any(py)
-                            .expect("this should not happen"),
-                    ),
-                    (
-                        PyString::new(py, "red").into_any(),
-                        vec![player2]
-                            .into_bound_py_any(py)
-                            .expect("this should not happen")
-                    ),
-                    (
-                        PyString::new(py, "blue").into_any(),
-                        vec![player3]
-                            .into_bound_py_any(py)
-                            .expect("this should not happen")
-                    ),
-                    (
-                        PyString::new(py, "spectator").into_any(),
-                        vec![player4]
-                            .into_bound_py_any(py)
-                            .expect("this should not happen")
-                    )
-                ]
-                .into_py_dict(py)
-                .expect("this should not happen"))
-                .expect("comparison was not ok"));
+            assert!(
+                result
+                    .expect("result was not ok")
+                    .eq([
+                        (
+                            PyString::new(py, "free").into_any(),
+                            vec![player1]
+                                .into_bound_py_any(py)
+                                .expect("this should not happen"),
+                        ),
+                        (
+                            PyString::new(py, "red").into_any(),
+                            vec![player2]
+                                .into_bound_py_any(py)
+                                .expect("this should not happen")
+                        ),
+                        (
+                            PyString::new(py, "blue").into_any(),
+                            vec![player3]
+                                .into_bound_py_any(py)
+                                .expect("this should not happen")
+                        ),
+                        (
+                            PyString::new(py, "spectator").into_any(),
+                            vec![player4]
+                                .into_bound_py_any(py)
+                                .expect("this should not happen")
+                        )
+                    ]
+                    .into_py_dict(py)
+                    .expect("this should not happen"))
+                    .expect("comparison was not ok")
+            );
         });
     }
 
@@ -4571,10 +4590,12 @@ def handler():
             .run(|| {
                 Python::with_gil(|py| {
                     let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
-                    assert!(result
-                        .expect("result was not ok")
-                        .eq(PyTuple::new(py, vec![42, 21]).expect("this should not happen"))
-                        .expect("comparison was not ok"));
+                    assert!(
+                        result
+                            .expect("result was not ok")
+                            .eq(PyTuple::new(py, vec![42, 21]).expect("this should not happen"))
+                            .expect("comparison was not ok")
+                    );
                 });
             });
     }

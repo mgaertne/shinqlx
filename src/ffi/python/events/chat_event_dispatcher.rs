@@ -1,4 +1,4 @@
-use super::super::{CommandInvokerMethods, Player, COMMANDS};
+use super::super::{COMMANDS, CommandInvokerMethods, Player};
 use super::prelude::*;
 
 use pyo3::exceptions::PyEnvironmentError;
@@ -61,14 +61,11 @@ impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
             }
         };
 
-        let args_tuple = PyTuple::new(
-            self.py(),
-            [
-                player.as_any(),
-                PyString::new(self.py(), msg).as_any(),
-                channel,
-            ],
-        )?;
+        let args_tuple = PyTuple::new(self.py(), [
+            player.as_any(),
+            PyString::new(self.py(), msg).as_any(),
+            channel,
+        ])?;
 
         Ok(self.as_super().dispatch(&args_tuple))
     }
@@ -96,14 +93,14 @@ fn try_handle_input(
 mod chat_event_dispatcher_tests {
     use super::{ChatEventDispatcher, ChatEventDispatcherMethods};
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::ffi::python::{
+        COMMANDS,
         channels::TeamChatChannel,
         commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
         events::EventDispatcherMethods,
         pyshinqlx_setup,
         pyshinqlx_test_support::{default_test_player, test_plugin},
-        COMMANDS,
     };
     use crate::prelude::*;
 
@@ -138,9 +135,11 @@ mod chat_event_dispatcher_tests {
                 "asdf",
                 &default_channel(py),
             );
-            assert!(result.is_ok_and(|value| value
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true())));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            }));
         });
     }
 
@@ -193,9 +192,11 @@ def throws_exception_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -249,9 +250,11 @@ def returns_none_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -307,9 +310,11 @@ def returns_none_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -365,9 +370,11 @@ def returns_stop_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -423,9 +430,11 @@ def returns_stop_event_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -481,9 +490,11 @@ def returns_stop_all_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -537,9 +548,11 @@ def returns_string_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -630,9 +643,11 @@ def returns_none_hook(*args, **kwargs):
                         "asdf",
                         &default_channel(py),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|value| !value.is_true())),);
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|value| !value.is_true())
+                    }),);
                 });
             });
     }

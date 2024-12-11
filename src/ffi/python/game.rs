@@ -5,9 +5,9 @@ use super::{
 };
 
 use crate::{
+    MAIN_ENGINE,
     ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
     quake_live_engine::{GetConfigstring, SetConfigstring},
-    MAIN_ENGINE,
 };
 
 use core::sync::atomic::AtomicBool;
@@ -888,9 +888,9 @@ mod pyshinqlx_game_tests {
     use rstest::rstest;
 
     use pyo3::{
+        IntoPyObjectExt,
         exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
         types::{PyBool, PyList, PyString},
-        IntoPyObjectExt,
     };
 
     fn default_game() -> Game {
@@ -916,12 +916,14 @@ mod pyshinqlx_game_tests {
     fn pyconstructor_with_empty_configstring(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
-        .run(|| {
-            Python::with_gil(|py| {
-                let result = Game::py_new(py, true);
-                assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
+            .run(|| {
+                Python::with_gil(|py| {
+                    let result = Game::py_new(py, true);
+                    assert!(
+                        result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1125,15 +1127,17 @@ mod pyshinqlx_game_tests {
     fn contains_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
-        .run(|| {
-            Python::with_gil(|py| {
-                let game = Bound::new(py, default_game()).expect("this should not happen");
+            .run(|| {
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                let result = game.contains("asdf");
+                    let result = game.contains("asdf");
 
-                assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
+                    assert!(
+                        result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1223,15 +1227,17 @@ mod pyshinqlx_game_tests {
     fn getitem_when_configstring_variables_are_unparseable(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
-        .run(|| {
-            Python::with_gil(|py| {
-                let game = Bound::new(py, default_game()).expect("this should not happen");
+            .run(|| {
+                Python::with_gil(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                let result = game.get_item("asdf");
+                    let result = game.get_item("asdf");
 
-                assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
+                    assert!(
+                        result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
+                    );
+                });
             });
-        });
     }
 
     #[rstest]
@@ -1325,8 +1331,10 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let cvars_result = game.get_cvars();
-                    assert!(cvars_result
-                        .is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py)));
+                    assert!(
+                        cvars_result
+                            .is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
+                    );
                 });
             });
     }
@@ -2388,10 +2396,9 @@ shinqlx._map_subtitle2 = "Awesome map!"
 
                     let result = game.get_tags();
 
-                    assert_eq!(
-                        result.expect("result was not OK"),
-                        vec!["tag1", "tag2", "tag3"]
-                    );
+                    assert_eq!(result.expect("result was not OK"), vec![
+                        "tag1", "tag2", "tag3"
+                    ]);
                 });
             });
     }

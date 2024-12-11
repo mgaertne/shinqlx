@@ -51,14 +51,11 @@ impl<'py> CommandDispatcherMethods<'py> for Bound<'py, CommandDispatcher> {
         command: &Bound<'py, Command>,
         args: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(
-            self.py(),
-            [
-                player.as_any(),
-                command.as_any(),
-                PyString::new(self.py(), args).as_any(),
-            ],
-        )?;
+        let args_tuple = PyTuple::new(self.py(), [
+            player.as_any(),
+            command.as_any(),
+            PyString::new(self.py(), args).as_any(),
+        ])?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }
@@ -67,7 +64,7 @@ impl<'py> CommandDispatcherMethods<'py> for Bound<'py, CommandDispatcher> {
 mod command_dispatcher_tests {
     use super::{CommandDispatcher, CommandDispatcherMethods};
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::ffi::python::{
         commands::CommandPriorities,
         events::EventDispatcherMethods,
@@ -95,9 +92,11 @@ mod command_dispatcher_tests {
                 &Bound::new(py, default_command(py)).expect("this should not happen"),
                 "asdf",
             );
-            assert!(result.is_ok_and(|value| value
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true())),);
+            assert!(result.is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            }),);
         });
     }
 
@@ -148,9 +147,11 @@ def throws_exception_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())),);
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }),);
                 });
             });
     }
@@ -202,9 +203,11 @@ def returns_none_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -258,9 +261,11 @@ def returns_none_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -314,9 +319,11 @@ def returns_stop_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -370,9 +377,11 @@ def returns_stop_event_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -426,9 +435,11 @@ def returns_stop_all_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -480,9 +491,11 @@ def returns_string_hook(*args, **kwargs):
                         &Bound::new(py, default_command(py)).expect("this should not happen"),
                         "asdf",
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }

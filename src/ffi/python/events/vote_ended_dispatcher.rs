@@ -1,9 +1,9 @@
 use super::prelude::*;
 
 use crate::{
+    MAIN_ENGINE,
     ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES},
     quake_live_engine::GetConfigstring,
-    MAIN_ENGINE,
 };
 
 use once_cell::sync::Lazy;
@@ -92,15 +92,12 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
             },
         )?;
 
-        let args_tuple = PyTuple::new(
-            self.py(),
-            [
-                PyTuple::new(self.py(), [yes_votes, no_votes])?.into_any(),
-                PyString::new(self.py(), vote).into_any(),
-                PyString::new(self.py(), args).into_any(),
-                PyBool::new(self.py(), passed).to_owned().into_any(),
-            ],
-        )?;
+        let args_tuple = PyTuple::new(self.py(), [
+            PyTuple::new(self.py(), [yes_votes, no_votes])?.into_any(),
+            PyString::new(self.py(), vote).into_any(),
+            PyString::new(self.py(), args).into_any(),
+            PyBool::new(self.py(), passed).to_owned().into_any(),
+        ])?;
 
         self.as_super().dispatch(&args_tuple);
 
@@ -113,7 +110,7 @@ mod vote_ended_dispatcher_tests {
     use super::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 
     use crate::ffi::c::prelude::{
-        cvar_t, CVar, CVarBuilder, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES,
+        CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, CVar, CVarBuilder, cvar_t,
     };
     use crate::ffi::python::{
         commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
