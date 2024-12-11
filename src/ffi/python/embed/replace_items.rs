@@ -116,9 +116,9 @@ mod replace_items_tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
+    use pyo3::IntoPyObjectExt;
     use pyo3::exceptions::PyValueError;
     use pyo3::types::{PyString, PyTuple};
-    use pyo3::IntoPyObjectExt;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -55,8 +55,25 @@ impl From<Weapons> for [i32; 15] {
 
 impl Display for Weapons {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
-                self.0, self.1, self.2, self.3, self.4, self.5, self.5, self.7, self.8, self.9, self.10, self.11, self.12, self.13, self.14)
+        write!(
+            f,
+            "Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
+            self.0,
+            self.1,
+            self.2,
+            self.3,
+            self.4,
+            self.5,
+            self.5,
+            self.7,
+            self.8,
+            self.9,
+            self.10,
+            self.11,
+            self.12,
+            self.13,
+            self.14
+        )
     }
 }
 

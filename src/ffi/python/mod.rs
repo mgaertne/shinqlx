@@ -81,6 +81,7 @@ pub(crate) mod prelude {
 
     pub(crate) use super::{ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER};
 
+    pub(crate) use super::PythonInitializationError;
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
         pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload,
@@ -89,7 +90,6 @@ pub(crate) mod prelude {
     pub(crate) use super::mock_python_tests::{
         pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
     };
-    pub(crate) use super::PythonInitializationError;
     #[cfg(not(test))]
     pub(crate) use super::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
 
