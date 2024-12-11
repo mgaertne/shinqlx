@@ -2,21 +2,21 @@ use crate::ffi::c::prelude::*;
 
 use super::prelude::*;
 use super::{
-    get_cvar, is_vote_active, late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, get_cvar, is_vote_active,
+    late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
 };
 use crate::{
-    quake_live_engine::{FindCVar, GetConfigstring},
     MAIN_ENGINE,
+    quake_live_engine::{FindCVar, GetConfigstring},
 };
 
 use pyo3::prelude::*;
 use pyo3::{
+    BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     types::{IntoPyDict, PyBool, PyDict, PyString},
-    BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
 };
 
 use alloc::sync::Arc;
@@ -62,7 +62,7 @@ mod handle_rcon_tests {
 
     use crate::ffi::python::prelude::*;
     use crate::ffi::python::{
-        commands::CommandPriorities, pyshinqlx_test_support::*, COMMANDS, EVENT_DISPATCHERS,
+        COMMANDS, EVENT_DISPATCHERS, commands::CommandPriorities, pyshinqlx_test_support::*,
     };
     use crate::prelude::*;
 
@@ -125,9 +125,11 @@ mod handle_rcon_tests {
 
             let result = try_handle_rcon(py, "asdf");
             assert!(result.is_ok_and(|value| value.is_none()));
-            assert!(capturing_hook
-                .call_method1("assert_called_with", ("_", ["asdf"], "_"))
-                .is_ok());
+            assert!(
+                capturing_hook
+                    .call_method1("assert_called_with", ("_", ["asdf"], "_"))
+                    .is_ok()
+            );
         })
     }
 
@@ -599,11 +601,13 @@ mod handle_client_command_tests {
     use crate::ffi::c::{
         game_entity::MockGameEntity,
         prelude::{
-            clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient,
-            CS_VOTE_STRING,
+            CS_VOTE_STRING, CVar, CVarBuilder, MockClient, clientState_t, cvar_t, privileges_t,
+            team_t,
         },
     };
     use crate::ffi::python::{
+        BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
+        RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
         channels::TeamChatChannel,
         commands::CommandPriorities,
         events::{
@@ -613,8 +617,6 @@ mod handle_client_command_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
-        RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
     };
     use crate::prelude::*;
 
@@ -706,12 +708,16 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "cp \"asdf\"")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -838,10 +844,12 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -921,9 +929,11 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "quit")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "quit")
+                    }));
                 });
             });
     }
@@ -1022,12 +1032,14 @@ mod handle_client_command_tests {
                             str_value == "say \"test with 'quotation marks'\""
                         })
                     }),);
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            ("_", "test with 'quotation marks'", "_"),
-                        )
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                ("_", "test with 'quotation marks'", "_"),
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -1232,10 +1244,12 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "say \"hi @all\"");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1345,12 +1359,14 @@ mod handle_client_command_tests {
                             str_value == "say_team \"test with 'quotation marks'\""
                         })
                     }));
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            ("_", "test with 'quotation marks'", "_"),
-                        )
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                ("_", "test with 'quotation marks'", "_"),
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -1578,10 +1594,12 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "say_team \"hi @all\"");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -1670,12 +1688,16 @@ mod handle_client_command_tests {
 
                     let result =
                         try_handle_client_command(py, 42, "callvote map \"thunderstruck\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "callvote map \"thunderstruck\"")),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "map", "thunderstruck"))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "callvote map \"thunderstruck\"")
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "map", "thunderstruck"))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -1764,12 +1786,16 @@ mod handle_client_command_tests {
 
                     let result =
                         try_handle_client_command(py, 42, "callvote map \"thunderstruck\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "callvote map \"thunderstruck\"")),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_", "_"))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "callvote map \"thunderstruck\"")
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_", "_"))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -1973,10 +1999,12 @@ mod handle_client_command_tests {
 
                     let result =
                         try_handle_client_command(py, 42, "callvote map \"thunderstruck\"");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -2072,12 +2100,16 @@ mod handle_client_command_tests {
 
                     let client_command = format!("vote {vote_arg}");
                     let result = try_handle_client_command(py, 42, &client_command);
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == client_command)),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", vote,))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == client_command)
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", vote,))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -2162,12 +2194,16 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "vote 3");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "vote 3")),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_",))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "vote 3")
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_",))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -2262,12 +2298,16 @@ mod handle_client_command_tests {
 
                     let client_command = format!("vote {vote_arg}");
                     let result = try_handle_client_command(py, 42, &client_command);
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == client_command)),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_",))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == client_command)
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_",))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -2414,10 +2454,12 @@ mod handle_client_command_tests {
 
                     let client_command = format!("vote {vote_arg}");
                     let result = try_handle_client_command(py, 42, &client_command);
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -2512,9 +2554,11 @@ mod handle_client_command_tests {
 
                     let client_command = format!("team {team_char}");
                     let result = try_handle_client_command(py, 42, &client_command);
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == client_command)),);
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == client_command)
+                    }),);
                     let current_team = match player_team {
                         team_t::TEAM_SPECTATOR => "spectator",
                         team_t::TEAM_RED => "red",
@@ -2522,9 +2566,11 @@ mod handle_client_command_tests {
                         team_t::TEAM_FREE => "free",
                         _ => "invalid team",
                     };
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", current_team, team_str))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", current_team, team_str))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -2608,12 +2654,16 @@ mod handle_client_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_client_command(py, 42, "team c");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "team c")),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_",))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "team c")
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_",))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -2706,12 +2756,16 @@ mod handle_client_command_tests {
 
                     let client_command = format!("team {team_char}");
                     let result = try_handle_client_command(py, 42, &client_command);
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == client_command)),);
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_", "_",))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == client_command)
+                    }),);
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_", "_",))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -2855,10 +2909,12 @@ mod handle_client_command_tests {
 
                     let client_command = format!("team {team_char}");
                     let result = try_handle_client_command(py, 42, &client_command);
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -2953,9 +3009,11 @@ mod handle_client_command_tests {
                             }
                         )),
                     );
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_",))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_",))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -3050,17 +3108,19 @@ mod handle_client_command_tests {
                             }
                         )),
                     );
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            (
-                                "_",
-                                [("sex", "female"),]
-                                    .into_py_dict(py)
-                                    .expect("this shouöld not happen"),
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                (
+                                    "_",
+                                    [("sex", "female"),]
+                                        .into_py_dict(py)
+                                        .expect("this shouöld not happen"),
+                                )
                             )
-                        )
-                        .is_ok());
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -3201,10 +3261,12 @@ mod handle_client_command_tests {
                         42,
                         r#"userinfo "\name\Mocked Player\sex\female""#,
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -3303,10 +3365,11 @@ def returning_other_userinfo_hook(*args, **kwargs):
                         42,
                         r#"userinfo "\name\Mocked Player\sex\female""#,
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value
-                            == r#"userinfo "\name\Changed Player\sex\male\country\GB""#)),);
+                    assert!(result.is_ok_and(|value| {
+                        value.extract::<String>(py).is_ok_and(|str_value| {
+                            str_value == r#"userinfo "\name\Changed Player\sex\male\country\GB""#
+                        })
+                    }),);
                 });
             });
     }
@@ -3353,9 +3416,11 @@ def returning_other_userinfo_hook(*args, **kwargs):
 
         Python::with_gil(|py| {
             let result = handle_client_command(py, 42, "asdf");
-            assert!(result
-                .downcast_bound::<PyBool>(py)
-                .is_ok_and(|value| value.is_true()));
+            assert!(
+                result
+                    .downcast_bound::<PyBool>(py)
+                    .is_ok_and(|value| value.is_true())
+            );
         });
     }
 }
@@ -3453,13 +3518,14 @@ mod handle_server_command_tests {
     use crate::ffi::c::{
         game_entity::MockGameEntity,
         prelude::{
-            clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, CS_VOTE_NO,
-            CS_VOTE_STRING, CS_VOTE_YES,
+            CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, CVar, CVarBuilder, MockClient, clientState_t,
+            cvar_t, privileges_t, team_t,
         },
     };
     use crate::prelude::*;
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -3467,7 +3533,6 @@ mod handle_server_command_tests {
         },
         pyshinqlx_setup_fixture::*,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use core::borrow::BorrowMut;
@@ -3520,12 +3585,16 @@ mod handle_server_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (py.None(), "cp \"asdf\"",))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "cp \"asdf\"")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (py.None(), "cp \"asdf\"",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -3605,12 +3674,16 @@ mod handle_server_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_server_command(py, 42, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "cp \"asdf\"")));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "cp \"asdf\"")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -3666,10 +3739,12 @@ mod handle_server_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -3713,9 +3788,11 @@ mod handle_server_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "quit")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "quit")
+                    }));
                 });
             });
     }
@@ -3768,15 +3845,19 @@ mod handle_server_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_server_command(py, -1, "print \"Vote passed.\n\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "print \"Vote passed.\n\"")));
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            ((42, 1), "map", "thunderstruck", true,)
-                        )
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "print \"Vote passed.\n\"")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                ((42, 1), "map", "thunderstruck", true,)
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -3829,15 +3910,19 @@ mod handle_server_command_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_server_command(py, -1, "print \"Vote failed.\n\"");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "print \"Vote failed.\n\"")));
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            ((1, 42), "map", "thunderstruck", false,)
-                        )
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "print \"Vote failed.\n\"")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                ((1, 42), "map", "thunderstruck", false,)
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -3866,9 +3951,11 @@ mod handle_server_command_tests {
         EVENT_DISPATCHERS.store(None);
         Python::with_gil(|py| {
             let result = handle_server_command(py, -1, "asdf");
-            assert!(result
-                .downcast_bound::<PyBool>(py)
-                .is_ok_and(|value| value.is_true()));
+            assert!(
+                result
+                    .downcast_bound::<PyBool>(py)
+                    .is_ok_and(|value| value.is_true())
+            );
         });
     }
 }
@@ -3955,12 +4042,12 @@ mod handle_frame_tests {
     use super::{handle_frame, transfer_next_frame_tasks, try_handle_frame, try_run_frame_tasks};
 
     use crate::ffi::python::{
-        commands::CommandPriorities, pyshinqlx_setup, pyshinqlx_test_support::*, EventDispatcher,
-        EventDispatcherManager, EventDispatcherManagerMethods, EventDispatcherMethods,
-        FrameEventDispatcher, EVENT_DISPATCHERS,
+        EVENT_DISPATCHERS, EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+        EventDispatcherMethods, FrameEventDispatcher, commands::CommandPriorities, pyshinqlx_setup,
+        pyshinqlx_test_support::*,
     };
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
 
     use crate::prelude::*;
 
@@ -4071,9 +4158,11 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
 
             let result = try_run_frame_tasks(py);
             assert!(result.is_ok());
-            assert!(capturing_hook
-                .call_method1("assert_called_with", ("asdf", 42,))
-                .is_ok());
+            assert!(
+                capturing_hook
+                    .call_method1("assert_called_with", ("asdf", 42,))
+                    .is_ok()
+            );
         });
     }
 
@@ -4120,9 +4209,11 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
 
                     let result = try_handle_frame(py);
                     assert!(result.is_ok());
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ())
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ())
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -4179,16 +4270,18 @@ for event in frame_tasks.queue:
             .expect("this should not happend");
 
             transfer_next_frame_tasks(py);
-            assert!(frame_tasks.call_method0("empty").is_ok_and(|value| value
-                .downcast::<PyBool>()
-                .expect("this should not happen")
-                .is_true()));
-            assert!(next_frame_tasks
-                .call_method0("empty")
-                .is_ok_and(|value| value
+            assert!(frame_tasks.call_method0("empty").is_ok_and(|value| {
+                value
                     .downcast::<PyBool>()
                     .expect("this should not happen")
-                    .is_true()));
+                    .is_true()
+            }));
+            assert!(next_frame_tasks.call_method0("empty").is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .expect("this should not happen")
+                    .is_true()
+            }));
             py.run(
                 cr#"
 for event in frame_tasks.queue:
@@ -4239,16 +4332,18 @@ for event in frame_tasks.queue:
             .expect("this should not happend");
 
             transfer_next_frame_tasks(py);
-            assert!(frame_tasks.call_method0("empty").is_ok_and(|value| !value
-                .downcast::<PyBool>()
-                .expect("this should not happen")
-                .is_true()));
-            assert!(next_frame_tasks
-                .call_method0("empty")
-                .is_ok_and(|value| value
+            assert!(frame_tasks.call_method0("empty").is_ok_and(|value| {
+                !value
                     .downcast::<PyBool>()
                     .expect("this should not happen")
-                    .is_true()));
+                    .is_true()
+            }));
+            assert!(next_frame_tasks.call_method0("empty").is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .expect("this should not happen")
+                    .is_true()
+            }));
         });
     }
 
@@ -4318,9 +4413,11 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
 
                     let result = handle_frame(py);
                     assert!(result.is_none());
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ())
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ())
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -4457,11 +4554,12 @@ pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> 
 
 #[cfg(test)]
 mod handle_new_game_tests {
-    use super::{handle_new_game, try_handle_new_game, IS_FIRST_GAME, ZMQ_WARNING_ISSUED};
+    use super::{IS_FIRST_GAME, ZMQ_WARNING_ISSUED, handle_new_game, try_handle_new_game};
 
     use crate::prelude::*;
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -4469,10 +4567,9 @@ mod handle_new_game_tests {
         },
         pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder, CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
+    use crate::ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE, CVar, CVarBuilder, cvar_t};
     use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
 
     use alloc::ffi::CString;
@@ -4529,10 +4626,12 @@ mod handle_new_game_tests {
                     assert!(result.is_ok());
 
                     let pyshinqlx_module = py.import("shinqlx").expect("this should not happen");
-                    assert!(pyshinqlx_module
-                        .getattr("_map_title")
-                        .and_then(|value| value.extract::<String>())
-                        .is_ok_and(|str_value| str_value == "thunderstruck"));
+                    assert!(
+                        pyshinqlx_module
+                            .getattr("_map_title")
+                            .and_then(|value| value.extract::<String>())
+                            .is_ok_and(|str_value| str_value == "thunderstruck")
+                    );
                 });
             });
     }
@@ -4593,9 +4692,11 @@ mod handle_new_game_tests {
                     let result = try_handle_new_game(py, true);
                     assert!(result.is_ok());
 
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ())
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ())
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -4728,12 +4829,16 @@ mod handle_new_game_tests {
                     let result = try_handle_new_game(py, false);
                     assert!(result.is_ok());
 
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("campgrounds", "ffa"))
-                        .is_ok());
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ())
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("campgrounds", "ffa"))
+                            .is_ok()
+                    );
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ())
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -5392,9 +5497,10 @@ pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -
 
 #[cfg(test)]
 mod handle_set_configstring_tests {
-    use super::{handle_set_configstring, try_handle_set_configstring, AD_ROUND_NUMBER};
+    use super::{AD_ROUND_NUMBER, handle_set_configstring, try_handle_set_configstring};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -5403,14 +5509,13 @@ mod handle_set_configstring_tests {
         },
         pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::prelude::*;
 
     use crate::ffi::c::prelude::{
-        cvar_t, CVar, CVarBuilder, CS_ALLREADY_TIME, CS_AUTHOR, CS_ROUND_STATUS, CS_SERVERINFO,
-        CS_VOTE_STRING,
+        CS_ALLREADY_TIME, CS_AUTHOR, CS_ROUND_STATUS, CS_SERVERINFO, CS_VOTE_STRING, CVar,
+        CVarBuilder, cvar_t,
     };
 
     use core::borrow::BorrowMut;
@@ -5467,12 +5572,16 @@ mod handle_set_configstring_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_set_configstring(py, CS_AUTHOR, "ShiN0");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "ShiN0")));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (CS_AUTHOR, "ShiN0"))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "ShiN0")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (CS_AUTHOR, "ShiN0"))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -5516,10 +5625,12 @@ mod handle_set_configstring_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_set_configstring(py, CS_AUTHOR, "ShiN0");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -5580,9 +5691,11 @@ mod handle_set_configstring_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_set_configstring(py, CS_AUTHOR, "ShiN0");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "quit")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "quit")
+                    }));
                 });
             });
     }
@@ -5633,9 +5746,11 @@ mod handle_set_configstring_tests {
 
                     let result = try_handle_set_configstring(py, CS_VOTE_STRING, "restart");
                     assert!(result.is_ok_and(|value| value.is_none(py)));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (py.None(), "restart", ""))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (py.None(), "restart", ""))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -5687,9 +5802,11 @@ mod handle_set_configstring_tests {
                     let result =
                         try_handle_set_configstring(py, CS_VOTE_STRING, "map thunderstruck");
                     assert!(result.is_ok_and(|value| value.is_none(py)));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (py.None(), "map", "thunderstruck"))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (py.None(), "map", "thunderstruck"))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -5739,12 +5856,16 @@ mod handle_set_configstring_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_set_configstring(py, CS_VOTE_STRING, "");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value.is_empty())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (py.None(), "map", "thunderstruck"))
-                        .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value.is_empty())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (py.None(), "map", "thunderstruck"))
+                            .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
+                    );
                 });
             });
     }
@@ -5826,9 +5947,11 @@ mod handle_set_configstring_tests {
 
                     let result =
                         try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\PRE_GAME");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == r"\g_gameState\PRE_GAME")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == r"\g_gameState\PRE_GAME")
+                    }));
                 });
             });
     }
@@ -5880,12 +6003,16 @@ mod handle_set_configstring_tests {
                     AD_ROUND_NUMBER.store(42, Ordering::SeqCst);
                     let result =
                         try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == r"\g_gameState\COUNT_DOWN")));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ())
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == r"\g_gameState\COUNT_DOWN")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ())
+                            .is_ok()
+                    );
                     assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 1);
                 });
             });
@@ -5921,9 +6048,11 @@ mod handle_set_configstring_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_set_configstring(py, CS_SERVERINFO, &new_configstring);
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == new_configstring)));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == new_configstring)
+                    }));
                 });
             });
     }
@@ -5971,9 +6100,11 @@ mod handle_set_configstring_tests {
 
                     let result =
                         try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == r"\g_gameState\COUNT_DOWN")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == r"\g_gameState\COUNT_DOWN")
+                    }));
                 });
             });
     }
@@ -6026,9 +6157,11 @@ mod handle_set_configstring_tests {
 
                     let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7");
                     assert!(result.is_ok_and(|value| value.is_none(py)));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (7,))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (7,))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -6085,9 +6218,11 @@ mod handle_set_configstring_tests {
                         r"\round\7\turn\3\state\1",
                     );
                     assert!(result.is_ok_and(|value| value.is_none(py)));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (18,))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (18,))
+                            .is_ok()
+                    );
                     assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 18);
                 });
             });
@@ -6142,9 +6277,11 @@ mod handle_set_configstring_tests {
                     let result =
                         try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\7\time\11");
                     assert!(result.is_ok_and(|value| value.is_none(py)));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (7,))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (7,))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -6201,9 +6338,11 @@ mod handle_set_configstring_tests {
                         r"\round\3\turn\1\state\3\time\11",
                     );
                     assert!(result.is_ok_and(|value| value.is_none(py)));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", (8,))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", (8,))
+                            .is_ok()
+                    );
                     assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 8);
                 });
             });
@@ -6303,9 +6442,11 @@ mod handle_set_configstring_tests {
             EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
             let result = try_handle_set_configstring(py, CS_ROUND_STATUS, "");
-            assert!(result.is_ok_and(|value| value
-                .extract::<String>(py)
-                .is_ok_and(|str_value| str_value.is_empty())));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .extract::<String>(py)
+                    .is_ok_and(|str_value| str_value.is_empty())
+            }));
         });
     }
 
@@ -6322,9 +6463,11 @@ mod handle_set_configstring_tests {
             EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
             let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\round\0");
-            assert!(result.is_ok_and(|value| value
-                .extract::<String>(py)
-                .is_ok_and(|str_value| str_value == r"\round\0")));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .extract::<String>(py)
+                    .is_ok_and(|str_value| str_value == r"\round\0")
+            }));
         });
     }
 
@@ -6443,10 +6586,12 @@ mod handle_set_configstring_tests {
 
         Python::with_gil(|py| {
             let result = handle_set_configstring(py, CS_ALLREADY_TIME, "42");
-            assert!(result
-                .bind(py)
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true()));
+            assert!(
+                result
+                    .bind(py)
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            );
         });
     }
 }
@@ -6494,6 +6639,7 @@ mod handle_player_connect_tests {
     use super::{handle_player_connect, try_handle_player_connect};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -6501,11 +6647,10 @@ mod handle_player_connect_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -6593,13 +6738,17 @@ mod handle_player_connect_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_player_connect(py, 42, false);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_",))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -6728,9 +6877,11 @@ mod handle_player_connect_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_player_connect(py, 42, false);
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "quit")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "quit")
+                    }));
                 });
             });
     }
@@ -6783,10 +6934,12 @@ mod handle_player_connect_tests {
                 ));
 
                 let result = handle_player_connect(py, 42, false);
-                assert!(result
-                    .bind(py)
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true()));
+                assert!(
+                    result
+                        .bind(py)
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
             });
         });
     }
@@ -6834,6 +6987,7 @@ mod handle_player_loaded_tests {
     use super::{handle_player_loaded, try_handle_player_loaded};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -6841,11 +6995,10 @@ mod handle_player_loaded_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -6933,13 +7086,17 @@ mod handle_player_loaded_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_player_loaded(py, 42);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_",))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -7043,10 +7200,12 @@ mod handle_player_loaded_tests {
                 ));
 
                 let result = handle_player_loaded(py, 42);
-                assert!(result
-                    .bind(py)
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true()));
+                assert!(
+                    result
+                        .bind(py)
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
             });
         });
     }
@@ -7102,6 +7261,7 @@ mod handle_player_disconnect_tests {
     use super::{handle_player_disconnect, try_handle_player_disconnect};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -7109,11 +7269,10 @@ mod handle_player_disconnect_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -7201,13 +7360,17 @@ mod handle_player_disconnect_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_player_disconnect(py, 42, None);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", "_"))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", "_"))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -7311,10 +7474,12 @@ mod handle_player_disconnect_tests {
                 ));
 
                 let result = handle_player_disconnect(py, 42, None);
-                assert!(result
-                    .bind(py)
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true()));
+                assert!(
+                    result
+                        .bind(py)
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
             });
         });
     }
@@ -7362,6 +7527,7 @@ mod handle_player_spawn_tests {
     use super::{handle_player_spawn, try_handle_player_spawn};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -7369,11 +7535,10 @@ mod handle_player_spawn_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -7461,13 +7626,17 @@ mod handle_player_spawn_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_player_spawn(py, 42);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_",))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -7571,10 +7740,12 @@ mod handle_player_spawn_tests {
                 ));
 
                 let result = handle_player_spawn(py, 42);
-                assert!(result
-                    .bind(py)
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true()));
+                assert!(
+                    result
+                        .bind(py)
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
             });
         });
     }
@@ -7620,6 +7791,7 @@ mod handle_kamikaze_use_tests {
     use super::{handle_kamikaze_use, try_handle_kamikaze_use};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -7627,11 +7799,10 @@ mod handle_kamikaze_use_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -7719,13 +7890,17 @@ mod handle_kamikaze_use_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_kamikaze_use(py, 42);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_",))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -7829,10 +8004,12 @@ mod handle_kamikaze_use_tests {
                 ));
 
                 let result = handle_kamikaze_use(py, 42);
-                assert!(result
-                    .bind(py)
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true()));
+                assert!(
+                    result
+                        .bind(py)
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
             });
         });
     }
@@ -7887,6 +8064,7 @@ mod handle_kamikaze_explode_tests {
     use super::{handle_kamikaze_explode, try_handle_kamikaze_explode};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -7894,11 +8072,10 @@ mod handle_kamikaze_explode_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t, privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity,
+        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -7986,13 +8163,17 @@ mod handle_kamikaze_explode_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_kamikaze_explode(py, 42, false);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", false))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", false))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -8073,13 +8254,17 @@ mod handle_kamikaze_explode_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_kamikaze_explode(py, 42, true);
-                    assert!(result.as_ref().is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", true))
-                        .is_ok());
+                    assert!(result.as_ref().is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", true))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -8183,10 +8368,12 @@ mod handle_kamikaze_explode_tests {
                 ));
 
                 let result = handle_kamikaze_explode(py, 42, false);
-                assert!(result
-                    .bind(py)
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true()));
+                assert!(
+                    result
+                        .bind(py)
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
             });
         });
     }
@@ -8268,6 +8455,7 @@ mod handle_damage_tests {
     use super::{handle_damage, try_handle_damage};
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             DamageDispatcher, EventDispatcher, EventDispatcherManager,
@@ -8275,14 +8463,13 @@ mod handle_damage_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::ffi::c::prelude::{
-        clientState_t, cvar_t,
+        CVar, CVarBuilder, DAMAGE_NO_ARMOR, DAMAGE_NO_PROTECTION, DAMAGE_RADIUS, MockClient,
+        MockGameEntity, clientState_t, cvar_t,
         meansOfDeath_t::{MOD_ROCKET, MOD_ROCKET_SPLASH, MOD_TRIGGER_HURT},
-        privileges_t, team_t, CVar, CVarBuilder, MockClient, MockGameEntity, DAMAGE_NO_ARMOR,
-        DAMAGE_NO_PROTECTION, DAMAGE_RADIUS,
+        privileges_t, team_t,
     };
     use crate::prelude::*;
 
@@ -8378,12 +8565,14 @@ mod handle_damage_tests {
                         MOD_ROCKET as i32,
                     );
                     assert!(result.as_ref().is_ok_and(|value| value.is_none()));
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            ("_", py.None(), 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
-                        )
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                ("_", py.None(), 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -8472,12 +8661,14 @@ mod handle_damage_tests {
                         MOD_ROCKET as i32,
                     );
                     assert!(result.as_ref().is_ok_and(|value| value.is_none()));
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            (420, "_", 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
-                        )
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                (420, "_", 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -8566,12 +8757,14 @@ mod handle_damage_tests {
                         MOD_ROCKET as i32,
                     );
                     assert!(result.as_ref().is_ok_and(|value| value.is_none()));
-                    assert!(capturing_hook
-                        .call_method1(
-                            "assert_called_with",
-                            ("_", 420, 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
-                        )
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1(
+                                "assert_called_with",
+                                ("_", 420, 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
+                            )
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -8774,11 +8967,12 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
 #[cfg(test)]
 mod handle_console_print_tests {
     use super::{
-        handle_console_print, try_handle_console_print, PrintRedirector, PrintRedirectorMethods,
-        PRINT_REDIRECTION,
+        PRINT_REDIRECTION, PrintRedirector, PrintRedirectorMethods, handle_console_print,
+        try_handle_console_print,
     };
 
     use crate::ffi::python::{
+        EVENT_DISPATCHERS,
         commands::CommandPriorities,
         events::{
             ConsolePrintDispatcher, EventDispatcher, EventDispatcherManager,
@@ -8786,12 +8980,11 @@ mod handle_console_print_tests {
         },
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::*,
-        EVENT_DISPATCHERS,
     };
 
     use crate::prelude::*;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
 
     use core::borrow::BorrowMut;
 
@@ -8847,12 +9040,16 @@ mod handle_console_print_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_console_print(py, "asdf");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "asdf")));
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("asdf",))
-                        .is_ok());
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "asdf")
+                    }));
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("asdf",))
+                            .is_ok()
+                    );
                 });
             });
     }
@@ -8898,10 +9095,12 @@ mod handle_console_print_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_console_print(py, "asdf");
-                    assert!(result.is_ok_and(|value| value
-                        .bind(py)
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .bind(py)
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -8947,9 +9146,11 @@ mod handle_console_print_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let result = try_handle_console_print(py, "asdf");
-                    assert!(result.is_ok_and(|value| value
-                        .extract::<String>(py)
-                        .is_ok_and(|str_value| str_value == "quit")));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .extract::<String>(py)
+                            .is_ok_and(|str_value| str_value == "quit")
+                    }));
                 });
             });
     }
@@ -8986,9 +9187,11 @@ mod handle_console_print_tests {
                 EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                 let result = try_handle_console_print(py, "asdf");
-                assert!(result.is_ok_and(|value| value
-                    .extract::<String>(py)
-                    .is_ok_and(|str_value| str_value == "asdf")));
+                assert!(result.is_ok_and(|value| {
+                    value
+                        .extract::<String>(py)
+                        .is_ok_and(|str_value| str_value == "asdf")
+                }));
 
                 PRINT_REDIRECTION
                     .load()
@@ -9045,10 +9248,12 @@ mod handle_console_print_tests {
             ));
 
             let result = handle_console_print(py, "asdf");
-            assert!(result
-                .bind(py)
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true()));
+            assert!(
+                result
+                    .bind(py)
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            );
         });
     }
 }

@@ -265,9 +265,9 @@ mod pyshinqlx_dispatcher_tests {
 
     use pretty_assertions::assert_eq;
     use pyo3::{
+        IntoPyObjectExt,
         exceptions::PyException,
         types::{PyBool, PyString, PyTuple},
-        IntoPyObjectExt,
     };
 
     #[test]

@@ -1,17 +1,17 @@
 use super::prelude::*;
 use super::{owner, pyshinqlx_get_logger};
 
-use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
+use crate::quake_live_engine::FindCVar;
 
 use pyo3::prelude::*;
 use pyo3::{
+    IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{
         PyEnvironmentError, PyKeyError, PyNotImplementedError, PyRuntimeError, PyValueError,
     },
     intern,
     types::{IntoPyDict, PyBool, PyDict, PyString, PyTuple},
-    IntoPyObjectExt, PyTraverseError, PyVisit,
 };
 
 use core::cmp::max;
@@ -207,12 +207,9 @@ impl Redis {
             .unwrap_or(0);
         let _ = redis_type.setattr(intern!(py, "_counter"), counter + 1);
 
-        (
-            Self {},
-            AbstractDatabase {
-                plugin: plugin.clone().unbind(),
-            },
-        )
+        (Self {}, AbstractDatabase {
+            plugin: plugin.clone().unbind(),
+        })
     }
 
     fn __del__(slf_: &Bound<'_, Self>) -> PyResult<()> {

@@ -124,7 +124,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
 mod userinfo_dispatcher_tests {
     use super::{UserinfoDispatcher, UserinfoDispatcherMethods};
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::ffi::python::{
         commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
         pyshinqlx_test_support::default_test_player,
@@ -151,9 +151,11 @@ mod userinfo_dispatcher_tests {
                     .into_py_dict(py)
                     .expect("this should not happen"),
             );
-            assert!(result.is_ok_and(|value| value
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true())));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            }));
         });
     }
 
@@ -205,9 +207,11 @@ def throws_exception_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -260,9 +264,11 @@ def returns_none_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -317,9 +323,11 @@ def returns_none_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -374,9 +382,11 @@ def returns_stop_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -431,9 +441,11 @@ def returns_stop_event_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -488,9 +500,11 @@ def returns_stop_all_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -543,9 +557,11 @@ def returns_string_hook(*args, **kwargs):
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }

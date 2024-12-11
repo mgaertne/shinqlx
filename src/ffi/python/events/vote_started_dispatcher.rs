@@ -58,10 +58,11 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
             .into_bound(self.py())
             .into_any();
 
-        let args_tuple = PyTuple::new(
-            self.py(),
-            [player, PyString::new(self.py(), vote).as_any(), args],
-        )?;
+        let args_tuple = PyTuple::new(self.py(), [
+            player,
+            PyString::new(self.py(), vote).as_any(),
+            args,
+        ])?;
 
         Ok(self.as_super().dispatch(&args_tuple))
     }
@@ -75,7 +76,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
 mod vote_started_dispatcher_tests {
     use super::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::ffi::python::{
         commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
         pyshinqlx_test_support::default_test_player,
@@ -102,9 +103,11 @@ mod vote_started_dispatcher_tests {
             );
 
             let result = dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-            assert!(result.is_ok_and(|value| value
-                .downcast::<PyBool>()
-                .is_ok_and(|bool_value| bool_value.is_true())));
+            assert!(result.is_ok_and(|value| {
+                value
+                    .downcast::<PyBool>()
+                    .is_ok_and(|bool_value| bool_value.is_true())
+            }));
         });
     }
 
@@ -157,9 +160,11 @@ def throws_exception_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -213,9 +218,11 @@ def returns_none_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -271,9 +278,11 @@ def returns_none_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -329,9 +338,11 @@ def returns_stop_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -387,9 +398,11 @@ def returns_stop_event_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -445,9 +458,11 @@ def returns_stop_all_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| !bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| !bool_value.is_true())
+                    }));
                 });
             });
     }
@@ -501,9 +516,11 @@ def returns_string_hook(*args, **kwargs):
 
                     let result =
                         dispatcher.dispatch("map", PyString::new(py, "thunderstruck").as_any());
-                    assert!(result.is_ok_and(|value| value
-                        .downcast::<PyBool>()
-                        .is_ok_and(|bool_value| bool_value.is_true())));
+                    assert!(result.is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .is_ok_and(|bool_value| bool_value.is_true())
+                    }));
                 });
             });
     }

@@ -1,15 +1,15 @@
 use super::prelude::*;
-use super::{get_cvar, owner, pyshinqlx_get_logger, PythonReturnCodes, EVENT_DISPATCHERS};
+use super::{EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, owner, pyshinqlx_get_logger};
 
-use crate::quake_live_engine::FindCVar;
 use crate::MAIN_ENGINE;
+use crate::quake_live_engine::FindCVar;
 
 use pyo3::prelude::*;
 use pyo3::{
+    PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
-    PyTraverseError, PyVisit,
 };
 
 /// A class representing an input-triggered command.
@@ -354,7 +354,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
 
 #[cfg(test)]
 mod command_tests {
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::ffi::python::{prelude::*, pyshinqlx_test_support::*};
     use crate::prelude::*;
 
@@ -568,13 +568,10 @@ class mocked_db:
                     .getattr("hook")
                     .expect("could not get capturing hook"),
                 0,
-                PyList::new(
-                    py,
-                    [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any(),
-                    ],
-                )
+                PyList::new(py, [
+                    chat_channel.clone().as_any(),
+                    console_channel.clone().as_any(),
+                ])
                 .expect("this should not happen")
                 .as_any(),
                 py.None().bind(py),
@@ -583,24 +580,23 @@ class mocked_db:
                 true,
                 "",
             );
-            assert!(command.is_ok_and(|cmd| PyList::new(
-                py,
-                cmd.channels
-                    .read()
-                    .iter()
-                    .map(|channel| channel.clone_ref(py))
-                    .collect::<Vec<PyObject>>()
-            )
-            .expect("this should not happen")
-            .eq(PyList::new(
-                py,
-                [
+            assert!(command.is_ok_and(|cmd| {
+                PyList::new(
+                    py,
+                    cmd.channels
+                        .read()
+                        .iter()
+                        .map(|channel| channel.clone_ref(py))
+                        .collect::<Vec<PyObject>>(),
+                )
+                .expect("this should not happen")
+                .eq(PyList::new(py, [
                     chat_channel.clone().as_any(),
-                    console_channel.clone().as_any()
-                ]
-            )
-            .expect("this should not happen"))
-            .expect("this should not happen")));
+                    console_channel.clone().as_any(),
+                ])
+                .expect("this should not happen"))
+                .expect("this should not happen")
+            }));
         });
     }
 
@@ -623,13 +619,10 @@ class mocked_db:
                     .expect("could not get capturing hook"),
                 0,
                 py.None().bind(py),
-                PyList::new(
-                    py,
-                    [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any(),
-                    ],
-                )
+                PyList::new(py, [
+                    chat_channel.clone().as_any(),
+                    console_channel.clone().as_any(),
+                ])
                 .expect("This should not happen")
                 .as_any(),
                 true,
@@ -637,24 +630,23 @@ class mocked_db:
                 true,
                 "",
             );
-            assert!(command.is_ok_and(|cmd| PyList::new(
-                py,
-                cmd.exclude_channels
-                    .read()
-                    .iter()
-                    .map(|channel| channel.clone_ref(py))
-                    .collect::<Vec<PyObject>>()
-            )
-            .expect("this should not happen")
-            .eq(PyList::new(
-                py,
-                [
+            assert!(command.is_ok_and(|cmd| {
+                PyList::new(
+                    py,
+                    cmd.exclude_channels
+                        .read()
+                        .iter()
+                        .map(|channel| channel.clone_ref(py))
+                        .collect::<Vec<PyObject>>(),
+                )
+                .expect("this should not happen")
+                .eq(PyList::new(py, [
                     chat_channel.clone().as_any(),
-                    console_channel.clone().as_any()
-                ]
-            )
-            .expect("this should not happen"))
-            .expect("this should not happen")));
+                    console_channel.clone().as_any(),
+                ])
+                .expect("this should not happen"))
+                .expect("this should not happen")
+            }));
         });
     }
 
@@ -727,12 +719,14 @@ class mocked_db:
                     py.None().bind(py),
                 );
             assert!(result.is_ok());
-            assert!(capturing_hook
-                .call_method1(
-                    "assert_called_with",
-                    (default_test_player(), ["cmd"], py.None(),)
-                )
-                .is_ok());
+            assert!(
+                capturing_hook
+                    .call_method1(
+                        "assert_called_with",
+                        (default_test_player(), ["cmd"], py.None(),)
+                    )
+                    .is_ok()
+            );
         });
     }
 
@@ -776,27 +770,24 @@ class mocked_db:
     fn is_eligible_name_with_no_prefix(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
-            let command = Bound::new(
-                py,
-                Command {
-                    plugin: test_plugin(py)
-                        .call0()
-                        .expect("this should not happen")
-                        .unbind(),
-                    name: vec!["cmd_name".into()],
-                    handler: capturing_hook
-                        .getattr("hook")
-                        .expect("could not get capturing hook")
-                        .unbind(),
-                    permission: 0,
-                    channels: vec![].into(),
-                    exclude_channels: vec![].into(),
-                    client_cmd_pass: false,
-                    client_cmd_perm: 0,
-                    prefix: false,
-                    usage: "".to_string(),
-                },
-            )
+            let command = Bound::new(py, Command {
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![].into(),
+                exclude_channels: vec![].into(),
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            })
             .expect("this should not happen");
 
             assert!(command.is_eligible_name("cmd_name"));
@@ -824,27 +815,24 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py)
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 0,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 0,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py)
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 0,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 0,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     assert!(!command.is_eligible_name("cmd_name"));
@@ -859,27 +847,24 @@ class mocked_db:
     fn is_eligilble_channel_when_none_are_configured(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
-            let command = Bound::new(
-                py,
-                Command {
-                    plugin: test_plugin(py)
-                        .call0()
-                        .expect("this should not happen")
-                        .unbind(),
-                    name: vec!["cmd_name".into()],
-                    handler: capturing_hook
-                        .getattr("hook")
-                        .expect("could not get capturing hook")
-                        .unbind(),
-                    permission: 0,
-                    channels: vec![].into(),
-                    exclude_channels: vec![].into(),
-                    client_cmd_pass: false,
-                    client_cmd_perm: 0,
-                    prefix: true,
-                    usage: "".to_string(),
-                },
-            )
+            let command = Bound::new(py, Command {
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![].into(),
+                exclude_channels: vec![].into(),
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            })
             .expect("this should not happen");
 
             let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
@@ -903,31 +888,28 @@ class mocked_db:
             .expect("this should not happen");
 
             let capturing_hook = capturing_hook(py);
-            let command = Bound::new(
-                py,
-                Command {
-                    plugin: test_plugin(py)
-                        .call0()
-                        .expect("this should not happen")
-                        .unbind(),
-                    name: vec!["cmd_name".into()],
-                    handler: capturing_hook
-                        .getattr("hook")
-                        .expect("could not get capturing hook")
-                        .unbind(),
-                    permission: 0,
-                    channels: vec![
-                        console_channel.clone().into_any().unbind(),
-                        chat_channel.clone().into_any().unbind(),
-                    ]
-                    .into(),
-                    exclude_channels: vec![].into(),
-                    client_cmd_pass: false,
-                    client_cmd_perm: 0,
-                    prefix: true,
-                    usage: "".to_string(),
-                },
-            )
+            let command = Bound::new(py, Command {
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![
+                    console_channel.clone().into_any().unbind(),
+                    chat_channel.clone().into_any().unbind(),
+                ]
+                .into(),
+                exclude_channels: vec![].into(),
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            })
             .expect("this should not happen");
 
             assert!(command.is_eligible_channel(chat_channel.as_any()));
@@ -959,35 +941,32 @@ class mocked_db:
             .expect("this should not happen");
 
             let capturing_hook = capturing_hook(py);
-            let command = Bound::new(
-                py,
-                Command {
-                    plugin: test_plugin(py)
-                        .call0()
-                        .expect("this should not happen")
-                        .unbind(),
-                    name: vec!["cmd_name".into()],
-                    handler: capturing_hook
-                        .getattr("hook")
-                        .expect("could not get capturing hook")
-                        .unbind(),
-                    permission: 0,
-                    channels: vec![
-                        console_channel.clone().into_any().unbind(),
-                        chat_channel.clone().into_any().unbind(),
-                    ]
-                    .into(),
-                    exclude_channels: vec![
-                        red_team_chat_channel.clone().into_any().unbind(),
-                        blue_team_chat_channel.clone().into_any().unbind(),
-                    ]
-                    .into(),
-                    client_cmd_pass: false,
-                    client_cmd_perm: 0,
-                    prefix: true,
-                    usage: "".to_string(),
-                },
-            )
+            let command = Bound::new(py, Command {
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
+                name: vec!["cmd_name".into()],
+                handler: capturing_hook
+                    .getattr("hook")
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![
+                    console_channel.clone().into_any().unbind(),
+                    chat_channel.clone().into_any().unbind(),
+                ]
+                .into(),
+                exclude_channels: vec![
+                    red_team_chat_channel.clone().into_any().unbind(),
+                    blue_team_chat_channel.clone().into_any().unbind(),
+                ]
+                .into(),
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: true,
+                usage: "".to_string(),
+            })
             .expect("this should not happen");
 
             assert!(command.is_eligible_channel(chat_channel.as_any()));
@@ -1016,27 +995,24 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py)
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 5,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 5,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py)
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 5,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 5,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1066,24 +1042,21 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py).unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 5,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 5,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py).unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 5,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 5,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1124,27 +1097,24 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py)
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 5,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 5,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py)
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 5,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 5,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1175,27 +1145,24 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py)
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 0,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 0,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py)
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 0,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 0,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1235,27 +1202,24 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py)
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 5,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 5,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py)
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 5,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 5,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1286,27 +1250,24 @@ class mocked_db:
             .run(|| {
                 Python::with_gil(|py| {
                     let capturing_hook = capturing_hook(py);
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin(py)
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 0,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 0,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin(py)
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 0,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 0,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1341,27 +1302,24 @@ class mocked_db:
                     test_plugin
                         .setattr("db", py.None())
                         .expect("this should not happen");
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 5,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 5,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 5,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 5,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1396,27 +1354,24 @@ class mocked_db:
                     test_plugin
                         .setattr("db", py.None())
                         .expect("this should not happen");
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 5,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 5,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 5,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 5,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1451,27 +1406,24 @@ class mocked_db:
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happend");
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 1,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 1,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 1,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 1,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1506,27 +1458,24 @@ class mocked_db:
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happend");
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 3,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 3,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 3,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 3,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1561,27 +1510,24 @@ class mocked_db:
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happend");
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin
-                                .call0()
-                                .expect("this should not happen")
-                                .unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 1,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 1,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin
+                            .call0()
+                            .expect("this should not happen")
+                            .unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 1,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 1,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -1616,24 +1562,21 @@ class mocked_db:
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happen");
-                    let command = Bound::new(
-                        py,
-                        Command {
-                            plugin: test_plugin.unbind(),
-                            name: vec!["cmd_name".into()],
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            permission: 3,
-                            channels: vec![].into(),
-                            exclude_channels: vec![].into(),
-                            client_cmd_pass: false,
-                            client_cmd_perm: 3,
-                            prefix: true,
-                            usage: "".to_string(),
-                        },
-                    )
+                    let command = Bound::new(py, Command {
+                        plugin: test_plugin.unbind(),
+                        name: vec!["cmd_name".into()],
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        permission: 3,
+                        channels: vec![].into(),
+                        exclude_channels: vec![].into(),
+                        client_cmd_pass: false,
+                        client_cmd_perm: 3,
+                        prefix: true,
+                        usage: "".to_string(),
+                    })
                     .expect("this should not happen");
 
                     let player =
@@ -2054,11 +1997,11 @@ mod command_invoker_tests {
         capturing_hook, default_command, default_test_player, returning_false_hook,
         run_all_frame_tasks,
     };
-    use crate::ffi::python::{PythonReturnCodes, EVENT_DISPATCHERS};
+    use crate::ffi::python::{EVENT_DISPATCHERS, PythonReturnCodes};
 
     use crate::prelude::*;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
     use core::borrow::BorrowMut;
@@ -2154,10 +2097,12 @@ mod command_invoker_tests {
             let result =
                 command_invoker.add_command(&py_command, CommandPriorities::PRI_NORMAL as usize);
             assert!(result.is_ok());
-            assert!(command_invoker
-                .get_commands()
-                .first()
-                .is_some_and(|cmd| cmd.name[0] == "cmd_name"));
+            assert!(
+                command_invoker
+                    .get_commands()
+                    .first()
+                    .is_some_and(|cmd| cmd.name[0] == "cmd_name")
+            );
         });
     }
 
@@ -2387,18 +2332,15 @@ mod command_invoker_tests {
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
                     let capturing_hook = capturing_hook(py);
-                    let py_command = Bound::new(
-                        py,
-                        Command {
-                            handler: capturing_hook
-                                .getattr("hook")
-                                .expect("could not get capturing hook")
-                                .unbind(),
-                            client_cmd_pass: pass_through,
-                            prefix: false,
-                            ..default_command(py)
-                        },
-                    )
+                    let py_command = Bound::new(py, Command {
+                        handler: capturing_hook
+                            .getattr("hook")
+                            .expect("could not get capturing hook")
+                            .unbind(),
+                        client_cmd_pass: pass_through,
+                        prefix: false,
+                        ..default_command(py)
+                    })
                     .expect("this should not happen");
 
                     let command_invoker =
@@ -2415,9 +2357,11 @@ mod command_invoker_tests {
                     assert!(
                         result.is_ok_and(|actual_pass_through| actual_pass_through == pass_through)
                     );
-                    assert!(capturing_hook
-                        .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
-                        .is_ok());
+                    assert!(
+                        capturing_hook
+                            .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
+                            .is_ok()
+                    );
                 });
             });
     }

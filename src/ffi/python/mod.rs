@@ -22,8 +22,8 @@ pub(crate) mod prelude {
     #[allow(unused_imports)]
     pub(crate) use super::channels::{
         AbstractChannel, AbstractChannelMethods, ChatChannel, ChatChannelMethods,
-        ClientCommandChannel, ClientCommandChannelMethods, ConsoleChannel, TeamChatChannel,
-        TellChannel, TellChannelMethods, MAX_MSG_LENGTH,
+        ClientCommandChannel, ClientCommandChannelMethods, ConsoleChannel, MAX_MSG_LENGTH,
+        TeamChatChannel, TellChannel, TellChannelMethods,
     };
     #[allow(unused_imports)]
     pub(crate) use super::commands::{
@@ -125,14 +125,14 @@ pub(crate) mod prelude {
     pub(crate) use pyo3::prelude::*;
 }
 
+use crate::_INIT_TIME;
+use crate::MAIN_ENGINE;
 use crate::ffi::c::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 use crate::quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarForced};
-use crate::MAIN_ENGINE;
-use crate::_INIT_TIME;
 use prelude::*;
 
 use commands::CommandPriorities;
@@ -151,11 +151,10 @@ use std::path::{Path, PathBuf};
 
 use pyo3::exceptions::PyAttributeError;
 use pyo3::{
-    append_to_inittab, create_exception,
+    IntoPyObjectExt, append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException, PyValueError},
     intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyString, PyTuple, PyType},
-    IntoPyObjectExt,
 };
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -257,8 +256,10 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_none(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(PythonReturnCodes::extract_bound(&py.None().into_bound(py))
-                .is_ok_and(|value| value == PythonReturnCodes::RET_NONE));
+            assert!(
+                PythonReturnCodes::extract_bound(&py.None().into_bound(py))
+                    .is_ok_and(|value| value == PythonReturnCodes::RET_NONE)
+            );
         });
     }
 
@@ -266,8 +267,10 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_bool_true(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(PythonReturnCodes::extract_bound(&PyBool::new(py, true))
-                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            assert!(
+                PythonReturnCodes::extract_bound(&PyBool::new(py, true))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
         });
     }
 
@@ -275,8 +278,10 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_bool_false(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(PythonReturnCodes::extract_bound(&PyBool::new(py, false))
-                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            assert!(
+                PythonReturnCodes::extract_bound(&PyBool::new(py, false))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
         });
     }
 
@@ -293,12 +298,14 @@ mod python_return_codes_tests {
         _pyshinqlx_setup: (),
     ) {
         Python::with_gil(|py| {
-            assert!(PythonReturnCodes::extract_bound(
-                &python_value
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-            )
-            .is_ok_and(|value| value == expected_value));
+            assert!(
+                PythonReturnCodes::extract_bound(
+                    &python_value
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                )
+                .is_ok_and(|value| value == expected_value)
+            );
         });
     }
 
@@ -308,12 +315,14 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_invalid_value(#[case] wrong_value: i32, _pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(PythonReturnCodes::extract_bound(
-                &wrong_value
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-            )
-            .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            assert!(
+                PythonReturnCodes::extract_bound(
+                    &wrong_value
+                        .into_pyobject(py)
+                        .expect("this should not happen")
+                )
+                .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
         });
     }
 
@@ -321,8 +330,10 @@ mod python_return_codes_tests {
     #[cfg_attr(miri, ignore)]
     fn extract_from_str(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            assert!(PythonReturnCodes::extract_bound(&PyString::new(py, "asdf"))
-                .is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            assert!(
+                PythonReturnCodes::extract_bound(&PyString::new(py, "asdf"))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
         });
     }
 }
@@ -437,9 +448,11 @@ mod parsed_variables_tests {
     fn parse_variables_with_space() {
         let variables = ParsedVariables::from_str(r"\name\Unnamed Player\country\de")
             .expect("this should not happen");
-        assert!(variables
-            .get("name")
-            .is_some_and(|value| value == "Unnamed Player"));
+        assert!(
+            variables
+                .get("name")
+                .is_some_and(|value| value == "Unnamed Player")
+        );
         assert!(variables.get("country").is_some_and(|value| value == "de"));
     }
 }
@@ -776,8 +789,7 @@ mod set_map_subtitles_tests {
             "Till 'Firestarter' Merker - Running shinqlx ^6v{}^7 with plugins ^61.3.3.7^7.",
             env!("SHINQLX_VERSION")
         );
-        let map_subtitle2 =
-            "Second author would go here - Check ^6https://github.com/mgaertne/shinqlx^7 for more details.";
+        let map_subtitle2 = "Second author would go here - Check ^6https://github.com/mgaertne/shinqlx^7 for more details.";
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
@@ -802,15 +814,21 @@ mod set_map_subtitles_tests {
                         .expect("this should not happen");
                     let result = set_map_subtitles(&shinqlx_module);
                     assert!(result.is_ok());
-                    assert!(shinqlx_module
-                        .getattr(intern!(py, "_map_title"))
-                        .is_ok_and(|value| value.to_string() == "thunderstruck"));
-                    assert!(shinqlx_module
-                        .getattr(intern!(py, "_map_subtitle1"))
-                        .is_ok_and(|value| value.to_string() == "Till 'Firestarter' Merker"));
-                    assert!(shinqlx_module
-                        .getattr(intern!(py, "_map_subtitle2"))
-                        .is_ok_and(|value| value.to_string() == "Second author would go here"));
+                    assert!(
+                        shinqlx_module
+                            .getattr(intern!(py, "_map_title"))
+                            .is_ok_and(|value| value.to_string() == "thunderstruck")
+                    );
+                    assert!(
+                        shinqlx_module
+                            .getattr(intern!(py, "_map_subtitle1"))
+                            .is_ok_and(|value| value.to_string() == "Till 'Firestarter' Merker")
+                    );
+                    assert!(
+                        shinqlx_module
+                            .getattr(intern!(py, "_map_subtitle2"))
+                            .is_ok_and(|value| value.to_string() == "Second author would go here")
+                    );
                 });
             });
     }
@@ -848,15 +866,21 @@ mod set_map_subtitles_tests {
                         .expect("this should not happen");
                     let result = set_map_subtitles(&shinqlx_module);
                     assert!(result.is_ok());
-                    assert!(shinqlx_module
-                        .getattr(intern!(py, "_map_title"))
-                        .is_ok_and(|value| value.to_string() == "thunderstruck"));
-                    assert!(shinqlx_module
-                        .getattr(intern!(py, "_map_subtitle1"))
-                        .is_ok_and(|value| value.to_string() == ""));
-                    assert!(shinqlx_module
-                        .getattr(intern!(py, "_map_subtitle2"))
-                        .is_ok_and(|value| value.to_string() == ""));
+                    assert!(
+                        shinqlx_module
+                            .getattr(intern!(py, "_map_title"))
+                            .is_ok_and(|value| value.to_string() == "thunderstruck")
+                    );
+                    assert!(
+                        shinqlx_module
+                            .getattr(intern!(py, "_map_subtitle1"))
+                            .is_ok_and(|value| value.to_string() == "")
+                    );
+                    assert!(
+                        shinqlx_module
+                            .getattr(intern!(py, "_map_subtitle2"))
+                            .is_ok_and(|value| value.to_string() == "")
+                    );
                 });
             });
     }
@@ -891,10 +915,9 @@ mod pyshinqlx_parse_variables_test {
     fn parse_variables_with_space(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let variables = pyshinqlx_parse_variables(py, r"\name\Unnamed Player\country\de", true);
-            assert!(variables
-                .get_item("name")
-                .is_ok_and(|value| value
-                    .is_some_and(|str_value| str_value.to_string() == "Unnamed Player")));
+            assert!(variables.get_item("name").is_ok_and(|value| {
+                value.is_some_and(|str_value| str_value.to_string() == "Unnamed Player")
+            }));
             assert!(variables
                 .get_item("country")
                 .is_ok_and(|value| value.is_some_and(|str_value| str_value.to_string() == "de")));
@@ -1029,7 +1052,7 @@ mod pyshinqlx_configure_logger_tests {
 
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::prelude::*;
 
     use alloc::ffi::CString;
@@ -1136,9 +1159,9 @@ mod pyshinqlx_configure_logger_tests {
                         .call_method1(intern!(py, "getLogger"), ("shinqlx",))
                         .expect("this should not happen");
                     let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-                    assert!(log_level.is_ok_and(|value| value
-                        .eq(&debug_level)
-                        .expect("this should not happen")),);
+                    assert!(log_level.is_ok_and(|value| {
+                        value.eq(&debug_level).expect("this should not happen")
+                    }),);
 
                     let info_level = logging_module
                         .getattr(intern!(py, "INFO"))
@@ -1149,32 +1172,32 @@ mod pyshinqlx_configure_logger_tests {
                     let logging_stream_handler = logging_module
                         .getattr(intern!(py, "StreamHandler"))
                         .expect("this should not happen");
-                    assert!(shinqlx_handlers
-                        .get_item(0)
-                        .is_ok_and(|first_handler| first_handler
+                    assert!(shinqlx_handlers.get_item(0).is_ok_and(|first_handler| {
+                        first_handler
                             .is_instance(&logging_stream_handler)
                             .expect("this should not happen")
-                            && first_handler.getattr(intern!(py, "level")).is_ok_and(
-                                |log_level| log_level
-                                    .eq(&info_level)
-                                    .expect("this should not happen")
-                            )));
+                            && first_handler
+                                .getattr(intern!(py, "level"))
+                                .is_ok_and(|log_level| {
+                                    log_level.eq(&info_level).expect("this should not happen")
+                                })
+                    }));
                     let rotating_file_handler = logging_module
                         .getattr(intern!(py, "handlers"))
                         .and_then(|handlers_submodule| {
                             handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
                         })
                         .expect("this should not happen");
-                    assert!(shinqlx_handlers.get_item(1).is_ok_and(
-                        |second_handler| second_handler
+                    assert!(shinqlx_handlers.get_item(1).is_ok_and(|second_handler| {
+                        second_handler
                             .is_instance(&rotating_file_handler)
                             .expect("this should not happen")
-                            && second_handler.getattr(intern!(py, "level")).is_ok_and(
-                                |log_level| log_level
-                                    .eq(&debug_level)
-                                    .expect("this should not happen")
-                            )
-                    ));
+                            && second_handler
+                                .getattr(intern!(py, "level"))
+                                .is_ok_and(|log_level| {
+                                    log_level.eq(&debug_level).expect("this should not happen")
+                                })
+                    }));
 
                     clear_logger(py);
                 });
@@ -1215,9 +1238,9 @@ mod pyshinqlx_configure_logger_tests {
                         .call_method1(intern!(py, "getLogger"), ("shinqlx",))
                         .expect("this should not happen");
                     let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-                    assert!(log_level.is_ok_and(|value| value
-                        .eq(&debug_level)
-                        .expect("this should not happen")),);
+                    assert!(log_level.is_ok_and(|value| {
+                        value.eq(&debug_level).expect("this should not happen")
+                    }),);
 
                     let info_level = logging_module
                         .getattr(intern!(py, "INFO"))
@@ -1228,32 +1251,32 @@ mod pyshinqlx_configure_logger_tests {
                     let logging_stream_handler = logging_module
                         .getattr(intern!(py, "StreamHandler"))
                         .expect("this should not happen");
-                    assert!(shinqlx_handlers
-                        .get_item(0)
-                        .is_ok_and(|first_handler| first_handler
+                    assert!(shinqlx_handlers.get_item(0).is_ok_and(|first_handler| {
+                        first_handler
                             .is_instance(&logging_stream_handler)
                             .expect("this should not happen")
-                            && first_handler.getattr(intern!(py, "level")).is_ok_and(
-                                |log_level| log_level
-                                    .eq(&info_level)
-                                    .expect("this should not happen")
-                            )));
+                            && first_handler
+                                .getattr(intern!(py, "level"))
+                                .is_ok_and(|log_level| {
+                                    log_level.eq(&info_level).expect("this should not happen")
+                                })
+                    }));
                     let rotating_file_handler = logging_module
                         .getattr(intern!(py, "handlers"))
                         .and_then(|handlers_submodule| {
                             handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
                         })
                         .expect("this should not happen");
-                    assert!(shinqlx_handlers.get_item(1).is_ok_and(
-                        |second_handler| second_handler
+                    assert!(shinqlx_handlers.get_item(1).is_ok_and(|second_handler| {
+                        second_handler
                             .is_instance(&rotating_file_handler)
                             .expect("this should not happen")
-                            && second_handler.getattr(intern!(py, "level")).is_ok_and(
-                                |log_level| log_level
-                                    .eq(&debug_level)
-                                    .expect("this should not happen")
-                            )
-                    ));
+                            && second_handler
+                                .getattr(intern!(py, "level"))
+                                .is_ok_and(|log_level| {
+                                    log_level.eq(&debug_level).expect("this should not happen")
+                                })
+                    }));
 
                     clear_logger(py);
                 });
@@ -1578,19 +1601,25 @@ test_func()
             let next_frame_tasks = shinqlx_module
                 .getattr(intern!(py, "next_frame_tasks"))
                 .expect("this should not happen");
-            assert!(next_frame_tasks
-                .call_method0(intern!(py, "empty"))
-                .is_ok_and(|value| value
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| !bool_value.is_true())));
-            assert!(next_frame_tasks
-                .call_method0(intern!(py, "get_nowait"))
-                .is_ok());
-            assert!(next_frame_tasks
-                .call_method0(intern!(py, "empty"))
-                .is_ok_and(|value| value
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| !bool_value.is_true()))
+            );
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "get_nowait"))
+                    .is_ok()
+            );
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
         });
     }
 }
@@ -1667,22 +1696,26 @@ test_func()
             let frame_tasks = shinqlx_module
                 .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
-            assert!(frame_tasks
-                .call_method0(intern!(py, "empty"))
-                .is_ok_and(|value| value
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| !bool_value.is_true())));
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| !bool_value.is_true()))
+            );
             let scheduler_queue = frame_tasks
                 .getattr("queue")
                 .expect("this should not happen");
             assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
             let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
             let _ = frame_tasks.call_method1("cancel", (queue_entry,));
-            assert!(frame_tasks
-                .call_method0(intern!(py, "empty"))
-                .is_ok_and(|value| value
-                    .downcast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true())));
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .downcast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
         });
     }
 }
@@ -1802,7 +1835,7 @@ mod owner_tests {
 
     use super::pyshinqlx_setup_fixture::*;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
@@ -1903,8 +1936,11 @@ mod owner_tests {
             .run(|| {
                 Python::with_gil(|py| {
                     let result = pyshinqlx_owner(py);
-                    assert!(result
-                        .is_ok_and(|opt_value| opt_value.is_some_and(|value| value == 1234567890)));
+                    assert!(
+                        result.is_ok_and(
+                            |opt_value| opt_value.is_some_and(|value| value == 1234567890)
+                        )
+                    );
                 });
             });
     }
@@ -1924,7 +1960,7 @@ mod stats_listener_tests {
     use super::pyshinqlx_setup_fixture::*;
     use super::stats_listener::StatsListener;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
@@ -2401,13 +2437,13 @@ fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 #[cfg(test)]
 mod pyshinqlx_plugins_tests {
     use super::{
-        load_plugin, load_preset_plugins, reload_plugin, unload_plugin, PluginLoadError,
-        PluginUnloadError, DEFAULT_PLUGINS, EVENT_DISPATCHERS,
+        DEFAULT_PLUGINS, EVENT_DISPATCHERS, PluginLoadError, PluginUnloadError, load_plugin,
+        load_preset_plugins, reload_plugin, unload_plugin,
     };
 
     use super::prelude::*;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::prelude::*;
 
     use alloc::ffi::CString;
@@ -3403,7 +3439,7 @@ fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
 mod try_get_plugins_path_tests {
     use super::try_get_plugins_path;
 
-    use crate::ffi::c::prelude::{cvar_t, CVar, CVarBuilder};
+    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
     use crate::prelude::*;
 
     use alloc::ffi::CString;
@@ -3478,11 +3514,12 @@ mod try_get_plugins_path_tests {
             )
             .run(|| {
                 let result = try_get_plugins_path();
-                assert!(result.is_ok_and(|path| path
-                    == TEMP_DIR
+                assert!(result.is_ok_and(|path| {
+                    path == TEMP_DIR
                         .as_ref()
                         .canonicalize()
-                        .expect("this should not happen")));
+                        .expect("this should not happen")
+                }));
             });
     }
 }

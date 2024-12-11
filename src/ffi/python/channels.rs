@@ -4,11 +4,11 @@ use crate::ffi::c::prelude::*;
 use core::fmt::{Display, Formatter};
 
 use pyo3::{
+    BoundObject,
     basic::CompareOp,
     exceptions::PyNotImplementedError,
     intern,
     types::{IntoPyDict, PyBool, PyNotImplemented, PyType},
-    BoundObject,
 };
 use regex::Regex;
 
@@ -332,17 +332,14 @@ shinqlx.AbstractChannel("abstract") < 2
             )
         });
 
-        assert_eq!(
-            result,
-            vec![
-                "asdf1 ".to_string(),
-                "asdf2 ".to_string(),
-                "asdf3 ".to_string(),
-                "asdf4".to_string(),
-                "asdf5".to_string(),
-                "asdf6".to_string()
-            ]
-        );
+        assert_eq!(result, vec![
+            "asdf1 ".to_string(),
+            "asdf2 ".to_string(),
+            "asdf3 ".to_string(),
+            "asdf4".to_string(),
+            "asdf5".to_string(),
+            "asdf6".to_string()
+        ]);
     }
 
     #[rstest]
@@ -357,15 +354,12 @@ shinqlx.AbstractChannel("abstract") < 2
             )
         });
 
-        assert_eq!(
-            result,
-            vec![
-                "asdf1 asdf2 ".to_string(),
-                "asdf3 asdf4".to_string(),
-                "asdf5".to_string(),
-                "asdf6".to_string()
-            ]
-        );
+        assert_eq!(result, vec![
+            "asdf1 asdf2 ".to_string(),
+            "asdf3 asdf4".to_string(),
+            "asdf5".to_string(),
+            "asdf6".to_string()
+        ]);
     }
 }
 
@@ -610,7 +604,7 @@ mod chat_channel_tests {
     use crate::prelude::*;
 
     use crate::ffi::c::game_entity::MockGameEntity;
-    use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, MockClient};
+    use crate::ffi::c::prelude::{MockClient, clientState_t, privileges_t, team_t};
 
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
@@ -1161,10 +1155,12 @@ tell_channel = shinqlx.TellChannel(player)
             .add_subclass(TellChannel { client_id: 42 });
 
         Python::with_gil(|py| {
-            assert!(Bound::new(py, tell_channel)
-                .expect("this should not happen")
-                .get_recipient()
-                .is_ok_and(|player| player.id == 42));
+            assert!(
+                Bound::new(py, tell_channel)
+                    .expect("this should not happen")
+                    .get_recipient()
+                    .is_ok_and(|player| player.id == 42)
+            );
         })
     }
 
@@ -1175,9 +1171,11 @@ tell_channel = shinqlx.TellChannel(player)
         Python::with_gil(|py| {
             let py_tell_channel =
                 Bound::new(py, TellChannel::py_new(&player)).expect("this should not happen");
-            assert!(py_tell_channel
-                .recipients()
-                .is_ok_and(|recipients| recipients == Some(vec![2,])));
+            assert!(
+                py_tell_channel
+                    .recipients()
+                    .is_ok_and(|recipients| recipients == Some(vec![2,]))
+            );
         });
     }
 }
@@ -1583,9 +1581,11 @@ tell_channel = shinqlx.ClientCommandChannel(player)
                     .add_subclass(ClientCommandChannel { client_id: 42 });
             let py_client_command_channel =
                 Bound::new(py, client_command_channel).expect("this should not happen");
-            assert!(py_client_command_channel
-                .get_recipient()
-                .is_ok_and(|player| player.id == 42));
+            assert!(
+                py_client_command_channel
+                    .get_recipient()
+                    .is_ok_and(|player| player.id == 42)
+            );
         })
     }
 
