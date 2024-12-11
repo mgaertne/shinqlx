@@ -137,7 +137,7 @@ impl GameClient {
         let weapon_flags = weapons
             .iter()
             .enumerate()
-            .filter(|(_, &item)| item > 0)
+            .filter(|&(_, &item)| item > 0)
             .map(|(i, _)| 1 << (i + 1))
             .sum();
         self.game_client.ps.stats[statIndex_t::STAT_WEAPONS as usize] = weapon_flags;

@@ -38,7 +38,7 @@ impl ServerStatic {
     }
 
     #[cfg_attr(test, allow(dead_code))]
-    pub(crate) unsafe fn try_get_client_by_id(
+    pub(crate) fn try_get_client_by_id(
         &self,
         client_id: i32,
     ) -> Result<*mut client_t, QuakeLiveEngineError> {
@@ -48,15 +48,15 @@ impl ServerStatic {
             return Err(QuakeLiveEngineError::InvalidId(client_id));
         }
 
-        Ok(self.serverStatic_t.clients.offset(client_id as isize))
+        Ok(unsafe {self.serverStatic_t.clients.offset(client_id as isize) })
     }
 
     #[cfg_attr(test, allow(dead_code))]
-    pub(crate) unsafe fn try_determine_client_id(
+    pub(crate) fn try_determine_client_id(
         &self,
         client_t: &client_t,
     ) -> Result<i32, QuakeLiveEngineError> {
-        let offset = (client_t as *const client_t).offset_from(self.serverStatic_t.clients);
+        let offset = unsafe { (client_t as *const client_t).offset_from(self.serverStatic_t.clients) };
 
         if !(0..MAX_CLIENTS as isize).contains(&offset) {
             return Err(QuakeLiveEngineError::ClientNotFound(
@@ -78,13 +78,13 @@ mockall::mock! {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
         #[allow(unused_attributes)]
         #[cfg(not(tarpaulin_include))]
-        pub(crate) unsafe fn try_get_client_by_id(
+        pub(crate) fn try_get_client_by_id(
             &self,
             client_id: i32,
         ) -> Result<*mut client_t, QuakeLiveEngineError>;
         #[allow(unused_attributes)]
         #[cfg(not(tarpaulin_include))]
-        pub(crate) unsafe fn try_determine_client_id(
+        pub(crate) fn try_determine_client_id(
             &self,
             client_t: *const client_t,
         ) -> Result<i32, QuakeLiveEngineError>;
@@ -170,7 +170,7 @@ mod server_static_tests {
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
         assert_eq!(
-            unsafe { rust_server_static.try_get_client_by_id(-1) },
+            rust_server_static.try_get_client_by_id(-1),
             Err(QuakeLiveEngineError::InvalidId(-1))
         );
     }
@@ -184,7 +184,7 @@ mod server_static_tests {
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
         assert_eq!(
-            unsafe { rust_server_static.try_get_client_by_id(65536) },
+            rust_server_static.try_get_client_by_id(65536),
             Err(QuakeLiveEngineError::InvalidId(65536))
         );
     }
@@ -203,7 +203,7 @@ mod server_static_tests {
                 .expect("this should not happen");
 
         assert_eq!(
-            unsafe { rust_server_static.try_get_client_by_id(0) },
+            rust_server_static.try_get_client_by_id(0),
             Ok(client.borrow_mut() as *mut client_t)
         );
     }
@@ -230,7 +230,7 @@ mod server_static_tests {
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
         assert_eq!(
-            unsafe { rust_server_static.try_get_client_by_id(2) },
+            rust_server_static.try_get_client_by_id(2),
             Ok(clients[2].borrow_mut() as *mut client_t)
         );
     }
@@ -247,7 +247,7 @@ mod server_static_tests {
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
         assert_eq!(
-            unsafe { rust_server_static.try_determine_client_id(&client) },
+            rust_server_static.try_determine_client_id(&client),
             Err(QuakeLiveEngineError::ClientNotFound(
                 "client not found".to_string()
             ))
@@ -267,7 +267,7 @@ mod server_static_tests {
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
         assert_eq!(
-            unsafe { rust_server_static.try_determine_client_id(&client) },
+            rust_server_static.try_determine_client_id(&client),
             Ok(0)
         );
     }
@@ -294,7 +294,7 @@ mod server_static_tests {
             ServerStatic::try_from(server_static.borrow_mut() as *mut serverStatic_t)
                 .expect("this should not happen");
         assert_eq!(
-            unsafe { rust_server_static.try_determine_client_id(&(clients[2])) },
+            rust_server_static.try_determine_client_id(&(clients[2])),
             Ok(2)
         );
     }

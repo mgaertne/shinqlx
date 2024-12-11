@@ -36,7 +36,7 @@ impl TryFrom<i32> for Client {
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
         let server_static = ServerStatic::try_get()?;
-        let client = unsafe { server_static.try_get_client_by_id(client_id) }?;
+        let client = server_static.try_get_client_by_id(client_id)?;
         Self::try_from(client)
             .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".to_string()))
     }
@@ -59,7 +59,7 @@ impl Client {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;
         };
-        unsafe { server_static.try_determine_client_id(self.client_t) }.unwrap_or(-1)
+        server_static.try_determine_client_id(self.client_t).unwrap_or(-1)
     }
 
     pub(crate) fn get_state(&self) -> clientState_t {

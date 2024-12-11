@@ -121,24 +121,24 @@ where
 }
 
 //noinspection ALL
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
     fmt: *const c_char,
     fmt_args: ...
 ) {
-    extern "C" {
+    unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
 
     let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
-    let result = vsnprintf(
+    let result = unsafe { vsnprintf(
         buffer.as_mut_ptr() as *mut c_char,
         buffer.len(),
         fmt,
         va_args.as_va_list(),
-    );
+    ) };
     if result < 0 {
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
@@ -270,20 +270,20 @@ where
 }
 
 //noinspection ALL
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
-    extern "C" {
+    unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
 
     let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
-    let result = vsnprintf(
+    let result = unsafe { vsnprintf(
         buffer.as_mut_ptr() as *mut c_char,
         buffer.len(),
         fmt,
         va_args.as_va_list(),
-    );
+    ) };
     if result < 0 {
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
@@ -336,14 +336,16 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
 static mut CLIENT_CONNECT_BUFFER: [[c_char; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize] =
     [[0; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize];
 
-unsafe fn to_return_string(client_id: i32, input: String) -> *const c_char {
+fn to_return_string(client_id: i32, input: String) -> *const c_char {
     let bytes = input.as_bytes();
     let mut bytes_iter = bytes.iter();
     let len = bytes.len();
-    CLIENT_CONNECT_BUFFER[client_id as usize][0..len]
-        .fill_with(|| *bytes_iter.next().unwrap() as c_char);
+    unsafe {
+        CLIENT_CONNECT_BUFFER[client_id as usize][0..len]
+            .fill_with(|| *bytes_iter.next().unwrap() as c_char);
     CLIENT_CONNECT_BUFFER[client_id as usize][len..].fill(0);
     &CLIENT_CONNECT_BUFFER[client_id as usize] as *const c_char
+    }
 }
 
 pub(crate) extern "C" fn shinqlx_client_connect(
@@ -358,7 +360,7 @@ pub(crate) extern "C" fn shinqlx_client_connect(
             if first_time.into() {
                 if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
                     if (!is_bot).into() {
-                        return unsafe { to_return_string(client_num, res) };
+                        return to_return_string(client_num, res);
                     }
                 }
             }
