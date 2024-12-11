@@ -1,16 +1,16 @@
+use crate::MAIN_ENGINE;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 use crate::prelude::*;
 use crate::quake_live_engine::{
     CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
 };
-use crate::MAIN_ENGINE;
 
 use core::borrow::BorrowMut;
 
 use rand::Rng;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_send_server_command() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.cmd_args().iter().for_each(|cmd_args| {
@@ -19,7 +19,7 @@ pub extern "C" fn cmd_send_server_command() {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_center_print() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.cmd_args().iter().for_each(|cmd_args| {
@@ -28,7 +28,7 @@ pub extern "C" fn cmd_center_print() {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_regular_print() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.cmd_args().iter().for_each(|cmd_args| {
@@ -37,7 +37,7 @@ pub extern "C" fn cmd_regular_print() {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_slap() {
     MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
         let maxclients = main_engine.get_max_clients();
@@ -141,7 +141,7 @@ pub extern "C" fn cmd_slap() {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_slay() {
     MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
         let maxclients = main_engine.get_max_clients();
@@ -214,7 +214,7 @@ pub extern "C" fn cmd_slay() {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 // Execute a pyshinqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
@@ -227,7 +227,7 @@ pub extern "C" fn cmd_py_rcon() {
     });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_py_command() {
     CUSTOM_COMMAND_HANDLER
         .load()
@@ -256,7 +256,7 @@ pub extern "C" fn cmd_py_command() {
         });
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn cmd_restart_python() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.com_printf("Restarting Python...\n");

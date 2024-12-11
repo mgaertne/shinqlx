@@ -75,21 +75,24 @@ impl From<GameEntity> for PlayerState {
 
 impl Display for PlayerState {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
-                self.is_alive,
-                self.position,
-                self.velocity,
-                self.health,
-                self.armor,
-                self.noclip,
-                self.weapon,
-                self.weapons,
-                self.ammo,
-                self.powerups,
-                self.holdable,
-                self.flight,
-                self.is_chatting,
-                self.is_frozen)
+        write!(
+            f,
+            "PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
+            self.is_alive,
+            self.position,
+            self.velocity,
+            self.health,
+            self.armor,
+            self.noclip,
+            self.weapon,
+            self.weapons,
+            self.ammo,
+            self.powerups,
+            self.holdable,
+            self.flight,
+            self.is_chatting,
+            self.is_frozen
+        )
     }
 }
 
@@ -192,7 +195,8 @@ mod player_state_tests {
             holdable=kamikaze, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
             is_chatting=true, \
-            is_frozen=true)");
+            is_frozen=true)"
+        );
     }
 
     #[test]
@@ -218,14 +222,15 @@ mod player_state_tests {
             holdable=None, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
             is_chatting=true, \
-            is_frozen=true)");
+            is_frozen=true)"
+        );
     }
 
     #[test]
     fn player_state_repr() {
         assert_eq!(
-                default_player_state().__repr__(),
-                "PlayerState(\
+            default_player_state().__repr__(),
+            "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
             veclocity=Vector3(x=4, y=5, z=6), \
@@ -239,7 +244,8 @@ mod player_state_tests {
             holdable=kamikaze, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
             is_chatting=true, \
-            is_frozen=true)");
+            is_frozen=true)"
+        );
     }
 
     #[test]
@@ -250,8 +256,8 @@ mod player_state_tests {
         };
 
         assert_eq!(
-                player_state.__repr__(),
-                "PlayerState(\
+            player_state.__repr__(),
+            "PlayerState(\
             is_alive=true, \
             position=Vector3(x=1, y=2, z=3), \
             veclocity=Vector3(x=4, y=5, z=6), \
@@ -265,6 +271,7 @@ mod player_state_tests {
             holdable=None, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
             is_chatting=true, \
-            is_frozen=true)");
+            is_frozen=true)"
+        );
     }
 }
