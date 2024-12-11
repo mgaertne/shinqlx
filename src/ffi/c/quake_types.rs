@@ -110,7 +110,7 @@ pub const MAX_QPATH: u32 = 64; // max length of a quake game pathname
 pub const MAX_DOWNLOAD_WINDOW: u32 = 8; // max of eight download frames
 pub const MAX_NETNAME: u32 = 36;
 pub const PACKET_BACKUP: u32 = 32; // number of old messages that must be kept on client and
-                                   // server for delta comrpession and ping estimation
+// server for delta comrpession and ping estimation
 pub const PACKET_MASK: u32 = PACKET_BACKUP - 1;
 pub const MAX_ENT_CLUSTERS: u32 = 16;
 pub const MAX_MODELS: u32 = 256; // these are sent over the net as 8 bits
@@ -146,7 +146,7 @@ pub const BUTTON_UNUSED6: u32 = 1024;
 pub const BUTTON_UPMOVE: u32 = 2048; // Mino: Not in Q3. I'm guessing it's for cg_autohop.
 pub const BUTTON_ANY: u32 = 4096; // any key whatsoever
 pub const BUTTON_IS_ACTIVE: u32 = 65536; // Mino: No idea what it is, but it goes off after a while of being
-                                         //       AFK, then goes on after being active for a while.
+//       AFK, then goes on after being active for a while.
 
 // eflags
 pub const EF_DEAD: u32 = 1; // don't draw a foe marker over players with EF_DEAD
