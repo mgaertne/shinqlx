@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+use crate::QZERODED;
 use crate::commands::{
     cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
     cmd_send_server_command, cmd_slap, cmd_slay,
@@ -5,27 +7,25 @@ use crate::commands::{
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 use crate::hooks::{
-    shinqlx_client_connect, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage,
-    shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
-    shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
-    shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
-    ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
+    ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect, shinqlx_clientspawn,
+    shinqlx_cmd_addcommand, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
+    shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_sv_cliententerworld,
+    shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring,
+    shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
 };
 #[cfg(feature = "patches")]
 use crate::patches::patch_callvote_f;
 use crate::prelude::*;
-#[cfg(target_os = "linux")]
-use crate::quake_live_functions::pattern_search_module;
 use crate::quake_live_functions::QuakeLiveFunction;
 #[cfg(target_os = "linux")]
-use crate::QZERODED;
+use crate::quake_live_functions::pattern_search_module;
 
 use alloc::ffi::CString;
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;
 use core::{
-    ffi::{c_char, c_int, CStr},
+    ffi::{CStr, c_char, c_int},
     sync::atomic::{AtomicI32, AtomicUsize, Ordering},
 };
 #[cfg(test)]
@@ -451,9 +451,9 @@ mod vm_functios_tests {
     };
 
     use crate::quake_live_engine::mock_quake_functions::{
-        detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage, detoured_G_StartKamikaze,
         CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage, G_FreeEntity,
-        G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item,
+        G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item, detoured_ClientConnect,
+        detoured_ClientSpawn, detoured_G_Damage, detoured_G_StartKamikaze,
     };
 
     use core::sync::atomic::{AtomicUsize, Ordering};
@@ -1636,17 +1636,17 @@ mod quake_live_engine_tests {
     use crate::quake_live_functions::QuakeLiveFunction;
 
     use crate::ffi::c::prelude::{
-        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, usercmd_t,
-        vec3_t, CVarBuilder,
+        CVarBuilder, cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean,
+        usercmd_t, vec3_t,
     };
-    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
     use crate::ffi::python::PythonInitializationError;
+    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
 
-    use crate::prelude::{serial, QuakeLiveEngineError};
+    use crate::prelude::{QuakeLiveEngineError, serial};
     use pretty_assertions::assert_eq;
 
     use core::borrow::BorrowMut;
-    use core::ffi::{c_char, c_int, CStr};
+    use core::ffi::{CStr, c_char, c_int};
     use core::ptr;
     use core::sync::atomic::Ordering;
     use mockall::predicate;
@@ -2024,12 +2024,14 @@ mod quake_live_engine_tests {
             .store(G_InitGame as usize, Ordering::SeqCst);
 
         quake_engine.unhook_vm(true);
-        assert!(quake_engine
-            .g_init_game_orig()
-            .is_ok_and(|func| ptr::fn_addr_eq(
-                func,
-                G_InitGame as extern "C" fn(c_int, c_int, c_int)
-            )));
+        assert!(
+            quake_engine
+                .g_init_game_orig()
+                .is_ok_and(|func| ptr::fn_addr_eq(
+                    func,
+                    G_InitGame as extern "C" fn(c_int, c_int, c_int)
+                ))
+        );
     }
 
     #[test]
@@ -2041,10 +2043,10 @@ mod quake_live_engine_tests {
             .store(G_InitGame as usize, Ordering::SeqCst);
 
         quake_engine.unhook_vm(false);
-        assert!(quake_engine
-            .g_init_game_orig()
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame)));
+        assert!(
+            quake_engine.g_init_game_orig().is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame))
+        );
     }
 
     #[test]
@@ -2101,9 +2103,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.cmd_args_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Args,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Args,))
+        );
     }
 
     #[test]
@@ -2116,8 +2119,12 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.cmd_args_orig();
-        assert!(result
-            .is_ok_and(|func| ptr::fn_addr_eq(func, Cmd_Args as extern "C" fn() -> *const c_char)));
+        assert!(
+            result.is_ok_and(|func| ptr::fn_addr_eq(
+                func,
+                Cmd_Args as extern "C" fn() -> *const c_char
+            ))
+        );
     }
 
     #[test]
@@ -2125,9 +2132,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.cmd_argv_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argv,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argv,))
+        );
     }
 
     #[test]
@@ -2228,9 +2236,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.cvar_get_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Get,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cvar_Get,))
+        );
     }
 
     #[test]
@@ -2379,8 +2388,12 @@ mod quake_live_engine_tests {
         };
 
         let result = quake_engine.sv_shutdown_orig();
-        assert!(result
-            .is_ok_and(|func| ptr::fn_addr_eq(func, SV_Shutdown as extern "C" fn(*const c_char))));
+        assert!(
+            result.is_ok_and(|func| ptr::fn_addr_eq(
+                func,
+                SV_Shutdown as extern "C" fn(*const c_char)
+            ))
+        );
     }
 
     #[test]
@@ -2388,9 +2401,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.sv_map_f_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Map_f,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::SV_Map_f,))
+        );
     }
 
     #[test]
@@ -2598,9 +2612,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.cmd_argc_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argc,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_Argc,))
+        );
     }
 
     #[test]
@@ -2811,9 +2826,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.com_printf_detour();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Com_Printf,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::Com_Printf,))
+        );
     }
 
     #[test]
@@ -2834,9 +2850,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.g_init_game_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame,))
+        );
     }
 
     #[test]
@@ -2884,9 +2901,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.g_run_frame_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_RunFrame,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_RunFrame,))
+        );
     }
 
     #[test]
@@ -2907,9 +2925,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.g_addevent_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_AddEvent,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_AddEvent,))
+        );
     }
 
     #[test]
@@ -2933,9 +2952,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.g_free_entity_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_FreeEntity,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_FreeEntity,))
+        );
     }
 
     #[test]
@@ -2959,9 +2979,10 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
 
         let result = quake_engine.launch_item_orig();
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)));
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,))
+        );
     }
 
     #[test]
@@ -3602,7 +3623,7 @@ mod client_enter_world_quake_live_engine_tests {
     use super::mock_quake_functions::SV_ClientEnterWorld_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{usercmd_t, ClientBuilder, MockClient, UserCmdBuilder};
+    use crate::ffi::c::prelude::{ClientBuilder, MockClient, UserCmdBuilder, usercmd_t};
     use crate::prelude::serial;
 
     use core::borrow::BorrowMut;
@@ -3891,7 +3912,7 @@ mod client_connect_quake_live_engine_tests {
     use super::{ClientConnect, QuakeLiveEngine};
 
     use super::mock_quake_functions::{
-        detoured_ClientConnect, ClientConnect, ClientConnect_context,
+        ClientConnect, ClientConnect_context, detoured_ClientConnect,
     };
     use super::quake_live_engine_test_helpers::*;
 
@@ -3902,7 +3923,7 @@ mod client_connect_quake_live_engine_tests {
 
     use retour::GenericDetour;
 
-    use core::ffi::{c_char, c_int, CStr};
+    use core::ffi::{CStr, c_char, c_int};
 
     #[test]
     fn client_connect_with_no_detour_set() {
@@ -3970,10 +3991,10 @@ impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
 mod client_spawn_quake_live_engine_tests {
     use super::{ClientSpawn, QuakeLiveEngine};
 
-    use super::mock_quake_functions::{detoured_ClientSpawn, ClientSpawn, ClientSpawn_context};
+    use super::mock_quake_functions::{ClientSpawn, ClientSpawn_context, detoured_ClientSpawn};
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, MockGameEntity};
+    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity, gentity_t};
 
     use crate::prelude::serial;
 
@@ -4264,7 +4285,7 @@ mod game_add_event_quake_live_engine_tests {
     use super::mock_quake_functions::{G_AddEvent, G_AddEvent_context};
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{entity_event_t, GEntityBuilder, MockGameEntity};
+    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity, entity_event_t};
 
     use crate::prelude::serial;
 
@@ -4394,12 +4415,12 @@ mod get_cvar_quake_live_engine_tests {
     use super::mock_quake_functions::Cvar_Get_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
     use crate::ffi::c::prelude::CVarBuilder;
+    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
     use crate::prelude::serial;
 
     use core::borrow::BorrowMut;
-    use core::ffi::{c_int, CStr};
+    use core::ffi::{CStr, c_int};
 
     #[test]
     fn get_cvar_with_no_original_function_set() {
@@ -4604,13 +4625,13 @@ mod set_cvar_limit_quake_live_engine_tests {
     use super::mock_quake_functions::Cvar_GetLimit_context;
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
     use crate::ffi::c::prelude::CVarBuilder;
+    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
 
     use crate::prelude::serial;
 
     use core::borrow::BorrowMut;
-    use core::ffi::{c_int, CStr};
+    use core::ffi::{CStr, c_int};
 
     #[test]
     fn set_cvar_limit_with_no_original_function_set() {
@@ -4825,12 +4846,12 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
 mod register_damage_quake_live_engine_tests {
     use super::{QuakeLiveEngine, RegisterDamage};
 
-    use super::mock_quake_functions::{detoured_G_Damage, G_Damage, G_Damage_context};
+    use super::mock_quake_functions::{G_Damage, G_Damage_context, detoured_G_Damage};
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::meansOfDeath_t::*;
     use crate::ffi::c::prelude::{
-        gentity_t, vec3_t, DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION,
+        DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION, gentity_t, vec3_t,
     };
 
     use crate::prelude::serial;
@@ -5012,10 +5033,10 @@ mod try_launch_item_quake_live_engine_tests {
     use super::quake_live_engine_test_helpers::*;
 
     use crate::ffi::c::prelude::{
-        vec3_t, GEntityBuilder, GItemBuilder, MockGameEntity, MockGameItem,
+        GEntityBuilder, GItemBuilder, MockGameEntity, MockGameItem, vec3_t,
     };
 
-    use crate::prelude::{serial, QuakeLiveEngineError};
+    use crate::prelude::{QuakeLiveEngineError, serial};
 
     use crate::quake_live_functions::QuakeLiveFunction;
 
@@ -5032,9 +5053,10 @@ mod try_launch_item_quake_live_engine_tests {
 
         let result =
             quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
-        assert!(result
-            .is_err_and(|err| err
-                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,)))
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::LaunchItem,))
+        )
     }
 
     #[test]
@@ -5154,11 +5176,11 @@ mod start_kamikaze_quake_live_engine_tests {
     use super::{QuakeLiveEngine, StartKamikaze};
 
     use super::mock_quake_functions::{
-        detoured_G_StartKamikaze, G_StartKamikaze, G_StartKamikaze_context,
+        G_StartKamikaze, G_StartKamikaze_context, detoured_G_StartKamikaze,
     };
     use super::quake_live_engine_test_helpers::*;
 
-    use crate::ffi::c::prelude::{gentity_t, GEntityBuilder, MockGameEntity};
+    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity, gentity_t};
 
     use crate::prelude::serial;
 

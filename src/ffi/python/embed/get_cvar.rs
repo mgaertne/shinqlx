@@ -1,6 +1,6 @@
+use crate::MAIN_ENGINE;
 use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::FindCVar;
-use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::PyEnvironmentError;
 
