@@ -1,7 +1,7 @@
+use crate::MAIN_ENGINE;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 use crate::quake_live_engine::GetConfigstring;
-use crate::MAIN_ENGINE;
 
 use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 

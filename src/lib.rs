@@ -56,10 +56,10 @@ use arc_swap::ArcSwapOption;
 use ctor::ctor;
 use log::LevelFilter;
 use log4rs::{
+    Config,
     append::console::ConsoleAppender,
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
-    Config,
 };
 use once_cell::sync::Lazy;
 use signal_hook::consts::SIGSEGV;
