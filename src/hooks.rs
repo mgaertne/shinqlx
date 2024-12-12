@@ -120,7 +120,7 @@ where
     }
 }
 
-//noinspection ALL
+#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
@@ -271,7 +271,7 @@ where
     client.disconnect(reason.as_ref());
 }
 
-//noinspection ALL
+#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     unsafe extern "C" {
@@ -337,19 +337,26 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
     });
 }
 
-static mut CLIENT_CONNECT_BUFFER: [[c_char; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize] =
-    [[0; MAX_STRING_CHARS as usize]; MAX_CLIENTS as usize];
+static CLIENT_CONNECT_BUFFER: [parking_lot::RwLock<[c_char; MAX_STRING_CHARS as usize]>;
+    MAX_CLIENTS as usize] =
+    [const { parking_lot::RwLock::new([0; MAX_STRING_CHARS as usize]) }; MAX_CLIENTS as usize];
 
 fn to_return_string(client_id: i32, input: String) -> *const c_char {
-    let bytes = input.as_bytes();
-    let mut bytes_iter = bytes.iter();
-    let len = bytes.len();
-    unsafe {
-        CLIENT_CONNECT_BUFFER[client_id as usize][0..len]
-            .fill_with(|| *bytes_iter.next().unwrap() as c_char);
-        CLIENT_CONNECT_BUFFER[client_id as usize][len..].fill(0);
-        &CLIENT_CONNECT_BUFFER[client_id as usize] as *const c_char
-    }
+    CLIENT_CONNECT_BUFFER[client_id as usize]
+        .try_write()
+        .into_iter()
+        .for_each(|mut buffer_write_guard| {
+            let len = input.len();
+            let c_char_bytes: arrayvec::ArrayVec<c_char, { MAX_STRING_CHARS as usize }> = input
+                .as_bytes()
+                .iter()
+                .map(|&char| char as c_char)
+                .collect();
+
+            buffer_write_guard[0..len].copy_from_slice(c_char_bytes.as_slice());
+            buffer_write_guard[len..].fill(0);
+        });
+    &(*CLIENT_CONNECT_BUFFER[client_id as usize].read()) as *const c_char
 }
 
 pub(crate) extern "C" fn shinqlx_client_connect(
@@ -1515,8 +1522,8 @@ mod hooks_tests {
             .run(|| {
                 let result = shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
                 assert_eq!(
-                    unsafe { CStr::from_ptr(result) }.to_string_lossy(),
-                    "you are banned from this server"
+                    unsafe { CStr::from_ptr(result) },
+                    c"you are banned from this server"
                 );
             });
     }
