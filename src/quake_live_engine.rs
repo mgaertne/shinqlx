@@ -505,6 +505,8 @@ mod vm_functions_tests {
             g_init_game_orig: Default::default(),
             g_shutdown_game_orig: Default::default(),
             g_run_frame_orig: Default::default(),
+            #[cfg(feature = "patches")]
+            cmd_callvote_f_orig: Default::default(),
             client_spawn_detour: Default::default(),
             client_connect_detour: Default::default(),
             g_start_kamikaze_detour: Default::default(),

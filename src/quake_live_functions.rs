@@ -87,7 +87,7 @@ pub enum QuakeLiveFunction {
     #[cfg(any(target_os = "linux", test))]
     Drop_Item,
     G_FreeEntity,
-    #[cfg(any(feature = "patches", test))]
+    #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
     Cmd_Callvote_f,
 }
 
@@ -131,7 +131,7 @@ impl Display for QuakeLiveFunction {
             #[cfg(any(target_os = "linux", test))]
             QuakeLiveFunction::Drop_Item => f.write_str("Drop_Item"),
             QuakeLiveFunction::G_FreeEntity => f.write_str("G_FreeEntity"),
-            #[cfg(any(feature = "patches", test))]
+            #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
             QuakeLiveFunction::Cmd_Callvote_f => f.write_str("Cmd_Callvote_f"),
         }
     }
