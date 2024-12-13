@@ -1,11 +1,13 @@
 use crate::prelude::*;
 
-use core::{
-    borrow::Borrow,
-    fmt::{Display, Formatter},
-};
+#[cfg(target_os = "linux")]
+use core::borrow::Borrow;
+
+use core::fmt::{Display, Formatter};
+
 #[cfg(target_os = "linux")]
 use procfs::process::{MMPermissions, MemoryMap};
+
 use retour::{Function, GenericDetour, HookableWith};
 
 #[cfg(target_os = "linux")]
@@ -27,7 +29,7 @@ where
         .next()
 }
 
-#[allow(dead_code)]
+#[cfg(target_os = "linux")]
 fn pattern_search<T>(start: usize, end: usize, ql_func: T) -> Option<usize>
 where
     T: Borrow<QuakeLiveFunction>,
@@ -74,14 +76,14 @@ pub enum QuakeLiveFunction {
     ClientSpawn,
     G_Damage,
     G_AddEvent,
-    #[allow(dead_code)]
+    #[cfg(test)]
     CheckPrivileges,
     Touch_Item,
     LaunchItem,
-    #[allow(dead_code)]
+    #[cfg(test)]
     Drop_Item,
     G_FreeEntity,
-    #[allow(dead_code)]
+    #[cfg(any(feature = "patches", test))]
     Cmd_Callvote_f,
 }
 
@@ -118,18 +120,20 @@ impl Display for QuakeLiveFunction {
             QuakeLiveFunction::ClientSpawn => f.write_str("ClientSpawn"),
             QuakeLiveFunction::G_Damage => f.write_str("G_Damage"),
             QuakeLiveFunction::G_AddEvent => f.write_str("G_AddEvent"),
+            #[cfg(test)]
             QuakeLiveFunction::CheckPrivileges => f.write_str("CheckPrivileges"),
             QuakeLiveFunction::Touch_Item => f.write_str("Touch_Item"),
             QuakeLiveFunction::LaunchItem => f.write_str("LaunchItem"),
+            #[cfg(test)]
             QuakeLiveFunction::Drop_Item => f.write_str("Drop_Item"),
             QuakeLiveFunction::G_FreeEntity => f.write_str("G_FreeEntity"),
+            #[cfg(any(feature = "patches", test))]
             QuakeLiveFunction::Cmd_Callvote_f => f.write_str("Cmd_Callvote_f"),
         }
     }
 }
 
 impl QuakeLiveFunction {
-    #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn create_and_enable_generic_detour<T, D>(
         &self,
         function: T,
@@ -151,6 +155,7 @@ impl QuakeLiveFunction {
         Ok(detour)
     }
 
+    #[cfg(any(target_os = "linux", test))]
     pub(crate) fn pattern(&self) -> &[u8] {
         match self {
             QuakeLiveFunction::Com_Printf => b"\x41\x54\x55\x53\x48\x81\xec\x00\x00\x00\x00\x84\xc0\x48\x89\xb4\x24\x00\x00\x00\x00\x48\x89\x94\x24\x00\x00\x00\x00\x48\x89\x8c\x24\x00\x00\x00\x00\x4c\x89\x84\x24\x00\x00\x00\x00",
@@ -192,6 +197,7 @@ impl QuakeLiveFunction {
         }
     }
 
+    #[cfg(any(target_os = "linux", test))]
     pub(crate) fn mask(&self) -> &[u8] {
         match self {
             QuakeLiveFunction::Com_Printf => b"XXXXXXX----XXXXXX----XXXX----XXXX----XXXX----",
