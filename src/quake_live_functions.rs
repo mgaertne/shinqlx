@@ -76,14 +76,14 @@ pub enum QuakeLiveFunction {
     ClientSpawn,
     G_Damage,
     G_AddEvent,
-    #[cfg(test)]
+    #[cfg(any(target_os = "linux", test))]
     CheckPrivileges,
     Touch_Item,
     LaunchItem,
-    #[cfg(test)]
+    #[cfg(any(target_os = "linux", test))]
     Drop_Item,
     G_FreeEntity,
-    #[cfg(any(feature = "patches", test))]
+    #[cfg(any(target_os = "linux", test))]
     Cmd_Callvote_f,
 }
 
