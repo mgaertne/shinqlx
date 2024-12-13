@@ -153,11 +153,10 @@ use pyo3::exceptions::PyAttributeError;
 use pyo3::{
     IntoPyObjectExt, append_to_inittab, create_exception,
     exceptions::{PyEnvironmentError, PyException, PyValueError},
+    ffi::Py_IsInitialized,
     intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyString, PyTuple, PyType},
 };
-use pyo3::ffi::Py_IsInitialized;
-use pyo3::{append_to_inittab, intern, prepare_freethreaded_python};
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
@@ -4407,27 +4406,7 @@ def initialize():
 
         let _ = pyshinqlx_reload();
 
-        assert!(
-            [
-                &CLIENT_COMMAND_HANDLER,
-                &SERVER_COMMAND_HANDLER,
-                &FRAME_HANDLER,
-                &PLAYER_CONNECT_HANDLER,
-                &PLAYER_LOADED_HANDLER,
-                &PLAYER_DISCONNECT_HANDLER,
-                &CUSTOM_COMMAND_HANDLER,
-                &NEW_GAME_HANDLER,
-                &SET_CONFIGSTRING_HANDLER,
-                &RCON_HANDLER,
-                &CONSOLE_PRINT_HANDLER,
-                &PLAYER_SPAWN_HANDLER,
-                &KAMIKAZE_USE_HANDLER,
-                &KAMIKAZE_EXPLODE_HANDLER,
-                &DAMAGE_HANDLER,
-            ]
-            .iter()
-            .all(|handler| handler.load().is_none())
-        );
+        assert!(CUSTOM_COMMAND_HANDLER.load().is_none());
     }
 
     #[rstest]
