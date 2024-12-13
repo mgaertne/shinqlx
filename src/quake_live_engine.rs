@@ -35,7 +35,7 @@ use once_cell::{race::OnceBool, sync::OnceCell};
 use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};
 
-#[allow(dead_code)]
+#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
 const QAGAME: &str = "qagamex64.so";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -144,11 +144,11 @@ struct VmFunctions {
     g_damage_detour: ArcSwapOption<GDamageDetourType>,
 }
 
-#[allow(dead_code)]
+#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
 const OFFSET_VM_CALL_TABLE: usize = 0x3;
-#[allow(dead_code)]
+#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
 const OFFSET_INITGAME: usize = 0x18;
-#[allow(dead_code)]
+#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
 const OFFSET_RUNFRAME: usize = 0x8;
 
 impl VmFunctions {
@@ -209,7 +209,7 @@ impl VmFunctions {
                     None => Some(*ql_func),
                     Some(orig_func) => {
                         debug!(target: "shinqlx", "{}: {:#X}", ql_func, orig_func);
-                        field.store(orig_func, Ordering::SeqCst);
+                        field.store(orig_func, Ordering::Release);
                         None
                     }
                 },
@@ -228,7 +228,7 @@ impl VmFunctions {
                 )
             };
             let vm_call_table = base_address as usize + module_offset + OFFSET_VM_CALL_TABLE + 4;
-            self.vm_call_table.store(vm_call_table, Ordering::SeqCst);
+            self.vm_call_table.store(vm_call_table, Ordering::Release);
 
             let g_initgame_orig = unsafe {
                 ptr::read(
@@ -238,20 +238,20 @@ impl VmFunctions {
             };
             debug!(target: "shinqlx", "G_InitGame: {:#X}", g_initgame_orig as usize);
             self.g_init_game_orig
-                .store(g_initgame_orig as usize, Ordering::SeqCst);
+                .store(g_initgame_orig as usize, Ordering::Release);
 
             let g_shutdowngame_orig =
                 unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
             debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
             self.g_shutdown_game_orig
-                .store(g_shutdowngame_orig as usize, Ordering::SeqCst);
+                .store(g_shutdowngame_orig as usize, Ordering::Relase);
 
             let g_runframe_orig = unsafe {
                 ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
             };
             debug!(target: "shinqlx", "G_RunFrame: {:#X}", g_runframe_orig as usize);
             self.g_run_frame_orig
-                .store(g_runframe_orig as usize, Ordering::SeqCst);
+                .store(g_runframe_orig as usize, Ordering::Release);
 
             Ok(())
         }
@@ -268,7 +268,7 @@ impl VmFunctions {
      * PROTIP: If you can, ALWAYS use VM_Call table hooks instead of using Hook().
      */
     pub(crate) fn hook(&self) -> Result<(), QuakeLiveEngineError> {
-        let vm_call_table = self.vm_call_table.load(Ordering::SeqCst);
+        let vm_call_table = self.vm_call_table.load(Ordering::Acquire);
 
         debug!(target: "shinqlx", "Hooking VM functions...");
         unsafe {
@@ -289,7 +289,7 @@ impl VmFunctions {
             ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
         }
 
-        let client_connect_orig = self.client_connect_orig.load(Ordering::SeqCst);
+        let client_connect_orig = self.client_connect_orig.load(Ordering::Acquire);
         let client_connect_func = unsafe {
             mem::transmute::<usize, extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>(
                 client_connect_orig,
@@ -305,9 +305,16 @@ impl VmFunctions {
         })?;
 
         self.client_connect_detour
-            .store(Some(client_connect_detour.into()));
+            .swap(Some(client_connect_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling client_conect detour: {}", e);
+                }
+            });
 
-        let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::SeqCst);
+        let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::Acquire);
         let g_start_kamikaze_func = unsafe {
             mem::transmute::<usize, extern "C" fn(*mut gentity_s)>(g_start_kamikaze_orig)
         };
@@ -322,9 +329,16 @@ impl VmFunctions {
         })?;
 
         self.g_start_kamikaze_detour
-            .store(Some(g_start_kamikaze_detour.into()));
+            .swap(Some(g_start_kamikaze_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {}", e);
+                }
+            });
 
-        let client_spawn_orig = self.client_spawn_orig.load(Ordering::SeqCst);
+        let client_spawn_orig = self.client_spawn_orig.load(Ordering::Acquire);
         let client_spawn_func =
             unsafe { mem::transmute::<usize, extern "C" fn(*mut gentity_s)>(client_spawn_orig) };
         let client_spawn_detour =
@@ -336,9 +350,16 @@ impl VmFunctions {
         })?;
 
         self.client_spawn_detour
-            .store(Some(client_spawn_detour.into()));
+            .swap(Some(client_spawn_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling client_spawn detour: {}", e);
+                }
+            });
 
-        let g_damage_orig = self.g_damage_orig.load(Ordering::SeqCst);
+        let g_damage_orig = self.g_damage_orig.load(Ordering::Acquire);
         let g_damage_func = unsafe {
             mem::transmute::<
                 usize,
@@ -362,7 +383,15 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
         })?;
 
-        self.g_damage_detour.store(Some(g_damage_detour.into()));
+        self.g_damage_detour
+            .swap(Some(g_damage_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .iter()
+            .for_each(|detour| {
+                if let Err(e) = unsafe { detour.disable() } {
+                    error!(target: "shinqlx", "error when disabling damage detour: {}", e);
+                }
+            });
 
         Ok(())
     }
@@ -370,7 +399,7 @@ impl VmFunctions {
     #[cfg(feature = "patches")]
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn patch(&self) {
-        let cmd_callvote_f_orig = self.cmd_callvote_f_orig.load(Ordering::SeqCst);
+        let cmd_callvote_f_orig = self.cmd_callvote_f_orig.load(Ordering::Acquire);
         if cmd_callvote_f_orig == 0 {
             return;
         }
@@ -398,7 +427,7 @@ impl VmFunctions {
         ]
         .iter()
         .for_each(|field| {
-            field.store(0, Ordering::SeqCst);
+            field.store(0, Ordering::Release);
         });
 
         self.client_connect_detour
@@ -407,7 +436,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling client_connect detour: {}", e);
                 }
             });
 
@@ -417,7 +446,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {}", e);
                 }
             });
 
@@ -427,7 +456,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling client_spawn detour: {}", e);
                 }
             });
 
@@ -437,14 +466,14 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling damage detour: {}", e);
                 }
             });
     }
 }
 
 #[cfg(test)]
-mod vm_functios_tests {
+mod vm_functions_tests {
     use super::{
         ClientConnectDetourType, ClientSpawnDetourType, GDamageDetourType,
         GStartKamikazeDetourType, VmFunctions,
@@ -489,19 +518,25 @@ mod vm_functios_tests {
 
         vm_functions.unhook();
 
-        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.check_privileges_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.g_start_kamikaze_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::Acquire), 0);
 
         assert!(vm_functions.client_connect_detour.load().is_none());
         assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
@@ -530,19 +565,25 @@ mod vm_functios_tests {
 
         vm_functions.unhook();
 
-        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.check_privileges_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.g_start_kamikaze_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::Acquire), 0);
 
         assert!(vm_functions.client_connect_detour.load().is_none());
         assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
@@ -596,19 +637,25 @@ mod vm_functios_tests {
 
         vm_functions.unhook();
 
-        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.check_privileges_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.g_start_kamikaze_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::Acquire), 0);
 
         assert!(vm_functions.client_connect_detour.load().is_none());
         assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
@@ -666,19 +713,25 @@ mod vm_functios_tests {
 
         vm_functions.unhook();
 
-        assert_eq!(vm_functions.vm_call_table.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.check_privileges_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_connect_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_damage_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.touch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.launch_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.drop_item_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_start_kamikaze_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::SeqCst), 0);
-        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::SeqCst), 0);
+        assert_eq!(vm_functions.vm_call_table.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_addevent_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.check_privileges_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.client_connect_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.client_spawn_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_damage_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.touch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.launch_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.drop_item_orig.load(Ordering::Acquire), 0);
+        assert_eq!(
+            vm_functions.g_start_kamikaze_orig.load(Ordering::Acquire),
+            0
+        );
+        assert_eq!(vm_functions.g_free_entity_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_init_game_orig.load(Ordering::Acquire), 0);
+        assert_eq!(vm_functions.g_run_frame_orig.load(Ordering::Acquire), 0);
 
         assert!(vm_functions.client_connect_detour.load().is_none());
         assert!(vm_functions.g_start_kamikaze_detour.load().is_none());
@@ -1068,12 +1121,12 @@ impl QuakeLiveEngine {
             .iter()
             .for_each(|maxclients| {
                 self.sv_maxclients
-                    .store(maxclients.get_integer(), Ordering::SeqCst);
+                    .store(maxclients.get_integer(), Ordering::Release);
             })
     }
 
     pub(crate) fn get_max_clients(&self) -> i32 {
-        self.sv_maxclients.load(Ordering::SeqCst)
+        self.sv_maxclients.load(Ordering::Acquire)
     }
 
     // Currently called by My_Cmd_AddCommand(), since it's called at a point where we
@@ -1109,7 +1162,7 @@ impl QuakeLiveEngine {
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError> {
         self.vm_functions.try_initialize_from(module_offset)?;
-        self.current_vm.store(module_offset, Ordering::SeqCst);
+        self.current_vm.store(module_offset, Ordering::Release);
 
         self.vm_functions.hook()?;
         #[cfg(feature = "patches")]
@@ -1491,7 +1544,7 @@ impl QuakeLiveEngine {
     pub(crate) fn g_init_game_orig(
         &self,
     ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError> {
-        match self.vm_functions.g_init_game_orig.load(Ordering::SeqCst) {
+        match self.vm_functions.g_init_game_orig.load(Ordering::Acquire) {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_InitGame,
             )),
@@ -1508,7 +1561,7 @@ impl QuakeLiveEngine {
         match self
             .vm_functions
             .g_shutdown_game_orig
-            .load(Ordering::SeqCst)
+            .load(Ordering::Acquire)
         {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_ShutdownGame,
@@ -1522,7 +1575,7 @@ impl QuakeLiveEngine {
     }
 
     pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError> {
-        match self.vm_functions.g_run_frame_orig.load(Ordering::SeqCst) {
+        match self.vm_functions.g_run_frame_orig.load(Ordering::Acquire) {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_RunFrame,
             )),
@@ -1537,7 +1590,7 @@ impl QuakeLiveEngine {
     fn g_addevent_orig(
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, entity_event_t, c_int), QuakeLiveEngineError> {
-        match self.vm_functions.g_addevent_orig.load(Ordering::SeqCst) {
+        match self.vm_functions.g_addevent_orig.load(Ordering::Acquire) {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_AddEvent,
             )),
@@ -1555,7 +1608,7 @@ impl QuakeLiveEngine {
     pub(crate) fn g_free_entity_orig(
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError> {
-        match self.vm_functions.g_free_entity_orig.load(Ordering::SeqCst) {
+        match self.vm_functions.g_free_entity_orig.load(Ordering::Acquire) {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::G_FreeEntity,
             )),
@@ -1575,7 +1628,7 @@ impl QuakeLiveEngine {
         extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
         QuakeLiveEngineError,
     > {
-        match self.vm_functions.launch_item_orig.load(Ordering::SeqCst) {
+        match self.vm_functions.launch_item_orig.load(Ordering::Acquire) {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::LaunchItem,
             )),
@@ -1596,7 +1649,7 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
     {
-        match self.vm_functions.touch_item_orig.load(Ordering::SeqCst) {
+        match self.vm_functions.touch_item_orig.load(Ordering::Acquire) {
             0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
                 QuakeLiveFunction::Touch_Item,
             )),
@@ -1801,7 +1854,7 @@ mod quake_live_engine_tests {
 
         quake_engine.initialize_cvars();
 
-        assert_eq!(quake_engine.sv_maxclients.load(Ordering::SeqCst), 0);
+        assert_eq!(quake_engine.sv_maxclients.load(Ordering::Acquire), 0);
     }
 
     #[test]
@@ -1830,14 +1883,14 @@ mod quake_live_engine_tests {
 
         quake_engine.initialize_cvars();
 
-        assert_eq!(quake_engine.sv_maxclients.load(Ordering::SeqCst), 16);
+        assert_eq!(quake_engine.sv_maxclients.load(Ordering::Acquire), 16);
     }
 
     #[test]
     fn get_maxclients_returns_stored_value() {
         let quake_engine = default_quake_engine();
 
-        quake_engine.sv_maxclients.store(42, Ordering::SeqCst);
+        quake_engine.sv_maxclients.store(42, Ordering::Release);
 
         assert_eq!(quake_engine.get_max_clients(), 42);
     }
@@ -2021,7 +2074,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::SeqCst);
+            .store(G_InitGame as usize, Ordering::Release);
 
         quake_engine.unhook_vm(true);
         assert!(
@@ -2040,7 +2093,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::SeqCst);
+            .store(G_InitGame as usize, Ordering::Release);
 
         quake_engine.unhook_vm(false);
         assert!(
@@ -2863,7 +2916,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::SeqCst);
+            .store(G_InitGame as usize, Ordering::Release);
 
         let result = quake_engine.g_init_game_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -2888,7 +2941,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_shutdown_game_orig
-            .store(G_ShutdownGame as usize, Ordering::SeqCst);
+            .store(G_ShutdownGame as usize, Ordering::Release);
 
         let result = quake_engine.g_shutdown_game_orig();
         assert!(
@@ -2914,7 +2967,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_run_frame_orig
-            .store(G_RunFrame as usize, Ordering::SeqCst);
+            .store(G_RunFrame as usize, Ordering::Release);
 
         let result = quake_engine.g_run_frame_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(func, G_RunFrame as extern "C" fn(c_int))));
@@ -2938,7 +2991,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_addevent_orig
-            .store(G_AddEvent as usize, Ordering::SeqCst);
+            .store(G_AddEvent as usize, Ordering::Release);
 
         let result = quake_engine.g_addevent_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -2965,7 +3018,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_free_entity_orig
-            .store(G_FreeEntity as usize, Ordering::SeqCst);
+            .store(G_FreeEntity as usize, Ordering::Release);
 
         let result = quake_engine.g_free_entity_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -2992,7 +3045,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .launch_item_orig
-            .store(LaunchItem as usize, Ordering::SeqCst);
+            .store(LaunchItem as usize, Ordering::Release);
 
         let result = quake_engine.launch_item_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -3363,7 +3416,7 @@ mod init_game_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::SeqCst);
+            .store(G_InitGame as usize, Ordering::Release);
 
         quake_engine.init_game(42, 21, 1);
     }
@@ -3418,7 +3471,7 @@ mod shutdown_game_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_shutdown_game_orig
-            .store(G_ShutdownGame as usize, Ordering::SeqCst);
+            .store(G_ShutdownGame as usize, Ordering::Release);
 
         quake_engine.shutdown_game(1);
     }
@@ -3883,7 +3936,7 @@ mod run_frame_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_run_frame_orig
-            .store(G_RunFrame as usize, Ordering::SeqCst);
+            .store(G_RunFrame as usize, Ordering::Release);
 
         quake_engine.run_frame(42);
     }
@@ -4327,7 +4380,7 @@ mod game_add_event_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_addevent_orig
-            .store(G_AddEvent as usize, Ordering::SeqCst);
+            .store(G_AddEvent as usize, Ordering::Release);
 
         quake_engine.game_add_event(mock_game_entity, entity_event_t::EV_KAMIKAZE, 42);
     }
@@ -4997,7 +5050,7 @@ mod free_entity_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_free_entity_orig
-            .store(G_FreeEntity as usize, Ordering::SeqCst);
+            .store(G_FreeEntity as usize, Ordering::Release);
 
         quake_engine.free_entity(mock_gentity.borrow_mut());
     }
@@ -5098,7 +5151,7 @@ mod try_launch_item_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .launch_item_orig
-            .store(LaunchItem as usize, Ordering::SeqCst);
+            .store(LaunchItem as usize, Ordering::Release);
 
         let result =
             quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
@@ -5148,7 +5201,7 @@ mod try_launch_item_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .launch_item_orig
-            .store(LaunchItem as usize, Ordering::SeqCst);
+            .store(LaunchItem as usize, Ordering::Release);
 
         let result =
             quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
@@ -5614,8 +5667,8 @@ impl Default for MockEngineBuilder {
 }
 
 #[cfg(test)]
-#[mockall::automock]
-#[allow(dead_code)]
+#[cfg_attr(test, mockall::automock)]
+#[cfg_attr(test, allow(dead_code))]
 mod quake_functions {
     use crate::ffi::c::prelude::{
         cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t,

@@ -14,7 +14,7 @@ pub(crate) fn pyshinqlx_player_info(
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+        let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok();
 
@@ -135,7 +135,7 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_non_allowed_free_client(_pyshinqlx_setup: ()) {
-        ALLOW_FREE_CLIENT.store(0, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(0, Ordering::Release);
 
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
@@ -160,7 +160,7 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_allowed_free_client(_pyshinqlx_setup: ()) {
-        ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(1 << 2, Ordering::Release);
 
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
