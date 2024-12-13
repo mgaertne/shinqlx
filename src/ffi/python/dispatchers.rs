@@ -90,7 +90,6 @@ pub(crate) fn frame_dispatcher() {
     });
 }
 
-#[allow(clippy::question_mark)]
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
     if !pyshinqlx_is_initialized() {
         return None;
@@ -101,9 +100,9 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         .as_ref()
         .map(|client_connect_handler| {
             {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
                 ALLOW_FREE_CLIENT
-                    .store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
+                    .store(allowed_clients | (1 << client_id as u64), Ordering::Release);
             }
 
             let result = Python::with_gil(|py| {
@@ -127,9 +126,11 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
             });
 
             {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-                ALLOW_FREE_CLIENT
-                    .store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+                ALLOW_FREE_CLIENT.store(
+                    allowed_clients & !(1 << client_id as u64),
+                    Ordering::Release,
+                );
             }
             result
         })
@@ -149,9 +150,9 @@ where
         .iter()
         .for_each(|client_disconnect_handler| {
             {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
                 ALLOW_FREE_CLIENT
-                    .store(allowed_clients | (1 << client_id as u64), Ordering::SeqCst);
+                    .store(allowed_clients | (1 << client_id as u64), Ordering::Release);
             }
 
             let result = Python::with_gil(|py| {
@@ -162,9 +163,11 @@ where
             }
 
             {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
-                ALLOW_FREE_CLIENT
-                    .store(allowed_clients & !(1 << client_id as u64), Ordering::SeqCst);
+                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+                ALLOW_FREE_CLIENT.store(
+                    allowed_clients & !(1 << client_id as u64),
+                    Ordering::Release,
+                );
             }
         });
 }
