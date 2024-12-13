@@ -93,7 +93,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::Release);
+        ALLOW_FREE_CLIENT.store(
+            allowed_clients & !(1 << client_id as u64),
+            Ordering::Release,
+        );
     }
 
     returned
@@ -118,7 +121,10 @@ where
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-        ALLOW_FREE_CLIENT.store(allowed_clients & !(1 << client_id as u64), Ordering::Release);
+        ALLOW_FREE_CLIENT.store(
+            allowed_clients & !(1 << client_id as u64),
+            Ordering::Release,
+        );
     }
 }
 
