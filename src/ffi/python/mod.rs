@@ -78,6 +78,7 @@ use arc_swap::ArcSwapOption;
 use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use log::*;
 use once_cell::sync::Lazy;
+use pyo3::ffi::Py_IsInitialized;
 use pyo3::{append_to_inittab, intern, prepare_freethreaded_python};
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -308,18 +309,16 @@ fn pyshinqlx_module(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 pub(crate) static PYSHINQLX_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn pyshinqlx_is_initialized() -> bool {
-    PYSHINQLX_INITIALIZED.load(Ordering::SeqCst)
+    PYSHINQLX_INITIALIZED.load(Ordering::Acquire)
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub(crate) enum PythonInitializationError {
     MainScriptError,
-    #[cfg_attr(test, allow(dead_code))]
     AlreadyInitialized,
     NotInitializedError,
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyshinqlx_is_initialized() {
         error!(target: "shinqlx", "pyshinqlx_initialize was called while already initialized");
@@ -327,25 +326,23 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     }
 
     debug!(target: "shinqlx", "Initializing Python...");
-    append_to_inittab!(pyshinqlx_module);
+    if unsafe { Py_IsInitialized() } == 0 {
+        append_to_inittab!(pyshinqlx_module);
+    }
     prepare_freethreaded_python();
-    let init_result = Python::with_gil(|py| {
-        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
-        shinqlx_module.call_method0("initialize")?;
-        Ok::<(), PyErr>(())
-    });
-    match init_result {
-        Err(e) => {
-            error!(target: "shinqlx", "{:?}", e);
+    Python::with_gil(|py| {
+        py.import(intern!(py, "shinqlx")).and_then(|shinqlx_module| {
+            shinqlx_module.call_method0(intern!(py, "initialize"))
+        }).map_or_else(|err| {
+            error!(target: "shinqlx", "{:?}", err);
             error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
             Err(PythonInitializationError::MainScriptError)
-        }
-        Ok(_) => {
-            PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-            debug!(target: "shinqlx", "Python initialized!");
-            Ok(())
-        }
-    }
+        }, |_| {
+                PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
+                debug!(target: "shinqlx", "Python initialized!");
+                Ok(())
+            })
+    })
 }
 
 #[cfg_attr(test, allow(dead_code))]
@@ -375,28 +372,176 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     .iter()
     .for_each(|&handler_lock| handler_lock.store(None));
 
-    let reinit_result = Python::with_gil(|py| {
-        let importlib_module = py.import("importlib")?;
-        let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
-        let new_shinqlx_module = importlib_module.call_method1("reload", (shinqlx_module,))?;
-        new_shinqlx_module.call_method0("initialize")?;
-        Ok::<(), PyErr>(())
-    });
-    match reinit_result {
-        Err(_) => {
-            PYSHINQLX_INITIALIZED.store(false, Ordering::SeqCst);
-            Err(PythonInitializationError::MainScriptError)
-        }
-        Ok(()) => {
-            PYSHINQLX_INITIALIZED.store(true, Ordering::SeqCst);
-            Ok(())
-        }
+    Python::with_gil(|py| {
+        py.import(intern!(py, "importlib"))
+            .and_then(|importlib_module| {
+                let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+                importlib_module
+                    .call_method1(intern!(py, "reload"), (shinqlx_module,))?
+                    .call_method0(intern!(py, "initialize"))
+            })
+            .map_or_else(
+                |_| {
+                    PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
+                    Err(PythonInitializationError::MainScriptError)
+                },
+                |_| {
+                    PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
+                    Ok(())
+                },
+            )
+    })
+}
+
+#[cfg(test)]
+mod pyshinqlx_tests {
+    use super::{
+        PYSHINQLX_INITIALIZED, PythonInitializationError, prelude::*, pyshinqlx_initialize,
+        pyshinqlx_reload,
+    };
+
+    use crate::prelude::*;
+
+    use core::sync::atomic::Ordering;
+
+    use pretty_assertions::assert_eq;
+    use rstest::rstest;
+
+    #[test]
+    #[serial]
+    fn initialize_when_python_already_initialized() {
+        PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
+
+        let result = pyshinqlx_initialize();
+
+        assert!(result.is_err_and(|err| err == PythonInitializationError::AlreadyInitialized));
+        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), true);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn initialize_when_python_init_fails() {
+        PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
+
+        let _shinqlx_module = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                cr#"""
+def initialize():
+    raise ValueError
+"""#,
+                c"shinqlx.py",
+                c"shinqlx",
+            )
+            .expect("this should not happen")
+            .unbind()
+        });
+
+        let result = pyshinqlx_initialize();
+
+        assert!(result.is_err_and(|err| err == PythonInitializationError::MainScriptError));
+        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn initialize_when_python_init_succeeds(_pyshinqlx_setup: ()) {
+        PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
+
+        let _shinqlx_module = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                cr#"""
+def initialize():
+    pass
+"""#,
+                c"shinqlx.py",
+                c"shinqlx",
+            )
+            .expect("this should not happen")
+            .unbind()
+        });
+
+        let result = pyshinqlx_initialize();
+
+        assert!(result.is_ok());
+        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), true);
+    }
+
+    #[test]
+    #[serial]
+    fn reload_when_python_not_initialized() {
+        PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
+
+        let result = pyshinqlx_reload();
+
+        assert!(result.is_err_and(|err| err == PythonInitializationError::NotInitializedError));
+        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn reload_resets_handlers(_pyshinqlx_setup: ()) {
+        PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
+
+        let _ = pyshinqlx_reload();
+
+        assert!(
+            [
+                &CLIENT_COMMAND_HANDLER,
+                &SERVER_COMMAND_HANDLER,
+                &FRAME_HANDLER,
+                &PLAYER_CONNECT_HANDLER,
+                &PLAYER_LOADED_HANDLER,
+                &PLAYER_DISCONNECT_HANDLER,
+                &CUSTOM_COMMAND_HANDLER,
+                &NEW_GAME_HANDLER,
+                &SET_CONFIGSTRING_HANDLER,
+                &RCON_HANDLER,
+                &CONSOLE_PRINT_HANDLER,
+                &PLAYER_SPAWN_HANDLER,
+                &KAMIKAZE_USE_HANDLER,
+                &KAMIKAZE_EXPLODE_HANDLER,
+                &DAMAGE_HANDLER,
+            ]
+            .iter()
+            .all(|handler| handler.load().is_none())
+        );
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn reload_when_init_fails(_pyshinqlx_setup: ()) {
+        PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
+
+        let _shinqlx_module = Python::with_gil(|py| {
+            PyModule::from_code(
+                py,
+                cr#"""
+def initialize():
+    raise ValueError
+"""#,
+                c"shinqlx.py",
+                c"shinqlx",
+            )
+            .expect("this should not happen")
+            .unbind()
+        });
+
+        let result = pyshinqlx_reload();
+
+        assert!(result.is_err_and(|err| err == PythonInitializationError::MainScriptError));
+        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
     }
 }
 
 #[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
-#[allow(dead_code)]
+#[cfg_attr(test, allow(dead_code))]
 pub(crate) mod python_tests {
     use super::PythonInitializationError;
 
