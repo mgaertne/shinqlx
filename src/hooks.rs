@@ -52,7 +52,6 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.init_game(level_time, random_seed, restart);
@@ -66,7 +65,6 @@ pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart:
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.unhook_vm(restart != 0);
@@ -74,7 +72,6 @@ pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) extern "C" fn shinqlx_sv_executeclientcommand(
     client: *mut client_t,
     cmd: *const c_char,
@@ -254,7 +251,6 @@ where
     });
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) extern "C" fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
     Client::try_from(client).iter_mut().for_each(|safe_client| {
         shinqlx_drop_client(
@@ -386,7 +382,6 @@ pub(crate) extern "C" fn shinqlx_client_connect(
         })
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) extern "C" fn shinqlx_clientspawn(ent: *mut gentity_t) {
     GameEntity::try_from(ent)
         .ok()
@@ -394,7 +389,6 @@ pub(crate) extern "C" fn shinqlx_clientspawn(ent: *mut gentity_t) {
         .for_each(shinqlx_client_spawn);
 }
 
-#[cfg_attr(test, allow(dead_code))]
 pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.client_spawn(game_entity.borrow_mut());
@@ -498,7 +492,7 @@ pub(crate) extern "C" fn shinqlx_g_damage(
 
 #[cfg(test)]
 #[cfg_attr(test, mockall::automock)]
-#[allow(dead_code)]
+#[cfg_attr(test, allow(dead_code))]
 #[allow(clippy::module_inception)]
 pub(crate) mod hooks {
     use super::Client;
