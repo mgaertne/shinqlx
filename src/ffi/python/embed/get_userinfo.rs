@@ -12,7 +12,7 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
 
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let opt_client = Client::try_from(client_id).ok().filter(|client| {
-            let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::SeqCst);
+            let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
             client.get_state() != clientState_t::CS_FREE
                 || allowed_free_clients & (1 << client_id as u64) != 0
         });
@@ -95,7 +95,7 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_non_allowed_free_client(_pyshinqlx_setup: ()) {
-        ALLOW_FREE_CLIENT.store(0, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(0, Ordering::Release);
 
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
@@ -119,7 +119,7 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_for_allowed_free_client(_pyshinqlx_setup: ()) {
-        ALLOW_FREE_CLIENT.store(1 << 2, Ordering::SeqCst);
+        ALLOW_FREE_CLIENT.store(1 << 2, Ordering::Release);
 
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx.expect().returning(|_client_id| {
