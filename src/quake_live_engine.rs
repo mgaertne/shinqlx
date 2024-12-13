@@ -244,7 +244,7 @@ impl VmFunctions {
                 unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
             debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
             self.g_shutdown_game_orig
-                .store(g_shutdowngame_orig as usize, Ordering::Relase);
+                .store(g_shutdowngame_orig as usize, Ordering::Release);
 
             let g_runframe_orig = unsafe {
                 ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
