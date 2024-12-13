@@ -124,14 +124,14 @@ impl Display for QuakeLiveFunction {
             QuakeLiveFunction::ClientSpawn => f.write_str("ClientSpawn"),
             QuakeLiveFunction::G_Damage => f.write_str("G_Damage"),
             QuakeLiveFunction::G_AddEvent => f.write_str("G_AddEvent"),
-            #[cfg(test)]
+            #[cfg(any(target_os = "linux", test))]
             QuakeLiveFunction::CheckPrivileges => f.write_str("CheckPrivileges"),
             QuakeLiveFunction::Touch_Item => f.write_str("Touch_Item"),
             QuakeLiveFunction::LaunchItem => f.write_str("LaunchItem"),
-            #[cfg(test)]
+            #[cfg(any(target_os = "linux", test))]
             QuakeLiveFunction::Drop_Item => f.write_str("Drop_Item"),
             QuakeLiveFunction::G_FreeEntity => f.write_str("G_FreeEntity"),
-            #[cfg(any(feature = "patches", test))]
+            #[cfg(any(target_os = "linux", test))]
             QuakeLiveFunction::Cmd_Callvote_f => f.write_str("Cmd_Callvote_f"),
         }
     }
