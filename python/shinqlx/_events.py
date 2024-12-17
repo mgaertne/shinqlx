@@ -1,4 +1,5 @@
 import re
+from contextlib import ExitStack, suppress
 
 import shinqlx
 
@@ -110,7 +111,10 @@ class EventDispatcher:
             for plugin_name, plugin in plugins.items():
                 for handler in plugin[i]:
                     # noinspection PyBroadException
-                    try:
+                    with ExitStack() as stack:
+                        stack.enter_context(suppress(BaseException))
+                        stack.enter_context(shinqlx.ExceptionLogging(plugin_name))
+
                         res = handler(*self.args, **self.kwargs)
                         if res == shinqlx.RET_NONE or res is None:
                             continue
@@ -125,9 +129,6 @@ class EventDispatcher:
                         return_handler = self.handle_return(handler, res)
                         if return_handler is not None:
                             return return_handler
-                    except:  # noqa: E722
-                        shinqlx.log_exception(plugin_name)
-                        continue
 
         return self.return_value
 

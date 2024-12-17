@@ -40,8 +40,8 @@ class Game:
             self._valid = False
             raise NonexistentGameError("Invalid game. Is the server loading a new map?")
 
-        cvars = shinqlx.parse_variables(cs)
-        return key in cvars
+        _cvars = shinqlx.parse_variables(cs)
+        return key in _cvars
 
     def __getitem__(self, key):
         cs = shinqlx.get_configstring(0)
@@ -49,8 +49,8 @@ class Game:
             self._valid = False
             raise NonexistentGameError("Invalid game. Is the server loading a new map?")
 
-        cvars = shinqlx.parse_variables(cs)
-        return cvars[key]
+        _cvars = shinqlx.parse_variables(cs)
+        return _cvars[key]
 
     @property
     def cvars(self):

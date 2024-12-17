@@ -1,8 +1,12 @@
 from typing import TYPE_CHECKING
 from threading import Thread
 
+from zmq.decorators import context
+
 if TYPE_CHECKING:
     from typing import TypedDict
+    from zmq import Context
+
     from shinqlx import StatsData, GameStartData, GameEndData, RoundEndData, DeathData
 
 TeamSwitchPlayerData = TypedDict(
@@ -36,4 +40,6 @@ class StatsListener(Thread):
 
     def keep_receiving(self) -> None: ...
     def run(self) -> None: ...
+    @context()
+    async def run_async(self, ctx: Context) -> None: ...
     def stop(self) -> None: ...
