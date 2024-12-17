@@ -183,13 +183,16 @@ def handle_server_command(client_id, cmd):
     # noinspection PyBroadException
     try:
         # Dispatch the "server_command" event before further processing.
-        try:
-            player = (
-                shinqlx.Player(client_id)
-                if client_id is not None and client_id >= 0
-                else None
-            )
-        except shinqlx.NonexistentPlayerError:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+        player = (
+            shinqlx.Player(client_id, player_info) if player_info is not None else None
+        )
+
+        if player is None:
             return True
 
         retval = shinqlx.EVENT_DISPATCHERS["server_command"].dispatch(player, cmd)
@@ -352,11 +355,12 @@ def handle_set_configstring(index, value):
                         return
                     # round cvar appears only on round countdown
                     # and first round is 0, not 1
-                    try:
-                        round_number = int(cvars["round"]) * 2 + 1 + int(cvars["turn"])
-                        _ad_round_number = round_number
-                    except KeyError:
-                        round_number = _ad_round_number
+                    round_number = (
+                        int(cvars["round"]) * 2 + 1 + int(cvars["turn"])
+                        if "round" in cvars
+                        else _ad_round_number
+                    )
+                    _ad_round_number = round_number
                 else:
                     # it is CA
                     round_number = int(cvars["round"])

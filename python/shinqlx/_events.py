@@ -38,7 +38,6 @@ class EventDispatcher:
     need_zmq_stats_enabled = False
 
     def __init__(self):
-        self.name: str
         self.plugins = {}
         self._args = None
         self._kwargs = None
