@@ -144,12 +144,9 @@ class Player:
         """The clan tag. Not actually supported by QL, but it used to be and
         fortunately the scoreboard still properly displays it if we manually
         set the configstring to use clan tags."""
-        try:
-            return shinqlx.parse_variables(shinqlx.get_configstring(529 + self._id))[
-                "cn"
-            ]
-        except KeyError:
-            return ""
+        return shinqlx.parse_variables(shinqlx.get_configstring(529 + self._id)).get(
+            "cn", ""
+        )
 
     # noinspection PyUnresolvedReferences
     @clan.setter

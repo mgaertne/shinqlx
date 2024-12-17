@@ -1,5 +1,3 @@
-from typing import ClassVar, Dict
-
 import shinqlx
 
 
@@ -27,7 +25,7 @@ class Plugin:
     """
 
     # Static dictionary of plugins currently loaded for the purpose of inter-plugin communication.
-    _loaded_plugins: ClassVar[Dict[str, "shinqlx.Plugin"]] = {}
+    _loaded_plugins = {}
     # The database driver class the plugin should use.
     database = None
 
@@ -79,10 +77,8 @@ class Plugin:
     @property
     def game(self):
         """A Game instance."""
-        try:
-            return shinqlx.Game()
-        except shinqlx.NonexistentGameError:
-            return None
+        cs = shinqlx.get_configstring(0)
+        return shinqlx.Game() if cs else None
 
     @property
     def logger(self):

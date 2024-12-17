@@ -46,7 +46,9 @@ def dispatch_player_death_event(data):
     if not data["KILLER"]:
         killer = None
     else:
+        # noinspection PyTypeChecker
         sid_killer = int(data["KILLER"]["STEAM_ID"])
+        # noinspection PyTypeChecker
         killer = (
             shinqlx.Plugin.player(sid_killer)
             if sid_killer
@@ -121,18 +123,20 @@ class StatsListener(Thread):
                     stats = json.loads(receiver.recv().decode(errors="replace"))
                     dispatch_stats_event(stats)
 
-                    if stats["TYPE"] == "MATCH_STARTED":
+                    event_type = stats["TYPE"]
+
+                    if event_type == "MATCH_STARTED":
                         self._in_progress = True
                         dispatch_game_start_event(stats["DATA"])
-                    elif stats["TYPE"] == "ROUND_OVER":
+                    elif event_type == "ROUND_OVER":
                         dispatch_round_end_event(stats["DATA"])
-                    elif stats["TYPE"] == "MATCH_REPORT":
+                    elif event_type == "MATCH_REPORT":
                         if self._in_progress:
                             dispatch_game_end_event(stats["DATA"])
                         self._in_progress = False
-                    elif stats["TYPE"] == "PLAYER_DEATH":
+                    elif event_type == "PLAYER_DEATH":
                         dispatch_player_death_event(stats["DATA"])
-                    elif stats["TYPE"] == "PLAYER_SWITCHTEAM":
+                    elif event_type == "PLAYER_SWITCHTEAM":
                         dispatch_team_switch_event(stats["DATA"])
 
     def stop(self):

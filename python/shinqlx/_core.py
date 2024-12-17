@@ -111,13 +111,15 @@ def parse_variables(varstr, ordered=False):
         return res
 
     _vars = varstr.lstrip("\\").split("\\")
-    try:
-        for i in range(0, len(_vars), 2):
-            res[_vars[i]] = _vars[i + 1]
-    except IndexError:
+
+    if len(_vars) % 2 != 0:
         # Log and return incomplete dict.
         logger = shinqlx.get_logger()
         logger.warning("Uneven number of keys and values: %s", varstr)
+        _vars.pop()
+
+    for i in range(0, len(_vars), 2):
+        res[_vars[i]] = _vars[i + 1]
 
     return res
 
@@ -226,20 +228,20 @@ def uptime():
 def owner():
     """Returns the SteamID64 of the owner. This is set in the config."""
     # noinspection PyBroadException
-    try:
-        owner_cvar = shinqlx.get_cvar("qlx_owner")
-        if owner_cvar is None:
-            raise RuntimeError
-        sid = int(owner_cvar)
-        if sid == -1:
-            raise RuntimeError
-        return sid
-    except:  # noqa: E722
-        logger = shinqlx.get_logger()
+    logger = shinqlx.get_logger()
+    owner_cvar = shinqlx.get_cvar("qlx_owner")
+    if owner_cvar is None or not owner_cvar.isdigit():
         logger.error(
             "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format."
         )
-    return None
+        return None
+    sid = int(owner_cvar)
+    if sid == -1:
+        logger.error(
+            "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format."
+        )
+        return None
+    return sid
 
 
 _stats = None

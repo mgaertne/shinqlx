@@ -23,15 +23,15 @@ class Game:
             )
 
     def __repr__(self):
-        try:
+        if self._valid:
             return f"{self.__class__.__name__}({self.type}@{self.map})"
-        except NonexistentGameError:
+        else:
             return f"{self.__class__.__name__}(N/A@N/A)"
 
     def __str__(self):
-        try:
+        if self._valid:
             return f"{self.type} on {self.map}"
-        except NonexistentGameError:
+        else:
             return "Invalid game"
 
     def __contains__(self, key):
