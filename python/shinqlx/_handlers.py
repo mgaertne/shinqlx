@@ -184,7 +184,11 @@ def handle_server_command(client_id, cmd):
     try:
         # Dispatch the "server_command" event before further processing.
         try:
-            player = shinqlx.Player(client_id) if client_id >= 0 else None
+            player = (
+                shinqlx.Player(client_id)
+                if client_id is not None and client_id >= 0
+                else None
+            )
         except shinqlx.NonexistentPlayerError:
             return True
 
