@@ -13,7 +13,7 @@ classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["setuptools>=61.2", "redis>=5.0", "hiredis", "pyzmq>=23"]
+dependencies = ["setuptools>=61.2", "redis>=5.0", "hiredis>=3.0", "pyzmq>=23"]
 
 [project.optional-dependencies]
 ruff = [ "ruff>=0.2" ]
