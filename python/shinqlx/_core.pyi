@@ -1,4 +1,3 @@
-from contextlib import AbstractContextManager
 from typing import Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -29,31 +28,6 @@ _stats: StatsListener
 _thread_count: int
 _thread_name: str
 _modules: dict[str, ModuleType]
-
-class ExceptionLogging(AbstractContextManager):
-    def __init__(self, plugin: Plugin | str | None = ...) -> None:
-        self.plugin: Plugin | str | None = ...
-        ...
-
-    def __exit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        exc_traceback: TracebackType | None,
-    ) -> None: ...
-
-class ExceptionCatcher(AbstractContextManager):
-    def __init__(self) -> None:
-        self._exception_caught: bool = ...
-        ...
-
-    def __exit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        exc_traceback: TracebackType | None,
-    ) -> None: ...
-    def is_exception_caught(self) -> bool: ...
 
 def parse_variables(varstr: str, ordered: bool = False) -> dict[str, str]: ...
 def get_logger(plugin: Plugin | str | None = ...) -> Logger: ...
