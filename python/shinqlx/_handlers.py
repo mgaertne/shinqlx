@@ -52,10 +52,21 @@ def handle_client_command(client_id, cmd):
     :type: cmd: str
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
         # Dispatch the "client_command" event before further processing.
-        player = shinqlx.Player(client_id)
         retval = shinqlx.EVENT_DISPATCHERS["client_command"].dispatch(player, cmd)
         if retval is False:
             return False
@@ -390,9 +401,20 @@ def handle_player_connect(client_id, _is_bot):
     :type: _is_bot: bool
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
-        player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_connect"].dispatch(player)
     except:  # noqa: E722
         shinqlx.log_exception()
@@ -408,9 +430,20 @@ def handle_player_loaded(client_id):
     :type: client_id: int
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
-        player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_loaded"].dispatch(player)
     except:  # noqa: E722
         shinqlx.log_exception()
@@ -426,9 +459,20 @@ def handle_player_disconnect(client_id, reason):
     :type: reason: str
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
-        player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_disconnect"].dispatch(player, reason)
     except:  # noqa: E722
         shinqlx.log_exception()
@@ -441,9 +485,20 @@ def handle_player_spawn(client_id):
     spawns.
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
-        player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["player_spawn"].dispatch(player)
     except:  # noqa: E722
         shinqlx.log_exception()
@@ -457,9 +512,20 @@ def handle_kamikaze_use(client_id):
     :type: client_id: int
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
-        player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["kamikaze_use"].dispatch(player)
     except:  # noqa: E722
         shinqlx.log_exception()
@@ -476,9 +542,20 @@ def handle_kamikaze_explode(client_id, is_used_on_demand):
 
 
     """
+    player_info = (
+        shinqlx.player_info(client_id)
+        if client_id is not None and client_id >= 0
+        else None
+    )
+    player = (
+        shinqlx.Player(client_id, player_info) if player_info is not None else None
+    )
+
+    if player is None:
+        return True
+
     # noinspection PyBroadException
     try:
-        player = shinqlx.Player(client_id)
         return shinqlx.EVENT_DISPATCHERS["kamikaze_explode"].dispatch(
             player, bool(is_used_on_demand)
         )
