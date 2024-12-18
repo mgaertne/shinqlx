@@ -8,6 +8,7 @@ use crate::quake_live_engine::{
     ShutdownGame, SpawnServer,
 };
 
+use alloc::ffi::CString;
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, VaListImpl, c_char, c_int},
@@ -335,26 +336,31 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
     });
 }
 
-static CLIENT_CONNECT_BUFFER: [parking_lot::RwLock<[c_char; MAX_STRING_CHARS as usize]>;
-    MAX_CLIENTS as usize] =
-    [const { parking_lot::RwLock::new([0; MAX_STRING_CHARS as usize]) }; MAX_CLIENTS as usize];
+static DANGLING_PTRS: parking_lot::RwLock<
+    arrayvec::ArrayVec<
+        parking_lot::RwLock<arrayvec::ArrayVec<usize, 10>>,
+        { MAX_CLIENTS as usize },
+    >,
+> = parking_lot::RwLock::new(arrayvec::ArrayVec::new_const());
 
 fn to_return_string(client_id: i32, input: String) -> *const c_char {
-    CLIENT_CONNECT_BUFFER[client_id as usize]
-        .try_write()
-        .into_iter()
-        .for_each(|mut buffer_write_guard| {
-            let len = input.len();
-            let c_char_bytes: arrayvec::ArrayVec<c_char, { MAX_STRING_CHARS as usize }> = input
-                .as_bytes()
-                .iter()
-                .map(|&char| char as c_char)
-                .collect();
+    let return_string = CString::new(input).unwrap_or_default();
 
-            buffer_write_guard[0..len].copy_from_slice(c_char_bytes.as_slice());
-            buffer_write_guard[len..].fill(0);
+    let returned_ptr = return_string.into_raw();
+
+    let ptrs_guard = DANGLING_PTRS.read();
+    if let Some(mut ptrs_write_guard) = ptrs_guard
+        .get(client_id as usize)
+        .map(|client_ptrs| client_ptrs.write())
+    {
+        ptrs_write_guard.iter().for_each(|&ptr| {
+            drop(unsafe { CString::from_raw(ptr as *mut c_char) });
         });
-    &(*CLIENT_CONNECT_BUFFER[client_id as usize].read()) as *const c_char
+        ptrs_write_guard.clear();
+        ptrs_write_guard.push(returned_ptr as usize);
+    }
+
+    returned_ptr
 }
 
 pub(crate) extern "C" fn shinqlx_client_connect(
