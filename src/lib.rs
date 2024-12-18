@@ -3,13 +3,7 @@
 //! Support for Python 3.8 and above should work out of the box.
 
 #![cfg_attr(not(test), no_main)]
-#![feature(
-    arbitrary_self_types,
-    c_variadic,
-    auto_traits,
-    negative_impls,
-    coverage_attribute
-)]
+#![feature(arbitrary_self_types, c_variadic, auto_traits, negative_impls)]
 
 extern crate alloc;
 
