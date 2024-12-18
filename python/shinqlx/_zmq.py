@@ -1,11 +1,15 @@
 """Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 we get stats from it."""
 
-import zmq
 import json
+import asyncio
+from threading import Thread
+
+import zmq
+import zmq.asyncio
+from zmq.decorators import context
 
 import shinqlx
-from threading import Thread
 
 
 @shinqlx.next_frame
@@ -104,23 +108,26 @@ class StatsListener(Thread):
         self.start()
 
     def run(self):
-        if self.done:
-            return
+        while not self.done:
+            asyncio.run(self.run_async())
 
-        with zmq.Context().instance().socket(zmq.SUB) as socket:
+    @context()
+    async def run_async(self, ctx):
+        with zmq.asyncio.Context(ctx).socket(zmq.SUB) as socket:
             socket.setsockopt_string(zmq.PLAIN_USERNAME, "stats")
             socket.setsockopt_string(zmq.PLAIN_PASSWORD, self.password)
             socket.setsockopt_string(zmq.ZAP_DOMAIN, "stats")
             socket.connect(self.address)
             socket.subscribe("")
 
-            poller = zmq.Poller()
+            poller = zmq.asyncio.Poller()
             poller.register(socket, zmq.POLLIN)
 
             while True:  # Will throw an expcetion if no more data to get.
-                pending_events = dict(poller.poll(timeout=250))
-                for receiver in pending_events:
-                    stats = json.loads(receiver.recv().decode(errors="replace"))
+                pending_events = await poller.poll()
+                for receiver, _ in pending_events:
+                    raw_event = await receiver.recv(zmq.NOBLOCK)
+                    stats = json.loads(raw_event.decode(errors="replace"))
                     dispatch_stats_event(stats)
 
                     event_type = stats["TYPE"]

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    from typing import Type, Callable, Iterable, Pattern, Mapping
+    from typing import Type, Callable, Iterable, Pattern, Mapping, ClassVar
     from shinqlx import (
         Plugin,
         Player,
@@ -23,7 +23,7 @@ UncancellableEventReturn = Literal["RET_NONE"] | None
 CancellableEventReturn = Literal[0, 1, 2, 3] | None
 
 class EventDispatcher:
-    name: str = ...
+    name: ClassVar[str]
 
     def __init__(self) -> None:
         self.plugins: dict[
@@ -84,7 +84,7 @@ class EventDispatcherManager:
     def remove_dispatcher_by_name(self, event_name: str) -> None: ...
 
 class ConsolePrintDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, text: str) -> str | bool | Iterable | None: ...
     def handle_return(
@@ -92,12 +92,12 @@ class ConsolePrintDispatcher(EventDispatcher):
     ) -> str | None: ...
 
 class CommandDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, caller: Player, command: Command, args: str) -> None: ...
 
 class ClientCommandDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player, cmd: str) -> str | bool | Iterable | None: ...
     def handle_return(
@@ -105,7 +105,7 @@ class ClientCommandDispatcher(EventDispatcher):
     ) -> str | None: ...
 
 class ServerCommandDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player, cmd: str) -> str | bool | Iterable | None: ...
     def handle_return(
@@ -113,12 +113,12 @@ class ServerCommandDispatcher(EventDispatcher):
     ) -> str | None: ...
 
 class FrameEventDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self) -> str | bool | Iterable | None: ...
 
 class SetConfigstringDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, index: int, value: str) -> str | bool | Iterable | None: ...
     def handle_return(
@@ -126,19 +126,19 @@ class SetConfigstringDispatcher(EventDispatcher):
     ) -> str | None: ...
 
 class ChatEventDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, player: Player, msg: str, channel: AbstractChannel
     ) -> str | bool | Iterable | None: ...
 
 class UnloadDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, plugin: Plugin) -> None: ...
 
 class PlayerConnectDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player) -> str | bool | Iterable | None: ...
     def handle_return(
@@ -146,36 +146,36 @@ class PlayerConnectDispatcher(EventDispatcher):
     ) -> str | None: ...
 
 class PlayerLoadedDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player) -> str | bool | Iterable | None: ...
 
 class PlayerDisonnectDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, player: Player, reason: str | None
     ) -> str | bool | Iterable | None: ...
 
 class PlayerSpawnDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player) -> str | bool | Iterable | None: ...
 
 class StatsDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, stats: StatsData) -> str | bool | Iterable | None: ...
 
 class VoteCalledDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, player: Player, vote: str, args: str | None
     ) -> str | bool | Iterable | None: ...
 
 class VoteStartedDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def __init__(self) -> None:
         self._caller: Player | None = ...
@@ -185,85 +185,85 @@ class VoteStartedDispatcher(EventDispatcher):
     def caller(self, player: Player) -> None: ...
 
 class VoteEndedDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, passed: bool) -> None: ...
 
 class VoteDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player, yes: bool) -> str | bool | Iterable | None: ...
 
 class GameCountdownDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self) -> str | bool | Iterable | None: ...
 
 class GameStartDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, data: GameStartData) -> str | bool | Iterable | None: ...
 
 class GameEndDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, data: GameEndData) -> str | bool | Iterable | None: ...
 
 class RoundCountdownDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, round_number: int) -> str | bool | Iterable | None: ...
 
 class RoundStartDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, round_number: int) -> str | bool | Iterable | None: ...
 
 class RoundEndDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, data: RoundEndData) -> str | bool | Iterable | None: ...
 
 class TeamSwitchDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, player: Player, old_team: str, new_team: str
     ) -> str | bool | Iterable | None: ...
 
 class TeamSwitchAttemptDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, player: Player, old_team: str, new_team: str
     ) -> str | bool | Iterable | None: ...
 
 class MapDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, mapname: str, factory: str) -> str | bool | Iterable | None: ...
 
 class NewGameDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self) -> str | bool | Iterable | None: ...
 
 class KillDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, victim: Player, killer: Player | None, data: KillData
     ) -> str | bool | Iterable | None: ...
 
 class DeathDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, victim: Player, killer: Player | None, data: DeathData
     ) -> str | bool | Iterable | None: ...
 
 class UserinfoDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, playe: Player, changed: UserInfoEventInput
@@ -273,19 +273,19 @@ class UserinfoDispatcher(EventDispatcher):
     ) -> str | None: ...
 
 class KamikazeUseDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(self, player: Player) -> str | bool | Iterable | None: ...
 
 class KamikazeExplodeDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self, player: Player, is_used_on_demand: bool
     ) -> str | bool | Iterable | None: ...
 
 class DamageDispatcher(EventDispatcher):
-    name: str
+    name: ClassVar[str]
 
     def dispatch(
         self,

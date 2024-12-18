@@ -548,30 +548,31 @@ def redirect_print(channel):
 
     """
 
-    class PrintRedirector:
-        def __init__(self, _channel):
-            if not isinstance(_channel, shinqlx.AbstractChannel):
-                raise ValueError(
-                    "The redirection channel must be an instance of shinqlx.AbstractChannel."
-                )
-
-            self.channel = _channel
-
-        def __enter__(self):
-            global _print_redirection
-            _print_redirection = self.channel
-
-        def __exit__(self, exc_type, exc_val, exc_tb):
-            global _print_redirection
-            self.flush()
-            _print_redirection = None
-
-        def flush(self):
-            global _print_buffer
-            self.channel.reply(_print_buffer)
-            _print_buffer = ""
-
     return PrintRedirector(channel)
+
+
+class PrintRedirector:
+    def __init__(self, _channel):
+        if not isinstance(_channel, shinqlx.AbstractChannel):
+            raise ValueError(
+                "The redirection channel must be an instance of shinqlx.AbstractChannel."
+            )
+
+        self.channel = _channel
+
+    def __enter__(self):
+        global _print_redirection
+        _print_redirection = self.channel
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        global _print_redirection
+        self.flush()
+        _print_redirection = None
+
+    def flush(self):
+        global _print_buffer
+        self.channel.reply(_print_buffer)
+        _print_buffer = ""
 
 
 def register_handlers():
