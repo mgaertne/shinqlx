@@ -95,22 +95,21 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         return None;
     }
 
-    PLAYER_CONNECT_HANDLER
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::Release);
+    }
+
+    let returned = PLAYER_CONNECT_HANDLER
         .load()
         .as_ref()
-        .map(|client_connect_handler| {
-            {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-                ALLOW_FREE_CLIENT
-                    .store(allowed_clients | (1 << client_id as u64), Ordering::Release);
-            }
-
-            let result = Python::with_gil(|py| {
-                client_connect_handler
-                    .bind(py)
-                    .call1((client_id, is_bot))
-                    .ok()
-                    .and_then(|returned| {
+        .and_then(|client_connect_handler| {
+            let result =
+                Python::with_gil(|py| {
+                    client_connect_handler.bind(py).call1((client_id, is_bot)).map_or_else(|e| {
+                        error!(target: "shinqlx", "client_connect_handler returned an error: {:?}.", e);
+                        None
+                    }, |returned| {
                         if returned
                             .downcast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
@@ -123,18 +122,20 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                                 .map(|py_string| py_string.to_string())
                         }
                     })
-            });
+                });
 
-            {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-                ALLOW_FREE_CLIENT.store(
-                    allowed_clients & !(1 << client_id as u64),
-                    Ordering::Release,
-                );
-            }
             result
-        })
-        .unwrap_or(None)
+        });
+
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+        ALLOW_FREE_CLIENT.store(
+            allowed_clients & !(1 << client_id as u64),
+            Ordering::Release,
+        );
+    }
+
+    returned
 }
 
 pub(crate) fn client_disconnect_dispatcher<T>(client_id: i32, reason: T)
@@ -145,31 +146,29 @@ where
         return;
     }
 
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+        ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::Release);
+    }
+
     PLAYER_DISCONNECT_HANDLER
         .load()
         .iter()
         .for_each(|client_disconnect_handler| {
-            {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-                ALLOW_FREE_CLIENT
-                    .store(allowed_clients | (1 << client_id as u64), Ordering::Release);
-            }
-
-            let result = Python::with_gil(|py| {
+            if let Err(e) = Python::with_gil(|py| {
                 client_disconnect_handler.call1(py, (client_id, reason.as_ref()))
-            });
-            if result.is_err() {
-                error!(target: "shinqlx", "client_disconnect_handler returned an error.");
-            }
-
-            {
-                let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-                ALLOW_FREE_CLIENT.store(
-                    allowed_clients & !(1 << client_id as u64),
-                    Ordering::Release,
-                );
-            }
+            }) {
+                error!(target: "shinqlx", "client_disconnect_handler returned an error: {:?}.", e);
+            };
         });
+
+    {
+        let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+        ALLOW_FREE_CLIENT.store(
+            allowed_clients & !(1 << client_id as u64),
+            Ordering::Release,
+        );
+    }
 }
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {

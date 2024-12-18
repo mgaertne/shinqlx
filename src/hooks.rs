@@ -368,18 +368,18 @@ pub(crate) extern "C" fn shinqlx_client_connect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
+    if first_time.into() {
+        if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
+            if (!is_bot).into() {
+                return to_return_string(client_num, res);
+            }
+        }
+    }
+
     MAIN_ENGINE
         .load()
         .as_ref()
         .map_or(ptr::null(), |main_engine| {
-            if first_time.into() {
-                if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
-                    if (!is_bot).into() {
-                        return to_return_string(client_num, res);
-                    }
-                }
-            }
-
             main_engine.client_connect(
                 client_num,
                 <qboolean as Into<bool>>::into(first_time),
