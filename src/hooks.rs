@@ -343,7 +343,7 @@ static DANGLING_PTRS: parking_lot::RwLock<
     >,
 > = parking_lot::RwLock::new(arrayvec::ArrayVec::new_const());
 
-fn to_return_string(client_id: i32, input: String) -> *const c_char {
+fn to_return_string(client_id: i32, input: String) -> *mut c_char {
     let return_string = CString::new(input).unwrap_or_default();
 
     let returned_ptr = return_string.into_raw();
@@ -367,7 +367,7 @@ pub(crate) extern "C" fn shinqlx_client_connect(
     client_num: c_int,
     first_time: qboolean,
     is_bot: qboolean,
-) -> *const c_char {
+) -> *mut c_char {
     if first_time.into() {
         if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
             if (!is_bot).into() {
@@ -379,7 +379,7 @@ pub(crate) extern "C" fn shinqlx_client_connect(
     MAIN_ENGINE
         .load()
         .as_ref()
-        .map_or(ptr::null(), |main_engine| {
+        .map_or(ptr::null_mut(), |main_engine| {
             main_engine.client_connect(
                 client_num,
                 <qboolean as Into<bool>>::into(first_time),
@@ -548,7 +548,7 @@ mod hooks_tests {
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_char, c_int};
+    use core::ffi::{CStr, c_int};
 
     use crate::ffi::python::mock_python_tests::{
         __client_command_dispatcher, __client_connect_dispatcher, __client_loaded_dispatcher,
@@ -1475,7 +1475,7 @@ mod hooks_tests {
                         predicate::eq(false),
                         predicate::eq(false),
                     )
-                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr().cast_mut())
                     .times(1);
             })
             .run(|| {
@@ -1499,7 +1499,7 @@ mod hooks_tests {
                 mock_engine
                     .expect_client_connect()
                     .with(predicate::eq(42), predicate::eq(true), predicate::eq(false))
-                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr().cast_mut())
                     .times(1);
             })
             .run(|| {
@@ -1547,7 +1547,7 @@ mod hooks_tests {
                 mock_engine
                     .expect_client_connect()
                     .with(predicate::eq(42), predicate::eq(true), predicate::eq(true))
-                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr().cast_mut())
                     .times(1);
             })
             .run(|| {
