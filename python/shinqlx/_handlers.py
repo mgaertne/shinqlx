@@ -52,11 +52,16 @@ def handle_client_command(client_id, cmd):
     :type: cmd: str
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
@@ -399,11 +404,16 @@ def handle_player_connect(client_id, _is_bot):
     :type: _is_bot: bool
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
@@ -426,11 +436,16 @@ def handle_player_loaded(client_id):
     :type: client_id: int
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
@@ -453,11 +468,16 @@ def handle_player_disconnect(client_id, reason):
     :type: reason: str
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
@@ -477,11 +497,16 @@ def handle_player_spawn(client_id):
     spawns.
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
@@ -502,11 +527,16 @@ def handle_kamikaze_use(client_id):
     :type: client_id: int
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
@@ -530,11 +560,16 @@ def handle_kamikaze_explode(client_id, is_used_on_demand):
 
 
     """
-    player_info = (
-        shinqlx.player_info(client_id)
-        if client_id is not None and client_id >= 0
-        else None
-    )
+    try:
+        player_info = (
+            shinqlx.player_info(client_id)
+            if client_id is not None and client_id >= 0
+            else None
+        )
+    except ValueError:
+        shinqlx.log_exception()
+        return True
+
     player = shinqlx.Player(client_id, player_info) if player_info is not None else None
 
     if player is None:
