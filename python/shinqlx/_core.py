@@ -11,7 +11,7 @@ import os.path
 import logging
 import shlex
 import sys
-from contextlib import suppress
+from contextlib import suppress, AbstractContextManager
 from functools import wraps
 
 from logging.handlers import RotatingFileHandler
@@ -90,6 +90,27 @@ DEFAULT_PLUGINS = (
     "log",
     "workshop",
 )
+
+
+class ExceptionLogging(AbstractContextManager):
+    def __init__(self, plugin=None):
+        self.plugin = plugin
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if (exc_type, exc_value, exc_traceback) == (None, None, None):
+            return
+        shinqlx.log_exception(self.plugin)
+
+
+class ExceptionCatcher(AbstractContextManager):
+    def __init__(self):
+        self._exception_caught = False
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._exception_caught = (exc_type, exc_val, exc_tb) != (None, None, None)
+
+    def is_exception_caught(self):
+        return self._exception_caught
 
 
 # ====================================================================
