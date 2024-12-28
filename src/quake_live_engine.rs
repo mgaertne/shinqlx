@@ -1173,10 +1173,8 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
-    pub(crate) fn unhook_vm(&self, restart: bool) {
-        if !restart {
-            self.vm_functions.unhook();
-        }
+    pub(crate) fn unhook_vm(&self, _restart: bool) {
+        self.vm_functions.unhook();
     }
 
     fn com_printf_orig(
@@ -2080,12 +2078,8 @@ mod quake_live_engine_tests {
 
         quake_engine.unhook_vm(true);
         assert!(
-            quake_engine
-                .g_init_game_orig()
-                .is_ok_and(|func| ptr::fn_addr_eq(
-                    func,
-                    G_InitGame as extern "C" fn(c_int, c_int, c_int)
-                ))
+            quake_engine.g_init_game_orig().is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame))
         );
     }
 
