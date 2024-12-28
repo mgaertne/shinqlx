@@ -104,7 +104,7 @@ struct StaticDetours {
 
 type ClientSpawnDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
 type ClientConnectDetourType =
-    GenericDetour<extern "C" fn(c_int, qboolean, qboolean) -> *mut c_char>;
+    GenericDetour<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>;
 type GStartKamikazeDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
 type GDamageDetourType = GenericDetour<
     extern "C" fn(
@@ -291,7 +291,7 @@ impl VmFunctions {
 
         let client_connect_orig = self.client_connect_orig.load(Ordering::Acquire);
         let client_connect_func = unsafe {
-            mem::transmute::<usize, extern "C" fn(c_int, qboolean, qboolean) -> *mut c_char>(
+            mem::transmute::<usize, extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>(
                 client_connect_orig,
             )
         };
@@ -3945,13 +3945,13 @@ mod run_frame_quake_live_engine_tests {
 }
 
 pub(crate) trait ClientConnect<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> {
-    fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *mut c_char;
+    fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char;
 }
 
 impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V>
     for QuakeLiveEngine
 {
-    fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *mut c_char {
+    fn client_connect(&self, client_num: T, first_time: U, is_bot: V) -> *const c_char {
         self.vm_functions
             .client_connect_detour
             .load()
@@ -4011,7 +4011,7 @@ mod client_connect_quake_live_engine_tests {
         quake_engine.vm_functions.client_connect_detour.store(Some(
             unsafe {
                 GenericDetour::new(
-                    ClientConnect as extern "C" fn(c_int, qboolean, qboolean) -> *mut c_char,
+                    ClientConnect as extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
                     detoured_ClientConnect,
                 )
             }
@@ -5355,7 +5355,7 @@ mockall::mock! {
         fn run_frame(&self, time: c_int);
     }
     impl ClientConnect<c_int, bool, bool> for QuakeEngine {
-        fn client_connect(&self, client_num: c_int, first_time: bool, is_bot: bool) -> *mut c_char;
+        fn client_connect(&self, client_num: c_int, first_time: bool, is_bot: bool) -> *const c_char;
     }
     impl ClientSpawn<&mut GameEntity> for QuakeEngine {
         fn client_spawn(&self, ent: &mut GameEntity);
@@ -5807,7 +5807,7 @@ mod quake_functions {
         _client_num: c_int,
         _first_time: qboolean,
         _is_bot: qboolean,
-    ) -> *mut c_char {
+    ) -> *const c_char {
         ptr::null_mut()
     }
 
@@ -5817,7 +5817,7 @@ mod quake_functions {
         _client_num: c_int,
         _first_time: qboolean,
         _is_bot: qboolean,
-    ) -> *mut c_char {
+    ) -> *const c_char {
         ptr::null_mut()
     }
 
