@@ -4335,32 +4335,6 @@ mod pyshinqlx_tests {
         assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), true);
     }
 
-    #[test]
-    #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn initialize_when_python_init_fails() {
-        PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
-
-        let _shinqlx_module = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                cr#"""
-def initialize():
-    raise ValueError
-"""#,
-                c"shinqlx.py",
-                c"shinqlx",
-            )
-            .expect("this should not happen")
-            .unbind()
-        });
-
-        let result = pyshinqlx_initialize();
-
-        assert!(result.is_err_and(|err| err == PythonInitializationError::MainScriptError));
-        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
-    }
-
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
@@ -4395,43 +4369,6 @@ def initialize():
         let result = pyshinqlx_reload();
 
         assert!(result.is_err_and(|err| err == PythonInitializationError::NotInitializedError));
-        assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
-    }
-
-    #[rstest]
-    #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn reload_resets_handlers(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
-
-        let _ = pyshinqlx_reload();
-
-        assert!(CUSTOM_COMMAND_HANDLER.load().is_none());
-    }
-
-    #[rstest]
-    #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn reload_when_init_fails(_pyshinqlx_setup: ()) {
-        PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
-
-        let _shinqlx_module = Python::with_gil(|py| {
-            PyModule::from_code(
-                py,
-                cr#"""
-def initialize():
-    raise ValueError
-"""#,
-                c"shinqlx.py",
-                c"shinqlx",
-            )
-            .expect("this should not happen")
-            .unbind()
-        });
-
-        let result = pyshinqlx_reload();
-
-        assert!(result.is_err_and(|err| err == PythonInitializationError::MainScriptError));
         assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
     }
 }

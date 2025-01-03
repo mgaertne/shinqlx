@@ -335,26 +335,24 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
     });
 }
 
-static CLIENT_CONNECT_BUFFER: [parking_lot::RwLock<[c_char; MAX_STRING_CHARS as usize]>;
-    MAX_CLIENTS as usize] =
-    [const { parking_lot::RwLock::new([0; MAX_STRING_CHARS as usize]) }; MAX_CLIENTS as usize];
+static CLIENT_CONNECT_BUFFER: [parking_lot::RwLock<
+    arrayvec::ArrayVec<c_char, { MAX_STRING_CHARS as usize }>,
+>; MAX_CLIENTS as usize] =
+    [const { parking_lot::RwLock::new(arrayvec::ArrayVec::new_const()) }; MAX_CLIENTS as usize];
 
 fn to_return_string(client_id: i32, input: String) -> *const c_char {
     CLIENT_CONNECT_BUFFER[client_id as usize]
         .try_write()
         .into_iter()
         .for_each(|mut buffer_write_guard| {
-            let len = input.len();
-            let c_char_bytes: arrayvec::ArrayVec<c_char, { MAX_STRING_CHARS as usize }> = input
+            *buffer_write_guard = input
                 .as_bytes()
                 .iter()
                 .map(|&char| char as c_char)
                 .collect();
-
-            buffer_write_guard[0..len].copy_from_slice(c_char_bytes.as_slice());
-            buffer_write_guard[len..].fill(0);
+            buffer_write_guard.push(0);
         });
-    &(*CLIENT_CONNECT_BUFFER[client_id as usize].read()) as *const c_char
+    CLIENT_CONNECT_BUFFER[client_id as usize].read().as_ptr()
 }
 
 pub(crate) extern "C" fn shinqlx_client_connect(
@@ -362,18 +360,18 @@ pub(crate) extern "C" fn shinqlx_client_connect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
+    if first_time.into() {
+        if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
+            if (!is_bot).into() {
+                return to_return_string(client_num, res);
+            }
+        }
+    }
+
     MAIN_ENGINE
         .load()
         .as_ref()
-        .map_or(ptr::null(), |main_engine| {
-            if first_time.into() {
-                if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
-                    if (!is_bot).into() {
-                        return to_return_string(client_num, res);
-                    }
-                }
-            }
-
+        .map_or(ptr::null_mut(), |main_engine| {
             main_engine.client_connect(
                 client_num,
                 <qboolean as Into<bool>>::into(first_time),
@@ -542,7 +540,7 @@ mod hooks_tests {
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_char, c_int};
+    use core::ffi::{CStr, c_int};
 
     use crate::ffi::python::mock_python_tests::{
         __client_command_dispatcher, __client_connect_dispatcher, __client_loaded_dispatcher,
@@ -1469,7 +1467,7 @@ mod hooks_tests {
                         predicate::eq(false),
                         predicate::eq(false),
                     )
-                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr().cast_mut())
                     .times(1);
             })
             .run(|| {
@@ -1493,7 +1491,7 @@ mod hooks_tests {
                 mock_engine
                     .expect_client_connect()
                     .with(predicate::eq(42), predicate::eq(true), predicate::eq(false))
-                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr().cast_mut())
                     .times(1);
             })
             .run(|| {
@@ -1541,7 +1539,7 @@ mod hooks_tests {
                 mock_engine
                     .expect_client_connect()
                     .with(predicate::eq(42), predicate::eq(true), predicate::eq(true))
-                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr() as *const c_char)
+                    .returning(|_client_num, _first_time, _is_bot| c"".as_ptr().cast_mut())
                     .times(1);
             })
             .run(|| {

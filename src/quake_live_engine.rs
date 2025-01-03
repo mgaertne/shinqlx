@@ -1173,10 +1173,8 @@ impl QuakeLiveEngine {
         Ok(())
     }
 
-    pub(crate) fn unhook_vm(&self, restart: bool) {
-        if !restart {
-            self.vm_functions.unhook();
-        }
+    pub(crate) fn unhook_vm(&self, _restart: bool) {
+        self.vm_functions.unhook();
     }
 
     fn com_printf_orig(
@@ -2080,12 +2078,8 @@ mod quake_live_engine_tests {
 
         quake_engine.unhook_vm(true);
         assert!(
-            quake_engine
-                .g_init_game_orig()
-                .is_ok_and(|func| ptr::fn_addr_eq(
-                    func,
-                    G_InitGame as extern "C" fn(c_int, c_int, c_int)
-                ))
+            quake_engine.g_init_game_orig().is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::G_InitGame))
         );
     }
 
@@ -3956,7 +3950,7 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
             .client_connect_detour
             .load()
             .as_ref()
-            .map_or(ptr::null(), |detour| {
+            .map_or(ptr::null_mut(), |detour| {
                 detour.call(client_num.into(), first_time.into(), is_bot.into())
             })
     }
@@ -4000,7 +3994,7 @@ mod client_connect_quake_live_engine_tests {
             .withf(|&client_num, &first_time, &is_bot| {
                 client_num == 42 && first_time.into() && !<qboolean as Into<bool>>::into(is_bot)
             })
-            .returning(move |_, _, _| returned.as_ptr())
+            .returning(move |_, _, _| returned.as_ptr().cast_mut())
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -5894,7 +5888,7 @@ mod quake_functions {
         _first_time: qboolean,
         _is_bot: qboolean,
     ) -> *const c_char {
-        ptr::null()
+        ptr::null_mut()
     }
 
     #[allow(unused_attributes, non_snake_case)]
@@ -5904,7 +5898,7 @@ mod quake_functions {
         _first_time: qboolean,
         _is_bot: qboolean,
     ) -> *const c_char {
-        ptr::null()
+        ptr::null_mut()
     }
 
     #[allow(unused_attributes, non_snake_case)]

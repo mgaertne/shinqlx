@@ -1,9 +1,9 @@
-use super::validate_client_id;
 use crate::ffi::c::prelude::*;
 use crate::ffi::python::prelude::*;
 use crate::prelude::*;
 
 use core::sync::atomic::Ordering;
+use pyo3::exceptions::PyValueError;
 
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
@@ -12,7 +12,12 @@ pub(crate) fn pyshinqlx_player_info(
     client_id: i32,
 ) -> PyResult<Option<PlayerInfo>> {
     py.allow_threads(|| {
-        validate_client_id(client_id)?;
+        if !(0..MAX_CLIENTS as i32).contains(&client_id) {
+            return Err(PyValueError::new_err(format!(
+                "client_id needs to be a number from 0 to {}, or None.",
+                MAX_CLIENTS - 1
+            )));
+        }
 
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
         #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
@@ -46,17 +51,7 @@ mod get_player_info_tests {
     use rstest::rstest;
 
     use core::sync::atomic::Ordering;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn get_player_info_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
-            let result = pyshinqlx_player_info(py, 0);
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        });
-    }
+    use pyo3::exceptions::PyValueError;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -74,9 +69,9 @@ mod get_player_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_player_info_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
+        MockEngineBuilder::default().run(|| {
             Python::with_gil(|py| {
-                let result = pyshinqlx_player_info(py, 42);
+                let result = pyshinqlx_player_info(py, 65);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
