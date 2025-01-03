@@ -13,12 +13,12 @@ classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["setuptools>=61.2", "redis>=5.0", "hiredis", "pyzmq>=25"]
+dependencies = ["setuptools>=61.2", "redis>=5.0", "hiredis>=3.0", "pyzmq>=23"]
 
 [project.optional-dependencies]
 ruff = [ "ruff>=0.2" ]
-mypy = [ "mypy>=0.990", "types-redis>=4.3.0" ]
-docs = [ "sphinx>=8.0" ]
+mypy = [ "mypy>=0.990", "types-redis>=4.3" ]
+docs = [ "sphinx>=7" ]
 
 [project.readme]
 file = "README.md"
@@ -32,7 +32,7 @@ license-files = ["LICENSE"]
 include-package-data = false
 
 [tool.maturin]
-unstable-flags = ["build-std=std,core,alloc,panic_abort", "build-std-features=panic_immediate_abort"]
+unstable-flags = ["build-std=std,core,alloc,panic_abort", "build-std-features=panic-unwind,panic_immediate_abort"]
 frozen = false
 locked = false
 

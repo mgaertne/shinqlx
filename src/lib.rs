@@ -8,7 +8,6 @@
     c_variadic,
     auto_traits,
     negative_impls,
-    coverage_attribute,
     stmt_expr_attributes
 )]
 
