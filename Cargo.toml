@@ -72,11 +72,11 @@ mimalloc = { version = ">=0.1.43", default-features = false, optional = true }
 
 [build-dependencies]
 pyo3-build-config = { version = ">=0.23.2, <0.24", default-features = false, features = ["resolve-config"] }
-git2 = { version = ">=0.19", default-features = false }
+git2 = { version = ">=0.20", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
-rstest = { version = ">=0.23", default-features = false }
+rstest = { version = ">=0.24", default-features = false }
 mockall = { version = ">=0.13", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=3.2", default-features = false }
 tempfile = { version = ">=3.14", default-features = false }
