@@ -59,7 +59,8 @@ git2 = { version = ">=0.20", default-features = false }
 semver = { version = ">=1.0.24", default-features = false }
 
 libgit2-sys = { version = ">=0.18", default-features = false }
-zeromq-src = { version = ">=0.3" }
+zmq-sys = { version = ">=0.12", default-features = false }
+zeromq-src = { version = ">=0.2.1", default-features = false }
 
 region = { version = ">=3.0", default-features = false, optional = true }
 
