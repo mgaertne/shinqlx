@@ -55,8 +55,8 @@ parking_lot = { version = ">=0.12", default-features = false, features = ["night
 region = { version = ">=3.0", default-features = false, optional = true }
 
 [target."cfg(target_os=\"linux\")".dependencies]
-procfs = { version = ">=0.16", default-features = false }
-procfs-core = { version = ">=0.16", default-features = false }
+procfs = { version = ">=0.17", default-features = false }
+procfs-core = { version = ">=0.17", default-features = false }
 
 [target."cfg(not(target_os=\"windows\"))".dependencies]
 tikv-jemallocator = { version = ">=0.6", default-features = false, features = ["background_threads_runtime_support"], optional = true }
