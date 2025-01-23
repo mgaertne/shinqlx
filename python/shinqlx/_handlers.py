@@ -652,11 +652,21 @@ def handle_damage(target_id, attacker_id, damage, dflags, mod):
         stack.enter_context(shinqlx.ExceptionLogging())
         stack.enter_context(catcher)
 
+        target_player_info = (
+            shinqlx.player_info(target_id) if target_id in range(0, 64) else None
+        )
         target_player = (
-            shinqlx.Player(target_id) if target_id in range(0, 64) else target_id
+            shinqlx.Player(target_id, target_player_info)
+            if target_player_info is not None
+            else target_id
+        )
+        attacker_player_info = (
+            shinqlx.player_info(attacker_id) if attacker_id in range(0, 64) else None
         )
         attacker_player = (
-            shinqlx.Player(attacker_id) if attacker_id in range(0, 64) else attacker_id
+            shinqlx.Player(attacker_id, attacker_player_info)
+            if attacker_player_info is not None
+            else attacker_id
         )
 
         shinqlx.EVENT_DISPATCHERS["damage"].dispatch(
