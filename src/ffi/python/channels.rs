@@ -162,6 +162,7 @@ mod abstract_channel_tests {
     use super::AbstractChannelMethods;
 
     use crate::ffi::python::prelude::*;
+    use crate::prelude::serial;
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
@@ -169,6 +170,7 @@ mod abstract_channel_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_constructor = py.run(
@@ -185,6 +187,7 @@ abstract_channel = shinqlx.AbstractChannel("abstract")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_repr_assert = py.run(
@@ -202,6 +205,7 @@ assert repr(abstract_channel) == "abstract"
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_str_assert = py.run(
@@ -219,6 +223,7 @@ assert str(abstract_channel) == "abstract"
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_eq_assert = py.run(
@@ -244,6 +249,7 @@ assert not (shinqlx.AbstractChannel("abstract") == NoReprClass())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_ne_assert = py.run(
@@ -269,6 +275,7 @@ assert shinqlx.AbstractChannel("abstract") != NoReprClass()
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_cmp_assert = py.run(
