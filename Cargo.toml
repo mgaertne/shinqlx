@@ -37,7 +37,7 @@ codegen-units = 1
 rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
-ctor = { version = ">=0.2", default-features = false }
+ctor = { version = ">=0.3.5", default-features = false }
 rand = { version = ">=0.9", default-features = false, features = ["thread_rng"] }
 pyo3 = { version = ">=0.23.4, <0.24", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.3", default-features = false, features = ["nightly"] }
@@ -94,7 +94,7 @@ alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 [lints.rust]
 missing_docs = "warn"
 non_local_definitions = "allow"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,tarpaulin_include)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly,tarpaulin_include)'] }
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"
