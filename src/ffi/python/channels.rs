@@ -332,14 +332,17 @@ shinqlx.AbstractChannel("abstract") < 2
             )
         });
 
-        assert_eq!(result, vec![
-            "asdf1 ".to_string(),
-            "asdf2 ".to_string(),
-            "asdf3 ".to_string(),
-            "asdf4".to_string(),
-            "asdf5".to_string(),
-            "asdf6".to_string()
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "asdf1 ".to_string(),
+                "asdf2 ".to_string(),
+                "asdf3 ".to_string(),
+                "asdf4".to_string(),
+                "asdf5".to_string(),
+                "asdf6".to_string()
+            ]
+        );
     }
 
     #[rstest]
@@ -354,12 +357,15 @@ shinqlx.AbstractChannel("abstract") < 2
             )
         });
 
-        assert_eq!(result, vec![
-            "asdf1 asdf2 ".to_string(),
-            "asdf3 asdf4".to_string(),
-            "asdf5".to_string(),
-            "asdf6".to_string()
-        ]);
+        assert_eq!(
+            result,
+            vec![
+                "asdf1 asdf2 ".to_string(),
+                "asdf3 asdf4".to_string(),
+                "asdf5".to_string(),
+                "asdf6".to_string()
+            ]
+        );
     }
 }
 
@@ -521,7 +527,7 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
                 None => joined_msgs.push(s),
                 Some(last_msg) => {
                     let s_new = format!("{last_msg}\n{s}");
-                    if s_new.bytes().len() > MAX_MSG_LENGTH as usize {
+                    if s_new.len() > MAX_MSG_LENGTH as usize {
                         joined_msgs.push(last_msg);
                         joined_msgs.push(s);
                     } else {
