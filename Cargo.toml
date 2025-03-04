@@ -60,6 +60,9 @@ semver = { version = ">=1.0.26", default-features = false }
 
 region = { version = ">=3.0", default-features = false, optional = true }
 
+# dependency pinning to make minimal builds work
+zeromq-src = ">=0.2.6"
+
 [target."cfg(target_os=\"linux\")".dependencies]
 procfs = { version = ">=0.17", default-features = false }
 procfs-core = { version = ">=0.17", default-features = false }
