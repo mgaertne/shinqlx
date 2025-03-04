@@ -51,11 +51,14 @@ impl<'py> CommandDispatcherMethods<'py> for Bound<'py, CommandDispatcher> {
         command: &Bound<'py, Command>,
         args: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(self.py(), [
-            player.as_any(),
-            command.as_any(),
-            PyString::new(self.py(), args).as_any(),
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                player.as_any(),
+                command.as_any(),
+                PyString::new(self.py(), args).as_any(),
+            ],
+        )?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }

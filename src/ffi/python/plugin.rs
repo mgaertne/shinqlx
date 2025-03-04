@@ -1545,15 +1545,18 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     fn hooks_property_returns_plugin_hooks(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = Bound::new(py, Plugin {
-                hooks: vec![
-                    ("asdf".to_string(), py.None(), 1),
-                    ("qwertz".to_string(), py.None(), 0),
-                ]
-                .into(),
-                commands: Default::default(),
-                db_instance: py.None().into(),
-            })
+            let plugin = Bound::new(
+                py,
+                Plugin {
+                    hooks: vec![
+                        ("asdf".to_string(), py.None(), 1),
+                        ("qwertz".to_string(), py.None(), 0),
+                    ]
+                    .into(),
+                    commands: Default::default(),
+                    db_instance: py.None().into(),
+                },
+            )
             .expect("this should not happen");
 
             let hooks = plugin.get_hooks();
@@ -1573,11 +1576,14 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     fn commands_property_when_no_commands_exist(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = Bound::new(py, Plugin {
-                hooks: Default::default(),
-                commands: Default::default(),
-                db_instance: py.None().into(),
-            })
+            let plugin = Bound::new(
+                py,
+                Plugin {
+                    hooks: Default::default(),
+                    commands: Default::default(),
+                    db_instance: py.None().into(),
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(plugin.get_commands().len(), 0);
@@ -1589,11 +1595,14 @@ mod plugin_tests {
     #[serial]
     fn game_property_when_no_game_running(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let plugin = Bound::new(py, Plugin {
-                hooks: Default::default(),
-                commands: Default::default(),
-                db_instance: py.None().into(),
-            })
+            let plugin = Bound::new(
+                py,
+                Plugin {
+                    hooks: Default::default(),
+                    commands: Default::default(),
+                    db_instance: py.None().into(),
+                },
+            )
             .expect("this should not happen");
 
             assert!(plugin.get_game().is_none());
@@ -1608,11 +1617,14 @@ mod plugin_tests {
             .with_get_configstring(CS_SERVERINFO as u16, "asdf", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let plugin = Bound::new(py, Plugin {
-                        hooks: Default::default(),
-                        commands: Default::default(),
-                        db_instance: py.None().into(),
-                    })
+                    let plugin = Bound::new(
+                        py,
+                        Plugin {
+                            hooks: Default::default(),
+                            commands: Default::default(),
+                            db_instance: py.None().into(),
+                        },
+                    )
                     .expect("this should not happen");
 
                     assert!(plugin.get_game().is_some());
@@ -3364,42 +3376,45 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
             let all_players = Python::with_gil(|py| Plugin::players(&py.get_type::<Plugin>()));
-            assert_eq!(all_players.expect("result was not ok"), vec![
-                Player {
-                    id: 0,
-                    player_info: PlayerInfo {
-                        client_id: 0,
-                        name: "Mocked Player".into(),
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".into(),
+            assert_eq!(
+                all_players.expect("result was not ok"),
+                vec![
+                    Player {
+                        id: 0,
+                        player_info: PlayerInfo {
+                            client_id: 0,
+                            name: "Mocked Player".into(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".into(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        user_info: "asdf".into(),
                         steam_id: 1234,
-                        team: team_t::TEAM_RED as i32,
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    user_info: "asdf".into(),
-                    steam_id: 1234,
-                    name: "Mocked Player".to_string().into(),
-                    ..default_test_player()
-                },
-                Player {
-                    id: 2,
-                    player_info: PlayerInfo {
-                        client_id: 2,
-                        name: "Mocked Player".into(),
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".into(),
+                        name: "Mocked Player".to_string().into(),
+                        ..default_test_player()
+                    },
+                    Player {
+                        id: 2,
+                        player_info: PlayerInfo {
+                            client_id: 2,
+                            name: "Mocked Player".into(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".into(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        user_info: "asdf".into(),
                         steam_id: 1234,
-                        team: team_t::TEAM_RED as i32,
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    user_info: "asdf".into(),
-                    steam_id: 1234,
-                    name: "Mocked Player".to_string().into(),
-                    ..default_test_player()
-                },
-            ]);
+                        name: "Mocked Player".to_string().into(),
+                        ..default_test_player()
+                    },
+                ]
+            );
         });
     }
 

@@ -1811,15 +1811,18 @@ mod pyshinqlx_player_tests {
             });
 
         let result = Player::py_new(2, None);
-        assert_eq!(result.expect("result was not OK"), Player {
-            name: "UnnamedPlayer".to_string().into(),
-            player_info: PlayerInfo {
-                name: "UnnamedPlayer".to_string(),
-                ..default_test_player_info()
+        assert_eq!(
+            result.expect("result was not OK"),
+            Player {
+                name: "UnnamedPlayer".to_string().into(),
+                player_info: PlayerInfo {
+                    name: "UnnamedPlayer".to_string(),
+                    ..default_test_player_info()
+                }
+                .into(),
+                ..default_test_player()
             }
-            .into(),
-            ..default_test_player()
-        });
+        );
     }
 
     #[test]
@@ -1831,16 +1834,19 @@ mod pyshinqlx_player_tests {
                 ..default_test_player_info()
             }),
         );
-        assert_eq!(result.expect("result was not OK"), Player {
-            player_info: PlayerInfo {
-                userinfo: r"\name\UnnamedPlayer".to_string(),
-                ..default_test_player_info()
+        assert_eq!(
+            result.expect("result was not OK"),
+            Player {
+                player_info: PlayerInfo {
+                    userinfo: r"\name\UnnamedPlayer".to_string(),
+                    ..default_test_player_info()
+                }
+                .into(),
+                user_info: r"\name\UnnamedPlayer".to_string(),
+                name: "UnnamedPlayer".to_string().into(),
+                ..default_test_player()
             }
-            .into(),
-            user_info: r"\name\UnnamedPlayer".to_string(),
-            name: "UnnamedPlayer".to_string().into(),
-            ..default_test_player()
-        });
+        );
     }
 
     #[test]
@@ -1858,30 +1864,36 @@ mod pyshinqlx_player_tests {
                 ..default_test_player_info()
             }),
         );
-        assert_eq!(result.expect("result was not OK"), Player {
-            name: "UnnamedPlayer".to_string().into(),
-            player_info: PlayerInfo {
-                name: "UnnamedPlayer".to_string(),
-                ..default_test_player_info()
+        assert_eq!(
+            result.expect("result was not OK"),
+            Player {
+                name: "UnnamedPlayer".to_string().into(),
+                player_info: PlayerInfo {
+                    name: "UnnamedPlayer".to_string(),
+                    ..default_test_player_info()
+                }
+                .into(),
+                ..default_test_player()
             }
-            .into(),
-            ..default_test_player()
-        });
+        );
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn repr_with_all_values_set(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    name: "UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                name: "UnnamedPlayer".to_string().into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        name: "UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    name: "UnnamedPlayer".to_string().into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
             Player::__repr__(&player)
         });
@@ -1906,10 +1918,13 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn contains_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                valid: false.into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    valid: false.into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.__contains__("asdf");
@@ -1921,15 +1936,18 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn contains_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\some value".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                user_info: r"\asdf\some value".to_string(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\some value".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: r"\asdf\some value".to_string(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.__contains__("asdf");
@@ -1941,15 +1959,18 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn contains_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    userinfo: r"\name\^1Unnamed^2Player".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                user_info: r"\name\^1Unnamed^2Player".to_string(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        userinfo: r"\name\^1Unnamed^2Player".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: r"\name\^1Unnamed^2Player".to_string(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.__contains__("asdf");
@@ -1961,10 +1982,13 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn getitem_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                valid: false.into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    valid: false.into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.__getitem__("asdf");
@@ -1976,15 +2000,18 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn getitem_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\some value".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                user_info: r"\asdf\some value".to_string(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\some value".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: r"\asdf\some value".to_string(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.__getitem__("asdf");
@@ -1996,15 +2023,18 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn getitem_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    userinfo: r"\name\^1Unnamed^2Player".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                user_info: r"\name\^1Unnamed^2Player".to_string(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        userinfo: r"\name\^1Unnamed^2Player".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: r"\name\^1Unnamed^2Player".to_string(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.__getitem__("asdf");
@@ -2016,10 +2046,13 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn cvars_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                valid: false.into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    valid: false.into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_cvars();
@@ -2031,15 +2064,18 @@ mod pyshinqlx_player_tests {
     #[cfg_attr(miri, ignore)]
     fn cvars_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\some value".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                user_info: r"\asdf\some value".to_string(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\some value".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    user_info: r"\asdf\some value".to_string(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_cvars();
@@ -2249,10 +2285,13 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
             });
 
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                steam_id: 1234567890,
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    steam_id: 1234567890,
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.update();
@@ -2354,10 +2393,13 @@ assert(player._valid)
             });
 
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                steam_id: 1234567890,
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    steam_id: 1234567890,
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             player.update().expect("this should not happen");
@@ -2404,10 +2446,13 @@ assert(player._valid)
             });
 
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                steam_id: 1234567890,
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    steam_id: 1234567890,
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             player.update().expect("this should not happen");
@@ -2468,15 +2513,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_where_no_ip_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_ip(), "");
@@ -2487,15 +2535,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_no_port(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\ip\127.0.0.1".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\ip\127.0.0.1".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\ip\127.0.0.1".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\ip\127.0.0.1".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_ip(), "127.0.0.1");
@@ -2506,15 +2557,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_port(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\ip\127.0.0.1:27666".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\ip\127.0.0.1:27666".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\ip\127.0.0.1:27666".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\ip\127.0.0.1:27666".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_ip(), "127.0.0.1");
@@ -2633,15 +2687,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_name_for_color_terminated_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                name: "UnnamedPlayer^7".to_string().into(),
-                player_info: PlayerInfo {
-                    name: "UnnamedPlayer^7".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    name: "UnnamedPlayer^7".to_string().into(),
+                    player_info: PlayerInfo {
+                        name: "UnnamedPlayer^7".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_name(), "UnnamedPlayer^7");
@@ -2652,15 +2709,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_name_for_color_unterminated_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                name: "UnnamedPlayer".to_string().into(),
-                player_info: PlayerInfo {
-                    name: "UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    name: "UnnamedPlayer".to_string().into(),
+                    player_info: PlayerInfo {
+                        name: "UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_name(), "UnnamedPlayer^7");
@@ -2692,15 +2752,18 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\name\UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.set_name("^1Unnamed^2Player");
@@ -2713,10 +2776,13 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_clean_name_returns_cleaned_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                name: "^7^1S^3hi^4N^10^7".to_string().into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    name: "^7^1S^3hi^4N^10^7".to_string().into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_clean_name();
@@ -2728,15 +2794,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_where_no_port_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_qport(), -1);
@@ -2747,15 +2816,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_port_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\qport\27666".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\qport\27666".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\qport\27666".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\qport\27666".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_qport(), 27666);
@@ -2766,15 +2838,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_invalid_port_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\qport\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\qport\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\qport\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\qport\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_qport(), -1);
@@ -2793,14 +2868,17 @@ assert(player._valid)
         #[case] return_value: &str,
     ) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    team: team as i32,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        team: team as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_team().expect("result was not OK"), return_value)
@@ -2811,14 +2889,17 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_team_for_invalid_team(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    team: 42,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        team: 42,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert!(
@@ -2866,15 +2947,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_where_no_colors_are_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_colors(), (0.0, 0.0));
@@ -2885,15 +2969,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_colors_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\color1\42\color2\21".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\color1\42\colors2\21".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\color1\42\color2\21".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\color1\42\colors2\21".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_colors(), (42.0, 21.0));
@@ -2904,15 +2991,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color1_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\color1\asdf\color2\42".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\color1\asdf\color2\42".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\color1\asdf\color2\42".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\color1\asdf\color2\42".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_colors(), (0.0, 42.0));
@@ -2923,15 +3013,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color2_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\color1\42\color2\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\color1\42\color2\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\color1\42\color2\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\color1\42\color2\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_colors(), (42.0, 0.0));
@@ -2963,16 +3056,20 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer"
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer"
                             .to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\color1\7.0\color2\5\name\UnnamedPlayer"
+                                .to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.set_colors((0, 3));
@@ -2985,15 +3082,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_model_when_no_model_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_model();
@@ -3005,15 +3105,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_model_when_model_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\model\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\model\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\model\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\model\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_model();
@@ -3046,15 +3149,18 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\model\Anarki\name\UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.set_model("Uriel");
@@ -3067,15 +3173,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_headmodel_when_no_headmodel_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_headmodel();
@@ -3087,15 +3196,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_headmodel_when_headmodel_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\headmodel\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\headmodel\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\headmodel\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\headmodel\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_headmodel();
@@ -3128,15 +3240,19 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\headmodel\Anarki\name\UnnamedPlayer"
+                                .to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.set_headmodel("Uriel");
@@ -3149,15 +3265,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_handicap_when_no_handicap_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_handicap();
@@ -3169,15 +3288,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_handicap_when_handicap_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\handicap\42".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\handicap\42".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\handicap\42".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\handicap\42".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_handicap();
@@ -3210,15 +3332,18 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.set_handicap(PyString::new(py, "50").as_any());
@@ -3232,15 +3357,18 @@ assert(player._valid)
     #[serial]
     fn set_handicap_for_unparseable_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\qwertz\handicap\100\name\UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.set_handicap(PyString::new(py, "asdf").as_any());
@@ -3252,15 +3380,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_no_autohop_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autohop();
@@ -3272,15 +3403,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\autohop\1".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\autohop\1".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\autohop\1".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\autohop\1".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autohop();
@@ -3292,15 +3426,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_disabled(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\autohop\0".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\autohop\0".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\autohop\0".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\autohop\0".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autohop();
@@ -3312,15 +3449,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_cannot_be_parsed(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\autohop\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\autohop\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\autohop\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\autohop\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autohop();
@@ -3353,15 +3493,18 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player
@@ -3376,15 +3519,18 @@ assert(player._valid)
     #[serial]
     fn set_autohop_for_unparseable_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\qwertz\autohop\1\name\UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.set_autohop(PyString::new(py, "asdf").as_any());
@@ -3396,15 +3542,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_no_autoaction_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autoaction();
@@ -3416,15 +3565,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autohop_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\autoaction\1".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\autoaction\1".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\autoaction\1".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\autoaction\1".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autoaction();
@@ -3436,15 +3588,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autoaction_is_disabled(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\autoaction\0".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\autoaction\0".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\autoaction\0".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\autoaction\0".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autoaction();
@@ -3456,15 +3611,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autoaction_cannot_be_parsed(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\autoaction\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\autoaction\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\autoaction\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\autoaction\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_autoaction();
@@ -3497,15 +3655,18 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player
@@ -3520,15 +3681,18 @@ assert(player._valid)
     #[serial]
     fn set_autoaction_with_unparseable_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\qwertz\autoaction\1\name\UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.set_autoaction(PyString::new(py, "asdf").as_any());
@@ -3540,15 +3704,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predictitems_when_no_predictitems_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: "".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: "".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: "".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: "".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_predictitems();
@@ -3560,15 +3727,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predictitems_when_predictitems_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\cg_predictitems\1".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\cg_predictitems\1".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\cg_predictitems\1".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\cg_predictitems\1".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_predictitems();
@@ -3580,15 +3750,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predititems_when_predictitems_is_disabled(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\cg_predictitems\0".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\cg_predictitems\0".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\cg_predictitems\0".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\cg_predictitems\0".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_predictitems();
@@ -3600,15 +3773,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_predititems_when_predictitems_is_unparseable(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\cg_predictitems\asdf".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\cg_predictitems\asdf".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\cg_predictitems\asdf".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\cg_predictitems\asdf".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_predictitems();
@@ -3641,15 +3817,19 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer"
+                                .to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player
@@ -3664,15 +3844,18 @@ assert(player._valid)
     #[serial]
     fn set_predictitems_with_unparseable_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\asdf\qwertz\cg_predictitems\1\name\UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.set_predictitems(PyString::new(py, "asdf").as_any());
@@ -3693,14 +3876,17 @@ assert(player._valid)
         #[case] expected_value: &str,
     ) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    connection_state: client_state as i32,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        connection_state: client_state as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_connection_state();
@@ -3712,14 +3898,17 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_connection_state_for_invalid_value(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    connection_state: 42,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        connection_state: 42,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_connection_state();
@@ -3859,14 +4048,17 @@ assert(player._valid)
         #[case] expected_value: Option<String>,
     ) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                player_info: PlayerInfo {
-                    privileges,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        privileges,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_privileges();
@@ -3925,15 +4117,18 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_country_when_country_is_set(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                user_info: r"\country\de".to_string(),
-                player_info: PlayerInfo {
-                    userinfo: r"\country\de".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    user_info: r"\country\de".to_string(),
+                    player_info: PlayerInfo {
+                        userinfo: r"\country\de".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.get_country();
@@ -3966,15 +4161,18 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    user_info: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
-                    player_info: PlayerInfo {
-                        userinfo: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        user_info: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
+                        player_info: PlayerInfo {
+                            userinfo: r"\asdf\qwertz\country\de\name\UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.set_country("uk");
@@ -3987,10 +4185,13 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_valid_for_valid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                valid: true.into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    valid: true.into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_valid(), true);
@@ -4001,10 +4202,13 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn get_valid_for_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                valid: false.into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    valid: false.into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             assert_eq!(player.get_valid(), false);
@@ -7352,14 +7556,17 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    player_info: PlayerInfo {
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        player_info: PlayerInfo {
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.tell(
@@ -7417,14 +7624,17 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    player_info: PlayerInfo {
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        player_info: PlayerInfo {
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.tell(
@@ -7488,14 +7698,17 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let player = Bound::new(py, Player {
-                    player_info: PlayerInfo {
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        ..default_test_player_info()
-                    }
-                    .into(),
-                    ..default_test_player()
-                })
+                let player = Bound::new(
+                    py,
+                    Player {
+                        player_info: PlayerInfo {
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    },
+                )
                 .expect("this should not happen");
 
                 let result = player.kick("you stink, go away!");
@@ -7679,25 +7892,31 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     fn switch_with_player_on_same_team(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, Player {
-                id: 2,
-                player_info: PlayerInfo {
-                    team: team_t::TEAM_SPECTATOR as i32,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let player = Bound::new(
+                py,
+                Player {
+                    id: 2,
+                    player_info: PlayerInfo {
+                        team: team_t::TEAM_SPECTATOR as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
-            let other_player = Bound::new(py, Player {
-                id: 1,
-                player_info: PlayerInfo {
-                    team: team_t::TEAM_SPECTATOR as i32,
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            })
+            let other_player = Bound::new(
+                py,
+                Player {
+                    id: 1,
+                    player_info: PlayerInfo {
+                        team: team_t::TEAM_SPECTATOR as i32,
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    ..default_test_player()
+                },
+            )
             .expect("this should not happen");
 
             let result = player.switch(&other_player);
@@ -7714,25 +7933,31 @@ assert(player._valid)
             .with_execute_console_command("put 1 red", 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let player = Bound::new(py, Player {
-                        id: 2,
-                        player_info: PlayerInfo {
-                            team: team_t::TEAM_RED as i32,
-                            ..default_test_player_info()
-                        }
-                        .into(),
-                        ..default_test_player()
-                    })
+                    let player = Bound::new(
+                        py,
+                        Player {
+                            id: 2,
+                            player_info: PlayerInfo {
+                                team: team_t::TEAM_RED as i32,
+                                ..default_test_player_info()
+                            }
+                            .into(),
+                            ..default_test_player()
+                        },
+                    )
                     .expect("this should not happen");
-                    let other_player = Bound::new(py, Player {
-                        id: 1,
-                        player_info: PlayerInfo {
-                            team: team_t::TEAM_BLUE as i32,
-                            ..default_test_player_info()
-                        }
-                        .into(),
-                        ..default_test_player()
-                    })
+                    let other_player = Bound::new(
+                        py,
+                        Player {
+                            id: 1,
+                            player_info: PlayerInfo {
+                                team: team_t::TEAM_BLUE as i32,
+                                ..default_test_player_info()
+                            }
+                            .into(),
+                            ..default_test_player()
+                        },
+                    )
                     .expect("this should not happen");
 
                     let result = player.switch(&other_player);
@@ -7869,42 +8094,45 @@ assert(player._valid)
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
             let all_players = Python::with_gil(|py| Player::all_players(&py.get_type::<Player>()));
-            assert_eq!(all_players.expect("result was not ok"), vec![
-                Player {
-                    valid: true.into(),
-                    id: 0,
-                    player_info: PlayerInfo {
-                        client_id: 0,
-                        name: "Mocked Player".to_string(),
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".to_string(),
+            assert_eq!(
+                all_players.expect("result was not ok"),
+                vec![
+                    Player {
+                        valid: true.into(),
+                        id: 0,
+                        player_info: PlayerInfo {
+                            client_id: 0,
+                            name: "Mocked Player".to_string(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".to_string(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            privileges: 0,
+                        }
+                        .into(),
+                        name: "Mocked Player".to_string().into(),
                         steam_id: 1234,
-                        team: team_t::TEAM_RED as i32,
-                        privileges: 0,
-                    }
-                    .into(),
-                    name: "Mocked Player".to_string().into(),
-                    steam_id: 1234,
-                    user_info: "asdf".to_string(),
-                },
-                Player {
-                    valid: true.into(),
-                    id: 2,
-                    player_info: PlayerInfo {
-                        client_id: 2,
-                        name: "Mocked Player".to_string(),
-                        connection_state: clientState_t::CS_ACTIVE as i32,
-                        userinfo: "asdf".to_string(),
+                        user_info: "asdf".to_string(),
+                    },
+                    Player {
+                        valid: true.into(),
+                        id: 2,
+                        player_info: PlayerInfo {
+                            client_id: 2,
+                            name: "Mocked Player".to_string(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".to_string(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            privileges: 0,
+                        }
+                        .into(),
+                        name: "Mocked Player".to_string().into(),
                         steam_id: 1234,
-                        team: team_t::TEAM_RED as i32,
-                        privileges: 0,
-                    }
-                    .into(),
-                    name: "Mocked Player".to_string().into(),
-                    steam_id: 1234,
-                    user_info: "asdf".to_string(),
-                },
-            ]);
+                        user_info: "asdf".to_string(),
+                    },
+                ]
+            );
         });
     }
 }

@@ -54,13 +54,16 @@ impl<'py> DamageDispatcherMethods<'py> for Bound<'py, DamageDispatcher> {
         dflags: i32,
         means_of_death: i32,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(self.py(), [
-            target,
-            attacker,
-            &damage.into_bound_py_any(self.py())?,
-            &dflags.into_bound_py_any(self.py())?,
-            &means_of_death.into_bound_py_any(self.py())?,
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                target,
+                attacker,
+                &damage.into_bound_py_any(self.py())?,
+                &dflags.into_bound_py_any(self.py())?,
+                &means_of_death.into_bound_py_any(self.py())?,
+            ],
+        )?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }

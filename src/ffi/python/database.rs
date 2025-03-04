@@ -207,9 +207,12 @@ impl Redis {
             .unwrap_or(0);
         let _ = redis_type.setattr(intern!(py, "_counter"), counter + 1);
 
-        (Self {}, AbstractDatabase {
-            plugin: plugin.clone().unbind(),
-        })
+        (
+            Self {},
+            AbstractDatabase {
+                plugin: plugin.clone().unbind(),
+            },
+        )
     }
 
     fn __del__(slf_: &Bound<'_, Self>) -> PyResult<()> {

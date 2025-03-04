@@ -92,12 +92,15 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
             },
         )?;
 
-        let args_tuple = PyTuple::new(self.py(), [
-            PyTuple::new(self.py(), [yes_votes, no_votes])?.into_any(),
-            PyString::new(self.py(), vote).into_any(),
-            PyString::new(self.py(), args).into_any(),
-            PyBool::new(self.py(), passed).to_owned().into_any(),
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                PyTuple::new(self.py(), [yes_votes, no_votes])?.into_any(),
+                PyString::new(self.py(), vote).into_any(),
+                PyString::new(self.py(), args).into_any(),
+                PyBool::new(self.py(), passed).to_owned().into_any(),
+            ],
+        )?;
 
         self.as_super().dispatch(&args_tuple);
 

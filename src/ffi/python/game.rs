@@ -2396,9 +2396,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
 
                     let result = game.get_tags();
 
-                    assert_eq!(result.expect("result was not OK"), vec![
-                        "tag1", "tag2", "tag3"
-                    ]);
+                    assert_eq!(
+                        result.expect("result was not OK"),
+                        vec!["tag1", "tag2", "tag3"]
+                    );
                 });
             });
     }

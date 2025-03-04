@@ -58,11 +58,10 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
             .into_bound(self.py())
             .into_any();
 
-        let args_tuple = PyTuple::new(self.py(), [
-            player,
-            PyString::new(self.py(), vote).as_any(),
-            args,
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [player, PyString::new(self.py(), vote).as_any(), args],
+        )?;
 
         Ok(self.as_super().dispatch(&args_tuple))
     }

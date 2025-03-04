@@ -51,11 +51,14 @@ impl<'py> VoteCalledDispatcherMethods<'py> for Bound<'py, VoteCalledDispatcher> 
         vote: &str,
         args: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(self.py(), [
-            player.as_any(),
-            PyString::new(self.py(), vote).as_any(),
-            args,
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                player.as_any(),
+                PyString::new(self.py(), vote).as_any(),
+                args,
+            ],
+        )?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }

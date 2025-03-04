@@ -53,11 +53,14 @@ impl<'py> TeamSwitchDispatcherMethods<'py> for Bound<'py, TeamSwitchDispatcher> 
         old_team: &str,
         new_team: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(self.py(), [
-            player.as_any(),
-            PyString::new(self.py(), old_team).as_any(),
-            PyString::new(self.py(), new_team).as_any(),
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                player.as_any(),
+                PyString::new(self.py(), old_team).as_any(),
+                PyString::new(self.py(), new_team).as_any(),
+            ],
+        )?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }
