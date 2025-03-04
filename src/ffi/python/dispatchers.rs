@@ -104,7 +104,6 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         .load()
         .as_ref()
         .and_then(|client_connect_handler| {
-            let result =
                 Python::with_gil(|py| {
                     client_connect_handler.bind(py).call1((client_id, is_bot)).map_or_else(|e| {
                         error!(target: "shinqlx", "client_connect_handler returned an error: {:?}.", e);
@@ -122,9 +121,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
                                 .map(|py_string| py_string.to_string())
                         }
                     })
-                });
-
-            result
+                })
         });
 
     {
