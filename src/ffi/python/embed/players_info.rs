@@ -119,26 +119,29 @@ mod get_players_info_tests {
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
             let players_info = Python::with_gil(pyshinqlx_players_info);
-            assert_eq!(players_info.expect("result was not OK"), vec![
-                Some(PlayerInfo {
-                    client_id: 0,
-                    name: "Mocked Player".to_string(),
-                    connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".to_string(),
-                    steam_id: 1234,
-                    team: team_t::TEAM_RED as i32,
-                    privileges: privileges_t::PRIV_NONE as i32
-                }),
-                Some(PlayerInfo {
-                    client_id: 2,
-                    name: "Mocked Player".to_string(),
-                    connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".to_string(),
-                    steam_id: 1234,
-                    team: team_t::TEAM_RED as i32,
-                    privileges: privileges_t::PRIV_NONE as i32
-                })
-            ]);
+            assert_eq!(
+                players_info.expect("result was not OK"),
+                vec![
+                    Some(PlayerInfo {
+                        client_id: 0,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: privileges_t::PRIV_NONE as i32
+                    }),
+                    Some(PlayerInfo {
+                        client_id: 2,
+                        name: "Mocked Player".to_string(),
+                        connection_state: clientState_t::CS_ACTIVE as i32,
+                        userinfo: "asdf".to_string(),
+                        steam_id: 1234,
+                        team: team_t::TEAM_RED as i32,
+                        privileges: privileges_t::PRIV_NONE as i32
+                    })
+                ]
+            );
         });
     }
 }
