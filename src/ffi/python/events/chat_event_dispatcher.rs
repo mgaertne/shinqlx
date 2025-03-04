@@ -61,11 +61,14 @@ impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
             }
         };
 
-        let args_tuple = PyTuple::new(self.py(), [
-            player.as_any(),
-            PyString::new(self.py(), msg).as_any(),
-            channel,
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                player.as_any(),
+                PyString::new(self.py(), msg).as_any(),
+                channel,
+            ],
+        )?;
 
         Ok(self.as_super().dispatch(&args_tuple))
     }

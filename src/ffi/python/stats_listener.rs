@@ -585,11 +585,14 @@ mod stats_listener_tests {
             )
             .run(|| {
                 let result = StatsListener::py_new();
-                assert_eq!(result.expect("this should not happen"), StatsListener {
-                    done: true.into(),
-                    address: "".into(),
-                    password: "".into()
-                });
+                assert_eq!(
+                    result.expect("this should not happen"),
+                    StatsListener {
+                        done: true.into(),
+                        address: "".into(),
+                        password: "".into()
+                    }
+                );
             });
     }
 
@@ -641,11 +644,14 @@ mod stats_listener_tests {
             )
             .run(|| {
                 let result = StatsListener::py_new();
-                assert_eq!(result.expect("this should not happen"), StatsListener {
-                    done: false.into(),
-                    address: "tcp://127.0.0.1:27960".into(),
-                    password: "".into()
-                });
+                assert_eq!(
+                    result.expect("this should not happen"),
+                    StatsListener {
+                        done: false.into(),
+                        address: "tcp://127.0.0.1:27960".into(),
+                        password: "".into()
+                    }
+                );
             });
     }
 
@@ -696,11 +702,14 @@ mod stats_listener_tests {
             )
             .run(|| {
                 let result = StatsListener::py_new();
-                assert_eq!(result.expect("this should not happen"), StatsListener {
-                    done: false.into(),
-                    address: "tcp://192.168.0.1:28960".into(),
-                    password: "p4ssw0rd".into()
-                });
+                assert_eq!(
+                    result.expect("this should not happen"),
+                    StatsListener {
+                        done: false.into(),
+                        address: "tcp://192.168.0.1:28960".into(),
+                        password: "p4ssw0rd".into()
+                    }
+                );
             });
     }
 
@@ -708,11 +717,14 @@ mod stats_listener_tests {
     #[cfg_attr(miri, ignore)]
     fn stop_sets_done_field(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let listener = Bound::new(py, StatsListener {
-                done: false.into(),
-                address: "".into(),
-                password: "".into(),
-            })
+            let listener = Bound::new(
+                py,
+                StatsListener {
+                    done: false.into(),
+                    address: "".into(),
+                    password: "".into(),
+                },
+            )
             .expect("this should not happen");
 
             listener.stop();

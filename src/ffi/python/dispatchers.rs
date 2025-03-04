@@ -78,7 +78,10 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     let returned: Option<String> = Python::with_gil(|py| {
         let result = handle_player_connect(py, client_id, is_bot);
 
-        if result.bind(py).downcast::<PyBool>().is_ok_and(|bool_value| !bool_value.is_true())
+        if result
+            .bind(py)
+            .downcast::<PyBool>()
+            .is_ok_and(|bool_value| !bool_value.is_true())
         {
             Some("You are banned from this server.".to_string())
         } else if result.bind(py).is_instance_of::<PyString>() {

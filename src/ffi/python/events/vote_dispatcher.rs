@@ -38,10 +38,10 @@ pub(crate) trait VoteDispatcherMethods<'py> {
 
 impl<'py> VoteDispatcherMethods<'py> for Bound<'py, VoteDispatcher> {
     fn dispatch(&self, player: &Bound<'py, Player>, yes: bool) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(self.py(), [
-            player.as_any(),
-            PyBool::new(self.py(), yes).as_any(),
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [player.as_any(), PyBool::new(self.py(), yes).as_any()],
+        )?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }

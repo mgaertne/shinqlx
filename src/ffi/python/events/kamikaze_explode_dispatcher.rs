@@ -46,10 +46,13 @@ impl<'py> KamikazeExplodeDispatcherMethods<'py> for Bound<'py, KamikazeExplodeDi
         player: &Bound<'py, Player>,
         is_used_on_demand: bool,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let args_tuple = PyTuple::new(self.py(), [
-            player.as_any(),
-            PyBool::new(self.py(), is_used_on_demand).as_any(),
-        ])?;
+        let args_tuple = PyTuple::new(
+            self.py(),
+            [
+                player.as_any(),
+                PyBool::new(self.py(), is_used_on_demand).as_any(),
+            ],
+        )?;
         Ok(self.as_super().dispatch(&args_tuple))
     }
 }
