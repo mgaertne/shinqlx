@@ -79,7 +79,7 @@ pretty_assertions = { version = ">=1.4", default-features = false, features = ["
 rstest = { version = ">=0.25", default-features = false }
 mockall = { version = ">=0.13", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=3.2", default-features = false }
-tempfile = { version = ">=3.17", default-features = false }
+tempfile = { version = ">=3.18", default-features = false }
 
 [features]
 default = ["alloc"]
