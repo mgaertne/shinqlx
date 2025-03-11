@@ -23,7 +23,7 @@ use pyo3::{
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
-impl TryFrom<&str> for privileges_t {
+impl TryFrom<String> for privileges_t {
     type Error = &'static str;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -1106,7 +1106,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_privileges(&self, value: Option<String>) -> PyResult<()> {
         let new_privileges = self
             .py()
-            .allow_threads(|| privileges_t::try_from(&value.unwrap_or("none".to_string())));
+            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".to_string())));
 
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
