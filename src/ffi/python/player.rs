@@ -26,8 +26,8 @@ create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 impl TryFrom<String> for privileges_t {
     type Error = &'static str;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
             "none" => Ok(privileges_t::PRIV_NONE),
             "mod" => Ok(privileges_t::PRIV_MOD),
             "admin" => Ok(privileges_t::PRIV_ADMIN),
