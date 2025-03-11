@@ -149,11 +149,9 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 
-use pyo3::call::PyCallArgs;
-use pyo3::exceptions::PyAttributeError;
 use pyo3::{
     IntoPyObjectExt, append_to_inittab, create_exception,
-    exceptions::{PyEnvironmentError, PyException, PyValueError},
+    exceptions::{PyAttributeError, PyEnvironmentError, PyException, PyValueError},
     ffi::Py_IsInitialized,
     intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyString, PyTuple, PyType},

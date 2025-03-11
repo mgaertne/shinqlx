@@ -387,7 +387,7 @@ impl Player {
 
     #[setter(privileges)]
     fn set_privileges(slf: &Bound<'_, Self>, value: Option<String>) -> PyResult<()> {
-        slf.set_privileges(value.as_ref().into())
+        slf.set_privileges(value)
     }
 
     #[getter(country)]
@@ -1103,10 +1103,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         }
     }
 
-    fn set_privileges(&self, value: Option<&str>) -> PyResult<()> {
+    fn set_privileges(&self, value: Option<String>) -> PyResult<()> {
         let new_privileges = self
             .py()
-            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none")));
+            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".into())));
 
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
@@ -4068,14 +4068,14 @@ assert(player._valid)
 
     #[rstest]
     #[case(None, & privileges_t::PRIV_NONE)]
-    #[case(Some("none"), & privileges_t::PRIV_NONE)]
-    #[case(Some("mod"), & privileges_t::PRIV_MOD)]
-    #[case(Some("admin"), & privileges_t::PRIV_ADMIN)]
+    #[case(Some("none".to_string()), & privileges_t::PRIV_NONE)]
+    #[case(Some("mod".to_string()), & privileges_t::PRIV_MOD)]
+    #[case(Some("admin".to_string()), & privileges_t::PRIV_ADMIN)]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_privileges_for_valid_values(
         _pyshinqlx_setup: (),
-        #[case] opt_priv: Option<&str>,
+        #[case] opt_priv: Option<String>,
         #[case] privileges: &'static privileges_t,
     ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -4108,7 +4108,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            let result = player.set_privileges(Some("root"));
+            let result = player.set_privileges(Some("root".to_string()));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
