@@ -684,7 +684,7 @@ pub(crate) trait PlayerMethods<'py> {
     fn get_connection_state(&self) -> PyResult<String>;
     fn get_state(&self) -> PyResult<Option<PlayerState>>;
     fn get_privileges(&self) -> Option<String>;
-    fn set_privileges(&self, value: Option<&str>) -> PyResult<()>;
+    fn set_privileges(&self, value: Option<String>) -> PyResult<()>;
     fn get_country(&self) -> PyResult<String>;
     fn set_country(&self, value: &str) -> PyResult<()>;
     fn get_valid(&self) -> bool;
@@ -1106,7 +1106,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_privileges(&self, value: Option<String>) -> PyResult<()> {
         let new_privileges = self
             .py()
-            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".into())));
+            .allow_threads(|| privileges_t::try_from(&value.unwrap_or("none".to_string())));
 
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
