@@ -149,6 +149,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 
+use pyo3::call::PyCallArgs;
 use pyo3::exceptions::PyAttributeError;
 use pyo3::{
     IntoPyObjectExt, append_to_inittab, create_exception,
@@ -1299,7 +1300,7 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> 
                         traceback_module
                             .call_method1(
                                 intern!(py, "format_exception"),
-                                exc_info.downcast::<PyTuple>()?,
+                                exc_info.downcast::<PyTuple>()?.clone(),
                             )
                             .and_then(|value| {
                                 value

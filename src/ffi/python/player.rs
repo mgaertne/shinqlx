@@ -386,8 +386,8 @@ impl Player {
     }
 
     #[setter(privileges)]
-    fn set_privileges(slf: &Bound<'_, Self>, value: Option<&str>) -> PyResult<()> {
-        slf.set_privileges(value)
+    fn set_privileges(slf: &Bound<'_, Self>, value: Option<String>) -> PyResult<()> {
+        slf.set_privileges(value.as_ref().into())
     }
 
     #[getter(country)]
