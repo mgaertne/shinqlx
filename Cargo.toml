@@ -72,7 +72,7 @@ mimalloc = { version = ">=0.1.43", default-features = false, optional = true }
 
 [build-dependencies]
 pyo3-build-config = { version = ">=0.24, <0.25", default-features = false, features = ["resolve-config"] }
-git2 = { version = ">=0.20", default-features = false }
+git2 = { version = ">=0.20.1", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
