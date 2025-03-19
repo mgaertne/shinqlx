@@ -162,12 +162,14 @@ mod abstract_channel_tests {
     use super::AbstractChannelMethods;
 
     use crate::ffi::python::prelude::*;
+    use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
     use rstest::*;
 
     #[rstest]
+    #[serial]
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
@@ -441,8 +443,8 @@ console_channel = shinqlx.ConsoleChannel()
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn reply_prints_text_to_console(_pyshinqlx_setup: ()) {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx
@@ -1295,8 +1297,8 @@ tell_channel = shinqlx.TeamChatChannel("all")
     #[case("blue", Some(vec![2, 6]))]
     #[case("spectator", Some(vec![3, 7]))]
     #[case("free", Some(vec![0, 4]))]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn recipients_returns_client_ids(
         _pyshinqlx_setup: (),
         #[case] team: &str,
@@ -1358,8 +1360,8 @@ tell_channel = shinqlx.TeamChatChannel("all")
     }
 
     #[rstest]
-    #[cfg_attr(miri, ignore)]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn recipients_for_invalid_team_chat_channel_name(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
