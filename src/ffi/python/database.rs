@@ -486,7 +486,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn clear_flag(&self, player: &Bound<'py, PyAny>, flag: &str) -> PyResult<()> {
-        self.as_super().clear_flag(player, flag)
+        self.set_flag(player, flag, false)
     }
 
     fn get_flag(&self, player: &Bound<'py, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
@@ -710,7 +710,7 @@ pub(crate) trait RedisMethods<'py> {
 
 impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
     fn get_redis(&self) -> PyResult<Bound<'py, PyAny>> {
-        self.as_super().connect()
+        self.connect()
     }
 
     fn connect_with_parameters(
