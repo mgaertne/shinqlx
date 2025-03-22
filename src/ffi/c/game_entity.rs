@@ -95,8 +95,7 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
             .iter()
             .for_each(|original_func| {
                 (unsafe { ent.as_ref() }).iter().for_each(|entity| {
-                    #[allow(clippy::ptr_eq)]
-                    if entity.parent != other {
+                    if !ptr::eq(entity.parent, other) {
                         original_func(ent, other, trace);
                     }
                 });
