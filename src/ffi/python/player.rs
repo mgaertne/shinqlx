@@ -18,16 +18,16 @@ use pyo3::{
         PyAttributeError, PyEnvironmentError, PyException, PyKeyError, PyNotImplementedError,
         PyValueError,
     },
-    types::{IntoPyDict, PyBool, PyDict, PyNotImplemented, PyType},
+    types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
 };
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
-impl TryFrom<String> for privileges_t {
+impl TryFrom<&str> for privileges_t {
     type Error = &'static str;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
             "none" => Ok(privileges_t::PRIV_NONE),
             "mod" => Ok(privileges_t::PRIV_MOD),
             "admin" => Ok(privileges_t::PRIV_ADMIN),
@@ -386,7 +386,7 @@ impl Player {
     }
 
     #[setter(privileges)]
-    fn set_privileges(slf: &Bound<'_, Self>, value: Option<String>) -> PyResult<()> {
+    fn set_privileges(slf: &Bound<'_, Self>, value: Option<&str>) -> PyResult<()> {
         slf.set_privileges(value)
     }
 
@@ -474,7 +474,7 @@ impl Player {
     }
 
     #[setter(holdable)]
-    fn set_holdable(slf: &Bound<'_, Self>, holdable: Option<String>) -> PyResult<()> {
+    fn set_holdable(slf: &Bound<'_, Self>, holdable: Option<&str>) -> PyResult<()> {
         slf.set_holdable(holdable)
     }
 
@@ -684,7 +684,7 @@ pub(crate) trait PlayerMethods<'py> {
     fn get_connection_state(&self) -> PyResult<String>;
     fn get_state(&self) -> PyResult<Option<PlayerState>>;
     fn get_privileges(&self) -> Option<String>;
-    fn set_privileges(&self, value: Option<String>) -> PyResult<()>;
+    fn set_privileges(&self, value: Option<&str>) -> PyResult<()>;
     fn get_country(&self) -> PyResult<String>;
     fn set_country(&self, value: &str) -> PyResult<()>;
     fn get_valid(&self) -> bool;
@@ -714,7 +714,7 @@ pub(crate) trait PlayerMethods<'py> {
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>>;
     fn get_holdable(&self) -> PyResult<Option<String>>;
-    fn set_holdable(&self, holdable: Option<String>) -> PyResult<()>;
+    fn set_holdable(&self, holdable: Option<&str>) -> PyResult<()>;
     fn drop_holdable(&self) -> PyResult<()>;
     fn flight(
         &self,
@@ -1103,10 +1103,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         }
     }
 
-    fn set_privileges(&self, value: Option<String>) -> PyResult<()> {
+    fn set_privileges(&self, value: Option<&str>) -> PyResult<()> {
         let new_privileges = self
             .py()
-            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none".to_string())));
+            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none")));
 
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
@@ -1320,7 +1320,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 Some(state) => state.weapon,
             };
 
-            return weapon.into_bound_py_any(self.py());
+            return Ok(PyInt::new(self.py(), weapon).into_any());
         };
 
         let Ok(converted_weapon) = (match weapon.extract::<i32>() {
@@ -1483,7 +1483,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         })
     }
 
-    fn set_holdable(&self, holdable: Option<String>) -> PyResult<()> {
+    fn set_holdable(&self, holdable: Option<&str>) -> PyResult<()> {
         match Holdable::from(holdable) {
             Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
             value => {
@@ -1512,7 +1512,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             .as_ref()
             .is_some_and(|state| state.holdable == Holdable::Flight)
         {
-            self.set_holdable(Some("flight".to_string()))?;
+            self.set_holdable(Some("flight"))?;
             true
         } else {
             reset
@@ -1771,7 +1771,7 @@ mod pyshinqlx_player_tests {
     use pyo3::{
         IntoPyObjectExt,
         exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
-        types::{IntoPyDict, PyBool, PyString},
+        types::{IntoPyDict, PyBool, PyInt, PyString},
     };
 
     #[test]
@@ -3507,8 +3507,7 @@ assert(player._valid)
                 )
                 .expect("this should not happen");
 
-                let result = player
-                    .set_autohop(&0i32.into_bound_py_any(py).expect("this should not happen"));
+                let result = player.set_autohop(PyInt::new(py, 0i32).as_any());
                 assert!(result.is_ok());
             });
         });
@@ -3669,8 +3668,7 @@ assert(player._valid)
                 )
                 .expect("this should not happen");
 
-                let result = player
-                    .set_autoaction(&0i32.into_bound_py_any(py).expect("this should not happen"));
+                let result = player.set_autoaction(PyInt::new(py, 0i32).as_any());
                 assert!(result.is_ok());
             });
         });
@@ -3832,8 +3830,7 @@ assert(player._valid)
                 )
                 .expect("this should not happen");
 
-                let result = player
-                    .set_predictitems(&0i32.into_bound_py_any(py).expect("this should not happen"));
+                let result = player.set_predictitems(PyInt::new(py, 0i32).as_any());
                 assert!(result.is_ok());
             });
         });
@@ -4035,17 +4032,17 @@ assert(player._valid)
     }
 
     #[rstest]
-    #[case(privileges_t::PRIV_MOD as i32, Some("mod".to_string()))]
-    #[case(privileges_t::PRIV_ADMIN as i32, Some("admin".to_string()))]
-    #[case(privileges_t::PRIV_ROOT as i32, Some("root".to_string()))]
-    #[case(privileges_t::PRIV_BANNED as i32, Some("banned".to_string()))]
+    #[case(privileges_t::PRIV_MOD as i32, Some("mod"))]
+    #[case(privileges_t::PRIV_ADMIN as i32, Some("admin"))]
+    #[case(privileges_t::PRIV_ROOT as i32, Some("root"))]
+    #[case(privileges_t::PRIV_BANNED as i32, Some("banned"))]
     #[case(privileges_t::PRIV_NONE as i32, None)]
     #[case(42, None)]
     #[cfg_attr(miri, ignore)]
     fn get_privileges_various_values(
         _pyshinqlx_setup: (),
         #[case] privileges: i32,
-        #[case] expected_value: Option<String>,
+        #[case] expected_value: Option<&str>,
     ) {
         Python::with_gil(|py| {
             let player = Bound::new(
@@ -4062,20 +4059,20 @@ assert(player._valid)
             .expect("this should not happen");
 
             let result = player.get_privileges();
-            assert_eq!(result, expected_value);
+            assert_eq!(result.as_deref(), expected_value);
         });
     }
 
     #[rstest]
     #[case(None, & privileges_t::PRIV_NONE)]
-    #[case(Some("none".to_string()), & privileges_t::PRIV_NONE)]
-    #[case(Some("mod".to_string()), & privileges_t::PRIV_MOD)]
-    #[case(Some("admin".to_string()), & privileges_t::PRIV_ADMIN)]
+    #[case(Some("none"), & privileges_t::PRIV_NONE)]
+    #[case(Some("mod"), & privileges_t::PRIV_MOD)]
+    #[case(Some("admin"), & privileges_t::PRIV_ADMIN)]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_privileges_for_valid_values(
         _pyshinqlx_setup: (),
-        #[case] opt_priv: Option<String>,
+        #[case] opt_priv: Option<&str>,
         #[case] privileges: &'static privileges_t,
     ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -4108,7 +4105,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            let result = player.set_privileges(Some("root".to_string()));
+            let result = player.set_privileges(Some("root"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5260,11 +5257,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-                let result = player.weapon(Some(
-                    weapon_index
-                        .into_bound_py_any(py)
-                        .expect("this should not happen"),
-                ));
+                let result = player.weapon(Some(PyInt::new(py, weapon_index).into_any()));
                 assert_eq!(
                     result
                         .expect("result was not Ok")
@@ -5282,9 +5275,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            let result = player.weapon(Some(
-                42i32.into_bound_py_any(py).expect("this should not happen"),
-            ));
+            let result = player.weapon(Some(PyInt::new(py, 42i32).into_any()));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5788,18 +5779,18 @@ assert(player._valid)
 
     #[rstest]
     #[case(Holdable::None, None)]
-    #[case(Holdable::Teleporter, Some("teleporter".to_string()))]
-    #[case(Holdable::MedKit, Some("medkit".to_string()))]
-    #[case(Holdable::Flight, Some("flight".to_string()))]
-    #[case(Holdable::Kamikaze, Some("kamikaze".to_string()))]
-    #[case(Holdable::Portal, Some("portal".to_string()))]
-    #[case(Holdable::Invulnerability, Some("invulnerability".to_string()))]
+    #[case(Holdable::Teleporter, Some("teleporter"))]
+    #[case(Holdable::MedKit, Some("medkit"))]
+    #[case(Holdable::Flight, Some("flight"))]
+    #[case(Holdable::Kamikaze, Some("kamikaze"))]
+    #[case(Holdable::Portal, Some("portal"))]
+    #[case(Holdable::Invulnerability, Some("invulnerability"))]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_holdable_with_various_values(
         _pyshinqlx_setup: (),
         #[case] holdable: Holdable,
-        #[case] expected_result: Option<String>,
+        #[case] expected_result: Option<&str>,
     ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx.expect().times(1).returning(move |_| {
@@ -5839,7 +5830,10 @@ assert(player._valid)
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.get_holdable();
-                assert_eq!(result.expect("result was not Ok"), expected_result);
+                assert_eq!(
+                    result.expect("result was not Ok").as_deref(),
+                    expected_result
+                );
             });
         });
     }
@@ -5851,7 +5845,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            let result = player.set_holdable(Some("kamikaze".to_string()));
+            let result = player.set_holdable(Some("kamikaze"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)))
         });
     }
@@ -5865,24 +5859,24 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            let result = player.set_holdable(Some(invalid_str.to_string()));
+            let result = player.set_holdable(Some(invalid_str));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)))
         });
     }
 
     #[rstest]
     #[case(None, Holdable::None)]
-    #[case(Some("none".to_string()), Holdable::None)]
-    #[case(Some("teleporter".to_string()), Holdable::Teleporter)]
-    #[case(Some("medkit".to_string()), Holdable::MedKit)]
-    #[case(Some("kamikaze".to_string()), Holdable::Kamikaze)]
-    #[case(Some("portal".to_string()), Holdable::Portal)]
-    #[case(Some("invulnerability".to_string()), Holdable::Invulnerability)]
+    #[case(Some("none"), Holdable::None)]
+    #[case(Some("teleporter"), Holdable::Teleporter)]
+    #[case(Some("medkit"), Holdable::MedKit)]
+    #[case(Some("kamikaze"), Holdable::Kamikaze)]
+    #[case(Some("portal"), Holdable::Portal)]
+    #[case(Some("invulnerability"), Holdable::Invulnerability)]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_various_values(
         _pyshinqlx_setup: (),
-        #[case] new_holdable: Option<String>,
+        #[case] new_holdable: Option<&str>,
         #[case] expected_holdable: Holdable,
     ) {
         let game_entity_from_ctx = MockGameEntity::from_context();
@@ -5956,7 +5950,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-                let result = player.set_holdable(Some("flight".to_string()));
+                let result = player.set_holdable(Some("flight"));
                 assert!(result.is_ok());
             });
         });
@@ -6468,11 +6462,7 @@ assert(player._valid)
             Python::with_gil(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-                let result = player.set_noclip(
-                    &noclip_value
-                        .into_bound_py_any(py)
-                        .expect("this should not happen"),
-                );
+                let result = player.set_noclip(PyInt::new(py, noclip_value).as_any());
 
                 assert!(result.is_ok());
             });
@@ -7641,10 +7631,7 @@ assert(player._valid)
                     "These_are_four_lines",
                     Some(
                         &[
-                            (
-                                "limit",
-                                5i32.into_bound_py_any(py).expect("this should not happen"),
-                            ),
+                            ("limit", PyInt::new(py, 5i32).into_any()),
                             ("delimiter", PyString::new(py, "_").into_any()),
                         ]
                         .into_py_dict(py)

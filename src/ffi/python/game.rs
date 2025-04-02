@@ -888,9 +888,8 @@ mod pyshinqlx_game_tests {
     use rstest::rstest;
 
     use pyo3::{
-        IntoPyObjectExt,
         exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
-        types::{PyBool, PyList, PyString},
+        types::{PyBool, PyInt, PyList, PyString},
     };
 
     fn default_game() -> Game {
@@ -1918,12 +1917,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_instagib(
-                        &value_set
-                            .into_bound_py_any(py)
-                            .expect("this should not happen"),
-                    )
-                    .expect("this should not happen");
+                    game.set_instagib(PyInt::new(py, value_set).as_any())
+                        .expect("this should not happen");
                 });
             });
     }
@@ -2028,12 +2023,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_loadout(
-                        &value_set
-                            .into_bound_py_any(py)
-                            .expect("this should not happen"),
-                    )
-                    .expect("this should not happen");
+                    game.set_loadout(PyInt::new(py, value_set).as_any())
+                        .expect("this should not happen");
                 });
             });
     }
@@ -2472,8 +2463,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game
-                        .set_tags(&42i32.into_bound_py_any(py).expect("this should not happen"));
+                    let result = game.set_tags(PyInt::new(py, 42i32).as_any());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2542,9 +2532,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_workshop_items(
-                        &42i32.into_bound_py_any(py).expect("this should not happen"),
-                    );
+                    let result = game.set_workshop_items(PyInt::new(py, 42i32).as_any());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2715,7 +2703,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         Python::with_gil(|py| {
             let result = Game::put(
                 &py.get_type::<Game>(),
-                &2i32.into_bound_py_any(py).expect("this should not happen"),
+                PyInt::new(py, 2i32).as_any(),
                 "invalid team",
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -2729,9 +2717,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         Python::with_gil(|py| {
             let result = Game::put(
                 &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
+                PyInt::new(py, 2048i32).as_any(),
                 "red",
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -2753,7 +2739,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 let result = Python::with_gil(|py| {
                     Game::put(
                         &py.get_type::<Game>(),
-                        &2i32.into_bound_py_any(py).expect("this should not happen"),
+                        PyInt::new(py, 2i32).as_any(),
                         new_team,
                     )
                 });
@@ -2766,12 +2752,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::mute(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::mute(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2784,10 +2765,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("mute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::mute(
-                        &py.get_type::<Game>(),
-                        &2i32.into_bound_py_any(py).expect("this should not happen"),
-                    )
+                    Game::mute(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2798,12 +2776,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::unmute(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::unmute(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2816,7 +2789,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::unmute(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::unmute(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2827,12 +2800,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::tempban(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::tempban(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2845,7 +2813,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::tempban(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::tempban(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2856,12 +2824,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::ban(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::ban(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2874,7 +2837,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("ban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::ban(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::ban(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2885,12 +2848,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::unban(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::unban(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2903,7 +2861,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("unban 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::unban(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::unban(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2926,12 +2884,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::addadmin(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::addadmin(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2944,7 +2897,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::addadmin(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::addadmin(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2955,12 +2908,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::addmod(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::addmod(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(
                 result
                     .as_ref()
@@ -2979,7 +2927,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::addmod(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::addmod(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -2990,12 +2938,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::demote(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-            );
+            let result = Game::demote(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3008,7 +2951,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("demote 2", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::demote(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?)
+                    Game::demote(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
             });
@@ -3031,13 +2974,8 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result = Game::addscore(
-                &py.get_type::<Game>(),
-                &2048i32
-                    .into_bound_py_any(py)
-                    .expect("this should not happen"),
-                42,
-            );
+            let result =
+                Game::addscore(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any(), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3050,7 +2988,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
                 let result = Python::with_gil(|py| {
-                    Game::addscore(&py.get_type::<Game>(), &2i32.into_bound_py_any(py)?, 42)
+                    Game::addscore(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any(), 42)
                 });
                 assert!(result.is_ok());
             });

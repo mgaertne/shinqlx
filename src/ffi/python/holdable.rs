@@ -60,11 +60,11 @@ impl Display for Holdable {
     }
 }
 
-impl From<Option<String>> for Holdable {
-    fn from(holdable_str: Option<String>) -> Self {
+impl From<Option<&str>> for Holdable {
+    fn from(holdable_str: Option<&str>) -> Self {
         match holdable_str {
             None => Holdable::None,
-            Some(value) => match value.as_str() {
+            Some(value) => match value {
                 "none" => Holdable::None,
                 "teleporter" => Holdable::Teleporter,
                 "medkit" => Holdable::MedKit,
@@ -126,17 +126,17 @@ mod holdable_tests {
 
     #[rstest]
     #[case(None, Holdable::None)]
-    #[case(Some("none".to_string()), Holdable::None)]
-    #[case(Some("teleporter".to_string()), Holdable::Teleporter)]
-    #[case(Some("medkit".to_string()), Holdable::MedKit)]
-    #[case(Some("flight".to_string()), Holdable::Flight)]
-    #[case(Some("kamikaze".to_string()), Holdable::Kamikaze)]
-    #[case(Some("portal".to_string()), Holdable::Portal)]
-    #[case(Some("invulnerability".to_string()), Holdable::Invulnerability)]
-    #[case(Some("unknown".to_string()), Holdable::Unknown)]
-    #[case(Some("asdf".to_string()), Holdable::Unknown)]
+    #[case(Some("none"), Holdable::None)]
+    #[case(Some("teleporter"), Holdable::Teleporter)]
+    #[case(Some("medkit"), Holdable::MedKit)]
+    #[case(Some("flight"), Holdable::Flight)]
+    #[case(Some("kamikaze"), Holdable::Kamikaze)]
+    #[case(Some("portal"), Holdable::Portal)]
+    #[case(Some("invulnerability"), Holdable::Invulnerability)]
+    #[case(Some("unknown"), Holdable::Unknown)]
+    #[case(Some("asdf"), Holdable::Unknown)]
     fn holdable_from_opt_string(
-        #[case] holdable_str: Option<String>,
+        #[case] holdable_str: Option<&str>,
         #[case] expected_holdable: Holdable,
     ) {
         assert_eq!(Holdable::from(holdable_str), expected_holdable);

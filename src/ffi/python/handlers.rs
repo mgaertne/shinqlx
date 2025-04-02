@@ -16,7 +16,7 @@ use pyo3::{
     BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
-    types::{IntoPyDict, PyBool, PyDict, PyString},
+    types::{IntoPyDict, PyBool, PyDict, PyInt, PyString},
 };
 
 use alloc::sync::Arc;
@@ -5295,7 +5295,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                         VoteStartedDispatcherMethods::dispatch(
                             vote_started_dispatcher.downcast()?,
                             vote,
-                            &args.into_bound_py_any(py)?,
+                            PyString::new(py, args).as_any(),
                         )?;
 
                         Ok(py.None())
@@ -8404,7 +8404,7 @@ fn try_handle_damage(
                 let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
                     Bound::new(py, Player::py_new(target_id, None)?)?.into_any()
                 } else {
-                    target_id.into_bound_py_any(py)?
+                    PyInt::new(py, target_id).into_any()
                 };
 
                 let attacker_player = attacker_id.and_then(|attacker_id| {

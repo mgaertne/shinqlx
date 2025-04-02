@@ -43,7 +43,10 @@ mod set_cvar_once_tests {
     use pretty_assertions::assert_eq;
     use rstest::*;
 
-    use pyo3::{IntoPyObjectExt, exceptions::PyEnvironmentError, types::PyString};
+    use pyo3::{
+        exceptions::PyEnvironmentError,
+        types::{PyInt, PyString},
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -77,7 +80,7 @@ mod set_cvar_once_tests {
                     pyshinqlx_set_cvar_once(
                         py,
                         "sv_maxclients",
-                        &64i32.into_bound_py_any(py).expect("this should not happen"),
+                        PyInt::new(py, 64i32).as_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })
