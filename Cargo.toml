@@ -39,7 +39,7 @@ rustflags = ["-Zlocation-detail=none"]
 [dependencies]
 ctor = { version = ">=0.4", default-features = false, features = ["proc_macro"] }
 rand = { version = ">=0.9", default-features = false, features = ["thread_rng"] }
-pyo3 = { version = ">=0.24, <0.25", features = ["pyo3-macros", "extension-module", "nightly"] }
+pyo3 = { version = ">=0.24.1, <0.25", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.3", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 once_cell = { version = ">=1.21", default-features = false }
@@ -65,7 +65,7 @@ tikv-jemallocator = { version = ">=0.6", default-features = false, features = ["
 mimalloc = { version = ">=0.1.43", default-features = false, optional = true }
 
 [build-dependencies]
-pyo3-build-config = { version = ">=0.24, <0.25", default-features = false, features = ["resolve-config"] }
+pyo3-build-config = { version = ">=0.24.1, <0.25", default-features = false, features = ["resolve-config"] }
 git2 = { version = ">=0.20.1", default-features = false }
 
 [dev-dependencies]
