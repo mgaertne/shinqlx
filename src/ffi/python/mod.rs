@@ -150,11 +150,11 @@ use regex::Regex;
 use std::path::{Path, PathBuf};
 
 use pyo3::{
-    IntoPyObjectExt, append_to_inittab, create_exception,
+    append_to_inittab, create_exception,
     exceptions::{PyAttributeError, PyEnvironmentError, PyException, PyValueError},
     ffi::Py_IsInitialized,
     intern, prepare_freethreaded_python,
-    types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyString, PyTuple, PyType},
+    types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyInt, PyString, PyTuple, PyType},
 };
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -1006,8 +1006,8 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                     ),
                 )?;
                 py.import("logging.handlers").and_then(|handlers_submodule| {
-                    let py_max_logssize = max_logssize.into_bound_py_any(py)?;
-                    let py_num_max_logs = num_max_logs.into_bound_py_any(py)?;
+                    let py_max_logssize = PyInt::new(py, max_logssize).into_any();
+                    let py_num_max_logs = PyInt::new(py, num_max_logs).into_any();
                     handlers_submodule
                         .call_method(
                             "RotatingFileHandler",

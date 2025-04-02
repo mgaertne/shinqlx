@@ -11,7 +11,7 @@ use pyo3::{
         PyEnvironmentError, PyKeyError, PyNotImplementedError, PyRuntimeError, PyValueError,
     },
     intern,
-    types::{IntoPyDict, PyBool, PyDict, PyString, PyTuple},
+    types::{IntoPyDict, PyBool, PyDict, PyInt, PyString, PyTuple},
 };
 
 use core::cmp::max;
@@ -434,7 +434,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
             format!("minqlx:players:{}:permission", player.str()?)
         };
 
-        self.set_item(&key, &level.into_bound_py_any(self.py())?)
+        self.set_item(&key, PyInt::new(self.py(), level))
     }
 
     fn get_permission(&self, player: &Bound<'py, PyAny>) -> PyResult<i32> {
@@ -482,7 +482,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
 
         let redis_value = if value { 1i32 } else { 0i32 };
 
-        self.set_item(&key, &redis_value.into_bound_py_any(self.py())?)
+        self.set_item(&key, PyInt::new(self.py(), redis_value))
     }
 
     fn clear_flag(&self, player: &Bound<'py, PyAny>, flag: &str) -> PyResult<()> {
@@ -563,7 +563,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                             "unix_socket_path",
                             PyString::new(self.py(), &cvar_host.get_string()).into_any(),
                         ),
-                        ("db", redis_db_cvar.into_bound_py_any(self.py())?),
+                        ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
                         (
                             "password",
                             PyString::new(self.py(), &password_cvar.get_string()).into_any(),
@@ -590,7 +590,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                     &[
                         ("host", PyString::new(self.py(), redis_hostname).into_any()),
                         ("port", PyString::new(self.py(), redis_port).into_any()),
-                        ("db", redis_db_cvar.into_bound_py_any(self.py())?),
+                        ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
                         (
                             "password",
                             PyString::new(self.py(), &password_cvar.get_string()).into_any(),
@@ -747,7 +747,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                             "unix_socket_path",
                             PyString::new(self.py(), host).into_any(),
                         ),
-                        ("db", database.into_bound_py_any(self.py())?),
+                        ("db", PyInt::new(self.py(), database).into_any()),
                         ("password", password.into_bound_py_any(self.py())?),
                         (
                             "decode_responses",
@@ -768,7 +768,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                     &[
                         ("host", PyString::new(self.py(), redis_hostname).into_any()),
                         ("port", PyString::new(self.py(), redis_port).into_any()),
-                        ("db", database.into_bound_py_any(self.py())?),
+                        ("db", PyInt::new(self.py(), database).into_any()),
                         ("password", password.into_bound_py_any(self.py())?),
                         (
                             "decode_responses",

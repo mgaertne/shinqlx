@@ -1,7 +1,6 @@
 use super::prelude::*;
 
-use pyo3::IntoPyObjectExt;
-use pyo3::types::PyTuple;
+use pyo3::types::{PyInt, PyTuple};
 
 /// Event that goes off when someone is inflicted with damage.
 #[pyclass(module = "_events", name = "DamageDispatcher", extends = EventDispatcher, frozen)]
@@ -59,9 +58,9 @@ impl<'py> DamageDispatcherMethods<'py> for Bound<'py, DamageDispatcher> {
             [
                 target,
                 attacker,
-                &damage.into_bound_py_any(self.py())?,
-                &dflags.into_bound_py_any(self.py())?,
-                &means_of_death.into_bound_py_any(self.py())?,
+                PyInt::new(self.py(), damage).as_any(),
+                PyInt::new(self.py(), dflags).as_any(),
+                PyInt::new(self.py(), means_of_death).as_any(),
             ],
         )?;
         Ok(self.as_super().dispatch(&args_tuple))
