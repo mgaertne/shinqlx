@@ -375,7 +375,7 @@ impl FromStr for ParsedVariables {
             .collect();
 
         if varstr_vec.len() % 2 == 1 {
-            warn!(target: "shinqlx", "Uneven number of keys and values: {}", varstr);
+            warn!(target: "shinqlx", "Uneven number of keys and values: {varstr}");
         }
         Ok(Self {
             items: varstr_vec.iter().cloned().tuples().collect(),
@@ -579,7 +579,7 @@ fn set_configstring(index: u16, value: &str) -> PyResult<()> {
 }
 
 fn set_teamsize(value: i32) -> PyResult<()> {
-    let value_str = format!("{}", value);
+    let value_str = format!("{value}");
     set_cvar("teamsize", &value_str, None).map(|_| ())
 }
 
@@ -627,7 +627,7 @@ fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
 fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let mute_cmd = format!("mute {}", player_id);
+            let mute_cmd = format!("mute {player_id}");
             console_command(&mute_cmd)
         })
     })
@@ -636,7 +636,7 @@ fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let unmute_cmd = format!("unmute {}", player_id);
+            let unmute_cmd = format!("unmute {player_id}");
             console_command(&unmute_cmd)
         })
     })
@@ -645,7 +645,7 @@ fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let tempban_cmd = format!("tempban {}", player_id);
+            let tempban_cmd = format!("tempban {player_id}");
             console_command(&tempban_cmd)
         })
     })
@@ -654,7 +654,7 @@ fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let ban_cmd = format!("ban {}", player_id);
+            let ban_cmd = format!("ban {player_id}");
             console_command(&ban_cmd)
         })
     })
@@ -663,21 +663,21 @@ fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn unban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let unban_cmd = format!("unban {}", player_id);
+            let unban_cmd = format!("unban {player_id}");
             console_command(&unban_cmd)
         })
     })
 }
 
 fn opsay(msg: &str) -> PyResult<()> {
-    let opsay_cmd = format!("opsay {}", msg);
+    let opsay_cmd = format!("opsay {msg}");
     console_command(&opsay_cmd)
 }
 
 fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let addadmin_cmd = format!("addadmin {}", player_id);
+            let addadmin_cmd = format!("addadmin {player_id}");
             console_command(&addadmin_cmd)
         })
     })
@@ -686,7 +686,7 @@ fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let addmod_cmd = format!("addmod {}", player_id);
+            let addmod_cmd = format!("addmod {player_id}");
             console_command(&addmod_cmd)
         })
     })
@@ -695,7 +695,7 @@ fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let demote_cmd = format!("demote {}", player_id);
+            let demote_cmd = format!("demote {player_id}");
             console_command(&demote_cmd)
         })
     })
@@ -704,7 +704,7 @@ fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 fn addscore(py: Python<'_>, player: &Bound<'_, PyAny>, score: i32) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            let addscore_cmd = format!("addscore {} {}", player_id, score);
+            let addscore_cmd = format!("addscore {player_id} {score}");
             console_command(&addscore_cmd)
         })
     })
@@ -4268,7 +4268,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
         py.import(intern!(py, "shinqlx")).and_then(|shinqlx_module| {
             shinqlx_module.call_method0(intern!(py, "initialize"))
         }).map_or_else(|err| {
-            error!(target: "shinqlx", "{:?}", err);
+            error!(target: "shinqlx", "{err:?}");
             error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
             Err(PythonInitializationError::MainScriptError)
         }, |_| {

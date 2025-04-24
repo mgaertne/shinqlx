@@ -111,7 +111,7 @@ fn initialize() {
             signal_hook::low_level::exit(1);
         })
     } {
-        error!(target: "shinqlx", "{:?}", err);
+        error!(target: "shinqlx", "{err:?}");
         error!(target: "shinqlx", "Could not register exit handler");
         panic!("Could not register exit handler");
     };
@@ -119,14 +119,14 @@ fn initialize() {
     initialize_logging();
     let main_engine = QuakeLiveEngine::new();
     if let Err(err) = main_engine.search_static_functions() {
-        error!(target: "shinqlx", "{:?}", err);
+        error!(target: "shinqlx", "{err:?}");
         error!(target: "shinqlx", "Static functions could not be initializied. Exiting.");
         panic!("Static functions could not be initializied. Exiting.");
     }
 
     debug!(target: "shinqlx", "Shared library loaded");
     if let Err(err) = main_engine.hook_static() {
-        error!(target: "shinqlx", "{:?}", err);
+        error!(target: "shinqlx", "{err:?}");
         error!(target: "shinqlx", "Failed to hook static methods. Exiting.");
         panic!("Failed to hook static methods. Exiting.");
     }

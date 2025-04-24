@@ -16,7 +16,7 @@ use pyo3::types::PyBool;
 pub extern "C" fn cmd_send_server_command() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.cmd_args().iter().for_each(|cmd_args| {
-            main_engine.send_server_command(None::<Client>, &format!("{}\n", cmd_args));
+            main_engine.send_server_command(None::<Client>, &format!("{cmd_args}\n"));
         });
     });
 }
@@ -25,7 +25,7 @@ pub extern "C" fn cmd_send_server_command() {
 pub extern "C" fn cmd_center_print() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.cmd_args().iter().for_each(|cmd_args| {
-            main_engine.send_server_command(None::<Client>, &format!("cp \"{}\"\n", cmd_args));
+            main_engine.send_server_command(None::<Client>, &format!("cp \"{cmd_args}\"\n"));
         });
     });
 }
@@ -34,7 +34,7 @@ pub extern "C" fn cmd_center_print() {
 pub extern "C" fn cmd_regular_print() {
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         main_engine.cmd_args().iter().for_each(|cmd_args| {
-            main_engine.send_server_command(None::<Client>, &format!("print \"{}\n\"\n", cmd_args));
+            main_engine.send_server_command(None::<Client>, &format!("print \"{cmd_args}\n\"\n"));
         });
     });
 }
@@ -51,7 +51,7 @@ pub extern "C" fn cmd_slap() {
                 return;
             };
 
-            main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
+            main_engine.com_printf(&format!("Usage: {command_name} <client_id> [damage]\n"));
             return;
         }
 
@@ -155,7 +155,7 @@ pub extern "C" fn cmd_slay() {
                 return;
             };
 
-            main_engine.com_printf(&format!("Usage: {} <client_id> [damage]\n", command_name));
+            main_engine.com_printf(&format!("Usage: {command_name} <client_id> [damage]\n"));
             return;
         }
 

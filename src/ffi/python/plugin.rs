@@ -240,7 +240,7 @@ impl Plugin {
                 Some(value) => value.parse::<i128>().map_or_else(
                     |_| {
                         let error_description =
-                            format!("invalid literal for int() with base 10: '{}'", value);
+                            format!("invalid literal for int() with base 10: '{value}'");
                         Err(PyValueError::new_err(error_description))
                     },
                     |int| Ok(PyInt::new(cls.py(), int).into_any()),
@@ -251,7 +251,7 @@ impl Plugin {
                 Some(value) => value.parse::<f64>().map_or_else(
                     |_| {
                         let error_description =
-                            format!("could not convert string to float: '{}'", value);
+                            format!("could not convert string to float: '{value}'");
                         Err(PyValueError::new_err(error_description))
                     },
                     |float| Ok(PyFloat::new(cls.py(), float).into_any()),
@@ -262,7 +262,7 @@ impl Plugin {
                 Some(value) => value.parse::<i128>().map_or_else(
                     |_| {
                         let error_description =
-                            format!("invalid literal for int() with base 10: '{}'", value);
+                            format!("invalid literal for int() with base 10: '{value}'");
                         Err(PyValueError::new_err(error_description))
                     },
                     |int| Ok(PyBool::new(cls.py(), int != 0).into_any().to_owned()),
@@ -292,7 +292,7 @@ impl Plugin {
                 }
             },
             value => {
-                let error_description = format!("Invalid return type: {}", value);
+                let error_description = format!("Invalid return type: {value}");
                 Err(PyValueError::new_err(error_description))
             }
         }
@@ -731,11 +731,11 @@ impl Plugin {
         }
 
         let Ok(parsed_yes_votes) = yes_votes.parse::<i32>() else {
-            let error_msg = format!("invalid literal for int() with base 10: '{}'", yes_votes);
+            let error_msg = format!("invalid literal for int() with base 10: '{yes_votes}'");
             return Err(PyValueError::new_err(error_msg));
         };
         let Ok(parsed_no_votes) = no_votes.parse::<i32>() else {
-            let error_msg = format!("invalid literal for int() with base 10: '{}'", no_votes);
+            let error_msg = format!("invalid literal for int() with base 10: '{no_votes}'");
             return Err(PyValueError::new_err(error_msg));
         };
 
@@ -817,8 +817,8 @@ impl Plugin {
     fn change_map(cls: &Bound<'_, PyType>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
         cls.py().allow_threads(|| {
             let mapchange_command = match factory {
-                None => format!("map {}", new_map),
-                Some(game_factory) => format!("map {} {}", new_map, game_factory),
+                None => format!("map {new_map}"),
+                Some(game_factory) => format!("map {new_map} {game_factory}"),
             };
             console_command(&mapchange_command)
         })
@@ -1018,7 +1018,7 @@ impl Plugin {
     #[classmethod]
     fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
         cls.py().allow_threads(|| {
-            let setmatchtime_cmd = format!("setmatchtime {}", time);
+            let setmatchtime_cmd = format!("setmatchtime {time}");
             console_command(&setmatchtime_cmd)
         })
     }

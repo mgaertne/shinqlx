@@ -263,7 +263,7 @@ mod dev_print_items_tests {
                 .returning(move || entity_id);
             mock_game_entity
                 .expect_get_classname()
-                .returning(move || format!("super important entity {}", entity_id).into());
+                .returning(move || format!("super important entity {entity_id}").into());
             mock_game_entity
         });
 

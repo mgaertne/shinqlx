@@ -444,7 +444,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
             Ok(rust_int)
         } else if let Ok(rust_str) = player.extract::<String>() {
             rust_str.parse::<i64>().map_err(|_| {
-                let error_msg = format!("invalid literal for int() with base 10: '{}'", rust_str);
+                let error_msg = format!("invalid literal for int() with base 10: '{rust_str}'");
                 PyValueError::new_err(error_msg)
             })
         } else {
