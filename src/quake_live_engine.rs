@@ -208,7 +208,7 @@ impl VmFunctions {
                 |(ql_func, field)| match pattern_search_module(&qagame_maps, ql_func) {
                     None => Some(*ql_func),
                     Some(orig_func) => {
-                        debug!(target: "shinqlx", "{}: {:#X}", ql_func, orig_func);
+                        debug!(target: "shinqlx", "{ql-func}: {orig_func:#X}");
                         field.store(orig_func, Ordering::Release);
                         None
                     }
@@ -836,7 +836,7 @@ impl QuakeLiveEngine {
                 .collect();
 
             if qzeroded_maps.is_empty() {
-                error!(target: "shinqlx", "no memory mapping information for {} found", QZERODED);
+                error!(target: "shinqlx", "no memory mapping information for {QZERODED} found");
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
                     "no memory mapping information found".to_string(),
                 ));
