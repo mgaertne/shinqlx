@@ -32,8 +32,7 @@ pub(crate) fn pyshinqlx_player_info(
         {
             warn!(
                 target: "shinqlx",
-                "WARNING: get_player_info called for CS_FREE client {}.",
-                client_id
+                "WARNING: get_player_info called for CS_FREE client {client_id}."
             );
             return Ok(None);
         };

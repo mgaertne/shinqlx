@@ -30,8 +30,7 @@ fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
         .take(1)
         .next()
         .ok_or(PyValueError::new_err(format!(
-            "invalid item classname: {}",
-            item_classname
+            "invalid item classname: {item_classname}"
         )))
 }
 
@@ -65,8 +64,7 @@ pub(crate) fn pyshinqlx_replace_items(
 
             if opt_game_entity.is_none() {
                 return Err(PyValueError::new_err(format!(
-                    "entity #{} is not a valid game item",
-                    item1_id
+                    "entity #{item1_id} is not a valid game item"
                 )));
             }
 

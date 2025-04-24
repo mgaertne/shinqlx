@@ -310,7 +310,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_conect detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
                 }
             });
 
@@ -334,7 +334,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
                 }
             });
 
@@ -355,7 +355,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_spawn detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
                 }
             });
 
@@ -389,7 +389,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling damage detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
                 }
             });
 
@@ -436,7 +436,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_connect detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
                 }
             });
 
@@ -446,7 +446,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
                 }
             });
 
@@ -456,7 +456,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_spawn detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
                 }
             });
 
@@ -466,7 +466,7 @@ impl VmFunctions {
             .iter()
             .for_each(|detour| {
                 if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling damage detour: {}", e);
+                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
                 }
             });
     }

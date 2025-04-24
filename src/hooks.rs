@@ -17,7 +17,7 @@ pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe
     MAIN_ENGINE.load().iter().for_each(|main_engine| {
         if !main_engine.is_common_initialized() {
             if let Err(err) = main_engine.initialize_static() {
-                error!(target: "shinqlx", "{:?}", err);
+                error!(target: "shinqlx", "{err:?}");
                 error!(target: "shinqlx", "Static initialization failed. Exiting.");
                 panic!("Static initialization failed. Exiting.");
             }
@@ -39,13 +39,13 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
 
         // We should be getting qagame, but check just in case.
         if converted_module_name.as_ref() != "qagame" {
-            error!(target: "shinqlx", "Unknown module: {}", converted_module_name);
+            error!(target: "shinqlx", "Unknown module: {converted_module_name}");
         }
 
         main_engine.set_module_offset(&converted_module_name, offset);
 
         if let Err(err) = main_engine.initialize_vm(offset as usize) {
-            error!(target: "shinqlx", "{:?}", err);
+            error!(target: "shinqlx", "{err:?}");
             error!(target: "shinqlx", "VM could not be initializied. Exiting.");
             panic!("VM could not be initializied. Exiting.");
         }

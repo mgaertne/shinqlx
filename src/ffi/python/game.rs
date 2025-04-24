@@ -74,12 +74,12 @@ impl Game {
             return "Game(N/A@N/A)".to_string();
         };
         let Ok(factory_type) = slf.get_gametype() else {
-            return format!("{}(N/A@N/A)", classname);
+            return format!("{classname}(N/A@N/A)");
         };
         let Ok(mapname) = slf.get_map() else {
-            return format!("{}(N/A@N/A)", classname);
+            return format!("{classname}(N/A@N/A)");
         };
-        format!("{}({}@{})", classname, factory_type, mapname)
+        format!("{classname}({factory_type}@{mapname})")
     }
 
     fn __str__(slf: &Bound<'_, Self>) -> String {
@@ -89,7 +89,7 @@ impl Game {
         let Ok(mapname) = slf.get_map() else {
             return "Invalid game".to_string();
         };
-        format!("{} on {}", factory_type, mapname)
+        format!("{factory_type} on {mapname}")
     }
 
     fn __contains__(slf: &Bound<'_, Self>, item: &str) -> PyResult<bool> {
@@ -129,7 +129,7 @@ impl Game {
 
                 parse_variables(&configstring)
                     .get(item)
-                    .map_or_else(|| Err(PyKeyError::new_err(format!("'{}'", item))), Ok)
+                    .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
             },
         )
     }
@@ -459,7 +459,7 @@ impl Game {
     #[classmethod]
     fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
         cls.py().allow_threads(|| {
-            let setmatchtime_cmd = format!("setmatchtime {}", time);
+            let setmatchtime_cmd = format!("setmatchtime {time}");
             console_command(&setmatchtime_cmd)
         })
     }
@@ -650,7 +650,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
             return Ok("in_progress".to_string());
         }
 
-        warn!(target: "shinqlx", "Got unknown game state: {}", game_state);
+        warn!(target: "shinqlx", "Got unknown game state: {game_state}");
 
         Ok(game_state)
     }
@@ -731,7 +731,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_maxclients(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "sv_maxclients", &value_str, None)?;
         Ok(())
     }
@@ -742,7 +742,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_timelimit(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "timelimit", &value_str, None)?;
         Ok(())
     }
@@ -753,7 +753,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_fraglimit(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "fraglimit", &value_str, None)?;
         Ok(())
     }
@@ -764,7 +764,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_roundlimit(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "roundlimit", &value_str, None)?;
         Ok(())
     }
@@ -775,7 +775,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_roundtimelimit(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "roundtimelimit", &value_str, None)?;
         Ok(())
     }
@@ -786,7 +786,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_scorelimit(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "scorelimit", &value_str, None)?;
         Ok(())
     }
@@ -797,7 +797,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_capturelimit(&self, value: i32) -> PyResult<()> {
-        let value_str = format!("{}", value);
+        let value_str = format!("{value}");
         pyshinqlx_set_cvar(self.py(), "capturelimit", &value_str, None)?;
         Ok(())
     }

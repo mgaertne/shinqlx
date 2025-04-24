@@ -386,7 +386,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
             return self.py().None().into_bound(self.py());
         };
         if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
-            let dbgstr = format!("{}{}", dispatcher_name, args);
+            let dbgstr = format!("{dispatcher_name}{args}");
             dispatcher_debug_log(self.py(), &dbgstr);
         }
 
@@ -469,7 +469,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
 
     fn add_hook(&self, plugin: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
         if !(0i32..5i32).contains(&priority) {
-            let error_description = format!("'{}' is an invalid priority level.", priority);
+            let error_description = format!("'{priority}' is an invalid priority level.");
             return Err(PyValueError::new_err(error_description));
         }
 
@@ -498,8 +498,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
         if need_zmq_stats_enabled && !zmq_enabled {
             let error_description = format!(
-                "{} hook requires zmq_stats_enabled cvar to have nonzero value",
-                dispatcher_name
+                "{dispatcher_name} hook requires zmq_stats_enabled cvar to have nonzero value"
             );
             return Err(PyAssertionError::new_err(error_description));
         }
@@ -1803,7 +1802,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             .find(|(event_name, _)| key == event_name)
             .map_or_else(
                 || {
-                    let key_error = format!("'{}'", key);
+                    let key_error = format!("'{key}'");
                     Err(PyKeyError::new_err(key_error))
                 },
                 |(_, dispatcher)| Ok(dispatcher.bind(self.py()).to_owned()),
