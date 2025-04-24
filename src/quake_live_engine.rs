@@ -208,7 +208,7 @@ impl VmFunctions {
                 |(ql_func, field)| match pattern_search_module(&qagame_maps, ql_func) {
                     None => Some(*ql_func),
                     Some(orig_func) => {
-                        debug!(target: "shinqlx", "{ql-func}: {orig_func:#X}");
+                        debug!(target: "shinqlx", "{ql_func}: {orig_func:#X}");
                         field.store(orig_func, Ordering::Release);
                         None
                     }
