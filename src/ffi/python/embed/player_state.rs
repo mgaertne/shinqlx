@@ -24,6 +24,7 @@ pub(crate) fn pyshinqlx_player_state(
 mod player_state_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
+    use crate::ffi::python::pyshinqlx_test_support::default_player_state;
     use crate::prelude::*;
 
     use mockall::predicate;
@@ -143,22 +144,7 @@ mod player_state_tests {
             let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
             assert_eq!(
                 result.expect("result was not OK"),
-                Some(PlayerState {
-                    is_alive: true,
-                    position: Vector3(1, 2, 3),
-                    velocity: Vector3(4, 5, 6),
-                    health: 123,
-                    armor: 456,
-                    noclip: true,
-                    weapon: weapon_t::WP_NAILGUN.into(),
-                    weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-                    ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-                    powerups: Powerups(12, 34, 56, 78, 90, 24),
-                    holdable: Holdable::Kamikaze,
-                    flight: Flight(12, 34, 56, 78),
-                    is_chatting: true,
-                    is_frozen: true,
-                })
+                Some(default_player_state())
             );
         });
     }
