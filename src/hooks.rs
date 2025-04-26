@@ -10,7 +10,7 @@ use crate::quake_live_engine::{
 
 use core::{
     borrow::BorrowMut,
-    ffi::{CStr, VaList, VaListImpl, c_char, c_int},
+    ffi::{CStr, VaList, c_char, c_int},
 };
 
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
@@ -124,20 +124,19 @@ where
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
     fmt: *const c_char,
-    fmt_args: ...
+    mut fmt_args: ...
 ) {
     unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
 
-    let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
     let result = unsafe {
         vsnprintf(
             buffer.as_mut_ptr() as *mut c_char,
             buffer.len(),
             fmt,
-            va_args.as_va_list(),
+            fmt_args.as_va_list(),
         )
     };
     if result < 0 {
@@ -271,19 +270,18 @@ where
 
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
+pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
     unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
 
-    let mut va_args: VaListImpl = fmt_args.clone();
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
     let result = unsafe {
         vsnprintf(
             buffer.as_mut_ptr() as *mut c_char,
             buffer.len(),
             fmt,
-            va_args.as_va_list(),
+            fmt_args.as_va_list(),
         )
     };
     if result < 0 {
