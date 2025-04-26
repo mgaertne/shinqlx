@@ -34,6 +34,7 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 mod get_players_info_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
+    use crate::ffi::python::pyshinqlx_test_support::default_test_player_info;
     use crate::prelude::*;
 
     use mockall::predicate;
@@ -129,7 +130,7 @@ mod get_players_info_tests {
                         userinfo: "asdf".to_string(),
                         steam_id: 1234,
                         team: team_t::TEAM_RED as i32,
-                        privileges: privileges_t::PRIV_NONE as i32
+                        ..default_test_player_info()
                     }),
                     Some(PlayerInfo {
                         client_id: 2,
@@ -138,7 +139,7 @@ mod get_players_info_tests {
                         userinfo: "asdf".to_string(),
                         steam_id: 1234,
                         team: team_t::TEAM_RED as i32,
-                        privileges: privileges_t::PRIV_NONE as i32
+                        ..default_test_player_info()
                     })
                 ]
             );
