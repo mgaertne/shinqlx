@@ -4374,11 +4374,12 @@ def initialize():
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_test_support {
-    use super::{player::Player, player_info::PlayerInfo};
+    use super::{
+        Command, Flight, Holdable, Player, PlayerInfo, PlayerState, Powerups, Vector3, Weapons,
+    };
 
-    use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t};
+    use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, weapon_t};
 
-    use crate::ffi::python::commands::Command;
     use pyo3::prelude::*;
 
     pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
@@ -4416,6 +4417,25 @@ while not shinqlx.next_frame_tasks.empty():
             user_info: "".to_string(),
             steam_id: 1234567890,
             name: "".to_string().into(),
+        }
+    }
+
+    pub(crate) fn default_player_state() -> PlayerState {
+        PlayerState {
+            is_alive: true,
+            position: Vector3(1, 2, 3),
+            velocity: Vector3(4, 5, 6),
+            health: 123,
+            armor: 456,
+            noclip: true,
+            weapon: weapon_t::WP_NAILGUN.into(),
+            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+            powerups: Powerups(12, 34, 56, 78, 90, 24),
+            holdable: Holdable::Kamikaze,
+            flight: Flight(12, 34, 56, 78),
+            is_chatting: true,
+            is_frozen: true,
         }
     }
 

@@ -107,28 +107,10 @@ impl PlayerState {
 mod player_state_tests {
     use crate::ffi::c::prelude::*;
     use crate::ffi::python::prelude::*;
+    use crate::ffi::python::pyshinqlx_test_support::default_player_state;
     use crate::prelude::*;
 
     use pretty_assertions::assert_eq;
-
-    fn default_player_state() -> PlayerState {
-        PlayerState {
-            is_alive: true,
-            position: Vector3(1, 2, 3),
-            velocity: Vector3(4, 5, 6),
-            health: 123,
-            armor: 456,
-            noclip: true,
-            weapon: weapon_t::WP_NAILGUN.into(),
-            weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-            ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-            powerups: Powerups(12, 34, 56, 78, 90, 24),
-            holdable: Holdable::Kamikaze,
-            flight: Flight(12, 34, 56, 78),
-            is_chatting: true,
-            is_frozen: true,
-        }
-    }
 
     #[test]
     #[serial]
