@@ -56,41 +56,23 @@ mod get_entity_targets_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_entity_targets_for_valid_entity_id_with_no_targetting_entities(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity
-                    .expect_get_targetting_entity_ids()
-                    .returning(Vec::new);
-                mock_game_entity
-            })
-            .times(1);
-
-        let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
-        assert_eq!(result.expect("result was not OK"), Vec::<u32>::new());
+        MockGameEntityBuilder::default()
+            .with_targetting_entity_ids(Vec::new, 1..)
+            .run(predicate::eq(2), || {
+                let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
+                assert_eq!(result.expect("result was not OK"), Vec::<u32>::new());
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_entity_targets_for_valid_entity_id_with_targetting_entities(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity
-                    .expect_get_targetting_entity_ids()
-                    .returning(|| vec![42, 21, 1337]);
-                mock_game_entity
-            })
-            .times(1);
-
-        let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
-        assert_eq!(result.expect("result was not OK"), vec![42, 21, 1337]);
+        MockGameEntityBuilder::default()
+            .with_targetting_entity_ids(|| vec![42, 21, 1337], 1..)
+            .run(predicate::eq(2), || {
+                let result = Python::with_gil(|py| pyshinqlx_get_entity_targets(py, 2));
+                assert_eq!(result.expect("result was not OK"), vec![42, 21, 1337]);
+            });
     }
 }

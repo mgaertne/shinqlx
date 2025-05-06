@@ -70,51 +70,41 @@ mod noclip_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+                    assert_eq!(result.expect("result was not OK"), false);
+                });
+            });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_noclip_already_set_properly(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_noclip().returning(|| true);
                 mock_game_client.expect_set_noclip::<bool>().times(0);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+                    assert_eq!(result.expect("result was not OK"), false);
+                });
             });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_for_entity_with_change_applied(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_noclip().returning(|| true);
                 mock_game_client
@@ -122,13 +112,12 @@ mod noclip_tests {
                     .with(predicate::eq(false))
                     .times(1);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false));
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
             });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 }

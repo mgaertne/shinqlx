@@ -106,6 +106,7 @@ mod player_info_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
 
@@ -174,20 +175,6 @@ player_info = shinqlx.PlayerInfo(
     #[test]
     #[serial]
     fn player_info_from_existing_game_entity_and_client() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_player_name()
-                .returning(|| "UnknownPlayer".to_string());
-            mock_game_entity
-                .expect_get_team()
-                .returning(|| team_t::TEAM_SPECTATOR);
-            mock_game_entity
-                .expect_get_privileges()
-                .returning(|| privileges_t::PRIV_NONE);
-            mock_game_entity
-        });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -201,6 +188,12 @@ player_info = shinqlx.PlayerInfo(
             mock_client
         });
 
-        assert_eq!(PlayerInfo::from(2), default_player_info());
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnknownPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::always(), || {
+                assert_eq!(PlayerInfo::from(2), default_player_info());
+            });
     }
 }

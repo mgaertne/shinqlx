@@ -47,10 +47,11 @@ mod get_player_info_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
-    use rstest::rstest;
-
     use core::sync::atomic::Ordering;
     use pyo3::exceptions::PyValueError;
+
+    use mockall::predicate;
+    use rstest::rstest;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -93,36 +94,27 @@ mod get_player_info_tests {
             mock_client
         });
 
-        let game_entity_try_from_ctx = MockGameEntity::from_context();
-        game_entity_try_from_ctx.expect().returning(|_client_id| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_player_name()
-                .returning(|| "Mocked Player".to_string());
-            mock_game_entity
-                .expect_get_team()
-                .returning(|| team_t::TEAM_RED);
-            mock_game_entity
-                .expect_get_privileges()
-                .returning(|| privileges_t::PRIV_NONE);
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
-            assert_eq!(
-                player_info.expect("result was not OK"),
-                Some(PlayerInfo {
-                    client_id: 2,
-                    name: "Mocked Player".to_string(),
-                    connection_state: clientState_t::CS_ACTIVE as i32,
-                    userinfo: "asdf".to_string(),
-                    steam_id: 1234,
-                    team: team_t::TEAM_RED as i32,
-                    privileges: privileges_t::PRIV_NONE as i32
-                })
-            );
-        });
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "Mocked Player".to_string(), 1..)
+            .with_team(|| team_t::TEAM_RED, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+                    assert_eq!(
+                        player_info.expect("result was not OK"),
+                        Some(PlayerInfo {
+                            client_id: 2,
+                            name: "Mocked Player".to_string(),
+                            connection_state: clientState_t::CS_ACTIVE as i32,
+                            userinfo: "asdf".to_string(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            privileges: privileges_t::PRIV_NONE as i32
+                        })
+                    );
+                });
+            });
     }
 
     #[rstest]
@@ -169,35 +161,26 @@ mod get_player_info_tests {
             mock_client
         });
 
-        let game_entity_try_from_ctx = MockGameEntity::from_context();
-        game_entity_try_from_ctx.expect().returning(|_client_id| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_player_name()
-                .returning(|| "Mocked Player".to_string());
-            mock_game_entity
-                .expect_get_team()
-                .returning(|| team_t::TEAM_RED);
-            mock_game_entity
-                .expect_get_privileges()
-                .returning(|| privileges_t::PRIV_NONE);
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
-            assert_eq!(
-                player_info.expect("result was not OK"),
-                Some(PlayerInfo {
-                    client_id: 2,
-                    name: "Mocked Player".to_string(),
-                    connection_state: clientState_t::CS_FREE as i32,
-                    userinfo: "asdf".to_string(),
-                    steam_id: 1234,
-                    team: team_t::TEAM_RED as i32,
-                    privileges: privileges_t::PRIV_NONE as i32
-                })
-            );
-        });
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "Mocked Player".to_string(), 1..)
+            .with_team(|| team_t::TEAM_RED, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+                    assert_eq!(
+                        player_info.expect("result was not OK"),
+                        Some(PlayerInfo {
+                            client_id: 2,
+                            name: "Mocked Player".to_string(),
+                            connection_state: clientState_t::CS_FREE as i32,
+                            userinfo: "asdf".to_string(),
+                            steam_id: 1234,
+                            team: team_t::TEAM_RED as i32,
+                            privileges: privileges_t::PRIV_NONE as i32
+                        })
+                    );
+                });
+            });
     }
 }
