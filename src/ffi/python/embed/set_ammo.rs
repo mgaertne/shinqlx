@@ -79,10 +79,10 @@ mod set_ammo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_for_existing_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        let weapons = Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client
                     .expect_set_ammos()
@@ -91,36 +91,28 @@ mod set_ammo_tests {
                     ]))
                     .times(1);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_set_ammo(py, 2, &weapons));
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
             });
-            mock_game_entity
-        });
-
-        let weapons = Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_ammo(py, 2, &weapons));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_ammo_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
-
         let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_ammo(py, 2, &weapons));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_set_ammo(py, 2, &weapons));
+                    assert_eq!(result.expect("result was not OK"), false);
+                });
+            });
     }
 }

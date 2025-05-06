@@ -26,6 +26,7 @@ mod player_stats_tests {
     use crate::ffi::python::prelude::*;
     use crate::prelude::*;
 
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
@@ -68,10 +69,8 @@ mod player_stats_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn player_stats_for_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_score().returning(|| 42);
                 mock_game_client.expect_get_kills().returning(|| 7);
@@ -85,47 +84,41 @@ mod player_stats_tests {
                 mock_game_client.expect_get_time_on_team().returning(|| 123);
                 mock_game_client.expect_get_ping().returning(|| 9);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2));
+
+                    assert_eq!(
+                        result
+                            .expect("result was not OK")
+                            .expect("result was not Some"),
+                        PlayerStats {
+                            score: 42,
+                            kills: 7,
+                            deaths: 9,
+                            damage_dealt: 5000,
+                            damage_taken: 4200,
+                            time: 123,
+                            ping: 9,
+                        }
+                    );
+                });
             });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2));
-
-            assert_eq!(
-                result
-                    .expect("result was not OK")
-                    .expect("result was not Some"),
-                PlayerStats {
-                    score: 42,
-                    kills: 7,
-                    deaths: 9,
-                    damage_dealt: 5000,
-                    damage_taken: 4200,
-                    time: 123,
-                    ping: 9,
-                }
-            );
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn player_stats_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2));
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_player_stats(py, 2));
-
-            assert_eq!(result.expect("result was not OK"), None);
-        });
+                    assert_eq!(result.expect("result was not OK"), None);
+                });
+            });
     }
 }

@@ -5492,7 +5492,7 @@ pub(crate) struct MockEngineBuilder {
 
 #[cfg(test)]
 impl MockEngineBuilder {
-    pub(crate) fn configure<F>(mut self, setup: F) -> MockEngineBuilder
+    pub(crate) fn configure<F>(mut self, setup: F) -> Self
     where
         F: FnOnce(&mut MockQuakeEngine),
     {
@@ -5500,7 +5500,7 @@ impl MockEngineBuilder {
         self
     }
 
-    pub(crate) fn with_max_clients(self, max_clients: i32) -> MockEngineBuilder {
+    pub(crate) fn with_max_clients(self, max_clients: i32) -> Self {
         self.configure(|mock_engine| {
             mock_engine
                 .expect_get_max_clients()
@@ -5508,7 +5508,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_com_printf<F, G>(self, predicate: F, times: G) -> MockEngineBuilder
+    pub(crate) fn with_com_printf<F, G>(self, predicate: F, times: G) -> Self
     where
         F: mockall::Predicate<str> + Send + 'static,
         G: Into<mockall::TimesRange>,
@@ -5518,7 +5518,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_send_server_command<F, G>(self, matcher: F, times: G) -> MockEngineBuilder
+    pub(crate) fn with_send_server_command<F, G>(self, matcher: F, times: G) -> Self
     where
         F: Fn(&Option<MockClient>, &str) -> bool + Send + 'static,
         G: Into<mockall::TimesRange>,
@@ -5531,7 +5531,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_execute_client_command<F, G>(self, matcher: F, times: G) -> MockEngineBuilder
+    pub(crate) fn with_execute_client_command<F, G>(self, matcher: F, times: G) -> Self
     where
         F: Fn(&Option<MockClient>, &String, &qboolean) -> bool + Send + 'static,
         G: Into<mockall::TimesRange>,
@@ -5544,11 +5544,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_execute_console_command<F, G>(
-        self,
-        expected_cmd: F,
-        times: G,
-    ) -> MockEngineBuilder
+    pub(crate) fn with_execute_console_command<F, G>(self, expected_cmd: F, times: G) -> Self
     where
         F: ToString + Send + Sync + 'static,
         G: Into<mockall::TimesRange>,
@@ -5561,18 +5557,13 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_argc(self, argc: i32) -> MockEngineBuilder {
+    pub(crate) fn with_argc(self, argc: i32) -> Self {
         self.configure(|mock_engine| {
             mock_engine.expect_cmd_argc().return_const_st(argc);
         })
     }
 
-    pub(crate) fn with_argv<F, G, H>(
-        self,
-        argv: F,
-        opt_return: Option<G>,
-        times: H,
-    ) -> MockEngineBuilder
+    pub(crate) fn with_argv<F, G, H>(self, argv: F, opt_return: Option<G>, times: H) -> Self
     where
         F: mockall::Predicate<i32> + Send + 'static,
         G: ToString + Sync + Send + 'static,
@@ -5587,11 +5578,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_args<F>(
-        self,
-        opt_return: Option<&'static str>,
-        times: F,
-    ) -> MockEngineBuilder
+    pub(crate) fn with_args<F>(self, opt_return: Option<&'static str>, times: F) -> Self
     where
         F: Into<mockall::TimesRange>,
     {
@@ -5603,12 +5590,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_find_cvar<F, G, H>(
-        self,
-        expect: F,
-        returned: G,
-        times: H,
-    ) -> MockEngineBuilder
+    pub(crate) fn with_find_cvar<F, G, H>(self, expect: F, returned: G, times: H) -> Self
     where
         F: Fn(&str) -> bool + Send + 'static,
         G: FnMut(&str) -> Option<CVar> + 'static,
@@ -5623,12 +5605,7 @@ impl MockEngineBuilder {
         })
     }
 
-    pub(crate) fn with_get_configstring<F, G>(
-        self,
-        matcher: u16,
-        returned: F,
-        times: G,
-    ) -> MockEngineBuilder
+    pub(crate) fn with_get_configstring<F, G>(self, matcher: u16, returned: F, times: G) -> Self
     where
         F: ToString + Send + Sync + 'static,
         G: Into<mockall::TimesRange>,

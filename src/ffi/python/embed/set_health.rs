@@ -67,19 +67,13 @@ mod set_health_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_for_existing_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_set_health()
-                .with(predicate::eq(666))
-                .times(1);
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_health(py, 2, 666));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
+        MockGameEntityBuilder::default()
+            .with_set_health(predicate::eq(666), 1)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_set_health(py, 2, 666));
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
+            });
     }
 }
