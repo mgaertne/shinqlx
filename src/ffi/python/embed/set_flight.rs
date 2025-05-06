@@ -79,46 +79,38 @@ mod set_flight_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_flight_for_existing_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        let flight = Flight(12, 34, 56, 78);
+
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client
                     .expect_set_flight::<[i32; 4]>()
                     .with(predicate::eq([12, 34, 56, 78]))
                     .times(1);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, &flight));
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
             });
-            mock_game_entity
-        });
-
-        let flight = Flight(12, 34, 56, 78);
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, &flight));
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_flight_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
-
         let flight = Flight(12, 34, 56, 78);
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, &flight));
-            assert_eq!(result.expect("result was not OK"), false);
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, &flight));
+                    assert_eq!(result.expect("result was not OK"), false);
+                });
+            });
     }
 }

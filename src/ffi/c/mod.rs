@@ -44,7 +44,7 @@ pub(crate) mod prelude {
     #[cfg(test)]
     pub(crate) use super::game_entity::MockGameEntity as GameEntity;
     #[cfg(test)]
-    pub(crate) use super::game_entity::MockGameEntity;
+    pub(crate) use super::game_entity::{MockGameEntity, MockGameEntityBuilder};
 
     #[cfg(not(test))]
     pub(crate) use super::game_item::GameItem;

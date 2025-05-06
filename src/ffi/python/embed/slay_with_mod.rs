@@ -97,71 +97,51 @@ mod slay_with_mod_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_existing_game_client_with_remaining_health(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
-                let mock_game_client = MockGameClient::new();
-                Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Ok(MockGameClient::new()))
+            .with_health(42, 1..)
+            .with_slay_with_mod(predicate::eq(meansOfDeath_t::MOD_PROXIMITY_MINE), 1)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| {
+                        pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+                    });
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
             });
-            mock_game_entity.expect_get_health().returning(|| 42);
-            mock_game_entity
-                .expect_slay_with_mod()
-                .with(predicate::eq(meansOfDeath_t::MOD_PROXIMITY_MINE))
-                .times(1);
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
-            });
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_existing_game_client_with_no_remaining_health(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
-                let mock_game_client = MockGameClient::new();
-                Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Ok(MockGameClient::new()))
+            .with_health(0, 1..)
+            .with_slay_with_mod(predicate::always(), 0)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| {
+                        pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
+                    });
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
             });
-            mock_game_entity.expect_get_health().returning(|| 0);
-            mock_game_entity.expect_slay_with_mod().times(0);
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
-            });
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_for_entity_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
-                pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32)
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    let result = Python::with_gil(|py| {
+                        pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32)
+                    });
+                    assert_eq!(result.expect("result was not OK"), false);
+                });
             });
-            assert_eq!(result.expect("result was not OK"), false);
-        });
     }
 }

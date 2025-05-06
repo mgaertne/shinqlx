@@ -7,13 +7,12 @@ use crate::quake_live_engine::{
 };
 
 use alloc::{borrow::Cow, vec};
+use arrayvec::ArrayVec;
 use core::{
     borrow::BorrowMut,
     f32::consts::PI,
     ffi::{CStr, c_char, c_float, c_int},
 };
-
-use arrayvec::ArrayVec;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -528,6 +527,89 @@ mockall::mock! {
         #[allow(unused_attributes)]
         #[cfg(not(tarpaulin_include))]
         fn try_from(gentity: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
+    }
+}
+
+#[cfg(test)]
+pub(crate) struct MockGameEntityBuilder(Option<MockGameEntity>);
+
+#[cfg(test)]
+impl Default for MockGameEntityBuilder {
+    fn default() -> Self {
+        Self(Some(MockGameEntity::new()))
+    }
+}
+
+#[cfg(test)]
+impl MockGameEntityBuilder {
+    pub(crate) fn with_health<F>(mut self, health: i32, times: F) -> Self
+    where
+        F: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_health()
+                .return_const_st(health)
+                .times(times)
+        });
+        self
+    }
+
+    pub(crate) fn with_set_health<F, G>(mut self, health: F, times: G) -> Self
+    where
+        F: mockall::Predicate<i32> + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_set_health()
+                .with(health)
+                .times(times)
+        });
+        self
+    }
+
+    pub(crate) fn with_game_client<F>(mut self, returned: F) -> Self
+    where
+        F: FnMut() -> Result<MockGameClient, QuakeLiveEngineError> + 'static,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_game_client()
+                .returning_st(returned)
+        });
+        self
+    }
+
+    pub(crate) fn with_slay_with_mod<F, G>(mut self, means_of_death: F, times: G) -> Self
+    where
+        F: mockall::Predicate<meansOfDeath_t> + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_slay_with_mod()
+                .with(means_of_death)
+                .times(times)
+        });
+        self
+    }
+
+    fn build(&mut self) -> MockGameEntity {
+        self.0.take().unwrap_or_default()
+    }
+
+    pub(crate) fn run<F, G>(mut self, predicate: F, execute: G)
+    where
+        F: mockall::Predicate<i32> + Send + 'static,
+        G: FnOnce(),
+    {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate)
+            .returning_st(move |_| self.build());
+        execute();
     }
 }
 
