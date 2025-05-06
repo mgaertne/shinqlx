@@ -542,6 +542,48 @@ impl Default for MockGameEntityBuilder {
 
 #[cfg(test)]
 impl MockGameEntityBuilder {
+    pub(crate) fn with_player_name<F, G>(mut self, player_name: F, times: G) -> Self
+    where
+        F: FnMut() -> String + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_player_name()
+                .returning_st(player_name)
+                .times(times)
+        });
+        self
+    }
+
+    pub(crate) fn with_team<F, G>(mut self, team: F, times: G) -> Self
+    where
+        F: FnMut() -> team_t + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_team()
+                .returning_st(team)
+                .times(times)
+        });
+        self
+    }
+
+    pub(crate) fn with_privileges<F, G>(mut self, privileges: F, times: G) -> Self
+    where
+        F: FnMut() -> privileges_t + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_privileges()
+                .returning_st(privileges)
+                .times(times)
+        });
+        self
+    }
+
     pub(crate) fn with_health<F>(mut self, health: i32, times: F) -> Self
     where
         F: Into<mockall::TimesRange>,
@@ -577,6 +619,20 @@ impl MockGameEntityBuilder {
             mock_game_entity
                 .expect_get_game_client()
                 .returning_st(returned)
+        });
+        self
+    }
+
+    pub(crate) fn with_targetting_entity_ids<F, G>(mut self, entities: F, times: G) -> Self
+    where
+        F: FnMut() -> Vec<u32> + Send + 'static,
+        G: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_targetting_entity_ids()
+                .returning_st(entities)
+                .times(times)
         });
         self
     }

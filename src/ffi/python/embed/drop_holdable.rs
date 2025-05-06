@@ -40,10 +40,10 @@ mod drop_holdable_tests {
     use crate::prelude::*;
 
     use core::borrow::BorrowMut;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     use mockall::Sequence;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
 
     #[rstest]

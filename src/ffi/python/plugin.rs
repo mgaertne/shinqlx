@@ -3457,51 +3457,39 @@ def handler():
                 mock_client
             });
 
-        let game_entity_try_from_ctx = MockGameEntity::from_context();
-        game_entity_try_from_ctx
-            .expect()
-            .with(predicate::eq(42))
-            .returning(|_client_id| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity
-                    .expect_get_player_name()
-                    .returning(|| "Mocked Player".to_string());
-                mock_game_entity
-                    .expect_get_team()
-                    .returning(|| team_t::TEAM_RED);
-                mock_game_entity
-                    .expect_get_privileges()
-                    .returning(|| privileges_t::PRIV_NONE);
-                mock_game_entity
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "Mocked Player".to_string(), 1..)
+            .with_team(|| team_t::TEAM_RED, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(42), || {
+                Python::with_gil(|py| {
+                    let result = Plugin::player(
+                        &py.get_type::<Plugin>(),
+                        PyInt::new(py, 42i32).as_any(),
+                        None,
+                    );
+                    assert!(result.expect("result was not ok").is_some_and(|player| {
+                        player
+                            == Player {
+                                id: 42,
+                                name: "Mocked Player".to_string().into(),
+                                steam_id: 1234,
+                                user_info: "asdf".into(),
+                                player_info: PlayerInfo {
+                                    client_id: 42,
+                                    name: "Mocked Player".into(),
+                                    team: team_t::TEAM_RED as i32,
+                                    steam_id: 1234,
+                                    userinfo: "asdf".into(),
+                                    connection_state: clientState_t::CS_ACTIVE as i32,
+                                    ..default_test_player_info()
+                                }
+                                .into(),
+                                ..default_test_player()
+                            }
+                    }));
+                });
             });
-
-        Python::with_gil(|py| {
-            let result = Plugin::player(
-                &py.get_type::<Plugin>(),
-                PyInt::new(py, 42i32).as_any(),
-                None,
-            );
-            assert!(result.expect("result was not ok").is_some_and(|player| {
-                player
-                    == Player {
-                        id: 42,
-                        name: "Mocked Player".to_string().into(),
-                        steam_id: 1234,
-                        user_info: "asdf".into(),
-                        player_info: PlayerInfo {
-                            client_id: 42,
-                            name: "Mocked Player".into(),
-                            team: team_t::TEAM_RED as i32,
-                            steam_id: 1234,
-                            userinfo: "asdf".into(),
-                            connection_state: clientState_t::CS_ACTIVE as i32,
-                            ..default_test_player_info()
-                        }
-                        .into(),
-                        ..default_test_player()
-                    }
-            }));
-        });
     }
 
     #[rstest]
@@ -4473,38 +4461,26 @@ def handler():
             .expect()
             .withf(|client, cmd| client.is_some() && cmd == "print \"asdf\n\"\n");
 
-        let game_entity_try_from_ctx = MockGameEntity::from_context();
-        game_entity_try_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_client_id| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity
-                    .expect_get_player_name()
-                    .returning(|| "Mocked Player".to_string());
-                mock_game_entity
-                    .expect_get_team()
-                    .returning(|| team_t::TEAM_RED);
-                mock_game_entity
-                    .expect_get_privileges()
-                    .returning(|| privileges_t::PRIV_NONE);
-                mock_game_entity
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "Mocked Player".to_string(), 1..)
+            .with_team(|| team_t::TEAM_RED, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let result = Plugin::tell(
+                            &py.get_type::<Plugin>(),
+                            "asdf",
+                            Bound::new(py, default_test_player())
+                                .expect("this should not happen")
+                                .as_any(),
+                            None,
+                        );
+                        assert!(result.is_ok());
+                        run_all_frame_tasks(py).expect("running frame tasks returned an error");
+                    });
+                });
             });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let result = Plugin::tell(
-                    &py.get_type::<Plugin>(),
-                    "asdf",
-                    Bound::new(py, default_test_player())
-                        .expect("this should not happen")
-                        .as_any(),
-                    None,
-                );
-                assert!(result.is_ok());
-                run_all_frame_tasks(py).expect("running frame tasks returned an error");
-            });
-        });
     }
 
     #[rstest]
@@ -4746,30 +4722,26 @@ def handler():
                 mock_client
             });
 
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(0))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_vote_state()
-                        .with(predicate::eq(true))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_vote_state()
+                    .with(predicate::eq(true))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::eq(0), || {
+                MockEngineBuilder::default().with_max_clients(1).run(|| {
+                    Python::with_gil(|py| {
+                        let result = Plugin::force_vote(
+                            &py.get_type::<Plugin>(),
+                            PyBool::new(py, true).as_any(),
+                        );
+                        assert!(result.is_ok_and(|value| value),);
+                    });
                 });
-                mock_game_entity
             });
-
-        MockEngineBuilder::default().with_max_clients(1).run(|| {
-            Python::with_gil(|py| {
-                let result =
-                    Plugin::force_vote(&py.get_type::<Plugin>(), PyBool::new(py, true).as_any());
-                assert!(result.is_ok_and(|value| value),);
-            });
-        });
     }
 
     #[rstest]
@@ -4795,30 +4767,26 @@ def handler():
                 mock_client
             });
 
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(0))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_vote_state()
-                        .with(predicate::eq(false))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_vote_state()
+                    .with(predicate::eq(false))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::eq(0), || {
+                MockEngineBuilder::default().with_max_clients(1).run(|| {
+                    Python::with_gil(|py| {
+                        let result = Plugin::force_vote(
+                            &py.get_type::<Plugin>(),
+                            PyBool::new(py, false).as_any(),
+                        );
+                        assert!(result.is_ok_and(|value| value),);
+                    });
                 });
-                mock_game_entity
             });
-
-        MockEngineBuilder::default().with_max_clients(1).run(|| {
-            Python::with_gil(|py| {
-                let result =
-                    Plugin::force_vote(&py.get_type::<Plugin>(), PyBool::new(py, false).as_any());
-                assert!(result.is_ok_and(|value| value),);
-            });
-        });
     }
 
     #[rstest]

@@ -136,23 +136,16 @@ mod force_vote_tests {
                     .return_const(clientState_t::CS_ACTIVE);
                 mock_client
             });
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(0))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity
-                    .expect_get_game_client()
-                    .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-                mock_game_entity
+
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::eq(0), || {
+                MockEngineBuilder::default().with_max_clients(1).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+
+                    assert_eq!(result.expect("result was not OK"), true);
+                });
             });
-
-        MockEngineBuilder::default().with_max_clients(1).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
-
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 
     #[rstest]
@@ -177,27 +170,22 @@ mod force_vote_tests {
                     .return_const(clientState_t::CS_ACTIVE);
                 mock_client
             });
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(0))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_vote_state()
-                        .with(predicate::eq(true))
-                        .times(1);
-                    Ok(mock_game_client)
+
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_vote_state()
+                    .with(predicate::eq(true))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::eq(0), || {
+                MockEngineBuilder::default().with_max_clients(1).run(|| {
+                    let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+
+                    assert_eq!(result.expect("result was not OK"), true);
                 });
-                mock_game_entity
             });
-
-        MockEngineBuilder::default().with_max_clients(1).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
-
-            assert_eq!(result.expect("result was not OK"), true);
-        });
     }
 }

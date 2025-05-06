@@ -611,12 +611,10 @@ mod chat_channel_tests {
 
     use crate::prelude::*;
 
-    use crate::ffi::c::game_entity::MockGameEntity;
-    use crate::ffi::c::prelude::{MockClient, clientState_t, privileges_t, team_t};
+    use crate::ffi::c::prelude::{MockClient, clientState_t};
 
     use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
 
-    use mockall::predicate;
     use rstest::*;
 
     use pyo3::exceptions::{PyNotImplementedError, PyValueError};
@@ -681,39 +679,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
-
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -759,21 +724,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_custom_limit_param(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -821,21 +771,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_custom_delimiter_parameter(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -883,21 +818,6 @@ test_channel.reply("asdf")
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_various_color_tags(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -1123,23 +1043,6 @@ tell_channel = shinqlx.TellChannel(player)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_recipient_returns_player_with_client_id(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(42))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -1162,14 +1065,20 @@ tell_channel = shinqlx.TellChannel(player)
             })
             .add_subclass(TellChannel { client_id: 42 });
 
-        Python::with_gil(|py| {
-            assert!(
-                Bound::new(py, tell_channel)
-                    .expect("this should not happen")
-                    .get_recipient()
-                    .is_ok_and(|player| player.id == 42)
-            );
-        })
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(42), || {
+                Python::with_gil(|py| {
+                    assert!(
+                        Bound::new(py, tell_channel)
+                            .expect("this should not happen")
+                            .get_recipient()
+                            .is_ok_and(|player| player.id == 42)
+                    );
+                });
+            });
     }
 
     #[rstest]
@@ -1550,23 +1459,6 @@ tell_channel = shinqlx.ClientCommandChannel(player)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_recipient_returns_player_with_client_id(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(42))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -1583,41 +1475,30 @@ tell_channel = shinqlx.ClientCommandChannel(player)
                 mock_client
             });
 
-        Python::with_gil(|py| {
-            let client_command_channel =
-                PyClassInitializer::from(AbstractChannel::py_new("client_command"))
-                    .add_subclass(ClientCommandChannel { client_id: 42 });
-            let py_client_command_channel =
-                Bound::new(py, client_command_channel).expect("this should not happen");
-            assert!(
-                py_client_command_channel
-                    .get_recipient()
-                    .is_ok_and(|player| player.id == 42)
-            );
-        })
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(42), || {
+                Python::with_gil(|py| {
+                    let client_command_channel =
+                        PyClassInitializer::from(AbstractChannel::py_new("client_command"))
+                            .add_subclass(ClientCommandChannel { client_id: 42 });
+                    let py_client_command_channel =
+                        Bound::new(py, client_command_channel).expect("this should not happen");
+                    assert!(
+                        py_client_command_channel
+                            .get_recipient()
+                            .is_ok_and(|player| player.id == 42)
+                    );
+                });
+            });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_tell_channel_returns_tell_channel_with_client_id(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(42))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -1634,54 +1515,27 @@ tell_channel = shinqlx.ClientCommandChannel(player)
                 mock_client
             });
 
-        Python::with_gil(|py| {
-            let client_command_channel =
-                PyClassInitializer::from(AbstractChannel::py_new("client_command"))
-                    .add_subclass(ClientCommandChannel { client_id: 42 });
-            let py_client_command_channel =
-                Bound::new(py, client_command_channel).expect("this should not happen");
-            let result = py_client_command_channel.get_tell_channel();
-            assert!(result.is_ok_and(|tell_channel| tell_channel.get().client_id == 42));
-        });
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(42), || {
+                Python::with_gil(|py| {
+                    let client_command_channel =
+                        PyClassInitializer::from(AbstractChannel::py_new("client_command"))
+                            .add_subclass(ClientCommandChannel { client_id: 42 });
+                    let py_client_command_channel =
+                        Bound::new(py, client_command_channel).expect("this should not happen");
+                    let result = py_client_command_channel.get_tell_channel();
+                    assert!(result.is_ok_and(|tell_channel| tell_channel.get().client_id == 42));
+                });
+            });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
-
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
