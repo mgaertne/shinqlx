@@ -1674,7 +1674,6 @@ mod hooks_tests {
         shinqlx_g_startkamikaze(gentity.borrow_mut() as *mut gentity_t);
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn g_damage_with_no_main_engine() {
@@ -1690,7 +1689,6 @@ mod hooks_tests {
         );
     }
 
-    //noinspection DuplicatedCode
     #[rstest]
     #[serial]
     fn g_damage_for_null_target_is_not_forwarded(
@@ -1742,7 +1740,6 @@ mod hooks_tests {
             });
     }
 
-    //noinspection DuplicatedCode
     #[rstest]
     #[serial]
     fn g_damage_for_null_attacker(damage_dispatcher_ctx: __damage_dispatcher::Context) {
@@ -1806,7 +1803,6 @@ mod hooks_tests {
             });
     }
 
-    //noinspection DuplicatedCode
     #[rstest]
     #[serial]
     fn g_damage_for_non_null_attacker_try_from_returns_err(
@@ -1880,7 +1876,6 @@ mod hooks_tests {
             });
     }
 
-    //noinspection DuplicatedCode
     #[rstest]
     #[serial]
     fn g_damage_for_non_null_attacker_try_from_returns_ok(

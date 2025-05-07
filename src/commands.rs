@@ -455,91 +455,44 @@ mod commands_tests {
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_game_entity_not_in_use() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock
-                    .expect_in_use()
-                    .return_const(false)
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
-
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .with_argc(2)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .run(|| {
-                cmd_slap();
+        MockGameEntityBuilder::default()
+            .with_in_use(false, 1)
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
+                    .with_argc(2)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .run(|| {
+                        cmd_slap();
+                    });
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_game_entity_no_health() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(0)
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
-
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .with_argc(2)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .run(|| {
-                cmd_slap();
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(0, 1)
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
+                    .with_argc(2)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .run(|| {
+                        cmd_slap();
+                    });
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_no_damage_provided_slaps() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(200)
-                    .times(1);
-                game_entity_mock
-                    .expect_get_game_client()
-                    .return_once(|| {
-                        let mut game_client_mock = MockGameClient::default();
-                        game_client_mock
-                            .expect_set_velocity::<(f32, f32, f32)>()
-                            .times(1);
-                        Ok(game_client_mock)
-                    })
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -554,62 +507,45 @@ mod commands_tests {
             })
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("Slapping...\n"), 1)
-            .with_send_server_command(
-                |client, cmd| {
-                    client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
-                },
-                1,
-            )
-            .with_argc(2)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_game_add_event()
-                    .withf(|_entity, &entity_event, &event_param| {
-                        entity_event == entity_event_t::EV_PAIN && event_param == 99
-                    })
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(200, 1)
+            .with_game_client(|| {
+                let mut game_client_mock = MockGameClient::default();
+                game_client_mock
+                    .expect_set_velocity::<(f32, f32, f32)>()
                     .times(1);
+                Ok(game_client_mock)
             })
-            .run(|| {
-                cmd_slap();
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("Slapping...\n"), 1)
+                    .with_send_server_command(
+                        |client, cmd| {
+                            client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
+                        },
+                        1,
+                    )
+                    .with_argc(2)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .configure(|mock_engine| {
+                        mock_engine
+                            .expect_game_add_event()
+                            .withf(|_entity, &entity_event, &event_param| {
+                                entity_event == entity_event_t::EV_PAIN && event_param == 99
+                            })
+                            .times(1);
+                    })
+                    .run(|| {
+                        cmd_slap();
+                    });
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_provided_damage_slaps() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(200)
-                    .times(1..);
-                game_entity_mock
-                    .expect_set_health()
-                    .with(predicate::eq(199))
-                    .times(1);
-                game_entity_mock
-                    .expect_get_game_client()
-                    .return_once(|| {
-                        let mut game_client_mock = MockGameClient::default();
-                        game_client_mock
-                            .expect_set_velocity::<(f32, f32, f32)>()
-                            .times(1);
-                        Ok(game_client_mock)
-                    })
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -624,68 +560,48 @@ mod commands_tests {
             })
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("Slapping...\n"), 1)
-            .with_send_server_command(
-                |client, cmd| {
-                    client.is_none()
-                        && cmd == "print \"Slapped Player^7 was slapped for 1 damage!\n\"\n"
-                },
-                1,
-            )
-            .with_argc(3)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .with_argv(predicate::eq(2), Some("1"), 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_game_add_event()
-                    .withf(|_entity, &entity_event, &event_param| {
-                        entity_event == entity_event_t::EV_PAIN && event_param == 99
-                    })
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(200, 1..)
+            .with_set_health(predicate::eq(199), 1)
+            .with_game_client(|| {
+                let mut game_client_mock = MockGameClient::default();
+                game_client_mock
+                    .expect_set_velocity::<(f32, f32, f32)>()
                     .times(1);
+                Ok(game_client_mock)
             })
-            .run(|| {
-                cmd_slap();
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("Slapping...\n"), 1)
+                    .with_send_server_command(
+                        |client, cmd| {
+                            client.is_none()
+                                && cmd == "print \"Slapped Player^7 was slapped for 1 damage!\n\"\n"
+                        },
+                        1,
+                    )
+                    .with_argc(3)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .with_argv(predicate::eq(2), Some("1"), 1)
+                    .configure(|mock_engine| {
+                        mock_engine
+                            .expect_game_add_event()
+                            .withf(|_entity, &entity_event, &event_param| {
+                                entity_event == entity_event_t::EV_PAIN && event_param == 99
+                            })
+                            .times(1);
+                    })
+                    .run(|| {
+                        cmd_slap();
+                    });
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_provided_damage_provided_slaps_and_kills() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(200)
-                    .times(1..);
-                game_entity_mock
-                    .expect_set_health()
-                    .with(predicate::eq(-466))
-                    .times(1);
-                game_entity_mock
-                    .expect_get_game_client()
-                    .return_once(|| {
-                        let mut game_client_mock = MockGameClient::default();
-                        game_client_mock
-                            .expect_set_velocity::<(f32, f32, f32)>()
-                            .times(1);
-                        Ok(game_client_mock)
-                    })
-                    .times(1);
-                game_entity_mock
-                    .expect_get_client_number()
-                    .return_const(42)
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -700,60 +616,50 @@ mod commands_tests {
             })
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("Slapping...\n"), 1)
-            .with_send_server_command(
-                |client, cmd| {
-                    client.is_none()
-                        && cmd == "print \"Slapped Player^7 was slapped for 666 damage!\n\"\n"
-                },
-                1,
-            )
-            .with_argc(3)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .with_argv(predicate::eq(2), Some("666"), 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_game_add_event()
-                    .withf(|_entity, &entity_event, &event_param| {
-                        entity_event == entity_event_t::EV_DEATH1 && event_param == 42
-                    })
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(200, 1..)
+            .with_set_health(predicate::eq(-466), 1)
+            .with_client_number(42, 1)
+            .with_game_client(|| {
+                let mut game_client_mock = MockGameClient::default();
+                game_client_mock
+                    .expect_set_velocity::<(f32, f32, f32)>()
                     .times(1);
+                Ok(game_client_mock)
             })
-            .run(|| {
-                cmd_slap();
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("Slapping...\n"), 1)
+                    .with_send_server_command(
+                        |client, cmd| {
+                            client.is_none()
+                                && cmd
+                                    == "print \"Slapped Player^7 was slapped for 666 damage!\n\"\n"
+                        },
+                        1,
+                    )
+                    .with_argc(3)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .with_argv(predicate::eq(2), Some("666"), 1)
+                    .configure(|mock_engine| {
+                        mock_engine
+                            .expect_game_add_event()
+                            .withf(|_entity, &entity_event, &event_param| {
+                                entity_event == entity_event_t::EV_DEATH1 && event_param == 42
+                            })
+                            .times(1);
+                    })
+                    .run(|| {
+                        cmd_slap();
+                    });
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slap_with_unparseable_provided_damage_slaps() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(200)
-                    .times(1);
-                game_entity_mock
-                    .expect_get_game_client()
-                    .return_once(|| {
-                        let mut game_client_mock = MockGameClient::default();
-                        game_client_mock
-                            .expect_set_velocity::<(f32, f32, f32)>()
-                            .times(1);
-                        Ok(game_client_mock)
-                    })
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -768,28 +674,40 @@ mod commands_tests {
             })
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("Slapping...\n"), 1)
-            .with_send_server_command(
-                |client, cmd| {
-                    client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
-                },
-                1,
-            )
-            .with_argc(3)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .with_argv(predicate::eq(2), Some("2147483648"), 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_game_add_event()
-                    .withf(|_entity, &entity_event, &event_param| {
-                        entity_event == entity_event_t::EV_PAIN && event_param == 99
-                    })
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(200, 1)
+            .with_game_client(|| {
+                let mut game_client_mock = MockGameClient::default();
+                game_client_mock
+                    .expect_set_velocity::<(f32, f32, f32)>()
                     .times(1);
+                Ok(game_client_mock)
             })
-            .run(|| {
-                cmd_slap();
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("Slapping...\n"), 1)
+                    .with_send_server_command(
+                        |client, cmd| {
+                            client.is_none() && cmd == "print \"Slapped Player^7 was slapped\n\"\n"
+                        },
+                        1,
+                    )
+                    .with_argc(3)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .with_argv(predicate::eq(2), Some("2147483648"), 1)
+                    .configure(|mock_engine| {
+                        mock_engine
+                            .expect_game_add_event()
+                            .withf(|_entity, &entity_event, &event_param| {
+                                entity_event == entity_event_t::EV_PAIN && event_param == 99
+                            })
+                            .times(1);
+                    })
+                    .run(|| {
+                        cmd_slap();
+                    });
             });
     }
 
@@ -860,88 +778,44 @@ mod commands_tests {
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slay_with_game_entity_not_in_use() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock
-                    .expect_in_use()
-                    .return_const(false)
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
-
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .with_argc(2)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .run(|| {
-                cmd_slay();
+        MockGameEntityBuilder::default()
+            .with_in_use(false, 1)
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
+                    .with_argc(2)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .run(|| {
+                        cmd_slay();
+                    });
             });
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn cmd_slay_with_game_entity_no_health() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(0)
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
-
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
-            .with_argc(2)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .run(|| {
-                cmd_slay();
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(0, 1)
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("The player is currently not active.\n"), 1)
+                    .with_argc(2)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .run(|| {
+                        cmd_slay();
+                    });
             });
     }
 
     #[test]
     #[serial]
     fn cmd_slay_player_is_slain() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .return_once(|_| {
-                let mut game_entity_mock = MockGameEntity::default();
-                game_entity_mock.expect_in_use().return_const(true).times(1);
-                game_entity_mock
-                    .expect_get_health()
-                    .return_const(200)
-                    .times(1);
-                game_entity_mock
-                    .expect_set_health()
-                    .with(predicate::lt(0))
-                    .times(1);
-                game_entity_mock
-                    .expect_get_client_number()
-                    .return_const(42)
-                    .times(1);
-                game_entity_mock
-            })
-            .times(1);
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -956,25 +830,34 @@ mod commands_tests {
             })
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_max_clients(16)
-            .with_com_printf(predicate::eq("Slaying player...\n"), 1)
-            .with_send_server_command(
-                |client, cmd| client.is_none() && cmd == "print \"Slain Player^7 was slain!\n\"\n",
-                1,
-            )
-            .with_argc(2)
-            .with_argv(predicate::eq(1), Some("2"), 1)
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_game_add_event()
-                    .withf(|_entity, &entity_event, &event_param| {
-                        entity_event == entity_event_t::EV_GIB_PLAYER && event_param == 42
+        MockGameEntityBuilder::default()
+            .with_in_use(true, 1)
+            .with_health(200, 1)
+            .with_set_health(predicate::lt(0), 1)
+            .with_client_number(42, 1)
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default()
+                    .with_max_clients(16)
+                    .with_com_printf(predicate::eq("Slaying player...\n"), 1)
+                    .with_send_server_command(
+                        |client, cmd| {
+                            client.is_none() && cmd == "print \"Slain Player^7 was slain!\n\"\n"
+                        },
+                        1,
+                    )
+                    .with_argc(2)
+                    .with_argv(predicate::eq(1), Some("2"), 1)
+                    .configure(|mock_engine| {
+                        mock_engine
+                            .expect_game_add_event()
+                            .withf(|_entity, &entity_event, &event_param| {
+                                entity_event == entity_event_t::EV_GIB_PLAYER && event_param == 42
+                            })
+                            .times(1);
                     })
-                    .times(1);
-            })
-            .run(|| {
-                cmd_slay();
+                    .run(|| {
+                        cmd_slay();
+                    });
             });
     }
 

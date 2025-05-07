@@ -209,7 +209,6 @@ mod server_static_tests {
         );
     }
 
-    //noinspection DuplicatedCode
     #[test]
     fn server_static_try_get_client_by_id_from_ok_client_not_first_position() {
         let mut clients = vec![
@@ -270,7 +269,6 @@ mod server_static_tests {
         assert_eq!(rust_server_static.try_determine_client_id(&client), Ok(0));
     }
 
-    //noinspection DuplicatedCode
     #[test]
     fn server_static_determine_client_id_from_ok_client_not_first_position() {
         let mut clients = vec![
