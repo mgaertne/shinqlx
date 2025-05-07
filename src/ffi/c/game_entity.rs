@@ -651,6 +651,32 @@ impl MockGameEntityBuilder {
         self
     }
 
+    pub(crate) fn with_in_use<F>(mut self, in_use: bool, times: F) -> Self
+    where
+        F: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_in_use()
+                .return_const(in_use)
+                .times(times)
+        });
+        self
+    }
+
+    pub(crate) fn with_client_number<F>(mut self, client_number: i32, times: F) -> Self
+    where
+        F: Into<mockall::TimesRange>,
+    {
+        self.0.as_mut().map(|mock_game_entity| {
+            mock_game_entity
+                .expect_get_client_number()
+                .return_const(client_number)
+                .times(times)
+        });
+        self
+    }
+
     fn build(&mut self) -> MockGameEntity {
         self.0.take().unwrap_or_default()
     }
@@ -997,7 +1023,6 @@ mod game_entity_tests {
         );
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
@@ -1187,7 +1212,6 @@ mod game_entity_tests {
         assert_eq!(game_entity.get_player_name(), "");
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_get_player_name_from_disconnected_game_client() {
@@ -1244,7 +1268,6 @@ mod game_entity_tests {
         assert_eq!(game_entity.get_team(), team_t::TEAM_SPECTATOR);
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn game_entity_get_team_from_disconnected_game_client() {

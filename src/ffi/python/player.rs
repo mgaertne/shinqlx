@@ -1777,23 +1777,6 @@ mod pyshinqlx_player_tests {
     #[test]
     #[serial]
     fn pyconstructor_with_empty_playerinfo() {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -1810,19 +1793,25 @@ mod pyshinqlx_player_tests {
                 mock_client
             });
 
-        let result = Player::py_new(2, None);
-        assert_eq!(
-            result.expect("result was not OK"),
-            Player {
-                name: "UnnamedPlayer".to_string().into(),
-                player_info: PlayerInfo {
-                    name: "UnnamedPlayer".to_string(),
-                    ..default_test_player_info()
-                }
-                .into(),
-                ..default_test_player()
-            }
-        );
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(2), || {
+                let result = Player::py_new(2, None);
+                assert_eq!(
+                    result.expect("result was not OK"),
+                    Player {
+                        name: "UnnamedPlayer".to_string().into(),
+                        player_info: PlayerInfo {
+                            name: "UnnamedPlayer".to_string(),
+                            ..default_test_player_info()
+                        }
+                        .into(),
+                        ..default_test_player()
+                    }
+                );
+            });
     }
 
     #[test]
@@ -2251,23 +2240,6 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn update_with_different_steam_id(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -2284,43 +2256,34 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                 mock_client
             });
 
-        Python::with_gil(|py| {
-            let player = Bound::new(
-                py,
-                Player {
-                    steam_id: 1234567890,
-                    ..default_test_player()
-                },
-            )
-            .expect("this should not happen");
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(2), || {
+                Python::with_gil(|py| {
+                    let player = Bound::new(
+                        py,
+                        Player {
+                            steam_id: 1234567890,
+                            ..default_test_player()
+                        },
+                    )
+                    .expect("this should not happen");
 
-            let result = player.update();
-            assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
-            assert_eq!(player.borrow().valid.load(Ordering::SeqCst), false);
-        });
+                    let result = player.update();
+                    assert!(
+                        result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py))
+                    );
+                    assert_eq!(player.borrow().valid.load(Ordering::SeqCst), false);
+                });
+            });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn update_can_be_called_from_python(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("UnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -2342,40 +2305,29 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
             ..default_test_player()
         };
 
-        let result = Python::with_gil(|py| {
-            py.run(
-                cr#"
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "UnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(2), || {
+                let result = Python::with_gil(|py| {
+                    py.run(
+                        cr#"
 player.update()
 assert(player._valid)
             "#,
-                None,
-                Some(&[("player", Bound::new(py, player)?)].into_py_dict(py)?),
-            )
-        });
-        assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+                        None,
+                        Some(&[("player", Bound::new(py, player)?)].into_py_dict(py)?),
+                    )
+                });
+                assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn update_updates_new_player_name(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity
-                    .expect_get_player_name()
-                    .return_const("NewUnnamedPlayer");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -2392,41 +2344,32 @@ assert(player._valid)
                 mock_client
             });
 
-        Python::with_gil(|py| {
-            let player = Bound::new(
-                py,
-                Player {
-                    steam_id: 1234567890,
-                    ..default_test_player()
-                },
-            )
-            .expect("this should not happen");
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "NewUnnamedPlayer".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(2), || {
+                Python::with_gil(|py| {
+                    let player = Bound::new(
+                        py,
+                        Player {
+                            steam_id: 1234567890,
+                            ..default_test_player()
+                        },
+                    )
+                    .expect("this should not happen");
 
-            player.update().expect("this should not happen");
-            assert_eq!(player.borrow().valid.load(Ordering::SeqCst), true);
-            assert_eq!(&*player.borrow().name.read(), "NewUnnamedPlayer");
-        });
+                    player.update().expect("this should not happen");
+                    assert_eq!(player.borrow().valid.load(Ordering::SeqCst), true);
+                    assert_eq!(&*player.borrow().name.read(), "NewUnnamedPlayer");
+                });
+            });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn update_updates_new_player_name_from_userinfo(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_entity = MockGameEntity::new();
-                mock_entity.expect_get_player_name().return_const("");
-                mock_entity
-                    .expect_get_team()
-                    .return_const(team_t::TEAM_SPECTATOR);
-                mock_entity
-                    .expect_get_privileges()
-                    .return_const(privileges_t::PRIV_NONE);
-                mock_entity
-            });
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
             .expect()
@@ -2445,20 +2388,26 @@ assert(player._valid)
                 mock_client
             });
 
-        Python::with_gil(|py| {
-            let player = Bound::new(
-                py,
-                Player {
-                    steam_id: 1234567890,
-                    ..default_test_player()
-                },
-            )
-            .expect("this should not happen");
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "".to_string(), 1..)
+            .with_team(|| team_t::TEAM_SPECTATOR, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(2), || {
+                Python::with_gil(|py| {
+                    let player = Bound::new(
+                        py,
+                        Player {
+                            steam_id: 1234567890,
+                            ..default_test_player()
+                        },
+                    )
+                    .expect("this should not happen");
 
-            player.update().expect("this should not happen");
-            assert_eq!(player.borrow().valid.load(Ordering::SeqCst), true);
-            assert_eq!(&*player.borrow().name.read(), "NewUnnamedPlayer");
-        });
+                    player.update().expect("this should not happen");
+                    assert_eq!(player.borrow().valid.load(Ordering::SeqCst), true);
+                    assert_eq!(&*player.borrow().name.read(), "NewUnnamedPlayer");
+                });
+            });
     }
 
     #[rstest]
@@ -3929,106 +3878,94 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_state_for_client_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity
-                    .expect_get_game_client()
-                    .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-                mock_game_entity
-            });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_state();
-                assert_eq!(result.expect("result was not OK"), None);
+                        let result = player.get_state();
+                        assert_eq!(result.expect("result was not OK"), None);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_state_transforms_from_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx
-            .expect()
-            .with(predicate::eq(2))
-            .returning(|_| {
-                let mut mock_game_entity = MockGameEntity::new();
-                mock_game_entity.expect_get_game_client().returning(|| {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_get_position()
-                        .returning(|| (1.0, 2.0, 3.0));
-                    mock_game_client
-                        .expect_get_velocity()
-                        .returning(|| (4.0, 5.0, 6.0));
-                    mock_game_client.expect_is_alive().returning(|| true);
-                    mock_game_client.expect_get_armor().returning(|| 456);
-                    mock_game_client.expect_get_noclip().returning(|| true);
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_NAILGUN);
-                    mock_game_client
-                        .expect_get_weapons()
-                        .returning(|| [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1]);
-                    mock_game_client
-                        .expect_get_ammos()
-                        .returning(|| [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
-                    mock_game_client
-                        .expect_get_powerups()
-                        .returning(|| [12, 34, 56, 78, 90, 24]);
-                    mock_game_client
-                        .expect_get_holdable()
-                        .returning(|| Holdable::Kamikaze.into());
-                    mock_game_client
-                        .expect_get_current_flight_fuel()
-                        .returning(|| 12);
-                    mock_game_client
-                        .expect_get_max_flight_fuel()
-                        .returning(|| 34);
-                    mock_game_client.expect_get_flight_thrust().returning(|| 56);
-                    mock_game_client.expect_get_flight_refuel().returning(|| 78);
-                    mock_game_client.expect_is_chatting().returning(|| true);
-                    mock_game_client.expect_is_frozen().returning(|| true);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_health(123, 1..)
+            .with_game_client(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_get_position()
+                    .returning(|| (1.0, 2.0, 3.0));
+                mock_game_client
+                    .expect_get_velocity()
+                    .returning(|| (4.0, 5.0, 6.0));
+                mock_game_client.expect_is_alive().returning(|| true);
+                mock_game_client.expect_get_armor().returning(|| 456);
+                mock_game_client.expect_get_noclip().returning(|| true);
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_NAILGUN);
+                mock_game_client
+                    .expect_get_weapons()
+                    .returning(|| [1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1]);
+                mock_game_client
+                    .expect_get_ammos()
+                    .returning(|| [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+                mock_game_client
+                    .expect_get_powerups()
+                    .returning(|| [12, 34, 56, 78, 90, 24]);
+                mock_game_client
+                    .expect_get_holdable()
+                    .returning(|| Holdable::Kamikaze.into());
+                mock_game_client
+                    .expect_get_current_flight_fuel()
+                    .returning(|| 12);
+                mock_game_client
+                    .expect_get_max_flight_fuel()
+                    .returning(|| 34);
+                mock_game_client.expect_get_flight_thrust().returning(|| 56);
+                mock_game_client.expect_get_flight_refuel().returning(|| 78);
+                mock_game_client.expect_is_chatting().returning(|| true);
+                mock_game_client.expect_is_frozen().returning(|| true);
+                Ok(mock_game_client)
+            })
+            .run(predicate::eq(2), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_state();
+                        assert_eq!(
+                            result.expect("result was not OK"),
+                            Some(PlayerState {
+                                is_alive: true,
+                                position: Vector3(1, 2, 3),
+                                velocity: Vector3(4, 5, 6),
+                                health: 123,
+                                armor: 456,
+                                noclip: true,
+                                weapon: weapon_t::WP_NAILGUN.into(),
+                                weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
+                                ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+                                powerups: Powerups(12, 34, 56, 78, 90, 24),
+                                holdable: Holdable::Kamikaze,
+                                flight: Flight(12, 34, 56, 78),
+                                is_chatting: true,
+                                is_frozen: true,
+                            })
+                        );
+                    });
                 });
-                mock_game_entity.expect_get_health().returning(|| 123);
-                mock_game_entity
             });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_state();
-                assert_eq!(
-                    result.expect("result was not OK"),
-                    Some(PlayerState {
-                        is_alive: true,
-                        position: Vector3(1, 2, 3),
-                        velocity: Vector3(4, 5, 6),
-                        health: 123,
-                        armor: 456,
-                        noclip: true,
-                        weapon: weapon_t::WP_NAILGUN.into(),
-                        weapons: Weapons(1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1),
-                        ammo: Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-                        powerups: Powerups(12, 34, 56, 78, 90, 24),
-                        holdable: Holdable::Kamikaze,
-                        flight: Flight(12, 34, 56, 78),
-                        is_chatting: true,
-                        is_frozen: true,
-                    })
-                );
-            });
-        });
     }
 
     #[rstest]
@@ -4075,28 +4012,26 @@ assert(player._valid)
         #[case] opt_priv: Option<&str>,
         #[case] privileges: &'static privileges_t,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client
                     .expect_set_privileges()
                     .with(predicate::eq(*privileges as i32))
                     .times(1);
                 Ok(mock_game_client)
-            });
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_privileges(opt_priv);
-                assert!(result.is_ok());
+                        let result = player.set_privileges(opt_priv);
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4228,10 +4163,8 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_stats_for_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_score().returning(|| 42);
                 mock_game_client.expect_get_kills().returning(|| 7);
@@ -4245,56 +4178,52 @@ assert(player._valid)
                 mock_game_client.expect_get_time_on_team().returning(|| 123);
                 mock_game_client.expect_get_ping().returning(|| 9);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_stats();
+
+                        assert_eq!(
+                            result
+                                .expect("result was not OK")
+                                .expect("result was not Some"),
+                            PlayerStats {
+                                score: 42,
+                                kills: 7,
+                                deaths: 9,
+                                damage_dealt: 5000,
+                                damage_taken: 4200,
+                                time: 123,
+                                ping: 9,
+                            }
+                        );
+                    });
+                });
             });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_stats();
-
-                assert_eq!(
-                    result
-                        .expect("result was not OK")
-                        .expect("result was not Some"),
-                    PlayerStats {
-                        score: 42,
-                        kills: 7,
-                        deaths: 9,
-                        damage_dealt: 5000,
-                        damage_taken: 4200,
-                        time: 123,
-                        ping: 9,
-                    }
-                );
-            });
-        });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_stats_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+                        let result = player.get_stats();
 
-                let result = player.get_stats();
-
-                assert_eq!(result.expect("result was not OK"), None);
+                        assert_eq!(result.expect("result was not OK"), None);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4313,10 +4242,8 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_ping_for_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_score().returning(|| 42);
                 mock_game_client.expect_get_kills().returning(|| 7);
@@ -4330,53 +4257,48 @@ assert(player._valid)
                 mock_game_client.expect_get_time_on_team().returning(|| 123);
                 mock_game_client.expect_get_ping().returning(|| 42);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_ping();
+
+                        assert_eq!(result.expect("result was not OK"), 42);
+                    });
+                });
             });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_ping();
-
-                assert_eq!(result.expect("result was not OK"), 42);
-            });
-        });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_ping_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+                        let result = player.get_ping();
 
-                let result = player.get_ping();
-
-                assert_eq!(result.expect("result was not OK"), 999);
+                        assert_eq!(result.expect("result was not OK"), 999);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn position_gathers_players_position_with_no_kwargs(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client
                     .expect_get_position()
@@ -4399,24 +4321,23 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.position(false, None);
-                assert!(result.is_ok_and(|value| {
-                    value
-                        .extract::<Vector3>()
-                        .expect("result was not a Vector3")
-                        == Vector3(1, 2, 3)
-                }));
+                        let result = player.position(false, None);
+                        assert!(result.is_ok_and(|value| {
+                            value
+                                .extract::<Vector3>()
+                                .expect("result was not a Vector3")
+                                == Vector3(1, 2, 3)
+                        }));
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4511,39 +4432,35 @@ assert(player._valid)
         #[case] position: [(&str, i32); 1],
         #[case] expected_position: (f32, f32, f32),
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_position()
-                        .with(predicate::eq(expected_position))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_position()
+                    .with(predicate::eq(expected_position))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.position(
+                            true,
+                            Some(&position.into_py_dict(py).expect("this should not happen")),
+                        );
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.position(
-                    true,
-                    Some(&position.into_py_dict(py).expect("this should not happen")),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -4586,10 +4503,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn velocity_gathers_players_velocity_with_no_kwargs(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client
@@ -4612,24 +4528,23 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.velocity(false, None);
-                assert!(result.is_ok_and(|value| {
-                    value
-                        .extract::<Vector3>()
-                        .expect("result was not a Vector3")
-                        == Vector3(1, 2, 3)
-                }));
+                        let result = player.velocity(false, None);
+                        assert!(result.is_ok_and(|value| {
+                            value
+                                .extract::<Vector3>()
+                                .expect("result was not a Vector3")
+                                == Vector3(1, 2, 3)
+                        }));
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4724,39 +4639,35 @@ assert(player._valid)
         #[case] velocity: [(&str, i32); 1],
         #[case] expected_velocity: (f32, f32, f32),
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_velocity()
-                        .with(predicate::eq(expected_velocity))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_velocity()
+                    .with(predicate::eq(expected_velocity))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.velocity(
+                            true,
+                            Some(&velocity.into_py_dict(py).expect("this should not happen")),
+                        );
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.velocity(
-                    true,
-                    Some(&velocity.into_py_dict(py).expect("this should not happen")),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -4799,10 +4710,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapons_gathers_players_weapons_with_no_kwargs(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -4825,22 +4735,21 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.weapons(false, None);
-                assert!(result.is_ok_and(|value| {
-                    value.extract::<Weapons>().expect("result was not Weapons")
-                        == Weapons(1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
-                }));
+                        let result = player.weapons(false, None);
+                        assert!(result.is_ok_and(|value| {
+                            value.extract::<Weapons>().expect("result was not Weapons")
+                                == Weapons(1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
+                        }));
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -4963,39 +4872,35 @@ assert(player._valid)
         #[case] weapons: [(&str, i32); 1],
         #[case] expected_weapons: [i32; 15],
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_weapons()
-                        .with(predicate::eq(expected_weapons))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_weapons()
+                    .with(predicate::eq(expected_weapons))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.weapons(
+                            true,
+                            Some(&weapons.into_py_dict(py).expect("this should not happen")),
+                        );
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.weapons(
-                    true,
-                    Some(&weapons.into_py_dict(py).expect("this should not happen")),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -5069,81 +4974,72 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapon_gets_currently_held_weapon(_pyshinqlx_setup: (), #[case] weapon: weapon_t) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip();
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(move || weapon);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(move || weapon);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.weapon(None);
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<i32>()
+                                .expect("result was not an integer"),
+                            weapon as i32
+                        )
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.weapon(None);
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<i32>()
-                        .expect("result was not an integer"),
-                    weapon as i32
-                )
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn weapon_gets_currently_held_weapon_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.weapon(None);
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<i32>()
-                        .expect("result was not an integer"),
-                    weapon_t::WP_HANDS as i32
-                )
+                        let result = player.weapon(None);
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<i32>()
+                                .expect("result was not an integer"),
+                            weapon_t::WP_HANDS as i32
+                        )
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5169,37 +5065,32 @@ assert(player._valid)
         #[case] weapon_str: &str,
         #[case] expected_weapon: weapon_t,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_weapon()
-                        .with(predicate::eq(expected_weapon as i32))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_weapon()
+                    .with(predicate::eq(expected_weapon as i32))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.weapon(Some(PyString::new(py, weapon_str).into_any()));
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.weapon(Some(PyString::new(py, weapon_str).into_any()));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -5236,37 +5127,32 @@ assert(player._valid)
         #[case] weapon_index: i32,
         #[case] expected_weapon: weapon_t,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_weapon()
-                        .with(predicate::eq(expected_weapon as i32))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_weapon()
+                    .with(predicate::eq(expected_weapon as i32))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.weapon(Some(PyInt::new(py, weapon_index).into_any()));
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.weapon(Some(PyInt::new(py, weapon_index).into_any()));
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -5284,10 +5170,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ammo_gathers_players_ammo_with_no_kwargs(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -5310,22 +5195,21 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.ammo(false, None);
-                assert!(result.is_ok_and(|value| {
-                    value.extract::<Weapons>().expect("result was not Weapons")
-                        == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
-                }));
+                        let result = player.ammo(false, None);
+                        assert!(result.is_ok_and(|value| {
+                            value.extract::<Weapons>().expect("result was not Weapons")
+                                == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+                        }));
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5448,39 +5332,35 @@ assert(player._valid)
         #[case] ammos: [(&str, i32); 1],
         #[case] expected_ammos: [i32; 15],
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_ammos()
-                        .with(predicate::eq(expected_ammos))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_ammos()
+                    .with(predicate::eq(expected_ammos))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.ammo(
+                            true,
+                            Some(&ammos.into_py_dict(py).expect("this should not happen")),
+                        );
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.ammo(
-                    true,
-                    Some(&ammos.into_py_dict(py).expect("this should not happen")),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -5539,10 +5419,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn powerups_gathers_players_powerups_with_no_kwargs(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -5565,24 +5444,23 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.powerups(false, None);
-                assert!(result.is_ok_and(|value| {
-                    value
-                        .extract::<Powerups>()
-                        .expect("result was not a Powerups")
-                        == Powerups(1000, 2000, 3000, 4000, 5000, 6000)
-                }));
+                        let result = player.powerups(false, None);
+                        assert!(result.is_ok_and(|value| {
+                            value
+                                .extract::<Powerups>()
+                                .expect("result was not a Powerups")
+                                == Powerups(1000, 2000, 3000, 4000, 5000, 6000)
+                        }));
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -5687,39 +5565,35 @@ assert(player._valid)
         #[case] powerups: [(&str, i32); 1],
         #[case] expected_powerups: [i32; 6],
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_powerups()
-                        .with(predicate::eq(expected_powerups))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_powerups()
+                    .with(predicate::eq(expected_powerups))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.powerups(
+                            true,
+                            Some(&powerups.into_py_dict(py).expect("this should not happen")),
+                        );
+                        assert_eq!(
+                            result
+                                .expect("result was not Ok")
+                                .extract::<bool>()
+                                .expect("result was not a bool value"),
+                            true
+                        );
+                    });
                 });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.powerups(
-                    true,
-                    Some(&powerups.into_py_dict(py).expect("this should not happen")),
-                );
-                assert_eq!(
-                    result
-                        .expect("result was not Ok")
-                        .extract::<bool>()
-                        .expect("result was not a bool value"),
-                    true
-                );
             });
-        });
     }
 
     #[rstest]
@@ -5792,50 +5666,46 @@ assert(player._valid)
         #[case] holdable: Holdable,
         #[case] expected_result: Option<&str>,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip();
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client
-                        .expect_get_holdable()
-                        .returning(move || holdable.into());
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client
+                    .expect_get_holdable()
+                    .returning(move || holdable.into());
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_holdable();
+                        assert_eq!(
+                            result.expect("result was not Ok").as_deref(),
+                            expected_result
+                        );
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_holdable();
-                assert_eq!(
-                    result.expect("result was not Ok").as_deref(),
-                    expected_result
-                );
             });
-        });
     }
 
     #[rstest]
@@ -5879,30 +5749,26 @@ assert(player._valid)
         #[case] new_holdable: Option<&str>,
         #[case] expected_holdable: Holdable,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client
-                        .expect_set_holdable()
-                        .with(predicate::eq(expected_holdable))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_set_holdable()
+                    .with(predicate::eq(expected_holdable))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.set_holdable(new_holdable);
+                        assert!(result.is_ok());
+                    });
                 });
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_holdable(new_holdable);
-                assert!(result.is_ok());
             });
-        });
     }
 
     #[rstest]
@@ -6008,10 +5874,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn flight_gathers_players_flight_parameters_with_no_kwargs(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -6038,22 +5903,21 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.flight(false, None);
-                assert!(result.is_ok_and(|value| {
-                    value.extract::<Flight>().expect("result was not a Flight")
-                        == Flight(1, 2, 3, 4)
-                }));
+                        let result = player.flight(false, None);
+                        assert!(result.is_ok_and(|value| {
+                            value.extract::<Flight>().expect("result was not a Flight")
+                                == Flight(1, 2, 3, 4)
+                        }));
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6186,7 +6050,6 @@ assert(player._valid)
                 mock_game_entity
             });
 
-        let game_entity_from_ctx = MockGameEntity::from_context();
         game_entity_from_ctx
             .expect()
             .times(1)
@@ -6276,70 +6139,62 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_noclip_returns_players_noclip_state(_pyshinqlx_setup: (), #[case] noclip_state: bool) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client
-                        .expect_get_noclip()
-                        .returning(move || noclip_state);
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client
+                    .expect_get_noclip()
+                    .returning(move || noclip_state);
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_noclip();
+                        assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_noclip();
-                assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_noclip_for_player_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_noclip();
-                assert_eq!(result.expect("result was not Ok"), false);
+                        let result = player.get_noclip();
+                        assert_eq!(result.expect("result was not Ok"), false);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6363,52 +6218,48 @@ assert(player._valid)
         _pyshinqlx_setup: (),
         #[case] noclip_value: bool,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client
-                        .expect_get_noclip()
-                        .returning(move || !noclip_value);
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    mock_game_client
-                        .expect_set_noclip()
-                        .with(predicate::eq(noclip_value))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client
+                    .expect_get_noclip()
+                    .returning(move || !noclip_value);
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                mock_game_client
+                    .expect_set_noclip()
+                    .with(predicate::eq(noclip_value))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result =
+                            player.set_noclip(PyBool::new(py, noclip_value).to_owned().as_any());
+
+                        assert!(result.is_ok());
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_noclip(PyBool::new(py, noclip_value).to_owned().as_any());
-
-                assert!(result.is_ok());
             });
-        });
     }
 
     #[rstest]
@@ -6421,52 +6272,47 @@ assert(player._valid)
         #[case] noclip_value: i32,
         #[case] expected_noclip: bool,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client
-                        .expect_get_noclip()
-                        .returning(move || !expected_noclip);
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    mock_game_client
-                        .expect_set_noclip()
-                        .with(predicate::eq(expected_noclip))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client
+                    .expect_get_noclip()
+                    .returning(move || !expected_noclip);
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                mock_game_client
+                    .expect_set_noclip()
+                    .with(predicate::eq(expected_noclip))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.set_noclip(PyInt::new(py, noclip_value).as_any());
+
+                        assert!(result.is_ok());
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_noclip(PyInt::new(py, noclip_value).as_any());
-
-                assert!(result.is_ok());
             });
-        });
     }
 
     #[rstest]
@@ -6479,112 +6325,101 @@ assert(player._valid)
         #[case] noclip_value: &'static str,
         #[case] expected_noclip: bool,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client
-                        .expect_get_noclip()
-                        .returning(move || !expected_noclip);
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    mock_game_client
-                        .expect_set_noclip()
-                        .with(predicate::eq(expected_noclip))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client
+                    .expect_get_noclip()
+                    .returning(move || !expected_noclip);
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                mock_game_client
+                    .expect_set_noclip()
+                    .with(predicate::eq(expected_noclip))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.set_noclip(PyString::new(py, noclip_value).as_any());
+
+                        assert!(result.as_ref().is_ok(), "{:?}", result.err());
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_noclip(PyString::new(py, noclip_value).as_any());
-
-                assert!(result.as_ref().is_ok(), "{:?}", result.err());
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_noclip_set_players_noclip_value_by_none(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip().returning(|| true);
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    mock_game_client
-                        .expect_set_noclip()
-                        .with(predicate::eq(false))
-                        .times(1);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip().returning(|| true);
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                mock_game_client
+                    .expect_set_noclip()
+                    .with(predicate::eq(false))
+                    .times(1);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.set_noclip(py.None().bind(py));
+
+                        assert!(result.as_ref().is_ok(), "{:?}", result.err());
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_noclip(py.None().bind(py));
-
-                assert!(result.as_ref().is_ok(), "{:?}", result.err());
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_health_returns_players_health_state(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(42, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -6605,42 +6440,37 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health().returning(|| 42);
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_health();
-                assert_eq!(result.expect("result was not Ok"), 42);
+                        let result = player.get_health();
+                        assert_eq!(result.expect("result was not Ok"), 42);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_health_for_player_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_health();
-                assert_eq!(result.expect("result was not Ok"), 0);
+                        let result = player.get_health();
+                        assert_eq!(result.expect("result was not Ok"), 0);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6659,35 +6489,29 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_health_set_players_health(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_set_health()
-                .with(predicate::eq(666))
-                .times(1);
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_set_health(predicate::eq(666), 1)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+                        let result = player.set_health(666);
 
-                let result = player.set_health(666);
-
-                assert!(result.is_ok());
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_armor_returns_players_armor_state(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -6708,42 +6532,37 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_armor();
-                assert_eq!(result.expect("result was not Ok"), 42);
+                        let result = player.get_armor();
+                        assert_eq!(result.expect("result was not Ok"), 42);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_armor_for_player_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_health();
-                assert_eq!(result.expect("result was not Ok"), 0);
+                        let result = player.get_health();
+                        assert_eq!(result.expect("result was not Ok"), 0);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6762,10 +6581,8 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_armor_set_players_armor(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -6790,20 +6607,19 @@ assert(player._valid)
                     .with(predicate::eq(666))
                     .times(1);
                 Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.set_armor(666);
+
+                        assert!(result.is_ok());
+                    });
+                });
             });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_armor(666);
-
-                assert!(result.is_ok());
-            });
-        });
     }
 
     #[rstest]
@@ -6812,70 +6628,62 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_alive_returns_players_is_alive_state(_pyshinqlx_setup: (), #[case] is_alive: bool) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client
-                        .expect_is_alive()
-                        .returning(move || is_alive);
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip();
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client.expect_is_frozen();
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client
+                    .expect_is_alive()
+                    .returning(move || is_alive);
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_is_alive();
+                        assert_eq!(result.expect("result was not Ok"), is_alive);
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_is_alive();
-                assert_eq!(result.expect("result was not Ok"), is_alive);
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_alive_for_player_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_is_alive();
-                assert_eq!(result.expect("result was not Ok"), false);
+                        let result = player.get_is_alive();
+                        assert_eq!(result.expect("result was not Ok"), false);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -6967,10 +6775,9 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_is_alive_for_dead_player_with_false(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -6991,29 +6798,27 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_is_alive(false);
-                assert!(result.is_ok());
+                        let result = player.set_is_alive(false);
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_is_alive_for_alive_player_with_true(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().times(1).returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_position();
                 mock_game_client.expect_get_velocity();
@@ -7034,19 +6839,18 @@ assert(player._valid)
                 mock_game_client.expect_is_chatting();
                 mock_game_client.expect_is_frozen();
                 Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_is_alive(true);
-                assert!(result.is_ok());
+                        let result = player.set_is_alive(true);
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -7137,70 +6941,62 @@ assert(player._valid)
         _pyshinqlx_setup: (),
         #[case] is_frozen: bool,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip();
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client.expect_is_chatting();
-                    mock_game_client
-                        .expect_is_frozen()
-                        .returning(move || is_frozen);
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client.expect_is_chatting();
+                mock_game_client
+                    .expect_is_frozen()
+                    .returning(move || is_frozen);
+                Ok(mock_game_client)
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_is_frozen();
+                        assert_eq!(result.expect("result was not Ok"), is_frozen);
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_is_frozen();
-                assert_eq!(result.expect("result was not Ok"), is_frozen);
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_frozen_for_player_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_is_frozen();
-                assert_eq!(result.expect("result was not Ok"), false);
+                        let result = player.get_is_frozen();
+                        assert_eq!(result.expect("result was not Ok"), false);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -7224,70 +7020,62 @@ assert(player._valid)
         _pyshinqlx_setup: (),
         #[case] is_chatting: bool,
     ) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(move |_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(move || {
-                    let mut mock_game_client = MockGameClient::new();
-                    mock_game_client.expect_get_position();
-                    mock_game_client.expect_get_velocity();
-                    mock_game_client.expect_is_alive();
-                    mock_game_client.expect_get_armor();
-                    mock_game_client.expect_get_noclip();
-                    mock_game_client
-                        .expect_get_weapon()
-                        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
-                    mock_game_client.expect_get_weapons();
-                    mock_game_client.expect_get_ammos();
-                    mock_game_client.expect_get_powerups();
-                    mock_game_client.expect_get_holdable();
-                    mock_game_client.expect_get_current_flight_fuel();
-                    mock_game_client.expect_get_max_flight_fuel();
-                    mock_game_client.expect_get_flight_thrust();
-                    mock_game_client.expect_get_flight_refuel();
-                    mock_game_client
-                        .expect_is_chatting()
-                        .returning(move || is_chatting);
-                    mock_game_client.expect_is_frozen();
-                    Ok(mock_game_client)
+        MockGameEntityBuilder::default()
+            .with_game_client(move || {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_position();
+                mock_game_client.expect_get_velocity();
+                mock_game_client.expect_is_alive();
+                mock_game_client.expect_get_armor();
+                mock_game_client.expect_get_noclip();
+                mock_game_client
+                    .expect_get_weapon()
+                    .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+                mock_game_client.expect_get_weapons();
+                mock_game_client.expect_get_ammos();
+                mock_game_client.expect_get_powerups();
+                mock_game_client.expect_get_holdable();
+                mock_game_client.expect_get_current_flight_fuel();
+                mock_game_client.expect_get_max_flight_fuel();
+                mock_game_client.expect_get_flight_thrust();
+                mock_game_client.expect_get_flight_refuel();
+                mock_game_client
+                    .expect_is_chatting()
+                    .returning(move || is_chatting);
+                mock_game_client.expect_is_frozen();
+                Ok(mock_game_client)
+            })
+            .with_health(200, 0..)
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
+
+                        let result = player.get_is_chatting();
+                        assert_eq!(result.expect("result was not Ok"), is_chatting);
+                    });
                 });
-            mock_game_entity.expect_get_health();
-            mock_game_entity
-        });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_is_chatting();
-                assert_eq!(result.expect("result was not Ok"), is_chatting);
             });
-        });
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_chatting_for_player_without_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_is_chatting();
-                assert_eq!(result.expect("result was not Ok"), false);
+                        let result = player.get_is_chatting();
+                        assert_eq!(result.expect("result was not Ok"), false);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -7318,10 +7106,8 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_score_for_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client.expect_get_score().returning(|| 42);
                 mock_game_client.expect_get_kills().returning(|| 7);
@@ -7335,41 +7121,37 @@ assert(player._valid)
                 mock_game_client.expect_get_time_on_team().returning(|| 123);
                 mock_game_client.expect_get_ping().returning(|| 9);
                 Ok(mock_game_client)
-            });
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_score();
-                assert_eq!(result.expect("result was not OK"), 42);
+                        let result = player.get_score();
+                        assert_eq!(result.expect("result was not OK"), 42);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.get_score();
-                assert_eq!(result.expect("result was not OK"), 0);
+                        let result = player.get_score();
+                        assert_eq!(result.expect("result was not OK"), 0);
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -7388,51 +7170,45 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_score_for_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
+        MockGameEntityBuilder::default()
+            .with_game_client(|| {
                 let mut mock_game_client = MockGameClient::new();
                 mock_game_client
                     .expect_set_score()
                     .with(predicate::eq(42))
                     .times(1);
                 Ok(mock_game_client)
-            });
-            mock_game_entity
-        });
+            })
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_score(42);
-                assert!(result.is_ok());
+                        let result = player.set_score(42);
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity
-                .expect_get_game_client()
-                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_score(42);
-                assert!(result.is_ok());
+                        let result = player.set_score(42);
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]
@@ -7510,21 +7286,6 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn tell_with_limit_keyword(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -7578,21 +7339,6 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn tell_with_delimiter_keyword(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -7649,21 +7395,6 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn kick_kicks_player(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_entity = MockGameEntity::new();
-            mock_entity
-                .expect_get_player_name()
-                .return_const("UnnamedPlayer");
-            mock_entity
-                .expect_get_team()
-                .return_const(team_t::TEAM_SPECTATOR);
-            mock_entity
-                .expect_get_privileges()
-                .return_const(privileges_t::PRIV_NONE);
-            mock_entity
-        });
-
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
             let mut mock_client = MockClient::new();
@@ -7991,26 +7722,22 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn slay_with_mod_slays_with_mod(_pyshinqlx_setup: ()) {
-        let game_entity_from_ctx = MockGameEntity::from_context();
-        game_entity_from_ctx.expect().returning(|_| {
-            let mut mock_game_entity = MockGameEntity::new();
-            mock_game_entity.expect_get_game_client().returning(|| {
-                let mock_game_client = MockGameClient::new();
-                Ok(mock_game_client)
-            });
-            mock_game_entity.expect_get_health().returning(|| 0);
-            mock_game_entity.expect_slay_with_mod().times(0);
-            mock_game_entity
-        });
+        MockGameEntityBuilder::default()
+            .with_health(0, 1..)
+            .with_slay_with_mod(predicate::always(), 0)
+            .with_game_client(|| Ok(MockGameClient::new()))
+            .run(predicate::always(), || {
+                MockEngineBuilder::default().with_max_clients(16).run(|| {
+                    Python::with_gil(|py| {
+                        let player =
+                            Bound::new(py, default_test_player()).expect("this should not happen");
 
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.slay_with_mod(meansOfDeath_t::MOD_PROXIMITY_MINE as i32);
-                assert!(result.is_ok());
+                        let result =
+                            player.slay_with_mod(meansOfDeath_t::MOD_PROXIMITY_MINE as i32);
+                        assert!(result.is_ok());
+                    });
+                });
             });
-        });
     }
 
     #[rstest]

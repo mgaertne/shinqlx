@@ -189,7 +189,6 @@ mod client_tests {
         );
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn client_try_from_negative_client_id() {
@@ -208,7 +207,6 @@ mod client_tests {
         );
     }
 
-    //noinspection DuplicatedCode
     #[test]
     #[serial]
     fn client_try_from_too_large_client_id() {
