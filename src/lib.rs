@@ -148,6 +148,7 @@ mod lib_tests {
     use pretty_assertions::assert_eq;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn test_initialize_logging_default() {
         let config_path = Path::new("./shinqlx_log.yml");
