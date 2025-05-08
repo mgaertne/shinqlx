@@ -135,3 +135,50 @@ fn initialize() {
 
     let _ = _INIT_TIME.elapsed();
 }
+
+#[cfg(test)]
+mod lib_tests {
+    use super::*;
+    use crate::prelude::serial;
+
+    use std::fs;
+
+    use log::Level;
+
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    #[serial]
+    fn test_initialize_logging_default() {
+        let config_path = Path::new("./shinqlx_log.yml");
+        let backup_path = Path::new("./shinqlx_log.yml.bak");
+
+        let had_existing = if config_path.exists() {
+            fs::rename(config_path, backup_path).unwrap();
+            true
+        } else {
+            false
+        };
+
+        initialize_logging();
+
+        assert_eq!(log::log_enabled!(Level::Debug), false);
+        assert_eq!(log::log_enabled!(Level::Info), true);
+
+        if had_existing {
+            fs::rename(backup_path, config_path).unwrap();
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn test_initialize_non_qzeroded_program() {
+        unsafe {
+            std::env::set_var("RUST_TEST_PROGRAM", "some_other_program");
+        }
+
+        initialize();
+
+        assert!(MAIN_ENGINE.load().is_none());
+    }
+}
