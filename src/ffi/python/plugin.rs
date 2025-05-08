@@ -237,7 +237,7 @@ impl Plugin {
             },
             "int" => match cvar_string {
                 None => Ok(cls.py().None().into_bound(cls.py())),
-                Some(value) => value.parse::<i128>().map_or_else(
+                Some(value) => value.parse::<i64>().map_or_else(
                     |_| {
                         let error_description =
                             format!("invalid literal for int() with base 10: '{value}'");
@@ -259,7 +259,7 @@ impl Plugin {
             },
             "bool" => match cvar_string {
                 None => Ok(PyBool::new(cls.py(), false).into_any().to_owned()),
-                Some(value) => value.parse::<i128>().map_or_else(
+                Some(value) => value.parse::<i64>().map_or_else(
                     |_| {
                         let error_description =
                             format!("invalid literal for int() with base 10: '{value}'");
