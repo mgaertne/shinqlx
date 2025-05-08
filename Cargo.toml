@@ -68,7 +68,7 @@ procfs-core = { version = ">=0.17", default-features = false }
 tikv-jemallocator = { version = ">=0.6", default-features = false, features = ["background_threads_runtime_support"], optional = true }
 
 [target."cfg(target_os=\"windows\")".dependencies]
-mimalloc = { version = ">=0.1.43", default-features = false, optional = true }
+mimalloc = { version = ">=0.1.46", default-features = false, optional = true }
 
 [build-dependencies]
 pyo3-build-config = { version = ">=0.24.1, <0.25", default-features = false, features = ["resolve-config"] }
