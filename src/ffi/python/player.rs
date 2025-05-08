@@ -1563,7 +1563,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_noclip(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let noclip_value = match value.extract::<bool>() {
             Ok(value) => value,
-            Err(_) => match value.extract::<i128>() {
+            Err(_) => match value.extract::<i64>() {
                 Ok(value) => value != 0,
                 Err(_) => match value.extract::<String>() {
                     Ok(value) => !value.is_empty(),
