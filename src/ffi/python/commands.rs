@@ -90,7 +90,7 @@ impl Command {
             })
         });
         name.extract::<String>().ok().iter().for_each(|py_string| {
-            names.push(py_string.clone());
+            names.push(py_string.to_owned());
         });
 
         let channels_vec = if channels.is_none() {
@@ -113,9 +113,9 @@ impl Command {
         };
 
         Ok(Self {
-            plugin: plugin.clone().unbind(),
+            plugin: plugin.to_owned().unbind(),
             name: names,
-            handler: handler.clone().unbind(),
+            handler: handler.to_owned().unbind(),
             permission,
             channels: channels_vec.into(),
             exclude_channels: exclude_channels_vec.into(),
@@ -289,7 +289,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             .any(|exclude_channel| {
                 exclude_channel
                     .bind(self.py())
-                    .eq(channel.clone())
+                    .eq(channel.to_owned())
                     .unwrap_or(false)
             })
         {
@@ -300,7 +300,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             || self.borrow().channels.read().iter().any(|allowed_channel| {
                 allowed_channel
                     .bind(self.py())
-                    .eq(channel.clone())
+                    .eq(channel.to_owned())
                     .unwrap_or(false)
             })
     }
@@ -576,8 +576,8 @@ class mocked_db:
                 PyList::new(
                     py,
                     [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any(),
+                        chat_channel.to_owned().as_any(),
+                        console_channel.to_owned().as_any(),
                     ],
                 )
                 .expect("this should not happen")
@@ -601,8 +601,8 @@ class mocked_db:
                 .eq(PyList::new(
                     py,
                     [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any(),
+                        chat_channel.to_owned().as_any(),
+                        console_channel.to_owned().as_any(),
                     ],
                 )
                 .expect("this should not happen"))
@@ -633,8 +633,8 @@ class mocked_db:
                 PyList::new(
                     py,
                     [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any(),
+                        chat_channel.to_owned().as_any(),
+                        console_channel.to_owned().as_any(),
                     ],
                 )
                 .expect("This should not happen")
@@ -657,8 +657,8 @@ class mocked_db:
                 .eq(PyList::new(
                     py,
                     [
-                        chat_channel.clone().as_any(),
-                        console_channel.clone().as_any(),
+                        chat_channel.to_owned().as_any(),
+                        console_channel.to_owned().as_any(),
                     ],
                 )
                 .expect("this should not happen"))
@@ -928,8 +928,8 @@ class mocked_db:
                         .unbind(),
                     permission: 0,
                     channels: vec![
-                        console_channel.clone().into_any().unbind(),
-                        chat_channel.clone().into_any().unbind(),
+                        console_channel.to_owned().into_any().unbind(),
+                        chat_channel.to_owned().into_any().unbind(),
                     ]
                     .into(),
                     exclude_channels: vec![].into(),
@@ -984,13 +984,13 @@ class mocked_db:
                         .unbind(),
                     permission: 0,
                     channels: vec![
-                        console_channel.clone().into_any().unbind(),
-                        chat_channel.clone().into_any().unbind(),
+                        console_channel.to_owned().into_any().unbind(),
+                        chat_channel.to_owned().into_any().unbind(),
                     ]
                     .into(),
                     exclude_channels: vec![
-                        red_team_chat_channel.clone().into_any().unbind(),
-                        blue_team_chat_channel.clone().into_any().unbind(),
+                        red_team_chat_channel.to_owned().into_any().unbind(),
+                        blue_team_chat_channel.to_owned().into_any().unbind(),
                     ]
                     .into(),
                     client_cmd_pass: false,
@@ -1760,7 +1760,7 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
                     let bound_cmd = command.bind(self.py()).borrow();
                     Command {
                         plugin: bound_cmd.plugin.clone_ref(self.py()),
-                        name: bound_cmd.name.clone(),
+                        name: bound_cmd.name.to_owned(),
                         handler: bound_cmd.handler.clone_ref(self.py()),
                         permission: bound_cmd.permission,
                         channels: bound_cmd
@@ -1780,7 +1780,7 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
                         client_cmd_pass: bound_cmd.client_cmd_pass,
                         client_cmd_perm: bound_cmd.client_cmd_perm,
                         prefix: bound_cmd.prefix,
-                        usage: bound_cmd.usage.clone(),
+                        usage: bound_cmd.usage.to_owned(),
                     }
                 })
             })
@@ -1833,7 +1833,7 @@ def add_command(cmd, priority):
             .map(|_| ());
         };
 
-        commands[priority].push(command.clone().unbind());
+        commands[priority].push(command.to_owned().unbind());
         Ok(())
     }
 
@@ -1943,7 +1943,7 @@ def remove_command(cmd):
 
                 let cmd_copy = Command {
                     plugin: bound_cmd.borrow().plugin.clone_ref(self.py()),
-                    name: bound_cmd.borrow().name.clone(),
+                    name: bound_cmd.borrow().name.to_owned(),
                     handler: bound_cmd.borrow().handler.clone_ref(self.py()),
                     permission: bound_cmd.borrow().permission,
                     channels: bound_cmd
@@ -1965,12 +1965,12 @@ def remove_command(cmd):
                     client_cmd_pass: bound_cmd.borrow().client_cmd_pass,
                     client_cmd_perm: bound_cmd.borrow().client_cmd_perm,
                     prefix: bound_cmd.borrow().prefix,
-                    usage: bound_cmd.borrow().usage.clone(),
+                    usage: bound_cmd.borrow().usage.to_owned(),
                 };
 
                 let dispatcher_result = CommandDispatcherMethods::dispatch(
                     command_dispatcher.downcast()?,
-                    &Bound::new(self.py(), player.clone())?,
+                    &Bound::new(self.py(), player.to_owned())?,
                     &Bound::new(self.py(), cmd_copy)?,
                     msg,
                 )?;
@@ -2029,7 +2029,7 @@ def remove_command(cmd):
                             "Command '%s' with handler '%s' returned an unknown return value: %s"
                         ),
                                     (
-                                        bound_cmd.borrow().name.clone(),
+                                        bound_cmd.borrow().name.to_owned(),
                                         cmd_handler_name,
                                         cmd_result,
                                     ),

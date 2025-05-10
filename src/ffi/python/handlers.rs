@@ -239,7 +239,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             |client_command_dispatcher| {
                 ClientCommandDispatcherMethods::dispatch(
                     client_command_dispatcher.downcast()?,
-                    &Bound::new(py, player.clone())?,
+                    &Bound::new(py, player.to_owned())?,
                     cmd,
                 )
             },
@@ -390,7 +390,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     |vote_started_dispatcher| {
                         VoteStartedDispatcherMethods::caller(
                             vote_started_dispatcher.downcast()?,
-                            Bound::new(py, player.clone())?.as_any(),
+                            Bound::new(py, player.to_owned())?.as_any(),
                         );
                         Ok(())
                     },
@@ -411,7 +411,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     |vote_called_dispatcher| {
                         VoteCalledDispatcherMethods::dispatch(
                             vote_called_dispatcher.downcast()?,
-                            &Bound::new(py, player.clone())?,
+                            &Bound::new(py, player.to_owned())?,
                             vote.as_str(),
                             PyString::new(py, args).as_any(),
                         )
@@ -449,7 +449,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     |vote_dispatcher| {
                         VoteDispatcherMethods::dispatch(
                             vote_dispatcher.downcast()?,
-                            &Bound::new(py, player.clone())?,
+                            &Bound::new(py, player.to_owned())?,
                             vote,
                         )
                     },
@@ -547,7 +547,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     |userinfo_dispatcher| {
                         UserinfoDispatcherMethods::dispatch(
                             userinfo_dispatcher.downcast()?,
-                            &Bound::new(py, player.clone())?,
+                            &Bound::new(py, player.to_owned())?,
                             &changed.into_py_dict(py)?,
                         )
                     },
@@ -3901,7 +3901,7 @@ while not next_frame_tasks.empty():
             "#,
                 None,
                 Some(
-                    &[("next_frame_tasks", next_frame_tasks.clone())]
+                    &[("next_frame_tasks", next_frame_tasks.to_owned())]
                         .into_py_dict(py)
                         .expect("this should not happen"),
                 ),
@@ -3917,7 +3917,7 @@ for event in frame_tasks.queue:
 "#,
                 None,
                 Some(
-                    &[("frame_tasks", frame_tasks.clone())]
+                    &[("frame_tasks", frame_tasks.to_owned())]
                         .into_py_dict(py)
                         .expect("this should not happen"),
                 ),
@@ -3944,7 +3944,7 @@ for event in frame_tasks.queue:
 "#,
                 None,
                 Some(
-                    &[("frame_tasks", frame_tasks.clone())]
+                    &[("frame_tasks", frame_tasks.to_owned())]
                         .into_py_dict(py)
                         .expect("this should not happen"),
                 ),
@@ -3979,7 +3979,7 @@ for event in frame_tasks.queue:
 "#,
                 None,
                 Some(
-                    &[("frame_tasks", frame_tasks.clone())]
+                    &[("frame_tasks", frame_tasks.to_owned())]
                         .into_py_dict(py)
                         .expect("this should not happen"),
                 ),
@@ -7626,7 +7626,7 @@ fn try_handle_damage(
                 DamageDispatcherMethods::dispatch(
                     damage_dispatcher.downcast()?,
                     &target_player,
-                    &attacker_player.unwrap_or(py.None().bind(py).clone()),
+                    &attacker_player.unwrap_or(py.None().bind(py).to_owned()),
                     damage,
                     dflags,
                     means_of_death,
@@ -8430,7 +8430,7 @@ pub(crate) trait PrintRedirectorMethods {
 
 impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
     fn context_manager_enter(self) -> Self {
-        PRINT_REDIRECTION.store(Some(Arc::new(self.clone().unbind())));
+        PRINT_REDIRECTION.store(Some(Arc::new(self.to_owned().unbind())));
         self
     }
 
@@ -8447,7 +8447,7 @@ impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
     }
 
     fn flush(&self) -> PyResult<()> {
-        let print_buffer_contents = self.borrow().print_buffer.read().clone();
+        let print_buffer_contents = self.borrow().print_buffer.read().to_owned();
         self.borrow().print_buffer.write().clear();
 
         let _ = self

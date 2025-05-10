@@ -44,7 +44,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
         player: &Bound<'py, Player>,
         changed: &Bound<'py, PyDict>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let mut forwarded_userinfo = changed.clone();
+        let mut forwarded_userinfo = changed.to_owned();
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
         let super_class = self.borrow().into_super();
@@ -64,7 +64,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
         for i in 0..5 {
             for (_, handlers) in plugins.iter() {
                 for handler in &handlers[i] {
-                    match handler.call1(self.py(), (&player, forwarded_userinfo.clone())) {
+                    match handler.call1(self.py(), (&player, forwarded_userinfo.to_owned())) {
                         Err(e) => {
                             log_exception(self.py(), &e);
                             continue;
@@ -107,8 +107,9 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
                                 );
                                 continue;
                             };
-                            forwarded_userinfo = changed_value.clone().into_py_dict(self.py())?;
-                            return_value = changed_value.clone().into_any().unbind();
+                            forwarded_userinfo =
+                                changed_value.to_owned().into_py_dict(self.py())?;
+                            return_value = changed_value.to_owned().into_any().unbind();
                         }
                     }
                 }

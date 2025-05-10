@@ -88,10 +88,10 @@ impl Clone for Player {
         Self {
             valid: self.valid.load(Ordering::SeqCst).into(),
             id: self.id,
-            player_info: self.player_info.read().clone().into(),
-            user_info: self.user_info.clone(),
+            player_info: self.player_info.read().to_owned().into(),
+            user_info: self.user_info.to_owned(),
             steam_id: self.steam_id,
-            name: self.name.read().clone().into(),
+            name: self.name.read().to_owned().into(),
         }
     }
 }
@@ -126,13 +126,13 @@ impl Player {
             let cvars = parse_variables(&player_info.userinfo);
             cvars.get("name").unwrap_or_default()
         } else {
-            player_info.name.clone()
+            player_info.name.to_owned()
         };
 
         Ok(Player {
             valid: true.into(),
             id: client_id,
-            user_info: player_info.userinfo.clone(),
+            user_info: player_info.userinfo.to_owned(),
             steam_id: player_info.steam_id,
             player_info: player_info.into(),
             name: name.into(),
@@ -638,10 +638,10 @@ impl Player {
                     opt_player_info.as_ref().map(|player_info| Player {
                         valid: true.into(),
                         id: player_info.client_id,
-                        user_info: player_info.userinfo.clone(),
+                        user_info: player_info.userinfo.to_owned(),
                         steam_id: player_info.steam_id,
-                        name: player_info.name.clone().into(),
-                        player_info: player_info.clone().into(),
+                        name: player_info.name.to_owned().into(),
+                        player_info: player_info.to_owned().into(),
                     })
                 })
                 .collect())
@@ -792,7 +792,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             let cvars = parse_variables(&self.borrow().player_info.read().userinfo);
             cvars.get("name").unwrap_or_default()
         } else {
-            self.borrow().player_info.read().name.clone()
+            self.borrow().player_info.read().name.to_owned()
         };
         *self.borrow().name.write() = name;
 
@@ -869,7 +869,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn get_name(&self) -> String {
         if self.borrow().name.read().ends_with("^7") {
-            self.borrow().name.read().clone()
+            self.borrow().name.read().to_owned()
         } else {
             format!("{}^7", self.borrow().name.read())
         }
@@ -1129,7 +1129,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_country(&self, value: &str) -> PyResult<()> {
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo.clone());
+        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo.to_owned());
         new_cvars.set("country", value);
         let new_cvars_string: String = new_cvars.into();
 
@@ -6177,7 +6177,7 @@ assert(player._valid)
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
                         let result = player.get_noclip();
-                        assert_eq!(result.expect("result was not Ok"), noclip_state.clone());
+                        assert_eq!(result.expect("result was not Ok"), noclip_state.to_owned());
                     });
                 });
             });
@@ -8096,7 +8096,7 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
             Err(PyEnvironmentError::new_err(
                 "could not get access to CONSOLE_CHANNEL",
             )),
-            |console_channel| Ok(console_channel.bind(self.py()).clone()),
+            |console_channel| Ok(console_channel.bind(self.py()).to_owned()),
         )
     }
 

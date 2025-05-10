@@ -24,7 +24,7 @@ impl AbstractDatabase {
     #[new]
     fn py_new(_py: Python<'_>, plugin: &Bound<'_, PyAny>) -> Self {
         Self {
-            plugin: plugin.clone().unbind(),
+            plugin: plugin.to_owned().unbind(),
         }
     }
 
@@ -206,7 +206,7 @@ impl Redis {
         (
             Self {},
             AbstractDatabase {
-                plugin: plugin.clone().unbind(),
+                plugin: plugin.to_owned().unbind(),
             },
         )
     }
