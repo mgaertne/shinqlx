@@ -21,10 +21,13 @@ pub(crate) fn pyshinqlx_spawn_item(
             )));
         }
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        GameItem::try_from(item_id)
-            .iter_mut()
-            .for_each(|gitem| gitem.spawn((x, y, z)));
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        if let Ok(mut gitem) = GameItem::try_from(item_id) {
+            gitem.spawn((x, y, z));
+        }
 
         Ok(true)
     })

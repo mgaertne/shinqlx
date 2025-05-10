@@ -12,15 +12,19 @@ pub(crate) fn pyshinqlx_set_holdable(
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let mut opt_game_client = GameEntity::try_from(client_id)
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let opt_game_client = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok());
+        let returned = opt_game_client.is_some();
         let ql_holdable = Holdable::from(holdable);
-        opt_game_client
-            .iter_mut()
-            .for_each(|game_client| game_client.set_holdable(ql_holdable));
-        Ok(opt_game_client.is_some())
+        if let Some(mut game_client) = opt_game_client {
+            game_client.set_holdable(ql_holdable);
+        }
+        Ok(returned)
     })
 }
 

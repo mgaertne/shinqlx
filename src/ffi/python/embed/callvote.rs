@@ -9,9 +9,9 @@ pub(crate) fn pyshinqlx_callvote(
     vote_time: Option<i32>,
 ) {
     py.allow_threads(|| {
-        CurrentLevel::try_get()
-            .iter_mut()
-            .for_each(|current_level| current_level.callvote(vote, vote_disp, vote_time));
+        if let Ok(mut current_level) = CurrentLevel::try_get() {
+            current_level.callvote(vote, vote_disp, vote_time);
+        }
     })
 }
 

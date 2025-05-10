@@ -143,6 +143,7 @@ use pyo3::{
     intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyInt, PyString, PyTuple, PyType},
 };
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 
 #[cfg(test)]
@@ -385,8 +386,9 @@ impl From<ParsedVariables> for String {
     fn from(value: ParsedVariables) -> Self {
         value
             .items
-            .iter()
+            .par_iter()
             .map(|(key, value)| format!(r"\{key}\{value}"))
+            .collect::<Vec<String>>()
             .join("")
     }
 }

@@ -5,9 +5,9 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyo3(name = "allow_single_player")]
 pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
     py.allow_threads(|| {
-        CurrentLevel::try_get()
-            .iter_mut()
-            .for_each(|current_level| current_level.set_training_map(allow))
+        if let Ok(mut current_level) = CurrentLevel::try_get() {
+            current_level.set_training_map(allow);
+        }
     });
 }
 

@@ -6,6 +6,7 @@ use core::{
 };
 
 use arrayvec::ArrayVec;
+use tap::TapOptional;
 
 use super::prelude::*;
 use crate::{
@@ -92,43 +93,35 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     other: *mut gentity_t,
     trace: *mut trace_t,
 ) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        main_engine
-            .touch_item_orig()
-            .iter()
-            .for_each(|original_func| {
-                (unsafe { ent.as_ref() }).iter().for_each(|entity| {
-                    if !ptr::eq(entity.parent, other) {
-                        original_func(ent, other, trace);
-                    }
-                });
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        if let Ok(original_func) = main_engine.touch_item_orig() {
+            (unsafe { ent.as_ref() }).tap_some(|&entity| {
+                if !ptr::eq(entity.parent, other) {
+                    original_func(ent, other, trace);
+                }
             });
+        }
     });
 }
 
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        main_engine
-            .touch_item_orig()
-            .iter()
-            .for_each(|touch_item_func| {
-                main_engine
-                    .g_free_entity_orig()
-                    .iter()
-                    .for_each(|free_entity_func| {
-                        (unsafe { ent.as_mut() }).iter_mut().for_each(|mut_ent| {
-                            let level_time = CurrentLevel::try_get()
-                                .map(|current_level| current_level.get_leveltime())
-                                .unwrap_or_default();
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        if let (Ok(touch_item_func), Ok(free_entity_func)) = (
+            main_engine.touch_item_orig(),
+            main_engine.g_free_entity_orig(),
+        ) {
+            (unsafe { ent.as_mut() }).tap_some_mut(|mut_ent| {
+                let level_time = CurrentLevel::try_get()
+                    .map(|current_level| current_level.get_leveltime())
+                    .unwrap_or_default();
 
-                            mut_ent.touch = Some(*touch_item_func);
-                            mut_ent.think = Some(*free_entity_func);
-                            mut_ent.nextthink = level_time + 29000;
-                        });
-                    });
+                mut_ent.touch = Some(touch_item_func);
+                mut_ent.think = Some(free_entity_func);
+                mut_ent.nextthink = level_time + 29000;
             });
+        }
     });
 }
 
@@ -238,12 +231,12 @@ impl GameEntity {
                 0
             };
 
-        self.get_game_client()
-            .iter_mut()
-            .for_each(|game_client| game_client.set_armor(0));
+        if let Ok(mut game_client) = self.get_game_client() {
+            game_client.set_armor(0);
+        }
 
         // self damage = half damage, so multiplaying by 2
-        MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+        MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
             main_engine.register_damage(
                 self.gentity_t,
                 self.gentity_t,
@@ -349,7 +342,7 @@ impl GameEntity {
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
-        MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+        MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
             let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
             main_engine.com_printf(&class_name.to_string_lossy());
             if item_id != 0 {
@@ -881,6 +874,9 @@ mod game_entity_tests {
                 mock_engine
                     .expect_touch_item_orig()
                     .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+                mock_engine
+                    .expect_g_free_entity_orig()
+                    .returning(|| Ok(MOCK_FREE_ENTITY_FN));
             })
             .run(|| {
                 ShiNQlx_Switch_Touch_Item(entity.borrow_mut());

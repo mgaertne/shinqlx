@@ -1,5 +1,6 @@
 use arrayvec::ArrayVec;
 use pyo3::exceptions::PyEnvironmentError;
+use rayon::prelude::*;
 
 use crate::{
     MAIN_ENGINE,
@@ -27,7 +28,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             })
             .collect();
         let mut str_length = 0;
-        let printed_items: ArrayVec<String, { MAX_GENTITIES as usize }> = formatted_items
+        let printed_items: Vec<String> = formatted_items
             .iter()
             .take_while(|&item| {
                 str_length += item.len();
@@ -53,8 +54,8 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                     &format!("print \"{}\n\"", printed_items.join("\n")),
                 );
 
-                let remaining_items: ArrayVec<String, { MAX_GENTITIES as usize }> = formatted_items
-                    .iter()
+                let remaining_items: Vec<String> = formatted_items
+                    .par_iter()
                     .skip(printed_items.len())
                     .map(|item| item.to_string())
                     .collect();
@@ -65,7 +66,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                         "print \"Check server console for other items\n\"\n",
                     );
                     remaining_items
-                        .iter()
+                        .par_iter()
                         .for_each(|item| main_engine.com_printf(item));
                 }
 

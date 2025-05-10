@@ -8,12 +8,16 @@ pub(crate) fn pyshinqlx_set_health(py: Python<'_>, client_id: i32, health: i32) 
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let mut opt_game_entity = GameEntity::try_from(client_id).ok();
-        opt_game_entity
-            .iter_mut()
-            .for_each(|game_entity| game_entity.set_health(health));
-        Ok(opt_game_entity.is_some())
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let opt_game_entity = GameEntity::try_from(client_id).ok();
+        let returned = opt_game_entity.is_some();
+        if let Some(mut game_entity) = opt_game_entity {
+            game_entity.set_health(health);
+        }
+        Ok(returned)
     })
 }
 
