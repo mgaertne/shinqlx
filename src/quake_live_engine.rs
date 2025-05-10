@@ -6,12 +6,11 @@ use core::{
 use std::sync::OnceLock;
 
 use arc_swap::ArcSwapOption;
-#[cfg(target_os = "linux")]
-use arrayvec::ArrayVec;
 #[cfg(test)]
 use mockall::predicate;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
+use rayon::prelude::*;
 use retour::{GenericDetour, RawDetour};
 
 #[cfg(target_os = "linux")]
@@ -174,7 +173,7 @@ impl VmFunctions {
             })?;
 
             let qagame_maps: Vec<&MemoryMap> = myself_maps
-                .iter()
+                .par_iter()
                 .filter(|mmap| {
                     let MMapPath::Path(path) = &mmap.pathname else {
                         return false;
@@ -185,7 +184,7 @@ impl VmFunctions {
                 .collect();
 
             debug!(target: "shinqlx", "Searching for necessary VM functions...");
-            let failed_functions: ArrayVec<QuakeLiveFunction, 11> = [
+            let failed_functions: Vec<QuakeLiveFunction> = [
                 (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
                 (
                     QuakeLiveFunction::CheckPrivileges,
@@ -205,7 +204,7 @@ impl VmFunctions {
                 #[cfg(feature = "patches")]
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
             ]
-            .iter()
+            .par_iter()
             .filter_map(
                 |(ql_func, field)| match pattern_search_module(&qagame_maps, ql_func) {
                     None => Some(*ql_func),
@@ -306,15 +305,15 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
         })?;
 
-        self.client_connect_detour
+        if let Some(detour) = self
+            .client_connect_detour
             .swap(Some(client_connect_detour.into()))
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
+            }
+        }
 
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::Acquire);
         let g_start_kamikaze_func = unsafe {
@@ -330,15 +329,15 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
         })?;
 
-        self.g_start_kamikaze_detour
+        if let Some(detour) = self
+            .g_start_kamikaze_detour
             .swap(Some(g_start_kamikaze_detour.into()))
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
+            }
+        }
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::Acquire);
         let client_spawn_func =
@@ -351,15 +350,15 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
         })?;
 
-        self.client_spawn_detour
+        if let Some(detour) = self
+            .client_spawn_detour
             .swap(Some(client_spawn_detour.into()))
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
+            }
+        }
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::Acquire);
         let g_damage_func = unsafe {
@@ -385,15 +384,15 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
         })?;
 
-        self.g_damage_detour
+        if let Some(detour) = self
+            .g_damage_detour
             .swap(Some(g_damage_detour.into()))
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling damage detour: {e}");
+            }
+        }
 
         Ok(())
     }
@@ -427,50 +426,50 @@ impl VmFunctions {
             #[cfg(feature = "patches")]
             &self.cmd_callvote_f_orig,
         ]
-        .iter()
+        .par_iter()
         .for_each(|field| {
             field.store(0, Ordering::Release);
         });
 
-        self.client_connect_detour
+        if let Some(detour) = self
+            .client_connect_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
+            }
+        }
 
-        self.g_start_kamikaze_detour
+        if let Some(detour) = self
+            .g_start_kamikaze_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
+            }
+        }
 
-        self.client_spawn_detour
+        if let Some(detour) = self
+            .client_spawn_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
+            }
+        }
 
-        self.g_damage_detour
+        if let Some(detour) = self
+            .g_damage_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-            .iter()
-            .for_each(|detour| {
-                if let Err(e) = unsafe { detour.disable() } {
-                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
-                }
-            });
+        {
+            if let Err(e) = unsafe { detour.disable() } {
+                error!(target: "shinqlx", "error when disabling damage detour: {e}");
+            }
+        }
     }
 }
 
@@ -826,7 +825,7 @@ impl QuakeLiveEngine {
                 )
             })?;
             let qzeroded_maps: Vec<&MemoryMap> = myself_maps
-                .iter()
+                .par_iter()
                 .filter(|mmap| {
                     let MMapPath::Path(path) = &mmap.pathname else {
                         return false;
@@ -1102,7 +1101,8 @@ impl QuakeLiveEngine {
     pub(crate) fn set_tag(&self) {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
-        self.find_cvar("sv_tags")
+        if let Some(new_tags) = self
+            .find_cvar("sv_tags")
             .map(|cvar| cvar.get_string().to_string())
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|mut sv_tags_string| {
@@ -1112,20 +1112,17 @@ impl QuakeLiveEngine {
                 sv_tags_string.insert_str(0, SV_TAGS_PREFIX);
                 sv_tags_string
             })
-            .iter()
-            .for_each(|new_tags| {
-                self.set_cvar_forced("sv_tags", new_tags, false);
-            });
+        {
+            self.set_cvar_forced("sv_tags", new_tags, false);
+        }
     }
 
     // Called after the game is initialized.
     pub(crate) fn initialize_cvars(&self) {
-        self.find_cvar("sv_maxclients")
-            .iter()
-            .for_each(|maxclients| {
-                self.sv_maxclients
-                    .store(maxclients.get_integer(), Ordering::Release);
-            })
+        if let Some(maxclients) = self.find_cvar("sv_maxclients") {
+            self.sv_maxclients
+                .store(maxclients.get_integer(), Ordering::Release);
+        }
     }
 
     pub(crate) fn get_max_clients(&self) -> i32 {
@@ -3362,9 +3359,9 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
         let level_time_param = level_time.into();
         let random_seed_param = random_seed.into();
         let restart_param = restart.into();
-        self.g_init_game_orig().iter().for_each(|original_func| {
+        if let Ok(original_func) = self.g_init_game_orig() {
             original_func(level_time_param, random_seed_param, restart_param);
-        });
+        }
     }
 }
 
@@ -3419,11 +3416,9 @@ pub(crate) trait ShutdownGame<T: Into<c_int>> {
 impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
     fn shutdown_game(&self, restart: T) {
         let restart_param = restart.into();
-        self.g_shutdown_game_orig()
-            .iter()
-            .for_each(|original_func| {
-                original_func(restart_param);
-            });
+        if let Ok(original_func) = self.g_shutdown_game_orig() {
+            original_func(restart_param);
+        }
     }
 }
 
@@ -3656,9 +3651,9 @@ pub(crate) trait ClientEnterWorld<T: AsMut<client_t>> {
 
 impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
     fn client_enter_world(&self, mut client: T, cmd: *mut usercmd_t) {
-        self.sv_cliententerworld_detour().iter().for_each(|detour| {
+        if let Ok(detour) = self.sv_cliententerworld_detour() {
             detour.call(client.as_mut(), cmd);
-        });
+        }
     }
 }
 
@@ -3888,9 +3883,9 @@ pub(crate) trait RunFrame<T: Into<c_int>> {
 impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
     fn run_frame(&self, time: T) {
         let time_param = time.into();
-        self.g_run_frame_orig().iter().for_each(|original_func| {
+        if let Ok(original_func) = self.g_run_frame_orig() {
             original_func(time_param);
-        });
+        }
     }
 }
 
@@ -4019,11 +4014,9 @@ pub(crate) trait ClientSpawn<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
     fn client_spawn(&self, mut ent: T) {
-        self.vm_functions
-            .client_spawn_detour
-            .load()
-            .iter()
-            .for_each(|detour| detour.call(ent.as_mut()));
+        if let Some(detour) = self.vm_functions.client_spawn_detour.load().as_ref() {
+            detour.call(ent.as_mut());
+        }
     }
 }
 
@@ -4312,9 +4305,9 @@ pub(crate) trait GameAddEvent<T: AsMut<gentity_t>, U: Into<c_int>> {
 impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine {
     fn game_add_event(&self, mut game_entity: T, event: entity_event_t, event_param: U) {
         let event_param_param = event_param.into();
-        self.g_addevent_orig().iter().for_each(|original_func| {
+        if let Ok(original_func) = self.g_addevent_orig() {
             original_func(game_entity.as_mut(), event, event_param_param)
-        });
+        }
     }
 }
 
@@ -4863,22 +4856,18 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
         let damage_param = damage.into();
         let dflags_param = dflags.into();
         let means_of_death_param = means_of_death.into();
-        self.vm_functions
-            .g_damage_detour
-            .load()
-            .iter()
-            .for_each(|detour| {
-                detour.call(
-                    target,
-                    inflictor,
-                    attacker,
-                    dir,
-                    pos,
-                    damage_param,
-                    dflags_param,
-                    means_of_death_param,
-                )
-            });
+        if let Some(detour) = self.vm_functions.g_damage_detour.load().as_ref() {
+            detour.call(
+                target,
+                inflictor,
+                attacker,
+                dir,
+                pos,
+                damage_param,
+                dflags_param,
+                means_of_death_param,
+            );
+        }
     }
 }
 
@@ -4982,9 +4971,9 @@ pub(crate) trait FreeEntity<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
     fn free_entity(&self, mut gentity: T) {
-        self.g_free_entity_orig()
-            .iter()
-            .for_each(|original_func| original_func(gentity.as_mut()))
+        if let Ok(original_func) = self.g_free_entity_orig() {
+            original_func(gentity.as_mut());
+        }
     }
 }
 
@@ -5199,11 +5188,9 @@ pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
 
 impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
     fn start_kamikaze(&self, mut gentity: T) {
-        self.vm_functions
-            .g_start_kamikaze_detour
-            .load()
-            .iter()
-            .for_each(|detour| detour.call(gentity.as_mut()));
+        if let Some(detour) = self.vm_functions.g_start_kamikaze_detour.load().as_ref() {
+            detour.call(gentity.as_mut());
+        }
     }
 }
 

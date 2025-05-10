@@ -1,5 +1,7 @@
 use core::ffi::c_char;
 
+use tap::TapOptional;
+
 use super::prelude::*;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
@@ -55,17 +57,16 @@ impl CurrentLevel {
     }
 
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
-        MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
             let actual_vote_time = vote_time.unwrap_or(30);
 
-            let mut vote_bytes_iter = vote.bytes();
-            self.level.voteString[0..vote.len()]
-                .fill_with(|| vote_bytes_iter.next().unwrap() as c_char);
+            let mut vote_bytes = vote.bytes();
+            self.level.voteString[0..vote.len()].fill_with(|| vote_bytes.next().unwrap() as c_char);
             self.level.voteString[vote.len()..].fill(0 as c_char);
 
-            let mut vote_disp_bytes_iter = vote_disp.bytes();
+            let mut vote_disp_bytes = vote_disp.bytes();
             self.level.voteDisplayString[0..vote_disp.len()]
-                .fill_with(|| vote_disp_bytes_iter.next().unwrap() as c_char);
+                .fill_with(|| vote_disp_bytes.next().unwrap() as c_char);
             self.level.voteDisplayString[vote_disp.len()..].fill(0 as c_char);
 
             self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;

@@ -15,17 +15,21 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let mut opt_client = Client::try_from(client_id)
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let opt_client = Client::try_from(client_id)
             .ok()
             .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
+        let client_was_some = opt_client.is_some();
         let reason_str = reason
             .filter(|rsn| !rsn.is_empty())
             .unwrap_or("was kicked.");
-        opt_client
-            .iter_mut()
-            .for_each(|client| shinqlx_drop_client(client, reason_str));
-        if opt_client.is_some() {
+        if let Some(mut client) = opt_client {
+            shinqlx_drop_client(&mut client, reason_str);
+        }
+        if client_was_some {
             Ok(())
         } else {
             Err(PyValueError::new_err(

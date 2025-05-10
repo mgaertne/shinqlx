@@ -2,6 +2,7 @@ use core::borrow::BorrowMut;
 
 use pyo3::types::PyBool;
 use rand::Rng;
+use tap::TapOptional;
 
 use crate::{
     MAIN_ENGINE,
@@ -12,8 +13,8 @@ use crate::{
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_send_server_command() {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        main_engine.cmd_args().iter().for_each(|cmd_args| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        main_engine.cmd_args().tap_some(|cmd_args| {
             main_engine.send_server_command(None::<Client>, &format!("{cmd_args}\n"));
         });
     });
@@ -21,8 +22,8 @@ pub extern "C" fn cmd_send_server_command() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_center_print() {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        main_engine.cmd_args().iter().for_each(|cmd_args| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        main_engine.cmd_args().tap_some(|cmd_args| {
             main_engine.send_server_command(None::<Client>, &format!("cp \"{cmd_args}\"\n"));
         });
     });
@@ -30,8 +31,8 @@ pub extern "C" fn cmd_center_print() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_regular_print() {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        main_engine.cmd_args().iter().for_each(|cmd_args| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        main_engine.cmd_args().tap_some(|cmd_args| {
             main_engine.send_server_command(None::<Client>, &format!("print \"{cmd_args}\n\"\n"));
         });
     });
@@ -39,7 +40,7 @@ pub extern "C" fn cmd_regular_print() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_slap() {
-    MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let maxclients = main_engine.get_max_clients();
 
         let argc = main_engine.cmd_argc();
@@ -143,7 +144,7 @@ pub extern "C" fn cmd_slap() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_slay() {
-    MAIN_ENGINE.load().as_ref().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let maxclients = main_engine.get_max_clients();
 
         let argc = main_engine.cmd_argc();
@@ -218,7 +219,7 @@ pub extern "C" fn cmd_slay() {
 // Execute a pyshinqlx command as if it were the owner executing it.
 // Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(commands) = main_engine.cmd_args() else {
             return;
         };
@@ -231,9 +232,9 @@ pub extern "C" fn cmd_py_rcon() {
 pub extern "C" fn cmd_py_command() {
     CUSTOM_COMMAND_HANDLER
         .load()
-        .iter()
-        .for_each(|custom_command_handler| {
-            MAIN_ENGINE.load().iter().for_each(|main_engine| {
+        .as_ref()
+        .tap_some(|&custom_command_handler| {
+            MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
                 let cmd_args = main_engine.cmd_args();
 
                 Python::with_gil(|py| {
@@ -261,23 +262,23 @@ pub extern "C" fn cmd_py_command() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_restart_python() {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.com_printf("Restarting Python...\n");
 
         match pyshinqlx_is_initialized() {
             true => {
-                pyshinqlx_reload().iter().for_each(|_| {
+                if pyshinqlx_reload().is_ok() {
                     // shinqlx initializes after the first new game starts, but since the game already
                     // start, we manually trigger the event to make it initialize properly.
                     new_game_dispatcher(false);
-                });
+                }
             }
             false => {
-                pyshinqlx_initialize().iter().for_each(|_| {
+                if pyshinqlx_initialize().is_ok() {
                     // shinqlx initializes after the first new game starts, but since the game already
                     // start, we manually trigger the event to make it initialize properly.
                     new_game_dispatcher(false);
-                });
+                }
             }
         }
     });

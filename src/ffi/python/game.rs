@@ -1,5 +1,4 @@
-use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use itertools::Itertools;
 use log::*;

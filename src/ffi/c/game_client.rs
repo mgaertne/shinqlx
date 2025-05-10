@@ -2,6 +2,7 @@ use alloc::borrow::Cow;
 use core::ffi::{CStr, c_int};
 
 use arrayvec::ArrayVec;
+use rayon::prelude::*;
 
 use super::prelude::*;
 use crate::prelude::*;
@@ -135,7 +136,7 @@ impl GameClient {
 
     pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]) {
         let weapon_flags = weapons
-            .iter()
+            .par_iter()
             .enumerate()
             .filter(|&(_, &item)| item > 0)
             .map(|(i, _)| 1 << (i + 1))
@@ -144,12 +145,12 @@ impl GameClient {
     }
 
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
-        self.game_client.ps.ammo[1..]
-            .iter()
+        self.game_client.ps.ammo[1..16]
+            .par_iter()
             .copied()
-            .collect::<ArrayVec<i32, 15>>()
-            .into_inner()
-            .unwrap_or_default()
+            .collect::<Vec<i32>>()
+            .try_into()
+            .unwrap()
     }
 
     pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]) {
@@ -548,10 +549,10 @@ mod game_client_tests {
     #[test]
     fn game_client_get_player_name() {
         let player_name_str = "awesome player";
-        let mut bytes_iter = player_name_str.bytes();
+        let mut bytes = player_name_str.bytes();
         let mut player_name: [c_char; 40usize] = [0; 40usize];
         player_name[0..player_name_str.len()]
-            .fill_with(|| bytes_iter.next().expect("this should not happen") as c_char);
+            .fill_with(|| bytes.next().expect("this should not happen") as c_char);
         let client_persistant = ClientPersistantBuilder::default()
             .netname(player_name)
             .build()

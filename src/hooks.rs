@@ -3,6 +3,8 @@ use core::{
     ffi::{CStr, VaList, c_char, c_int},
 };
 
+use tap::TapOptional;
+
 use crate::{
     MAIN_ENGINE,
     ffi::{c::prelude::*, python::prelude::*},
@@ -15,7 +17,7 @@ use crate::{
 };
 
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if !main_engine.is_common_initialized() {
             if let Err(err) = main_engine.initialize_static() {
                 error!(target: "shinqlx", "{err:?}");
@@ -35,7 +37,7 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
     module_name: *mut c_char,
     offset: unsafe extern "C" fn(),
 ) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
 
         // We should be getting qagame, but check just in case.
@@ -54,7 +56,7 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
 }
 
 pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.init_game(level_time, random_seed, restart);
 
         main_engine.set_tag();
@@ -67,7 +69,7 @@ pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart:
 }
 
 pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.unhook_vm(restart != 0);
         main_engine.shutdown_game(restart);
     });
@@ -195,7 +197,7 @@ where
 }
 
 pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(mut safe_client) = Client::try_from(client).ok() else {
             return;
         };
@@ -231,8 +233,8 @@ pub(crate) fn shinqlx_set_configstring<T>(index: T, value: &str)
 where
     T: TryInto<c_int> + Into<u32> + Copy,
 {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
-        index.try_into().iter().for_each(|&c_index| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        if let Ok(c_index) = index.try_into() {
             // Indices 16 and 66X are spammed a ton every frame for some reason,
             // so we add some exceptions for those. I don't think we should have any
             // use for those particular ones anyway. If we don't do this, we get
@@ -246,17 +248,17 @@ where
                 return;
             };
             main_engine.set_configstring(c_index, &res);
-        })
+        }
     });
 }
 
 pub(crate) extern "C" fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
-    Client::try_from(client).iter_mut().for_each(|safe_client| {
+    if let Ok(mut safe_client) = Client::try_from(client) {
         shinqlx_drop_client(
-            safe_client,
+            &mut safe_client,
             unsafe { CStr::from_ptr(reason) }.to_string_lossy(),
         );
-    });
+    }
 }
 
 pub(crate) fn shinqlx_drop_client<T>(client: &mut Client, reason: T)
@@ -300,7 +302,7 @@ pub(crate) fn shinqlx_com_printf<T>(msg: T)
 where
     T: AsRef<str>,
 {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(_) = console_print_dispatcher(msg.as_ref()) else {
             return;
         };
@@ -315,7 +317,7 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
         return;
     }
 
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.spawn_server(
             server_str.as_ref(),
             <qboolean as Into<bool>>::into(kill_bots),
@@ -326,7 +328,7 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
 }
 
 pub(crate) fn shinqlx_g_runframe(time: c_int) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         frame_dispatcher();
 
         main_engine.run_frame(time);
@@ -339,17 +341,14 @@ static CLIENT_CONNECT_BUFFER: [parking_lot::RwLock<
     [const { parking_lot::RwLock::new(arrayvec::ArrayVec::new_const()) }; MAX_CLIENTS as usize];
 
 fn to_return_string(client_id: i32, input: String) -> *const c_char {
-    CLIENT_CONNECT_BUFFER[client_id as usize]
-        .try_write()
-        .into_iter()
-        .for_each(|mut buffer_write_guard| {
-            *buffer_write_guard = input
-                .as_bytes()
-                .iter()
-                .map(|&char| char as c_char)
-                .collect();
-            buffer_write_guard.push(0);
-        });
+    if let Some(mut buffer_write_guard) = CLIENT_CONNECT_BUFFER[client_id as usize].try_write() {
+        *buffer_write_guard = input
+            .as_bytes()
+            .iter()
+            .map(|&char| char as c_char)
+            .collect();
+        buffer_write_guard.push(0);
+    }
     CLIENT_CONNECT_BUFFER[client_id as usize].read().as_ptr()
 }
 
@@ -379,14 +378,13 @@ pub(crate) extern "C" fn shinqlx_client_connect(
 }
 
 pub(crate) extern "C" fn shinqlx_clientspawn(ent: *mut gentity_t) {
-    GameEntity::try_from(ent)
-        .ok()
-        .iter_mut()
-        .for_each(shinqlx_client_spawn);
+    if let Ok(mut game_entity) = GameEntity::try_from(ent) {
+        shinqlx_client_spawn(&mut game_entity);
+    }
 }
 
 pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.client_spawn(game_entity.borrow_mut());
 
         // Since we won't ever stop the real function from being called,
@@ -438,7 +436,7 @@ pub(crate) extern "C" fn shinqlx_g_damage(
     // DAMAGE_NO_TEAM_PROTECTION	kills team mates
     means_of_death: c_int, // means_of_death indicator
 ) {
-    MAIN_ENGINE.load().iter().for_each(|main_engine| {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.register_damage(
             target,
             inflictor,
@@ -450,9 +448,8 @@ pub(crate) extern "C" fn shinqlx_g_damage(
             means_of_death,
         );
 
-        GameEntity::try_from(target)
-            .iter()
-            .for_each(|target_entity| match attacker.is_null() {
+        if let Ok(target_entity) = GameEntity::try_from(target) {
+            match attacker.is_null() {
                 true => {
                     damage_dispatcher(
                         target_entity.get_entity_id(),
@@ -482,7 +479,8 @@ pub(crate) extern "C" fn shinqlx_g_damage(
                         );
                     }
                 },
-            });
+            }
+        }
     });
 }
 

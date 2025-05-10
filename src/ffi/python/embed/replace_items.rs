@@ -55,8 +55,11 @@ pub(crate) fn pyshinqlx_replace_items(
         }
 
         return py.allow_threads(|| {
-            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-            let mut opt_game_entity = GameEntity::try_from(item1_id).ok().filter(|game_entity| {
+            #[cfg_attr(
+                test,
+                allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+            )]
+            let opt_game_entity = GameEntity::try_from(item1_id).ok().filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
             });
 
@@ -66,9 +69,9 @@ pub(crate) fn pyshinqlx_replace_items(
                 )));
             }
 
-            opt_game_entity
-                .iter_mut()
-                .for_each(|game_entity| game_entity.replace_item(item2_id));
+            if let Some(mut game_entity) = opt_game_entity {
+                game_entity.replace_item(item2_id);
+            }
 
             Ok(true)
         });

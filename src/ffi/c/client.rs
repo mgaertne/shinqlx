@@ -1,6 +1,8 @@
 use alloc::{borrow::Cow, ffi::CString};
 use core::ffi::{CStr, c_char};
 
+use tap::TapOptional;
+
 use super::prelude::*;
 use crate::{MAIN_ENGINE, prelude::*};
 
@@ -77,13 +79,10 @@ impl Client {
     {
         let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| c"".into());
 
-        MAIN_ENGINE.load().iter().for_each(|main_engine| {
-            main_engine
-                .sv_dropclient_detour()
-                .iter()
-                .for_each(|detour| {
-                    detour.call(self.client_t, c_reason.as_ptr());
-                });
+        MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+            if let Ok(detour) = main_engine.sv_dropclient_detour() {
+                detour.call(self.client_t, c_reason.as_ptr());
+            }
         });
     }
 
@@ -440,9 +439,9 @@ mod client_tests {
     #[test]
     fn client_get_name_from_valid_name() {
         let player_name_str = "UnknownPlayer";
-        let mut bytes_iter = player_name_str.bytes();
+        let mut bytes = player_name_str.bytes();
         let mut player_name: [c_char; MAX_NAME_LENGTH as usize] = [0; MAX_NAME_LENGTH as usize];
-        player_name[0..player_name_str.len()].fill_with(|| bytes_iter.next().unwrap() as c_char);
+        player_name[0..player_name_str.len()].fill_with(|| bytes.next().unwrap() as c_char);
         let mut client = ClientBuilder::default()
             .name(player_name)
             .build()
@@ -466,10 +465,10 @@ mod client_tests {
     #[test]
     fn client_get_userinfo_from_valid_userinfo() {
         let user_info_str = "some user info";
-        let mut bytes_iter = user_info_str.bytes();
+        let mut bytes = user_info_str.bytes();
         let mut userinfo: [c_char; MAX_INFO_STRING as usize] = [0; MAX_INFO_STRING as usize];
         userinfo[0..user_info_str.len()]
-            .fill_with(|| bytes_iter.next().expect("this should not happen") as c_char);
+            .fill_with(|| bytes.next().expect("this should not happen") as c_char);
         let mut client = ClientBuilder::default()
             .userinfo(userinfo)
             .build()

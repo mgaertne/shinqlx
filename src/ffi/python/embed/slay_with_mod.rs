@@ -20,16 +20,20 @@ pub(crate) fn pyshinqlx_slay_with_mod(
             ));
         };
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let mut opt_game_entity = GameEntity::try_from(client_id)
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let opt_game_entity = GameEntity::try_from(client_id)
             .ok()
             .filter(|game_entity| game_entity.get_game_client().is_ok());
-        opt_game_entity.iter_mut().for_each(|game_entity| {
+        let returned = opt_game_entity.is_some();
+        if let Some(mut game_entity) = opt_game_entity {
             if game_entity.get_health() > 0 {
                 game_entity.slay_with_mod(means_of_death);
             }
-        });
-        Ok(opt_game_entity.is_some())
+        }
+        Ok(returned)
     })
 }
 

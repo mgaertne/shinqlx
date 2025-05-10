@@ -8,14 +8,21 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        GameEntity::try_from(client_id)
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        if let Some(mut game_client) = GameEntity::try_from(client_id)
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
-            .iter_mut()
-            .for_each(|game_client| game_client.remove_kamikaze_flag());
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let mut opt_game_entity_with_holdable =
+        {
+            game_client.remove_kamikaze_flag();
+        }
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        let opt_game_entity_with_holdable =
             GameEntity::try_from(client_id).ok().filter(|game_entity| {
                 game_entity
                     .get_game_client()
@@ -25,10 +32,11 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
                     })
                     .is_some()
             });
-        opt_game_entity_with_holdable
-            .iter_mut()
-            .for_each(|game_entity| game_entity.drop_holdable());
-        Ok(opt_game_entity_with_holdable.is_some())
+        let returned = opt_game_entity_with_holdable.is_some();
+        if let Some(mut game_entity) = opt_game_entity_with_holdable {
+            game_entity.drop_holdable();
+        }
+        Ok(returned)
     })
 }
 

@@ -126,15 +126,14 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        main_engine
-            .try_launch_item(self, origin_vec.borrow_mut(), velocity.borrow_mut())
-            .iter_mut()
-            .for_each(|gentity| {
-                gentity.set_next_think(0);
-                gentity.set_think(None);
-                // make item be scaled up
-                main_engine.game_add_event(gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
-            });
+        if let Ok(mut gentity) =
+            main_engine.try_launch_item(self, origin_vec.borrow_mut(), velocity.borrow_mut())
+        {
+            gentity.set_next_think(0);
+            gentity.set_think(None);
+            // make item be scaled up
+            main_engine.game_add_event(&mut gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
+        }
     }
 }
 
