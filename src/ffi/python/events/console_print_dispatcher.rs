@@ -1,5 +1,6 @@
-use super::prelude::*;
 use pyo3::types::{PyBool, PyString};
+
+use super::prelude::*;
 
 /// Event that goes off whenever the console prints something, including
 /// those with :func:`shinqlx.console_print`.
@@ -11,7 +12,6 @@ impl ConsolePrintDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "console_print";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -97,20 +97,21 @@ impl<'py> ConsolePrintDispatcherMethods<'py> for Bound<'py, ConsolePrintDispatch
 
 #[cfg(test)]
 mod console_print_dispatcher_tests {
-    use super::{ConsolePrintDispatcher, ConsolePrintDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{ConsolePrintDispatcher, ConsolePrintDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

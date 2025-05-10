@@ -19,6 +19,8 @@ mod vector3;
 mod weapons;
 
 pub(crate) mod prelude {
+    pub(crate) use pyo3::prelude::*;
+
     #[allow(unused_imports)]
     pub(crate) use super::channels::{
         AbstractChannel, AbstractChannelMethods, ChatChannel, ChatChannelMethods,
@@ -33,9 +35,14 @@ pub(crate) mod prelude {
     pub(crate) use super::database::{
         AbstractDatabase, AbstractDatabaseMethods, Redis, RedisMethods,
     };
-    pub(crate) use super::embed::*;
-    pub(crate) use super::events::*;
-    pub(crate) use super::flight::Flight;
+    #[cfg(not(test))]
+    pub(crate) use super::dispatchers::{
+        client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
+        client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
+        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
+        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher,
+    };
     #[allow(unused_imports)]
     pub(crate) use super::game::{Game, GameMethods, NonexistentGameError};
     #[cfg(test)]
@@ -63,44 +70,6 @@ pub(crate) mod prelude {
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
         handle_server_command, handle_set_configstring, register_handlers,
     };
-    pub(crate) use super::holdable::Holdable;
-    #[allow(unused_imports)]
-    pub(crate) use super::player::{
-        AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
-    };
-    pub(crate) use super::player_info::PlayerInfo;
-    pub(crate) use super::player_state::PlayerState;
-    pub(crate) use super::player_stats::PlayerStats;
-    pub(crate) use super::plugin::{Plugin, PluginMethods};
-    pub(crate) use super::powerups::Powerups;
-    pub(crate) use super::stats_listener::{StatsListener, StatsListenerMethods};
-    pub(crate) use super::vector3::Vector3;
-    pub(crate) use super::weapons::Weapons;
-
-    pub(crate) use super::{clean_text, parse_variables};
-
-    pub(crate) use super::{ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER};
-
-    pub(crate) use super::PythonInitializationError;
-    #[cfg(test)]
-    pub(crate) use super::mock_python_tests::{
-        pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload,
-    };
-    #[cfg(test)]
-    pub(crate) use super::mock_python_tests::{
-        pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
-    };
-    #[cfg(not(test))]
-    pub(crate) use super::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
-
-    #[cfg(not(test))]
-    pub(crate) use super::dispatchers::{
-        client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
-        client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
-        set_configstring_dispatcher,
-    };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
@@ -118,43 +87,70 @@ pub(crate) mod prelude {
         kamikaze_use_dispatcher_context, new_game_dispatcher_context, rcon_dispatcher_context,
         server_command_dispatcher_context, set_configstring_dispatcher_context,
     };
-
+    #[cfg(test)]
+    pub(crate) use super::mock_python_tests::{
+        pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload,
+    };
+    #[cfg(test)]
+    pub(crate) use super::mock_python_tests::{
+        pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
+    };
+    #[allow(unused_imports)]
+    pub(crate) use super::player::{
+        AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
+    };
     #[cfg(test)]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
-
-    pub(crate) use pyo3::prelude::*;
+    pub(crate) use super::{
+        ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, PythonInitializationError, clean_text,
+        embed::*,
+        events::*,
+        flight::Flight,
+        holdable::Holdable,
+        parse_variables,
+        player_info::PlayerInfo,
+        player_state::PlayerState,
+        player_stats::PlayerStats,
+        plugin::{Plugin, PluginMethods},
+        powerups::Powerups,
+        stats_listener::{StatsListener, StatsListenerMethods},
+        vector3::Vector3,
+        weapons::Weapons,
+    };
+    #[cfg(not(test))]
+    pub(crate) use super::{pyshinqlx_initialize, pyshinqlx_is_initialized, pyshinqlx_reload};
 }
 
-use crate::_INIT_TIME;
-use crate::MAIN_ENGINE;
-use crate::ffi::c::prelude::*;
-#[cfg(test)]
-use crate::hooks::mock_hooks::shinqlx_set_configstring;
-#[cfg(not(test))]
-use crate::hooks::shinqlx_set_configstring;
-use crate::quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarForced};
-use prelude::*;
-
-use commands::CommandPriorities;
-
-use arc_swap::ArcSwapOption;
 use core::{
     ops::Deref,
     str::FromStr,
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
+use std::path::{Path, PathBuf};
+
+use arc_swap::ArcSwapOption;
+use commands::CommandPriorities;
 use itertools::Itertools;
 use log::*;
 use once_cell::sync::Lazy;
-use regex::Regex;
-use std::path::{Path, PathBuf};
-
+use prelude::*;
 use pyo3::{
     append_to_inittab, create_exception,
     exceptions::{PyAttributeError, PyEnvironmentError, PyException, PyValueError},
     ffi::Py_IsInitialized,
     intern, prepare_freethreaded_python,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyInt, PyString, PyTuple, PyType},
+};
+use regex::Regex;
+
+#[cfg(test)]
+use crate::hooks::mock_hooks::shinqlx_set_configstring;
+#[cfg(not(test))]
+use crate::hooks::shinqlx_set_configstring;
+use crate::{
+    _INIT_TIME, MAIN_ENGINE,
+    ffi::c::prelude::*,
+    quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarForced},
 };
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
@@ -242,15 +238,14 @@ impl FromPyObject<'_> for PythonReturnCodes {
 
 #[cfg(test)]
 mod python_return_codes_tests {
-    use super::PythonReturnCodes;
-    use pyo3::exceptions::PyValueError;
-
-    use super::pyshinqlx_setup_fixture::*;
-
+    use pyo3::{
+        exceptions::PyValueError,
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{PythonReturnCodes, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -441,8 +436,9 @@ impl ParsedVariables {
 
 #[cfg(test)]
 mod parsed_variables_tests {
-    use super::ParsedVariables;
     use core::str::FromStr;
+
+    use super::ParsedVariables;
 
     #[test]
     fn parse_variables_with_space() {
@@ -767,19 +763,16 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 mod set_map_subtitles_tests {
-    use super::set_map_subtitles;
-
-    use super::pyshinqlx_setup_fixture::*;
-
-    use crate::ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE};
-    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
-    use crate::prelude::*;
-
     use mockall::predicate;
+    use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
-    use pyo3::intern;
-    use pyo3::prelude::*;
+    use super::{pyshinqlx_setup_fixture::*, set_map_subtitles};
+    use crate::{
+        ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE},
+        hooks::mock_hooks::shinqlx_set_configstring_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -902,13 +895,10 @@ fn pyshinqlx_parse_variables<'py>(
 
 #[cfg(test)]
 mod pyshinqlx_parse_variables_test {
-    use super::pyshinqlx_parse_variables;
-
-    use super::pyshinqlx_setup_fixture::*;
-
+    use pyo3::prelude::*;
     use rstest::rstest;
 
-    use pyo3::prelude::*;
+    use super::{pyshinqlx_parse_variables, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1048,22 +1038,17 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
 
 #[cfg(test)]
 mod pyshinqlx_configure_logger_tests {
-    use super::pyshinqlx_configure_logger;
-
-    use super::pyshinqlx_setup_fixture::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::prelude::*;
-
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
 
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::intern;
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{pyshinqlx_configure_logger, pyshinqlx_setup_fixture::*};
+    use crate::{
+        ffi::c::prelude::{CVar, CVarBuilder, cvar_t},
+        prelude::*,
+    };
 
     fn clear_logger(py: Python<'_>) {
         let logging_module = py
@@ -1319,13 +1304,10 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> 
 
 #[cfg(test)]
 mod pyshinqlx_log_exception_tests {
-    use super::pyshinqlx_log_exception;
-
-    use super::pyshinqlx_setup_fixture::*;
-
+    use pyo3::prelude::*;
     use rstest::rstest;
 
-    use pyo3::prelude::*;
+    use super::{pyshinqlx_log_exception, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1390,13 +1372,10 @@ fn pyshinqlx_handle_exception(
 
 #[cfg(test)]
 mod pyshinqlx_handle_exception_tests {
-    use super::pyshinqlx_handle_exception;
-
-    use super::pyshinqlx_setup_fixture::*;
-
+    use pyo3::prelude::*;
     use rstest::rstest;
 
-    use pyo3::prelude::*;
+    use super::{pyshinqlx_handle_exception, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1446,11 +1425,10 @@ fn pyshinqlx_handle_threading_exception(py: Python<'_>, args: Bound<'_, PyAny>) 
 
 #[cfg(test)]
 mod pyshinqlx_handle_threading_exception_tests {
-    use super::pyshinqlx_setup_fixture::*;
-
+    use pyo3::prelude::*;
     use rstest::rstest;
 
-    use pyo3::prelude::*;
+    use super::pyshinqlx_setup_fixture::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1565,15 +1543,11 @@ def next_frame(func):
 
 #[cfg(test)]
 mod next_frame_tests {
-    use super::pyshinqlx_setup_fixture::*;
-
-    use crate::prelude::*;
-
+    use pyo3::{intern, prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::intern;
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1659,16 +1633,12 @@ def delay(time):
 
 #[cfg(test)]
 mod delay_tests {
-    use super::pyshinqlx_setup_fixture::*;
-
-    use crate::prelude::*;
-
     use pretty_assertions::assert_eq;
+    use pyo3::{intern, prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::intern;
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::pyshinqlx_setup_fixture::*;
+    use crate::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1784,16 +1754,11 @@ fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
 
 #[cfg(test)]
 mod uptime_tests {
-    use super::uptime;
-
-    use super::pyshinqlx_setup_fixture::*;
-
-    use crate::prelude::*;
+    use pyo3::{prelude::*, types::PyDeltaAccess};
     use rstest::rstest;
 
-    use crate::_INIT_TIME;
-    use pyo3::prelude::*;
-    use pyo3::types::PyDeltaAccess;
+    use super::{pyshinqlx_setup_fixture::*, uptime};
+    use crate::{_INIT_TIME, prelude::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1831,19 +1796,16 @@ fn owner() -> PyResult<Option<i64>> {
 
 #[cfg(test)]
 mod owner_tests {
-    use super::pyshinqlx_owner;
-
-    use super::pyshinqlx_setup_fixture::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::rstest;
 
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use super::{pyshinqlx_owner, pyshinqlx_setup_fixture::*};
+    use crate::{
+        ffi::c::prelude::{CVar, CVarBuilder, cvar_t},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1955,20 +1917,16 @@ fn get_stats_listener<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py,
 
 #[cfg(test)]
 mod stats_listener_tests {
-    use super::get_stats_listener;
-
-    use super::pyshinqlx_setup_fixture::*;
-    use super::stats_listener::StatsListener;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
-    use pyo3::intern;
-    use pyo3::prelude::*;
+    use super::{get_stats_listener, pyshinqlx_setup_fixture::*, stats_listener::StatsListener};
+    use crate::{
+        ffi::c::prelude::{CVar, CVarBuilder, cvar_t},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -2069,9 +2027,9 @@ fn set_plugins_version(module: &Bound<'_, PyModule>, path: &str) {
 
 #[cfg(test)]
 mod plugins_version_tests {
-    use super::get_plugins_version;
-
     use pretty_assertions::assert_eq;
+
+    use super::get_plugins_version;
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -2436,27 +2394,25 @@ fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
 #[cfg(test)]
 mod pyshinqlx_plugins_tests {
-    use super::{
-        DEFAULT_PLUGINS, EVENT_DISPATCHERS, PluginLoadError, PluginUnloadError, load_plugin,
-        load_preset_plugins, reload_plugin, unload_plugin,
-    };
-
-    use super::prelude::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::prelude::*;
-
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
-    use std::fs::{DirBuilder, File};
-    use std::io::Write;
-    use std::path::PathBuf;
+    use std::{
+        fs::{DirBuilder, File},
+        io::Write,
+        path::PathBuf,
+    };
 
+    use pyo3::{exceptions::PyEnvironmentError, intern, types::PyDict};
     use rstest::*;
 
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::intern;
-    use pyo3::types::PyDict;
+    use super::{
+        DEFAULT_PLUGINS, EVENT_DISPATCHERS, PluginLoadError, PluginUnloadError, load_plugin,
+        load_preset_plugins, prelude::*, reload_plugin, unload_plugin,
+    };
+    use crate::{
+        ffi::c::prelude::{CVar, CVarBuilder, cvar_t},
+        prelude::*,
+    };
 
     static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
         tempfile::Builder::new()
@@ -3351,13 +3307,11 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 mod initialize_cvars_tests {
-    use super::initialize_cvars;
-    use super::prelude::*;
-
-    use crate::prelude::*;
-
     use mockall::predicate;
     use rstest::rstest;
+
+    use super::{initialize_cvars, prelude::*};
+    use crate::prelude::*;
 
     #[rstest]
     #[case("qlx_owner", "-1")]
@@ -3437,13 +3391,14 @@ fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
 
 #[cfg(test)]
 mod try_get_plugins_path_tests {
-    use super::try_get_plugins_path;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::prelude::*;
-
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
+
+    use super::try_get_plugins_path;
+    use crate::{
+        ffi::c::prelude::{CVar, CVarBuilder, cvar_t},
+        prelude::*,
+    };
 
     static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
         tempfile::Builder::new()
@@ -4311,17 +4266,16 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 
 #[cfg(test)]
 mod pyshinqlx_tests {
-    use super::{
-        PYSHINQLX_INITIALIZED, PythonInitializationError, prelude::*, pyshinqlx_initialize,
-        pyshinqlx_reload,
-    };
-
-    use crate::prelude::*;
-
     use core::sync::atomic::Ordering;
 
     use pretty_assertions::assert_eq;
     use rstest::rstest;
+
+    use super::{
+        PYSHINQLX_INITIALIZED, PythonInitializationError, prelude::*, pyshinqlx_initialize,
+        pyshinqlx_reload,
+    };
+    use crate::prelude::*;
 
     #[test]
     #[serial]
@@ -4374,13 +4328,12 @@ def initialize():
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_test_support {
+    use pyo3::prelude::*;
+
     use super::{
         Command, Flight, Holdable, Player, PlayerInfo, PlayerState, Powerups, Vector3, Weapons,
     };
-
     use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, weapon_t};
-
-    use pyo3::prelude::*;
 
     pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
         py.run(
@@ -4647,10 +4600,10 @@ pub(crate) mod python_tests {
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_setup_fixture {
-    use super::pyshinqlx_module;
-
     use pyo3::{append_to_inittab, ffi::Py_IsInitialized, prepare_freethreaded_python};
     use rstest::fixture;
+
+    use super::pyshinqlx_module;
 
     #[fixture]
     #[once]

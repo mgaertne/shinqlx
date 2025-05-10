@@ -1,7 +1,7 @@
+use core::fmt::{Display, Formatter};
+
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
-
-use core::fmt::{Display, Formatter};
 
 /// Information about a player's state in the game.
 #[pyclass(
@@ -105,12 +105,15 @@ impl PlayerState {
 
 #[cfg(test)]
 mod player_state_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::default_player_state;
-    use crate::prelude::*;
-
     use pretty_assertions::assert_eq;
+
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{prelude::*, pyshinqlx_test_support::default_player_state},
+        },
+        prelude::*,
+    };
 
     #[test]
     #[serial]

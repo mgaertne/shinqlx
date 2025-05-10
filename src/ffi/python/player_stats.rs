@@ -1,7 +1,7 @@
+use core::fmt::{Display, Formatter};
+
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
-
-use core::fmt::{Display, Formatter};
 
 /// A player's score and some basic stats.
 #[pyclass(
@@ -69,11 +69,10 @@ impl PlayerStats {
 
 #[cfg(test)]
 mod player_stats_tests {
-    use super::PlayerStats;
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
-
     use pretty_assertions::assert_eq;
+
+    use super::PlayerStats;
+    use crate::{ffi::c::prelude::*, prelude::*};
 
     fn default_player_stats() -> PlayerStats {
         PlayerStats {

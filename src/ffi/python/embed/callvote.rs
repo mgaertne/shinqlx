@@ -1,5 +1,4 @@
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Calls a vote as if started by the server and not a player.
 #[pyfunction(name = "callvote", signature = (vote, vote_disp, vote_time=None), text_signature = "(vote, vote_disp, vote_time=None)")]
@@ -18,12 +17,13 @@ pub(crate) fn pyshinqlx_callvote(
 
 #[cfg(test)]
 mod callvote_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

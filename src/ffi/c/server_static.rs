@@ -1,6 +1,5 @@
 use super::prelude::*;
-use crate::MAIN_ENGINE;
-use crate::prelude::*;
+use crate::{MAIN_ENGINE, prelude::*};
 
 #[derive(Debug, PartialEq)]
 #[allow(non_snake_case)]
@@ -100,14 +99,14 @@ mockall::mock! {
 
 #[cfg(test)]
 mod server_static_tests {
-    use super::ServerStatic;
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
-    use crate::quake_live_functions::QuakeLiveFunction::SV_Shutdown;
-
     use core::borrow::BorrowMut;
 
     use pretty_assertions::assert_eq;
+
+    use super::ServerStatic;
+    use crate::{
+        ffi::c::prelude::*, prelude::*, quake_live_functions::QuakeLiveFunction::SV_Shutdown,
+    };
 
     #[test]
     fn server_static_try_from_null_results_in_error() {

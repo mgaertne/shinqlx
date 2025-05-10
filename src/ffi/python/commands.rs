@@ -1,16 +1,15 @@
-use super::prelude::*;
-use super::{EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, owner, pyshinqlx_get_logger};
-
-use crate::MAIN_ENGINE;
-use crate::quake_live_engine::FindCVar;
-
-use pyo3::prelude::*;
 use pyo3::{
     PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
+    prelude::*,
     types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
 };
+
+use super::{
+    EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, owner, prelude::*, pyshinqlx_get_logger,
+};
+use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 /// A class representing an input-triggered command.
 ///
@@ -266,6 +265,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             .bind(self.py())
             .call1((player, msg_vec, &channel))
     }
+
     fn is_eligible_name(&self, name: &str) -> bool {
         let compared_name = if !self.borrow().prefix {
             Some(name)
@@ -279,6 +279,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
 
         compared_name.is_some_and(|name| self.borrow().name.contains(&name.to_lowercase()))
     }
+
     fn is_eligible_channel(&self, channel: &Bound<'py, PyAny>) -> bool {
         if self
             .borrow()
@@ -303,6 +304,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
                     .unwrap_or(false)
             })
     }
+
     fn is_eligible_player(&self, player: &Bound<'py, Player>, is_client_cmd: bool) -> bool {
         if owner()
             .unwrap_or_default()
@@ -354,18 +356,21 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
 
 #[cfg(test)]
 mod command_tests {
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{prelude::*, pyshinqlx_test_support::*};
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
-    use rstest::*;
-
-    use pyo3::prelude::*;
     use pyo3::{
         exceptions::{PyKeyError, PyValueError},
+        prelude::*,
         types::{PyBool, PyList, PyString, PyTuple},
+    };
+    use rstest::*;
+
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{prelude::*, pyshinqlx_test_support::*},
+        },
+        prelude::*,
     };
 
     fn test_plugin_with_permission_db(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
@@ -2052,27 +2057,32 @@ def remove_command(cmd):
 
 #[cfg(test)]
 mod command_invoker_tests {
-    use super::CommandPriorities;
-
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::{
-        capturing_hook, default_command, default_test_player, returning_false_hook,
-        run_all_frame_tasks,
-    };
-    use crate::ffi::python::{EVENT_DISPATCHERS, PythonReturnCodes};
-
-    use crate::prelude::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
-
     use core::borrow::BorrowMut;
+
     use git2::IntoCString;
     use mockall::predicate;
+    use pyo3::{
+        exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
+    };
     use rstest::*;
 
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
-    use pyo3::prelude::*;
+    use super::CommandPriorities;
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                EVENT_DISPATCHERS, PythonReturnCodes,
+                prelude::*,
+                pyshinqlx_test_support::{
+                    capturing_hook, default_command, default_test_player, returning_false_hook,
+                    run_all_frame_tasks,
+                },
+            },
+        },
+        hooks::mock_hooks::shinqlx_send_server_command_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

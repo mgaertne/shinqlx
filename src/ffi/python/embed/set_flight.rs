@@ -1,6 +1,5 @@
 use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Sets a player's flight parameters, such as current fuel, max fuel and, so on.
 #[pyfunction]
@@ -26,14 +25,15 @@ pub(crate) fn pyshinqlx_set_flight(
 
 #[cfg(test)]
 mod set_flight_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

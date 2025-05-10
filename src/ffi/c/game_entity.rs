@@ -1,17 +1,20 @@
-use super::prelude::*;
-use crate::MAIN_ENGINE;
-use crate::hooks::shinqlx_set_configstring;
-use crate::prelude::*;
-use crate::quake_live_engine::{
-    ComPrintf, FreeEntity, GetConfigstring, RegisterDamage, StartKamikaze, TryLaunchItem,
-};
-
 use alloc::{borrow::Cow, vec};
-use arrayvec::ArrayVec;
 use core::{
     borrow::BorrowMut,
     f32::consts::PI,
     ffi::{CStr, c_char, c_float, c_int},
+};
+
+use arrayvec::ArrayVec;
+
+use super::prelude::*;
+use crate::{
+    MAIN_ENGINE,
+    hooks::shinqlx_set_configstring,
+    prelude::*,
+    quake_live_engine::{
+        ComPrintf, FreeEntity, GetConfigstring, RegisterDamage, StartKamikaze, TryLaunchItem,
+    },
 };
 
 #[derive(Debug, PartialEq)]
@@ -709,15 +712,13 @@ mockall::mock! {
 
 #[cfg(test)]
 mod game_entity_tests {
-    use super::GameEntity;
-    use super::{MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
+    use core::{borrow::BorrowMut, ffi::c_int};
 
-    use core::borrow::BorrowMut;
-    use core::ffi::c_int;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+
+    use super::{GameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
+    use crate::{ffi::c::prelude::*, prelude::*};
 
     #[test]
     #[serial]

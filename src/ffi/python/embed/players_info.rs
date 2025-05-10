@@ -1,8 +1,9 @@
-use crate::MAIN_ENGINE;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-
 use pyo3::exceptions::PyEnvironmentError;
+
+use crate::{
+    MAIN_ENGINE,
+    ffi::{c::prelude::*, python::prelude::*},
+};
 
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
@@ -32,15 +33,18 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 
 #[cfg(test)]
 mod get_players_info_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::default_test_player_info;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{prelude::*, pyshinqlx_test_support::default_test_player_info},
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

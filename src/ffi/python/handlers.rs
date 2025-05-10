@@ -1,32 +1,28 @@
-use crate::ffi::c::prelude::*;
+use alloc::sync::Arc;
+use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
-use super::prelude::*;
-use super::{
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, get_cvar, is_vote_active,
-    late_init, log_exception, pyshinqlx_get_logger, set_map_subtitles,
-};
-use crate::{
-    MAIN_ENGINE,
-    quake_live_engine::{FindCVar, GetConfigstring},
-};
-
-use pyo3::prelude::*;
+use arc_swap::ArcSwapOption;
+use itertools::Itertools;
+use once_cell::sync::Lazy;
 use pyo3::{
     BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
+    prelude::*,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyString},
 };
-
-use alloc::sync::Arc;
-use arc_swap::ArcSwapOption;
-
-use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-
-use itertools::Itertools;
-use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
+
+use super::{
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, get_cvar, is_vote_active,
+    late_init, log_exception, prelude::*, pyshinqlx_get_logger, set_map_subtitles,
+};
+use crate::{
+    MAIN_ENGINE,
+    ffi::c::prelude::*,
+    quake_live_engine::{FindCVar, GetConfigstring},
+};
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
     COMMANDS.load().as_ref().map_or(Ok(None), |commands| {
@@ -58,18 +54,17 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: &str) -> Option<bool> {
 
 #[cfg(test)]
 mod handle_rcon_tests {
-    use super::{handle_rcon, try_handle_rcon};
-
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::{
-        COMMANDS, EVENT_DISPATCHERS, commands::CommandPriorities, pyshinqlx_test_support::*,
-    };
-    use crate::prelude::*;
-
-    use pyo3::prelude::*;
-    use pyo3::types::PyString;
-
+    use pyo3::{prelude::*, types::PyString};
     use rstest::*;
+
+    use super::{handle_rcon, try_handle_rcon};
+    use crate::{
+        ffi::python::{
+            COMMANDS, EVENT_DISPATCHERS, commands::CommandPriorities, prelude::*,
+            pyshinqlx_test_support::*,
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -596,38 +591,41 @@ pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
 
 #[cfg(test)]
 mod handle_client_command_tests {
-    use super::{handle_client_command, try_handle_client_command};
-
-    use crate::ffi::c::prelude::{
-        CS_VOTE_STRING, CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t,
-        cvar_t, privileges_t, team_t,
-    };
-    use crate::ffi::python::{
-        BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
-        RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
-        channels::TeamChatChannel,
-        commands::CommandPriorities,
-        events::{
-            ChatEventDispatcher, ClientCommandDispatcher, EventDispatcher, EventDispatcherManager,
-            EventDispatcherManagerMethods, EventDispatcherMethods, TeamSwitchAttemptDispatcher,
-            UserinfoDispatcher, VoteCalledDispatcher, VoteDispatcher, VoteStartedDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-    use crate::prelude::*;
+    use core::borrow::BorrowMut;
 
     use arc_swap::ArcSwapOption;
-    use core::borrow::BorrowMut;
-    use once_cell::sync::Lazy;
-
     use mockall::predicate;
-    use rstest::rstest;
-
-    use pyo3::prelude::*;
+    use once_cell::sync::Lazy;
     use pyo3::{
         exceptions::{PyAssertionError, PyEnvironmentError},
+        prelude::*,
         types::{IntoPyDict, PyBool},
+    };
+    use rstest::rstest;
+
+    use super::{handle_client_command, try_handle_client_command};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CS_VOTE_STRING, CVar, CVarBuilder, MockClient, MockGameEntityBuilder,
+                clientState_t, cvar_t, privileges_t, team_t,
+            },
+            python::{
+                BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
+                RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+                channels::TeamChatChannel,
+                commands::CommandPriorities,
+                events::{
+                    ChatEventDispatcher, ClientCommandDispatcher, EventDispatcher,
+                    EventDispatcherManager, EventDispatcherManagerMethods, EventDispatcherMethods,
+                    TeamSwitchAttemptDispatcher, UserinfoDispatcher, VoteCalledDispatcher,
+                    VoteDispatcher, VoteStartedDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
     };
 
     #[rstest]
@@ -3180,35 +3178,35 @@ pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -
 
 #[cfg(test)]
 mod handle_server_command_tests {
-    use super::{handle_server_command, try_handle_server_command};
-
-    use crate::ffi::c::{
-        game_entity::MockGameEntityBuilder,
-        prelude::{
-            CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, CVar, CVarBuilder, MockClient, clientState_t,
-            cvar_t, privileges_t, team_t,
-        },
-    };
-    use crate::prelude::*;
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, ServerCommandDispatcher, VoteEndedDispatcher,
-        },
-        pyshinqlx_setup_fixture::*,
-        pyshinqlx_test_support::*,
-    };
-
     use core::borrow::BorrowMut;
-    use mockall::predicate;
 
+    use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_server_command, try_handle_server_command};
+    use crate::{
+        ffi::{
+            c::{
+                game_entity::MockGameEntityBuilder,
+                prelude::{
+                    CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, CVar, CVarBuilder, MockClient,
+                    clientState_t, cvar_t, privileges_t, team_t,
+                },
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, ServerCommandDispatcher, VoteEndedDispatcher,
+                },
+                pyshinqlx_setup_fixture::*,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -3696,26 +3694,26 @@ pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
 
 #[cfg(test)]
 mod handle_frame_tests {
-    use super::{handle_frame, transfer_next_frame_tasks, try_handle_frame, try_run_frame_tasks};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS, EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-        EventDispatcherMethods, FrameEventDispatcher, commands::CommandPriorities, pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
-    use rstest::rstest;
-
-    use pyo3::prelude::*;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyValueError},
+        prelude::*,
         types::{IntoPyDict, PyBool, PyDict, PyTuple},
+    };
+    use rstest::rstest;
+
+    use super::{handle_frame, transfer_next_frame_tasks, try_handle_frame, try_run_frame_tasks};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                EVENT_DISPATCHERS, EventDispatcher, EventDispatcherManager,
+                EventDispatcherManagerMethods, EventDispatcherMethods, FrameEventDispatcher,
+                commands::CommandPriorities, pyshinqlx_setup, pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
     };
 
     #[rstest]
@@ -4211,34 +4209,30 @@ pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> 
 
 #[cfg(test)]
 mod handle_new_game_tests {
-    use super::{IS_FIRST_GAME, ZMQ_WARNING_ISSUED, handle_new_game, try_handle_new_game};
-
-    use crate::prelude::*;
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, MapDispatcher, NewGameDispatcher,
-        },
-        pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE, CVar, CVarBuilder, cvar_t};
-    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
-
     use alloc::ffi::CString;
-    use core::borrow::BorrowMut;
-    use core::sync::atomic::Ordering;
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
 
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::*;
 
-    use crate::ffi::python::pyshinqlx_test_support::run_all_frame_tasks;
-
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use super::{IS_FIRST_GAME, ZMQ_WARNING_ISSUED, handle_new_game, try_handle_new_game};
+    use crate::{
+        ffi::{
+            c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE, CVar, CVarBuilder, cvar_t},
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, MapDispatcher, NewGameDispatcher,
+                },
+                pyshinqlx_setup,
+                pyshinqlx_test_support::{run_all_frame_tasks, *},
+            },
+        },
+        hooks::mock_hooks::shinqlx_set_configstring_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -5154,37 +5148,36 @@ pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -
 
 #[cfg(test)]
 mod handle_set_configstring_tests {
-    use super::{AD_ROUND_NUMBER, handle_set_configstring, try_handle_set_configstring};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, GameCountdownDispatcher, RoundCountdownDispatcher,
-            RoundStartDispatcher, SetConfigstringDispatcher, VoteStartedDispatcher,
-        },
-        pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::prelude::*;
-
-    use crate::ffi::c::prelude::{
-        CS_ALLREADY_TIME, CS_AUTHOR, CS_ROUND_STATUS, CS_SERVERINFO, CS_VOTE_STRING, CVar,
-        CVarBuilder, cvar_t,
-    };
-
-    use core::borrow::BorrowMut;
-    use core::sync::atomic::Ordering;
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
 
     use pretty_assertions::assert_eq;
-    use rstest::rstest;
-
-    use pyo3::prelude::*;
     use pyo3::{
         exceptions::{PyAssertionError, PyEnvironmentError, PyKeyError, PyValueError},
+        prelude::*,
         types::PyBool,
+    };
+    use rstest::rstest;
+
+    use super::{AD_ROUND_NUMBER, handle_set_configstring, try_handle_set_configstring};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CS_ALLREADY_TIME, CS_AUTHOR, CS_ROUND_STATUS, CS_SERVERINFO, CS_VOTE_STRING, CVar,
+                CVarBuilder, cvar_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, GameCountdownDispatcher, RoundCountdownDispatcher,
+                    RoundStartDispatcher, SetConfigstringDispatcher, VoteStartedDispatcher,
+                },
+                pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
     };
 
     #[rstest]
@@ -6293,32 +6286,32 @@ pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool
 
 #[cfg(test)]
 mod handle_player_connect_tests {
-    use super::{handle_player_connect, try_handle_player_connect};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, PlayerConnectDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t, privileges_t,
-        team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_player_connect, try_handle_player_connect};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, PlayerConnectDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -6552,32 +6545,32 @@ pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> PyObject {
 
 #[cfg(test)]
 mod handle_player_loaded_tests {
-    use super::{handle_player_loaded, try_handle_player_loaded};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, PlayerLoadedDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t, privileges_t,
-        team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_player_loaded, try_handle_player_loaded};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, PlayerLoadedDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -6748,32 +6741,32 @@ pub(crate) fn handle_player_disconnect(
 
 #[cfg(test)]
 mod handle_player_disconnect_tests {
-    use super::{handle_player_disconnect, try_handle_player_disconnect};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, PlayerDisconnectDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t, privileges_t,
-        team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_player_disconnect, try_handle_player_disconnect};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, PlayerDisconnectDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -6936,32 +6929,32 @@ pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> PyObject {
 
 #[cfg(test)]
 mod handle_player_spawn_tests {
-    use super::{handle_player_spawn, try_handle_player_spawn};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, PlayerSpawnDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t, privileges_t,
-        team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_player_spawn, try_handle_player_spawn};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, PlayerSpawnDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -7122,32 +7115,32 @@ pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyObject {
 
 #[cfg(test)]
 mod handle_kamikaze_use_tests {
-    use super::{handle_kamikaze_use, try_handle_kamikaze_use};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, KamikazeUseDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t, privileges_t,
-        team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_kamikaze_use, try_handle_kamikaze_use};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, KamikazeUseDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -7317,32 +7310,32 @@ pub(crate) fn handle_kamikaze_explode(
 
 #[cfg(test)]
 mod handle_kamikaze_explode_tests {
-    use super::{handle_kamikaze_explode, try_handle_kamikaze_explode};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            EventDispatcherMethods, KamikazeExplodeDispatcher,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t, privileges_t,
-        team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
 
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
+    use super::{handle_kamikaze_explode, try_handle_kamikaze_explode};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods, KamikazeExplodeDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -7663,34 +7656,34 @@ pub(crate) fn handle_damage(
 
 #[cfg(test)]
 mod handle_damage_tests {
-    use super::{handle_damage, try_handle_damage};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            DamageDispatcher, EventDispatcher, EventDispatcherManager,
-            EventDispatcherManagerMethods, EventDispatcherMethods,
-        },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, DAMAGE_NO_ARMOR, DAMAGE_NO_PROTECTION, DAMAGE_RADIUS, MockClient,
-        MockGameEntityBuilder, clientState_t, cvar_t,
-        meansOfDeath_t::{MOD_ROCKET, MOD_ROCKET_SPLASH, MOD_TRIGGER_HURT},
-        privileges_t, team_t,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::*;
 
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use super::{handle_damage, try_handle_damage};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, DAMAGE_NO_ARMOR, DAMAGE_NO_PROTECTION, DAMAGE_RADIUS,
+                MockClient, MockGameEntityBuilder, clientState_t, cvar_t,
+                meansOfDeath_t::{MOD_ROCKET, MOD_ROCKET_SPLASH, MOD_TRIGGER_HURT},
+                privileges_t, team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    DamageDispatcher, EventDispatcher, EventDispatcherManager,
+                    EventDispatcherManagerMethods, EventDispatcherMethods,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8082,35 +8075,34 @@ pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
 
 #[cfg(test)]
 mod handle_console_print_tests {
+    use core::borrow::BorrowMut;
+
+    use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use rstest::*;
+
     use super::{
         PRINT_REDIRECTION, PrintRedirector, PrintRedirectorMethods, handle_console_print,
         try_handle_console_print,
     };
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            ConsolePrintDispatcher, EventDispatcher, EventDispatcherManager,
-            EventDispatcherManagerMethods, EventDispatcherMethods,
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    ConsolePrintDispatcher, EventDispatcher, EventDispatcherManager,
+                    EventDispatcherManagerMethods, EventDispatcherMethods,
+                },
+                prelude::ConsoleChannel,
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::*,
+            },
         },
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::*,
+        hooks::mock_hooks::shinqlx_com_printf_context,
+        prelude::*,
     };
-
-    use crate::prelude::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-
-    use core::borrow::BorrowMut;
-
-    use mockall::predicate;
-    use rstest::*;
-
-    use crate::ffi::python::prelude::ConsoleChannel;
-    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
-    use pyo3::prelude::*;
-    use pyo3::{exceptions::PyEnvironmentError, types::PyBool};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8474,14 +8466,11 @@ impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
 
 #[cfg(test)]
 mod print_redirector_tests {
-    use super::PrintRedirector;
-
-    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
-
+    use pyo3::{exceptions::PyValueError, prelude::*};
     use rstest::*;
 
-    use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
+    use super::PrintRedirector;
+    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8577,13 +8566,11 @@ pub(crate) fn redirect_print(
 
 #[cfg(test)]
 mod redirect_print_tests {
-    use super::redirect_print;
-
-    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
-
+    use pyo3::prelude::*;
     use rstest::*;
 
-    use pyo3::prelude::*;
+    use super::redirect_print;
+    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

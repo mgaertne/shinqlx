@@ -33,19 +33,13 @@ mod vote_ended_dispatcher;
 mod vote_started_dispatcher;
 
 mod prelude {
+    pub(crate) use pyo3::{intern, prelude::*};
+
     pub(crate) use super::{
+        super::{PythonReturnCodes, log_exception, pyshinqlx_get_logger},
         EventDispatcher, EventDispatcherMethods, dispatcher_debug_log, log_unexpected_return_value,
     };
-
-    pub(crate) use super::super::{PythonReturnCodes, log_exception, pyshinqlx_get_logger};
-
-    pub(crate) use pyo3::intern;
-    pub(crate) use pyo3::prelude::*;
 }
-
-use prelude::*;
-
-use super::{commands::CommandPriorities, get_cvar};
 
 pub(crate) use chat_event_dispatcher::{ChatEventDispatcher, ChatEventDispatcherMethods};
 pub(crate) use client_command_dispatcher::{
@@ -64,6 +58,7 @@ pub(crate) use game_countdown_dispatcher::{
 pub(crate) use game_end_dispatcher::{GameEndDispatcher, GameEndDispatcherMethods};
 #[allow(unused_imports)]
 pub(crate) use game_start_dispatcher::{GameStartDispatcher, GameStartDispatcherMethods};
+use itertools::Itertools;
 pub(crate) use kamikaze_explode_dispatcher::{
     KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods,
 };
@@ -80,6 +75,12 @@ pub(crate) use player_disconnect_dispatcher::{
 };
 pub(crate) use player_loaded_dispatcher::{PlayerLoadedDispatcher, PlayerLoadedDispatcherMethods};
 pub(crate) use player_spawn_dispatcher::{PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods};
+use prelude::*;
+use pyo3::{
+    PyTraverseError, PyVisit,
+    exceptions::{PyAssertionError, PyAttributeError, PyKeyError, PyValueError},
+    types::{IntoPyDict, PyBool, PyDict, PyTuple, PyType},
+};
 pub(crate) use round_countdown_dispatcher::{
     RoundCountdownDispatcher, RoundCountdownDispatcherMethods,
 };
@@ -106,15 +107,7 @@ pub(crate) use vote_dispatcher::{VoteDispatcher, VoteDispatcherMethods};
 pub(crate) use vote_ended_dispatcher::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
-use pyo3::{
-    PyTraverseError, PyVisit,
-    exceptions::{PyAssertionError, PyKeyError, PyValueError},
-    types::{PyBool, PyDict, PyTuple, PyType},
-};
-
-use itertools::Itertools;
-use pyo3::exceptions::PyAttributeError;
-use pyo3::types::IntoPyDict;
+use super::{commands::CommandPriorities, get_cvar};
 
 fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
@@ -614,19 +607,23 @@ def remove_hook(event, plugin, handler, priority):
 
 #[cfg(test)]
 mod event_dispatcher_tests {
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::commands::CommandPriorities;
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        exceptions::{PyAssertionError, PyAttributeError, PyValueError},
+        intern,
+        prelude::*,
+        types::{PyBool, PyDict, PyTuple},
+    };
     use rstest::*;
 
-    use pyo3::exceptions::{PyAssertionError, PyAttributeError, PyValueError};
-    use pyo3::intern;
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyDict, PyTuple};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{commands::CommandPriorities, pyshinqlx_setup_fixture::*},
+        },
+        prelude::*,
+    };
 
     fn custom_dispatcher(py: Python<'_>) -> Bound<'_, PyAny> {
         PyModule::from_code(
@@ -1896,19 +1893,17 @@ def remove_dispatcher_by_name(dispatcher_name):
 
 #[cfg(test)]
 mod event_dispatcher_manager_tests {
+    use pyo3::{
+        exceptions::{PyKeyError, PyValueError},
+        prelude::*,
+    };
+    use rstest::*;
+
     use super::{
         EventDispatcherManager, EventDispatcherManagerMethods, GameCountdownDispatcher,
         GameEndDispatcher, GameStartDispatcher,
     };
-    use pyo3::exceptions::PyValueError;
-
-    use crate::ffi::python::plugin::Plugin;
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
-
-    use rstest::*;
-
-    use pyo3::exceptions::PyKeyError;
-    use pyo3::prelude::*;
+    use crate::ffi::python::{plugin::Plugin, pyshinqlx_setup_fixture::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

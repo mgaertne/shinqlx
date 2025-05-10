@@ -1,16 +1,14 @@
-use crate::MAIN_ENGINE;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-use crate::prelude::*;
-use crate::quake_live_engine::{
-    CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand,
-};
-
 use core::borrow::BorrowMut;
 
+use pyo3::types::PyBool;
 use rand::Rng;
 
-use pyo3::types::PyBool;
+use crate::{
+    MAIN_ENGINE,
+    ffi::{c::prelude::*, python::prelude::*},
+    prelude::*,
+    quake_live_engine::{CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand},
+};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cmd_send_server_command() {
@@ -287,16 +285,17 @@ pub extern "C" fn cmd_restart_python() {
 
 #[cfg(test)]
 mod commands_tests {
+    use mockall::predicate;
+    use rstest::rstest;
+
     use super::{
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
-    use mockall::predicate;
-    use rstest::rstest;
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[test]
     #[serial]

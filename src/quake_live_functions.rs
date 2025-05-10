@@ -1,14 +1,12 @@
-use crate::prelude::*;
-
 #[cfg(target_os = "linux")]
 use core::borrow::Borrow;
-
 use core::fmt::{Display, Formatter};
 
 #[cfg(target_os = "linux")]
 use procfs::process::{MMPermissions, MemoryMap};
-
 use retour::{Function, GenericDetour, HookableWith};
+
+use crate::prelude::*;
 
 #[cfg(target_os = "linux")]
 pub(crate) fn pattern_search_module<T>(module_info: &[&MemoryMap], ql_func: T) -> Option<usize>
@@ -274,10 +272,10 @@ impl QuakeLiveFunction {
 
 #[cfg(test)]
 mod quake_live_function_tests {
-    use super::QuakeLiveFunction;
-
     use pretty_assertions::assert_eq;
     use rstest::*;
+
+    use super::QuakeLiveFunction;
 
     #[rstest]
     #[case(QuakeLiveFunction::Com_Printf, "Com_Printf")]

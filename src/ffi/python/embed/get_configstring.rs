@@ -1,6 +1,4 @@
-use crate::ffi::python::prelude::*;
-
-use crate::ffi::python::get_configstring;
+use crate::ffi::python::{get_configstring, prelude::*};
 
 /// Get a configstring.
 #[pyfunction]
@@ -11,13 +9,14 @@ pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u16) -> PyRe
 
 #[cfg(test)]
 mod get_configstring_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

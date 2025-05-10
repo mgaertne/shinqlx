@@ -1,8 +1,7 @@
-use super::prelude::*;
-
-use crate::ffi::python::Player;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
+use crate::ffi::python::Player;
 
 /// Event that triggers when a player spawns. Cannot be cancelled.
 #[pyclass(module = "_events", name = "PlayerSpawnDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +12,6 @@ impl PlayerSpawnDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "player_spawn";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -45,21 +43,22 @@ impl<'py> PlayerSpawnDispatcherMethods<'py> for Bound<'py, PlayerSpawnDispatcher
 
 #[cfg(test)]
 mod player_spawn_dispatcher_tests {
-    use super::{PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{PlayerSpawnDispatcher, PlayerSpawnDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

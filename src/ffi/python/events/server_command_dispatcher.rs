@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::{PyBool, PyString};
+
+use super::prelude::*;
 
 /// Event that triggers with any server command sent by the server,
 /// including :func:`shinqlx.send_server_command`. Can be cancelled.
@@ -12,7 +12,6 @@ impl ServerCommandDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "server_command";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -102,21 +101,22 @@ impl<'py> ServerCommandDispatcherMethods<'py> for Bound<'py, ServerCommandDispat
 
 #[cfg(test)]
 mod server_command_dispatcher_tests {
-    use super::{ServerCommandDispatcher, ServerCommandDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{ServerCommandDispatcher, ServerCommandDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

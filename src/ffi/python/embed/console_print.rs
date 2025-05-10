@@ -16,12 +16,12 @@ pub(crate) fn pyshinqlx_console_print(py: Python<'_>, text: &str) {
 
 #[cfg(test)]
 mod console_print_tests {
-    use crate::ffi::python::prelude::*;
-    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use rstest::rstest;
+
+    use crate::{
+        ffi::python::prelude::*, hooks::mock_hooks::shinqlx_com_printf_context, prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

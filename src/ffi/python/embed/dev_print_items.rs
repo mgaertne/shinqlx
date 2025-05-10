@@ -1,11 +1,11 @@
-use crate::MAIN_ENGINE;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::{ComPrintf, SendServerCommand};
-
 use arrayvec::ArrayVec;
-
 use pyo3::exceptions::PyEnvironmentError;
+
+use crate::{
+    MAIN_ENGINE,
+    ffi::{c::prelude::*, python::prelude::*},
+    quake_live_engine::{ComPrintf, SendServerCommand},
+};
 
 /// Prints all items and entity numbers to server console.
 #[pyfunction]
@@ -77,13 +77,14 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
 
 #[cfg(test)]
 mod dev_print_items_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

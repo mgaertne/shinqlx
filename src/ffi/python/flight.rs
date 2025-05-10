@@ -1,10 +1,9 @@
-use super::prelude::*;
-
 use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
-
 use pyo3::{exceptions::PyValueError, types::PyTuple};
+
+use super::prelude::*;
 
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass(
@@ -75,11 +74,11 @@ impl Flight {
 
 #[cfg(test)]
 mod flight_tests {
-    use crate::ffi::python::prelude::*;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::rstest;
+
+    use crate::ffi::python::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

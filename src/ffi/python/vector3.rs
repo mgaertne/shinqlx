@@ -1,11 +1,12 @@
-use super::prelude::*;
-
-use core::array;
-use core::fmt::{Display, Formatter};
+use core::{
+    array,
+    fmt::{Display, Formatter},
+};
 
 use arrayvec::ArrayVec;
-
 use pyo3::{exceptions::PyValueError, types::PyTuple};
+
+use super::prelude::*;
 
 #[pyclass(frozen)]
 struct Vector3Iter {
@@ -95,11 +96,11 @@ impl Vector3 {
 
 #[cfg(test)]
 mod vector3_tests {
-    use crate::ffi::python::prelude::*;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::rstest;
+
+    use crate::ffi::python::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

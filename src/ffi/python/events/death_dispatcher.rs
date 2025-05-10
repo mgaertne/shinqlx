@@ -1,8 +1,7 @@
-use super::prelude::*;
-
-use crate::ffi::python::Player;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
+use crate::ffi::python::Player;
 
 /// Event that goes off when someone dies.
 #[pyclass(module = "_events", name = "DeathDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +12,6 @@ impl DeathDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "death";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = true;
@@ -56,21 +54,25 @@ impl<'py> DeathDispatcherMethods<'py> for Bound<'py, DeathDispatcher> {
 
 #[cfg(test)]
 mod death_dispatcher_tests {
-    use super::{DeathDispatcher, DeathDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{DeathDispatcher, DeathDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

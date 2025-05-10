@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::{PyBool, PyString};
+
+use super::prelude::*;
 
 /// Event that triggers when the server tries to set a configstring. You can
 /// stop this event and use :func:`shinqlx.set_configstring` to modify it, but a
@@ -14,7 +14,6 @@ impl SetConfigstringDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "set_configstring";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -104,20 +103,21 @@ impl<'py> SetConfigstringDispatcherMethods<'py> for Bound<'py, SetConfigstringDi
 
 #[cfg(test)]
 mod set_configstring_dispatcher_tests {
-    use super::{SetConfigstringDispatcher, SetConfigstringDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CS_LEVEL_START_TIME, CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{SetConfigstringDispatcher, SetConfigstringDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CS_LEVEL_START_TIME, CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

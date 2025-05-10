@@ -1,9 +1,8 @@
-use super::prelude::*;
-use crate::MAIN_ENGINE;
-use crate::prelude::*;
-
 use alloc::{borrow::Cow, ffi::CString};
 use core::ffi::{CStr, c_char};
+
+use super::prelude::*;
+use crate::{MAIN_ENGINE, prelude::*};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -156,17 +155,17 @@ mockall::mock! {
 
 #[cfg(test)]
 mod client_tests {
-    use super::Client;
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
-    use crate::quake_live_functions::QuakeLiveFunction;
+    use core::{
+        borrow::BorrowMut,
+        ffi::{CStr, c_char},
+    };
 
-    use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_char};
     use once_cell::sync::OnceCell;
+    use pretty_assertions::assert_eq;
     use retour::GenericDetour;
 
-    use pretty_assertions::assert_eq;
+    use super::Client;
+    use crate::{ffi::c::prelude::*, prelude::*, quake_live_functions::QuakeLiveFunction};
 
     #[test]
     fn client_try_from_null_results_in_error() {

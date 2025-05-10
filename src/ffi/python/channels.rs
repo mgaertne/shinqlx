@@ -1,6 +1,3 @@
-use super::prelude::*;
-use crate::ffi::c::prelude::*;
-
 use core::fmt::{Display, Formatter};
 
 use pyo3::{
@@ -11,6 +8,9 @@ use pyo3::{
     types::{IntoPyDict, PyBool, PyNotImplemented, PyType},
 };
 use regex::Regex;
+
+use super::prelude::*;
+use crate::ffi::c::prelude::*;
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
 ///
@@ -159,14 +159,12 @@ impl AbstractChannelMethods for Bound<'_, AbstractChannel> {
 
 #[cfg(test)]
 mod abstract_channel_tests {
-    use super::AbstractChannelMethods;
-
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyNotImplementedError, PyTypeError};
     use rstest::*;
+
+    use super::AbstractChannelMethods;
+    use crate::{ffi::python::prelude::*, prelude::*};
 
     #[rstest]
     #[serial]
@@ -419,12 +417,12 @@ impl AbstractChannelMethods for Bound<'_, ConsoleChannel> {
 
 #[cfg(test)]
 mod console_channel_tests {
-    use crate::ffi::python::prelude::*;
-    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use rstest::*;
+
+    use crate::{
+        ffi::python::prelude::*, hooks::mock_hooks::shinqlx_com_printf_context, prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -604,21 +602,25 @@ impl ChatChannelMethods for Bound<'_, ChatChannel> {
 
 #[cfg(test)]
 mod chat_channel_tests {
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::{
-        default_test_player, default_test_player_info, run_all_frame_tasks,
+    use pyo3::{
+        exceptions::{PyNotImplementedError, PyValueError},
+        prelude::*,
     };
-
-    use crate::prelude::*;
-
-    use crate::ffi::c::prelude::{MockClient, clientState_t};
-
-    use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
-
     use rstest::*;
 
-    use pyo3::exceptions::{PyNotImplementedError, PyValueError};
-    use pyo3::prelude::*;
+    use crate::{
+        ffi::{
+            c::prelude::{MockClient, clientState_t},
+            python::{
+                prelude::*,
+                pyshinqlx_test_support::{
+                    default_test_player, default_test_player_info, run_all_frame_tasks,
+                },
+            },
+        },
+        hooks::mock_hooks::shinqlx_send_server_command_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -998,15 +1000,18 @@ impl TellChannelMethods for Bound<'_, TellChannel> {
 
 #[cfg(test)]
 mod tell_channel_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::types::IntoPyDict;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{prelude::*, pyshinqlx_test_support::*},
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1178,11 +1183,12 @@ impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
 
 #[cfg(test)]
 mod team_chat_channel_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use rstest::*;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -1412,17 +1418,19 @@ impl ClientCommandChannelMethods for Bound<'_, ClientCommandChannel> {
 
 #[cfg(test)]
 mod client_command_channel_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::*;
-    use crate::prelude::*;
-
-    use crate::hooks::mock_hooks::shinqlx_send_server_command_context;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::types::IntoPyDict;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{prelude::*, pyshinqlx_test_support::*},
+        },
+        hooks::mock_hooks::shinqlx_send_server_command_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

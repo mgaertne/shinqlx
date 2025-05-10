@@ -1,16 +1,17 @@
-use crate::MAIN_ENGINE;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-use crate::prelude::*;
-use crate::quake_live_engine::{
-    AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
-    InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
-    ShutdownGame, SpawnServer,
-};
-
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
+};
+
+use crate::{
+    MAIN_ENGINE,
+    ffi::{c::prelude::*, python::prelude::*},
+    prelude::*,
+    quake_live_engine::{
+        AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
+        InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
+        ShutdownGame, SpawnServer,
+    },
 };
 
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
@@ -491,8 +492,7 @@ pub(crate) extern "C" fn shinqlx_g_damage(
 #[cfg_attr(test, allow(dead_code))]
 #[allow(clippy::module_inception)]
 pub(crate) mod hooks {
-    use super::Client;
-    use super::GameEntity;
+    use super::{Client, GameEntity};
 
     #[allow(unused_attributes)]
     #[cfg(not(tarpaulin_include))]
@@ -526,6 +526,15 @@ pub(crate) mod hooks {
 
 #[cfg(test)]
 mod hooks_tests {
+    use core::{
+        borrow::BorrowMut,
+        ffi::{CStr, c_int},
+    };
+
+    use mockall::predicate;
+    use pretty_assertions::assert_eq;
+    use rstest::*;
+
     use super::{
         shinqlx_client_connect, shinqlx_client_spawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
@@ -533,21 +542,20 @@ mod hooks_tests {
         shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
         shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
-    use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_int};
-
-    use crate::ffi::python::mock_python_tests::{
-        __client_command_dispatcher, __client_connect_dispatcher, __client_loaded_dispatcher,
-        __damage_dispatcher, __new_game_dispatcher, __server_command_dispatcher,
-        __set_configstring_dispatcher,
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{
+                mock_python_tests::{
+                    __client_command_dispatcher, __client_connect_dispatcher,
+                    __client_loaded_dispatcher, __damage_dispatcher, __new_game_dispatcher,
+                    __server_command_dispatcher, __set_configstring_dispatcher,
+                },
+                prelude::*,
+            },
+        },
+        prelude::*,
     };
-    use mockall::predicate;
-    use pretty_assertions::assert_eq;
-    use rstest::*;
 
     #[fixture]
     fn new_game_dispatcher_ctx() -> __new_game_dispatcher::Context {

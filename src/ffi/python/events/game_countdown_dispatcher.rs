@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that goes off when the countdown before a game starts.
 #[pyclass(module = "_events", name = "GameCountdownDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl GameCountdownDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "game_countdown";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -38,20 +37,21 @@ impl<'py> GameCountdownDispatcherMethods<'py> for Bound<'py, GameCountdownDispat
 
 #[cfg(test)]
 mod game_countdown_dispatcher_tests {
-    use super::{GameCountdownDispatcher, GameCountdownDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{GameCountdownDispatcher, GameCountdownDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

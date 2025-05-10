@@ -1,6 +1,4 @@
-use crate::ffi::python::prelude::*;
-
-use crate::ffi::python::get_cvar;
+use crate::ffi::python::{get_cvar, prelude::*};
 
 /// Gets a cvar.
 #[pyfunction]
@@ -11,15 +9,15 @@ pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<
 
 #[cfg(test)]
 mod get_cvar_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::exceptions::PyEnvironmentError;
     use rstest::*;
 
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

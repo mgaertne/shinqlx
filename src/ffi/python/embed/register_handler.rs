@@ -1,6 +1,6 @@
-use crate::ffi::python::prelude::*;
-
 use pyo3::exceptions::{PyTypeError, PyValueError};
+
+use crate::ffi::python::prelude::*;
 
 /// Register an event handler. Can be called more than once per event, but only the last one will work.
 #[pyfunction]
@@ -29,11 +29,10 @@ pub(crate) fn pyshinqlx_register_handler(
 
 #[cfg(test)]
 mod register_handler_tests {
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::*;
+
+    use crate::{ffi::python::prelude::*, prelude::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

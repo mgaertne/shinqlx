@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that goes off when a game starts.
 #[pyclass(module = "_events", name = "GameStartDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl GameStartDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "game_start";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = true;
@@ -41,20 +40,24 @@ impl<'py> GameStartDispatcherMethods<'py> for Bound<'py, GameStartDispatcher> {
 
 #[cfg(test)]
 mod game_start_dispatcher_tests {
-    use super::{GameStartDispatcher, GameStartDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{GameStartDispatcher, GameStartDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

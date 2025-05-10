@@ -1,7 +1,7 @@
+use core::ffi::CStr;
+
 use super::prelude::*;
 use crate::prelude::*;
-
-use core::ffi::CStr;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -36,12 +36,11 @@ impl CVar {
 
 #[cfg(test)]
 mod cvar_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use pretty_assertions::assert_eq;
+
+    use crate::{ffi::c::prelude::*, prelude::*};
 
     #[test]
     fn cvar_try_from_null_results_in_error() {

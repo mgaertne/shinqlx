@@ -1,6 +1,5 @@
 use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Get information about the player's state in the game.
 #[pyfunction]
@@ -22,15 +21,18 @@ pub(crate) fn pyshinqlx_player_state(
 
 #[cfg(test)]
 mod player_state_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::default_player_state;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{prelude::*, pyshinqlx_test_support::default_player_state},
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

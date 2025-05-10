@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::{PyInt, PyTuple};
+
+use super::prelude::*;
 
 /// Event that goes off when someone is inflicted with damage.
 #[pyclass(module = "_events", name = "DamageDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl DamageDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "damage";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -69,21 +68,22 @@ impl<'py> DamageDispatcherMethods<'py> for Bound<'py, DamageDispatcher> {
 
 #[cfg(test)]
 mod damage_dispatcher_tests {
-    use super::{DamageDispatcher, DamageDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{DamageDispatcher, DamageDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

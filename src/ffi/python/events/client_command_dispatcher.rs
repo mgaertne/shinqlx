@@ -1,10 +1,14 @@
-use super::super::channels::ClientCommandChannel;
-use super::super::{COMMANDS, CommandInvokerMethods, Player};
-use super::prelude::*;
 use std::ops::Deref;
 
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::types::{PyBool, PyString};
+use pyo3::{
+    exceptions::PyEnvironmentError,
+    types::{PyBool, PyString},
+};
+
+use super::{
+    super::{COMMANDS, CommandInvokerMethods, Player, channels::ClientCommandChannel},
+    prelude::*,
+};
 
 /// Event that triggers with any client command. This overlaps with
 /// other events, such as "chat".
@@ -16,7 +20,6 @@ impl ClientCommandDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "client_command";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -148,24 +151,28 @@ fn try_handle_input(py: Python<'_>, player: &Bound<'_, Player>, cmd: &str) -> Py
 
 #[cfg(test)]
 mod client_command_dispatcher_tests {
-    use super::{ClientCommandDispatcher, ClientCommandDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        COMMANDS,
-        commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
-        events::EventDispatcherMethods,
-        pyshinqlx_setup,
-        pyshinqlx_test_support::{default_test_player, test_plugin},
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{ClientCommandDispatcher, ClientCommandDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                COMMANDS,
+                commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
+                events::EventDispatcherMethods,
+                pyshinqlx_setup,
+                pyshinqlx_test_support::{default_test_player, test_plugin},
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -1,12 +1,11 @@
+use core::ffi::c_char;
+
 use super::prelude::*;
-use crate::MAIN_ENGINE;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
-use crate::prelude::*;
-
-use core::ffi::c_char;
+use crate::{MAIN_ENGINE, prelude::*};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -116,16 +115,16 @@ mockall::mock! {
 
 #[cfg(test)]
 mod current_level_tests {
-    use super::CurrentLevel;
-    use crate::ffi::c::prelude::*;
-    use crate::hooks::mock_hooks::shinqlx_set_configstring_context;
-    use crate::prelude::*;
-    use crate::quake_live_functions::QuakeLiveFunction::G_InitGame;
+    use core::{borrow::BorrowMut, ffi::CStr};
 
-    use core::borrow::BorrowMut;
-    use core::ffi::CStr;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+
+    use super::CurrentLevel;
+    use crate::{
+        ffi::c::prelude::*, hooks::mock_hooks::shinqlx_set_configstring_context, prelude::*,
+        quake_live_functions::QuakeLiveFunction::G_InitGame,
+    };
 
     #[test]
     #[serial]

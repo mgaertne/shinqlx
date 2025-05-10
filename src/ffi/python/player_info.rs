@@ -1,7 +1,7 @@
+use core::fmt::{Display, Formatter};
+
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
-
-use core::fmt::{Display, Formatter};
 
 /// Information about a player, such as Steam ID, name, client ID, and whatnot.
 #[pyclass(
@@ -102,13 +102,14 @@ impl From<i32> for PlayerInfo {
 
 #[cfg(test)]
 mod player_info_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

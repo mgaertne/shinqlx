@@ -1,8 +1,8 @@
-use super::prelude::*;
-
 use core::sync::atomic::Ordering;
 
 use pyo3::types::{PyBool, PyString};
+
+use super::prelude::*;
 
 pub(crate) fn client_command_dispatcher<T>(client_id: i32, cmd: T) -> Option<String>
 where
@@ -255,6 +255,14 @@ pub(crate) fn damage_dispatcher(
 
 #[cfg(test)]
 mod pyshinqlx_dispatcher_tests {
+    use pretty_assertions::assert_eq;
+    use pyo3::{
+        IntoPyObjectExt,
+        exceptions::PyException,
+        types::{PyBool, PyString, PyTuple},
+    };
+    use rstest::*;
+
     use super::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
@@ -262,17 +270,9 @@ mod pyshinqlx_dispatcher_tests {
         new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
         set_configstring_dispatcher,
     };
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
-    use rstest::*;
-
-    use pretty_assertions::assert_eq;
-    use pyo3::{
-        IntoPyObjectExt,
-        exceptions::PyException,
-        types::{PyBool, PyString, PyTuple},
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
     };
 
     #[test]

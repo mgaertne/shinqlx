@@ -1,8 +1,7 @@
-use super::prelude::*;
-
-use crate::ffi::python::Player;
-
 use pyo3::types::{PyString, PyTuple};
+
+use super::prelude::*;
+use crate::ffi::python::Player;
 
 /// For when a player switches teams. If cancelled,
 /// simply put the player back in the old team.
@@ -17,7 +16,6 @@ impl TeamSwitchDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "team_switch";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = true;
@@ -67,21 +65,22 @@ impl<'py> TeamSwitchDispatcherMethods<'py> for Bound<'py, TeamSwitchDispatcher> 
 
 #[cfg(test)]
 mod team_switch_dispatcher_tests {
-    use super::{TeamSwitchDispatcher, TeamSwitchDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{TeamSwitchDispatcher, TeamSwitchDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

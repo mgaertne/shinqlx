@@ -1,5 +1,4 @@
-use crate::ffi::python::prelude::*;
-use crate::ffi::python::set_cvar;
+use crate::ffi::python::{prelude::*, set_cvar};
 
 /// Sets a cvar.
 #[pyfunction]
@@ -16,17 +15,17 @@ pub(crate) fn pyshinqlx_set_cvar(
 
 #[cfg(test)]
 mod set_cvar_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
 
-    use pyo3::exceptions::PyEnvironmentError;
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
