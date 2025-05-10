@@ -4,8 +4,6 @@ use core::fmt::{Display, Formatter};
 
 #[cfg(target_os = "linux")]
 use procfs::process::{MMPermissions, MemoryMap};
-#[cfg(target_os = "linux")]
-use rayon::prelude::*;
 use retour::{Function, GenericDetour, HookableWith};
 
 use crate::prelude::*;
@@ -16,7 +14,7 @@ where
     T: Borrow<QuakeLiveFunction>,
 {
     module_info
-        .par_iter()
+        .iter()
         .filter(|memory_map| memory_map.perms.contains(MMPermissions::READ))
         .filter_map(|memory_map| {
             pattern_search(
