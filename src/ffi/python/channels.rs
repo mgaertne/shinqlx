@@ -144,7 +144,7 @@ pub(crate) trait AbstractChannelMethods {
 
 impl AbstractChannelMethods for Bound<'_, AbstractChannel> {
     fn get_name(&self) -> String {
-        self.borrow().name.clone()
+        self.borrow().name.to_owned()
     }
 
     fn reply(
@@ -508,7 +508,7 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
 
     fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
-        let fmt = self.borrow().fmt.clone();
+        let fmt = self.borrow().fmt.to_owned();
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = self
             .call_method0(intern!(self.py(), "recipients"))?
@@ -547,8 +547,8 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
                     None,
                     Some(
                         &[
-                            (intern!(self.py(), "fmt"), fmt.clone()),
-                            (intern!(self.py(), "message"), message.clone()),
+                            (intern!(self.py(), "fmt"), fmt.to_owned()),
+                            (intern!(self.py(), "message"), message.to_owned()),
                         ]
                         .into_py_dict(self.py())?,
                     ),

@@ -174,8 +174,7 @@ where
         Some(safe_client) => {
             if safe_client.has_gentity() {
                 let client_id = safe_client.get_client_id();
-                let Some(res) =
-                    server_command_dispatcher(Some(client_id), passed_on_cmd_str.clone())
+                let Some(res) = server_command_dispatcher(Some(client_id), passed_on_cmd_str)
                 else {
                     return;
                 };
@@ -183,7 +182,7 @@ where
             }
         }
         None => {
-            let Some(res) = server_command_dispatcher(None, passed_on_cmd_str.clone()) else {
+            let Some(res) = server_command_dispatcher(None, passed_on_cmd_str) else {
                 return;
             };
             passed_on_cmd_str = res;

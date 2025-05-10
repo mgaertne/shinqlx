@@ -1285,7 +1285,7 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> 
                         traceback_module
                             .call_method1(
                                 intern!(py, "format_exception"),
-                                exc_info.downcast::<PyTuple>()?.clone(),
+                                exc_info.downcast::<PyTuple>()?.to_owned(),
                             )
                             .and_then(|value| {
                                 value
@@ -2005,10 +2005,10 @@ fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
             .revparse_ext("HEAD")
             .ok()
             .and_then(|(_, branch_option)| branch_option)
-            .map_or(Ok(plugins_version.clone()), |branch| {
+            .map_or(Ok(plugins_version.to_owned()), |branch| {
                 branch
                     .shorthand()
-                    .map_or(Ok(plugins_version.clone()), |branch_name| {
+                    .map_or(Ok(plugins_version.to_owned()), |branch_name| {
                         let returned = format!("{}-{}", &plugins_version, branch_name);
                         Ok(returned)
                     })
@@ -2203,7 +2203,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     try_get_plugins_path().map_or_else(
         |err| Err(PluginLoadError::new_err(err)),
         |plugins_path| {
-            let mut joined_path = plugins_path.clone();
+            let mut joined_path = plugins_path.to_owned();
             joined_path.push(plugin);
             joined_path.set_extension("py");
 

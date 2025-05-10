@@ -174,10 +174,10 @@ fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
                     Some(Player {
                         valid: true.into(),
                         id: player_info.client_id,
-                        user_info: player_info.userinfo.clone(),
+                        user_info: player_info.userinfo.to_owned(),
                         steam_id: player_info.steam_id,
-                        name: player_info.name.clone().into(),
-                        player_info: player_info.clone().into(),
+                        name: player_info.name.to_owned().into(),
+                        player_info: player_info.to_owned().into(),
                     })
                 }
             })
@@ -195,10 +195,10 @@ fn player_by_name(py: Python<'_>, name: &str) -> Option<Player> {
                     Some(Player {
                         valid: true.into(),
                         id: player_info.client_id,
-                        user_info: player_info.userinfo.clone(),
+                        user_info: player_info.userinfo.to_owned(),
                         steam_id: player_info.steam_id,
-                        name: player_info.name.clone().into(),
-                        player_info: player_info.clone().into(),
+                        name: player_info.name.to_owned().into(),
+                        player_info: player_info.to_owned().into(),
                     })
                 }
             })
@@ -244,9 +244,9 @@ fn dispatch_player_death_events(
             |death_dispatcher| {
                 thread_safe_dispatcher.call1((
                     death_dispatcher,
-                    victim.clone(),
-                    opt_killer.clone(),
-                    json_data.clone(),
+                    victim.to_owned(),
+                    opt_killer.to_owned(),
+                    json_data.to_owned(),
                 ))?;
                 Ok(())
             },
@@ -961,7 +961,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, game_start_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -1067,7 +1067,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, round_end_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -1176,7 +1176,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, game_end_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -1266,7 +1266,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, game_end_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -1356,7 +1356,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -1496,7 +1496,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -1650,7 +1650,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -1758,7 +1758,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -2034,7 +2034,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -2250,7 +2250,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
                             .is_ok()
                     );
                     assert!(
@@ -2537,7 +2537,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                     assert!(
@@ -2682,7 +2682,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                     assert!(
@@ -2811,7 +2811,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -2933,7 +2933,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3055,7 +3055,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3177,7 +3177,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3269,7 +3269,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.clone(),))
+                            .call_method1("assert_called_with", (expected_json_data,))
                             .is_ok()
                     );
                 });

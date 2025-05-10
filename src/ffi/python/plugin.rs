@@ -451,7 +451,7 @@ impl Plugin {
                 .cloned());
         }
 
-        let Some(client_id) = client_id(cls.py(), name, Some(players.clone())) else {
+        let Some(client_id) = client_id(cls.py(), name, Some(players.to_owned())) else {
             return Ok(None);
         };
         Ok(players
@@ -584,7 +584,7 @@ impl Plugin {
         player_list: Option<Vec<Player>>,
     ) -> Option<String> {
         if let Ok(player) = name.extract::<Player>() {
-            return Some(player.name.read().clone());
+            return Some(player.name.read().to_owned());
         }
 
         let Ok(searched_name) = name.str().map(|value| value.to_string()) else {
@@ -597,7 +597,7 @@ impl Plugin {
         players
             .iter()
             .find(|&player| clean_text(&(&*player.name.read())).to_lowercase() == clean_name)
-            .map(|found_player| found_player.name.read().clone())
+            .map(|found_player| found_player.name.read().to_owned())
     }
 
     /// Get a player's client id from the name, client ID,
@@ -1090,7 +1090,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .get_type::<Plugin>()
             .getattr(intern!(self.py(), "_loaded_plugins"))?;
 
-        Ok(loaded_plugins.downcast()?.clone())
+        Ok(loaded_plugins.downcast()?.to_owned())
     }
 
     fn get_hooks(&self) -> Vec<(String, Py<PyAny>, i32)> {
@@ -1152,10 +1152,11 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         self.try_borrow().map_or(
             Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
             |plugin| {
-                plugin
-                    .hooks
-                    .write()
-                    .push((event.to_string(), handler.clone().unbind(), priority));
+                plugin.hooks.write().push((
+                    event.to_string(),
+                    handler.to_owned().unbind(),
+                    priority,
+                ));
                 Ok(())
             },
         )
@@ -1236,7 +1237,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         self.try_borrow().map_or(
             Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
             |plugin| {
-                plugin.commands.write().push(py_command.clone().unbind());
+                plugin.commands.write().push(py_command.to_owned().unbind());
                 Ok(())
             },
         )?;
@@ -1260,7 +1261,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                     .extract::<String>()
                     .ok()
                     .iter()
-                    .for_each(|alias| names.push(alias.clone()));
+                    .for_each(|alias| names.push(alias.to_owned()));
             })
         });
         name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
@@ -1269,11 +1270,11 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                     .extract::<String>()
                     .ok()
                     .iter()
-                    .for_each(|alias| names.push(alias.clone()));
+                    .for_each(|alias| names.push(alias.to_owned()));
             })
         });
         name.extract::<String>().ok().iter().for_each(|py_string| {
-            names.push(py_string.clone());
+            names.push(py_string.to_owned());
         });
 
         self.borrow()
@@ -3506,7 +3507,7 @@ def handler():
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 1234i32).as_any(),
-                Some(vec![player.clone()]),
+                Some(vec![player.to_owned()]),
             );
             assert!(
                 result
@@ -3545,7 +3546,7 @@ def handler():
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
                 PyString::new(py, "Mocked Player").as_any(),
-                Some(vec![player.clone()]),
+                Some(vec![player.to_owned()]),
             );
             assert!(
                 result
@@ -4156,7 +4157,7 @@ def handler():
             let result = Plugin::find_player(
                 &py.get_type::<Plugin>(),
                 "",
-                Some(vec![player1.clone(), player2.clone()]),
+                Some(vec![player1.to_owned(), player2.to_owned()]),
             );
             assert_eq!(result, vec![player1, player2]);
         });
@@ -4208,7 +4209,11 @@ def handler():
             let result = Plugin::find_player(
                 &py.get_type::<Plugin>(),
                 "foU^3nd",
-                Some(vec![player1.clone(), player2.clone(), player3.clone()]),
+                Some(vec![
+                    player1.to_owned(),
+                    player2.to_owned(),
+                    player3.to_owned(),
+                ]),
             );
             assert_eq!(result, vec![player1, player3]);
         });
@@ -4342,10 +4347,10 @@ def handler():
             let result = Plugin::teams(
                 &py.get_type::<Plugin>(),
                 Some(vec![
-                    player4.clone(),
-                    player3.clone(),
-                    player2.clone(),
-                    player1.clone(),
+                    player4.to_owned(),
+                    player3.to_owned(),
+                    player2.to_owned(),
+                    player1.to_owned(),
                 ]),
             );
             assert!(

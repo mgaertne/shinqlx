@@ -347,7 +347,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                         .iter()
                         .map(|(plugin_name, hooks)| {
                             (
-                                plugin_name.clone(),
+                                plugin_name.to_owned(),
                                 hooks
                                     .iter()
                                     .map(|prio_hooks| {
@@ -443,7 +443,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
             }
         }
 
-        return_value.bind(self.py()).clone()
+        return_value.bind(self.py()).to_owned()
     }
 
     fn handle_return(
@@ -522,7 +522,7 @@ def add_hook(event, plugin, handler, priority):
                 else {
                     let mut new_hooks =
                         (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
-                    new_hooks.1[priority as usize].push(handler.clone().unbind());
+                    new_hooks.1[priority as usize].push(handler.to_owned().unbind());
                     plugins.push(new_hooks);
                     return Ok(());
                 };
@@ -541,7 +541,7 @@ def add_hook(event, plugin, handler, priority):
                     ));
                 }
 
-                plugin_hooks.1[priority as usize].push(handler.clone().unbind());
+                plugin_hooks.1[priority as usize].push(handler.to_owned().unbind());
             }
         }
         Ok(())
@@ -1549,7 +1549,7 @@ def default_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "test_plugin",
-                                default_hook.clone().unbind(),
+                                default_hook.to_owned().unbind(),
                                 CommandPriorities::PRI_NORMAL as i32,
                             ),
                         )
@@ -1691,7 +1691,7 @@ def default_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "test_plugin",
-                                default_hook.clone().unbind(),
+                                default_hook.to_owned().unbind(),
                                 CommandPriorities::PRI_LOWEST as i32,
                             ),
                         )
@@ -1813,7 +1813,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             .iter()
             .map(|(dispatcher_name, dispatch_function)| {
                 (
-                    dispatcher_name.clone(),
+                    dispatcher_name.to_owned(),
                     dispatch_function.bind(self.py()).as_unbound(),
                 )
             })

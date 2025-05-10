@@ -63,7 +63,7 @@ impl<'py> PlayerConnectDispatcherMethods<'py> for Bound<'py, PlayerConnectDispat
         value: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         if value.is_instance_of::<PyString>() {
-            return Ok(value.clone());
+            return Ok(value.to_owned());
         }
 
         self.as_super().handle_return(handler, value)

@@ -66,7 +66,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
     }
 
     fn caller(&self, player: &Bound<'py, PyAny>) {
-        *self.borrow().player.write() = player.clone().unbind();
+        *self.borrow().player.write() = player.to_owned().unbind();
     }
 }
 
