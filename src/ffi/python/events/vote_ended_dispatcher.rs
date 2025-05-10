@@ -1,4 +1,5 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use pyo3::{
     exceptions::PyEnvironmentError,
     types::{PyBool, PyString, PyTuple},
@@ -12,8 +13,8 @@ use crate::{
     quake_live_engine::GetConfigstring,
 };
 
-static RE_VOTE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#).unwrap());
+static RE_VOTE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#).unwrap());
 
 /// Event that goes off whenever a vote either passes or fails.
 #[pyclass(module = "_events", name = "VoteEndedDispatcher", extends = EventDispatcher, frozen)]

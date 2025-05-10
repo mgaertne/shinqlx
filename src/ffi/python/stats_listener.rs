@@ -1,6 +1,6 @@
 use core::sync::atomic::{AtomicBool, Ordering};
+use std::sync::LazyLock;
 
-use once_cell::sync::Lazy;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
@@ -368,7 +368,7 @@ def thread_safe_team_switch_dispatch(dispatcher, player, old_team, new_team):
     Ok(())
 }
 
-static IN_PROGRESS: Lazy<AtomicBool> = Lazy::new(AtomicBool::default);
+static IN_PROGRESS: LazyLock<AtomicBool> = LazyLock::new(AtomicBool::default);
 
 /// Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
 /// we get stats from it.

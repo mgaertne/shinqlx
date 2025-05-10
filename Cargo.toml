@@ -42,7 +42,6 @@ rand = { version = ">=0.9", default-features = false, features = ["thread_rng"] 
 pyo3 = { version = ">=0.24.1, <0.25", features = ["pyo3-macros", "extension-module", "nightly"] }
 retour = { version = ">=0.4.0-alpha.3", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
-once_cell = { version = ">=1.21", default-features = false }
 arc-swap = { version = ">=1.7", default-features = false }
 log = { version = ">=0.4", default-features = false }
 log4rs = { version = ">=1.3" }

@@ -50,7 +50,7 @@ pub(crate) mod prelude {
     };
 }
 
-use std::{path::Path, time::Instant};
+use std::{path::Path, sync::LazyLock, time::Instant};
 
 use arc_swap::ArcSwapOption;
 #[cfg(not(test))]
@@ -62,7 +62,6 @@ use log4rs::{
     config::{Appender, Root},
     encode::pattern::PatternEncoder,
 };
-use once_cell::sync::Lazy;
 use signal_hook::consts::SIGSEGV;
 
 use crate::prelude::*;
@@ -70,10 +69,10 @@ use crate::prelude::*;
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) const QZERODED: &str = "qzeroded.x64";
 
-pub(crate) static MAIN_ENGINE: Lazy<ArcSwapOption<QuakeLiveEngine>> =
-    Lazy::new(ArcSwapOption::empty);
+pub(crate) static MAIN_ENGINE: LazyLock<ArcSwapOption<QuakeLiveEngine>> =
+    LazyLock::new(ArcSwapOption::empty);
 
-pub(crate) static _INIT_TIME: Lazy<Instant> = Lazy::new(Instant::now);
+pub(crate) static _INIT_TIME: LazyLock<Instant> = LazyLock::new(Instant::now);
 
 fn initialize_logging() {
     if Path::new("./shinqlx_log.yml").exists() {

@@ -1,9 +1,9 @@
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::LazyLock;
 
 use arc_swap::ArcSwapOption;
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use pyo3::{
     BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
@@ -178,42 +178,42 @@ def raising_exception_hook(*args, **kwargs):
     }
 }
 
-static RE_SAY: Lazy<Regex> = Lazy::new(|| {
+static RE_SAY: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^say +(?P<quote>"?)(?P<msg>.+)$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
-static RE_SAY_TEAM: Lazy<Regex> = Lazy::new(|| {
+static RE_SAY_TEAM: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^say_team +(?P<quote>"?)(?P<msg>.+)$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
-static RE_CALLVOTE: Lazy<Regex> = Lazy::new(|| {
+static RE_CALLVOTE: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: "?(?P<args>.+?)"?)?$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
-static RE_VOTE: Lazy<Regex> = Lazy::new(|| {
+static RE_VOTE: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r"^vote +(?P<arg>.)")
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
-static RE_TEAM: Lazy<Regex> = Lazy::new(|| {
+static RE_TEAM: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r"^team +(?P<arg>.)")
         .case_insensitive(true)
         .multi_line(true)
         .build()
         .unwrap()
 });
-static RE_USERINFO: Lazy<Regex> = Lazy::new(|| {
+static RE_USERINFO: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^userinfo "(?P<vars>.+)"$"#)
         .multi_line(true)
         .build()
@@ -592,10 +592,10 @@ pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -
 #[cfg(test)]
 mod handle_client_command_tests {
     use core::borrow::BorrowMut;
+    use std::sync::LazyLock;
 
     use arc_swap::ArcSwapOption;
     use mockall::predicate;
-    use once_cell::sync::Lazy;
     use pyo3::{
         exceptions::{PyAssertionError, PyEnvironmentError},
         prelude::*,
@@ -1176,7 +1176,7 @@ mod handle_client_command_tests {
         #[case] team: team_t,
         #[case] team_str: &str,
         #[case] team_name: &str,
-        #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
+        #[case] channel: &LazyLock<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
@@ -1286,7 +1286,7 @@ mod handle_client_command_tests {
     fn try_handle_client_command_for_team_msg_with_no_team_channel(
         _pyshinqlx_setup: (),
         #[case] team: team_t,
-        #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
+        #[case] channel: &LazyLock<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
@@ -1344,7 +1344,7 @@ mod handle_client_command_tests {
         #[case] team: team_t,
         #[case] team_str: &str,
         #[case] team_name: &str,
-        #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
+        #[case] channel: &LazyLock<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
@@ -1402,7 +1402,7 @@ mod handle_client_command_tests {
         #[case] team: team_t,
         #[case] team_str: &str,
         #[case] team_name: &str,
-        #[case] channel: &Lazy<ArcSwapOption<Py<TeamChatChannel>>>,
+        #[case] channel: &LazyLock<ArcSwapOption<Py<TeamChatChannel>>>,
     ) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
@@ -3090,7 +3090,7 @@ def returning_other_userinfo_hook(*args, **kwargs):
     }
 }
 
-static RE_VOTE_ENDED: Lazy<Regex> = Lazy::new(|| {
+static RE_VOTE_ENDED: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^print "Vote (?P<result>passed|failed)\.\n"$"#)
         .multi_line(true)
         .build()
@@ -4546,7 +4546,7 @@ mod handle_new_game_tests {
             });
     }
 
-    static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
+    static TEMP_DIR: std::sync::LazyLock<tempfile::TempDir> = std::sync::LazyLock::new(|| {
         tempfile::Builder::new()
             .tempdir()
             .expect("this should not happen")
@@ -7997,8 +7997,8 @@ mod handle_damage_tests {
     }
 }
 
-static PRINT_REDIRECTION: Lazy<ArcSwapOption<Py<PrintRedirector>>> =
-    Lazy::new(ArcSwapOption::empty);
+static PRINT_REDIRECTION: LazyLock<ArcSwapOption<Py<PrintRedirector>>> =
+    LazyLock::new(ArcSwapOption::empty);
 
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {

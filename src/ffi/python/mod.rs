@@ -126,13 +126,15 @@ use core::{
     str::FromStr,
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
 use arc_swap::ArcSwapOption;
 use commands::CommandPriorities;
 use itertools::Itertools;
 use log::*;
-use once_cell::sync::Lazy;
 use prelude::*;
 use pyo3::{
     append_to_inittab, create_exception,
@@ -155,28 +157,29 @@ use crate::{
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) static CUSTOM_COMMAND_HANDLER: Lazy<ArcSwapOption<PyObject>> =
-    Lazy::new(ArcSwapOption::empty);
+pub(crate) static CUSTOM_COMMAND_HANDLER: LazyLock<ArcSwapOption<PyObject>> =
+    LazyLock::new(ArcSwapOption::empty);
 
-pub(crate) static MODULES: Lazy<ArcSwapOption<Py<PyDict>>> = Lazy::new(ArcSwapOption::empty);
-pub(crate) static CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
-    Lazy::new(ArcSwapOption::empty);
-pub(crate) static RED_TEAM_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
-    Lazy::new(ArcSwapOption::empty);
-pub(crate) static BLUE_TEAM_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
-    Lazy::new(ArcSwapOption::empty);
-pub(crate) static FREE_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
-    Lazy::new(ArcSwapOption::empty);
-pub(crate) static SPECTATOR_CHAT_CHANNEL: Lazy<ArcSwapOption<Py<TeamChatChannel>>> =
-    Lazy::new(ArcSwapOption::empty);
-pub(crate) static CONSOLE_CHANNEL: Lazy<ArcSwapOption<Py<ConsoleChannel>>> =
-    Lazy::new(ArcSwapOption::empty);
+pub(crate) static MODULES: LazyLock<ArcSwapOption<Py<PyDict>>> =
+    LazyLock::new(ArcSwapOption::empty);
+pub(crate) static CHAT_CHANNEL: LazyLock<ArcSwapOption<Py<TeamChatChannel>>> =
+    LazyLock::new(ArcSwapOption::empty);
+pub(crate) static RED_TEAM_CHAT_CHANNEL: LazyLock<ArcSwapOption<Py<TeamChatChannel>>> =
+    LazyLock::new(ArcSwapOption::empty);
+pub(crate) static BLUE_TEAM_CHAT_CHANNEL: LazyLock<ArcSwapOption<Py<TeamChatChannel>>> =
+    LazyLock::new(ArcSwapOption::empty);
+pub(crate) static FREE_CHAT_CHANNEL: LazyLock<ArcSwapOption<Py<TeamChatChannel>>> =
+    LazyLock::new(ArcSwapOption::empty);
+pub(crate) static SPECTATOR_CHAT_CHANNEL: LazyLock<ArcSwapOption<Py<TeamChatChannel>>> =
+    LazyLock::new(ArcSwapOption::empty);
+pub(crate) static CONSOLE_CHANNEL: LazyLock<ArcSwapOption<Py<ConsoleChannel>>> =
+    LazyLock::new(ArcSwapOption::empty);
 
-pub(crate) static COMMANDS: Lazy<ArcSwapOption<Py<CommandInvoker>>> =
-    Lazy::new(ArcSwapOption::empty);
+pub(crate) static COMMANDS: LazyLock<ArcSwapOption<Py<CommandInvoker>>> =
+    LazyLock::new(ArcSwapOption::empty);
 
-pub(crate) static EVENT_DISPATCHERS: Lazy<ArcSwapOption<Py<EventDispatcherManager>>> =
-    Lazy::new(ArcSwapOption::empty);
+pub(crate) static EVENT_DISPATCHERS: LazyLock<ArcSwapOption<Py<EventDispatcherManager>>> =
+    LazyLock::new(ArcSwapOption::empty);
 
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
@@ -1087,12 +1090,11 @@ mod pyshinqlx_configure_logger_tests {
         });
     }
 
-    static TEMP_LOG_DIR: once_cell::sync::Lazy<tempfile::TempDir> =
-        once_cell::sync::Lazy::new(|| {
-            tempfile::Builder::new()
-                .tempdir()
-                .expect("this should not happen")
-        });
+    static TEMP_LOG_DIR: std::sync::LazyLock<tempfile::TempDir> = std::sync::LazyLock::new(|| {
+        tempfile::Builder::new()
+            .tempdir()
+            .expect("this should not happen")
+    });
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -2414,7 +2416,7 @@ mod pyshinqlx_plugins_tests {
         prelude::*,
     };
 
-    static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
+    static TEMP_DIR: std::sync::LazyLock<tempfile::TempDir> = std::sync::LazyLock::new(|| {
         tempfile::Builder::new()
             .tempdir()
             .expect("this should not happen")
@@ -3400,7 +3402,7 @@ mod try_get_plugins_path_tests {
         prelude::*,
     };
 
-    static TEMP_DIR: once_cell::sync::Lazy<tempfile::TempDir> = once_cell::sync::Lazy::new(|| {
+    static TEMP_DIR: std::sync::LazyLock<tempfile::TempDir> = std::sync::LazyLock::new(|| {
         tempfile::Builder::new()
             .tempdir()
             .expect("this should not happen")
