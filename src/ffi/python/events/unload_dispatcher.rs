@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that triggers whenever a plugin is unloaded. Cannot be cancelled.
 #[pyclass(module = "_events", name = "UnloadDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl UnloadDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "unload";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -43,20 +42,24 @@ impl<'py> UnloadDispatcherMethods<'py> for Bound<'py, UnloadDispatcher> {
 
 #[cfg(test)]
 mod unload_dispatcher_tests {
-    use super::{UnloadDispatcher, UnloadDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{UnloadDispatcher, UnloadDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

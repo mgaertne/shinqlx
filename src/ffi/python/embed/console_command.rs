@@ -1,5 +1,4 @@
-use crate::ffi::python::console_command;
-use crate::ffi::python::prelude::*;
+use crate::ffi::python::{console_command, prelude::*};
 
 /// Executes a command as if it was executed from the server console.
 #[pyfunction]
@@ -10,11 +9,10 @@ pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<(
 
 #[cfg(test)]
 mod console_command_tests {
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
+
+    use crate::{ffi::python::prelude::*, prelude::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

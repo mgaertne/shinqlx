@@ -1,6 +1,5 @@
 use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_execute_client_command;
 #[cfg(not(test))]
@@ -31,14 +30,15 @@ pub(crate) fn pyshinqlx_client_command(
 
 #[cfg(test)]
 mod client_command_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::hooks::mock_hooks::shinqlx_execute_client_command_context;
-    use crate::prelude::*;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::*;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        hooks::mock_hooks::shinqlx_execute_client_command_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

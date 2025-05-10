@@ -1,25 +1,22 @@
-use super::prelude::*;
-use super::{
-    addadmin, addmod, addscore, addteamscore, ban, console_command, demote, lock, mute, opsay, put,
-    set_teamsize, tempban, unban, unlock, unmute,
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+
+use itertools::Itertools;
+use log::*;
+use pyo3::{
+    create_exception,
+    exceptions::{PyEnvironmentError, PyException, PyKeyError, PyValueError},
+    types::{IntoPyDict, PyDict, PyType},
 };
 
+use super::{
+    addadmin, addmod, addscore, addteamscore, ban, console_command, demote, lock, mute, opsay,
+    prelude::*, put, set_teamsize, tempban, unban, unlock, unmute,
+};
 use crate::{
     MAIN_ENGINE,
     ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
     quake_live_engine::{GetConfigstring, SetConfigstring},
-};
-
-use core::sync::atomic::AtomicBool;
-use itertools::Itertools;
-use log::*;
-use std::sync::atomic::Ordering;
-
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::{
-    create_exception,
-    exceptions::{PyException, PyKeyError, PyValueError},
-    types::{IntoPyDict, PyDict, PyType},
 };
 
 create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
@@ -878,18 +875,21 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
 #[cfg(test)]
 mod pyshinqlx_game_tests {
-    use super::{Game, GameMethods, NonexistentGameError};
-    use crate::ffi::c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS};
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use rstest::rstest;
-
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
         types::{PyBool, PyInt, PyList, PyString},
+    };
+    use rstest::rstest;
+
+    use super::{Game, GameMethods, NonexistentGameError};
+    use crate::{
+        ffi::{
+            c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
+            python::prelude::*,
+        },
+        prelude::*,
     };
 
     fn default_game() -> Game {

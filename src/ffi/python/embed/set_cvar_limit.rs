@@ -1,8 +1,6 @@
-use crate::MAIN_ENGINE;
-use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::SetCVarLimit;
-
 use pyo3::exceptions::PyEnvironmentError;
+
+use crate::{MAIN_ENGINE, ffi::python::prelude::*, quake_live_engine::SetCVarLimit};
 
 /// Sets a non-string cvar with a minimum and maximum value.
 #[pyfunction]
@@ -32,13 +30,14 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
 
 #[cfg(test)]
 mod set_cvar_limit_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

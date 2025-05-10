@@ -1,22 +1,18 @@
-use super::prelude::*;
-use super::{owner, pyshinqlx_get_logger};
+use core::cmp::max;
 
-use crate::MAIN_ENGINE;
-use crate::quake_live_engine::FindCVar;
-
-use pyo3::prelude::*;
+use itertools::Itertools;
 use pyo3::{
     IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{
         PyEnvironmentError, PyKeyError, PyNotImplementedError, PyRuntimeError, PyValueError,
     },
     intern,
+    prelude::*,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyString, PyTuple},
 };
 
-use core::cmp::max;
-
-use itertools::Itertools;
+use super::{owner, prelude::*, pyshinqlx_get_logger};
+use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 #[pyclass(name = "AbstractDatabase", module = "database", subclass, frozen)]
 pub(crate) struct AbstractDatabase {

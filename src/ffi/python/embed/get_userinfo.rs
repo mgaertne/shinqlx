@@ -1,8 +1,7 @@
-use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-
 use core::sync::atomic::Ordering;
+
+use super::validate_client_id;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
@@ -22,15 +21,16 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
 
 #[cfg(test)]
 mod get_userinfo_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use core::sync::atomic::Ordering;
 
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -1,10 +1,9 @@
-use super::prelude::*;
-
 use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
-
 use pyo3::{exceptions::PyValueError, types::PyTuple};
+
+use super::prelude::*;
 
 /// A struct sequence containing all the weapons in the game.
 #[pyclass(
@@ -119,10 +118,10 @@ impl Weapons {
 
 #[cfg(test)]
 mod weapons_tests {
-    use crate::ffi::python::prelude::*;
-
     use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::rstest;
+
+    use crate::ffi::python::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -239,11 +238,11 @@ assert(shinqlx.Weapons((False, False, False, False, False, False, False, False, 
 
 #[cfg(test)]
 mod ammo_tests {
-    use crate::ffi::python::prelude::*;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::rstest;
+
+    use crate::ffi::python::prelude::*;
 
     #[test]
     fn weapons_from_integer_array() {

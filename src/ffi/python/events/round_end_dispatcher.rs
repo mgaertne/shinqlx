@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that goes off when a round ends.
 #[pyclass(module = "_events", name = "RoundEndDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl RoundEndDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "round_end";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = true;
@@ -41,20 +40,24 @@ impl<'py> RoundEndDispatcherMethods<'py> for Bound<'py, RoundEndDispatcher> {
 
 #[cfg(test)]
 mod round_end_dispatcher_tests {
-    use super::{RoundEndDispatcher, RoundEndDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{RoundEndDispatcher, RoundEndDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -1,9 +1,8 @@
-use crate::MAIN_ENGINE;
-use crate::commands::cmd_py_command;
-use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::AddCommand;
-
 use pyo3::exceptions::PyEnvironmentError;
+
+use crate::{
+    MAIN_ENGINE, commands::cmd_py_command, ffi::python::prelude::*, quake_live_engine::AddCommand,
+};
 
 /// Adds a console command that will be handled by Python code.
 #[pyfunction]
@@ -25,13 +24,11 @@ pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> Py
 
 #[cfg(test)]
 mod add_console_command_tests {
-    use super::cmd_py_command;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
+    use pyo3::exceptions::PyEnvironmentError;
     use rstest::rstest;
 
-    use pyo3::exceptions::PyEnvironmentError;
+    use super::cmd_py_command;
+    use crate::{ffi::python::prelude::*, prelude::*};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

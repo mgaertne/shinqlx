@@ -7,6 +7,7 @@ use core::{
     ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort},
     ops::Not,
 };
+
 use derive_builder::Builder;
 
 // these are the only configstrings that the system reserves, all the
@@ -284,10 +285,11 @@ impl Not for qboolean {
 
 #[cfg(test)]
 pub(crate) mod qboolean_tests {
-    use super::qboolean;
-
     use core::ffi;
+
     use pretty_assertions::assert_eq;
+
+    use super::qboolean;
 
     #[test]
     pub(crate) fn qboolean_as_c_int() {
@@ -345,9 +347,9 @@ impl From<i32> for privileges_t {
 
 #[cfg(test)]
 pub(crate) mod privileges_tests {
-    use super::privileges_t;
-
     use pretty_assertions::assert_eq;
+
+    use super::privileges_t;
 
     #[test]
     pub(crate) fn privileges_from_integer() {
@@ -635,9 +637,9 @@ impl TryFrom<usize> for powerup_t {
 
 #[cfg(test)]
 pub(crate) mod powerup_t_tests {
-    use super::powerup_t;
-
     use pretty_assertions::assert_eq;
+
+    use super::powerup_t;
 
     #[test]
     pub(crate) fn powerup_t_from_integer() {
@@ -743,9 +745,9 @@ impl TryFrom<i32> for weapon_t {
 
 #[cfg(test)]
 pub(crate) mod weapon_t_tests {
-    use super::weapon_t;
-
     use pretty_assertions::assert_eq;
+
+    use super::weapon_t;
 
     #[test]
     pub(crate) fn integer_from_weapon_t() {
@@ -930,9 +932,9 @@ impl TryFrom<i32> for meansOfDeath_t {
 
 #[cfg(test)]
 pub(crate) mod meansofdeath_t_tests {
-    use super::meansOfDeath_t;
-
     use pretty_assertions::assert_eq;
+
+    use super::meansOfDeath_t;
 
     #[test]
     pub(crate) fn meansofdeath_t_from_integer() {

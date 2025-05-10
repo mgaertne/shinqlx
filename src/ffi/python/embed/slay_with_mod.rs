@@ -1,8 +1,7 @@
-use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-
 use pyo3::exceptions::PyValueError;
+
+use super::validate_client_id;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Slay player with mean of death.
 #[pyfunction]
@@ -36,14 +35,15 @@ pub(crate) fn pyshinqlx_slay_with_mod(
 
 #[cfg(test)]
 mod slay_with_mod_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

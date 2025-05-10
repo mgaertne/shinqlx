@@ -1,8 +1,7 @@
-use super::prelude::*;
-
-use crate::ffi::python::Player;
-
 use pyo3::types::{PyString, PyTuple};
+
+use super::prelude::*;
+use crate::ffi::python::Player;
 
 /// Event that triggers whenever a player tries to connect. If the event
 /// is not stopped, it will let the player connect as usual. If it is stopped
@@ -16,7 +15,6 @@ impl PlayerConnectDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "player_connect";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -74,21 +72,22 @@ impl<'py> PlayerConnectDispatcherMethods<'py> for Bound<'py, PlayerConnectDispat
 
 #[cfg(test)]
 mod player_connect_dispatcher_tests {
-    use super::{PlayerConnectDispatcher, PlayerConnectDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use crate::ffi::python::pyshinqlx_test_support::default_test_player;
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{PlayerConnectDispatcher, PlayerConnectDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

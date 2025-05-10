@@ -43,13 +43,12 @@ mockall::mock! {
 
 #[cfg(test)]
 mod activator_tests {
-    use super::Activator;
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use pretty_assertions::assert_eq;
+
+    use super::Activator;
+    use crate::{ffi::c::prelude::*, prelude::*};
 
     #[test]
     fn activator_try_from_null_results_in_error() {

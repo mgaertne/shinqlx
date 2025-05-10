@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that goes off when the game module is initialized. This happens when new maps are loaded,
 /// a game is aborted, a game ends but stays on the same map, or when the game itself starts.
@@ -12,7 +12,6 @@ impl NewGameDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "new_game";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -39,20 +38,21 @@ impl<'py> NewGameDispatcherMethods<'py> for Bound<'py, NewGameDispatcher> {
 
 #[cfg(test)]
 mod new_game_dispatcher_tests {
-    use super::{NewGameDispatcher, NewGameDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{NewGameDispatcher, NewGameDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -1,8 +1,7 @@
-use super::prelude::*;
-
-use crate::ffi::python::Player;
-
 use pyo3::types::{PyBool, PyTuple};
+
+use super::prelude::*;
+use crate::ffi::python::Player;
 
 /// Event that goes off when kamikaze explodes.
 #[pyclass(module = "_events", name = "KamikazeExplodeDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +12,6 @@ impl KamikazeExplodeDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "kamikaze_explode";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -59,21 +57,22 @@ impl<'py> KamikazeExplodeDispatcherMethods<'py> for Bound<'py, KamikazeExplodeDi
 
 #[cfg(test)]
 mod kamikaze_explode_dispatcher_tests {
-    use super::{KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

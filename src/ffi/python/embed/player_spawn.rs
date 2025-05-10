@@ -1,6 +1,5 @@
 use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_client_spawn;
 #[cfg(not(test))]
@@ -33,15 +32,16 @@ pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult
 
 #[cfg(test)]
 mod player_spawn_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::hooks::mock_hooks::shinqlx_client_spawn_context;
-    use crate::prelude::*;
     use mockall::predicate;
-
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        hooks::mock_hooks::shinqlx_client_spawn_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

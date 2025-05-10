@@ -1,11 +1,15 @@
-use super::prelude::*;
-use crate::MAIN_ENGINE;
-use crate::prelude::*;
-use crate::quake_live_engine::{GameAddEvent, TryLaunchItem};
-
 use alloc::borrow::Cow;
-use core::borrow::BorrowMut;
-use core::ffi::{CStr, c_float};
+use core::{
+    borrow::BorrowMut,
+    ffi::{CStr, c_float},
+};
+
+use super::prelude::*;
+use crate::{
+    MAIN_ENGINE,
+    prelude::*,
+    quake_live_engine::{GameAddEvent, TryLaunchItem},
+};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -179,14 +183,13 @@ mockall::mock! {
 
 #[cfg(test)]
 mod game_item_tests {
-    use super::GameItem;
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+
+    use super::GameItem;
+    use crate::{ffi::c::prelude::*, prelude::*};
 
     #[test]
     fn game_item_from_null_pointer() {

@@ -1,10 +1,10 @@
-use super::prelude::*;
-use crate::prelude::*;
-
 use alloc::borrow::Cow;
 use core::ffi::{CStr, c_int};
 
 use arrayvec::ArrayVec;
+
+use super::prelude::*;
+use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
@@ -484,14 +484,13 @@ mockall::mock! {
 
 #[cfg(test)]
 mod game_client_tests {
-    use super::GameClient;
-    use crate::ffi::c::prelude::*;
-    use crate::prelude::*;
+    use core::{borrow::BorrowMut, ffi::c_char};
 
-    use core::borrow::BorrowMut;
-    use core::ffi::c_char;
     use pretty_assertions::assert_eq;
     use rstest::*;
+
+    use super::GameClient;
+    use crate::{ffi::c::prelude::*, prelude::*};
 
     #[test]
     fn game_client_try_from_null_results_in_error() {

@@ -1,6 +1,5 @@
 use super::validate_client_id;
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Drops player's holdable item.
 #[pyfunction]
@@ -35,16 +34,17 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
 
 #[cfg(test)]
 mod drop_holdable_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
-    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
 
     use mockall::Sequence;
     use pretty_assertions::assert_eq;
+    use pyo3::exceptions::{PyEnvironmentError, PyValueError};
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

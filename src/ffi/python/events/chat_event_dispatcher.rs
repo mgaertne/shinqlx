@@ -1,8 +1,12 @@
-use super::super::{COMMANDS, CommandInvokerMethods, Player};
-use super::prelude::*;
+use pyo3::{
+    exceptions::PyEnvironmentError,
+    types::{PyBool, PyString, PyTuple},
+};
 
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::types::{PyBool, PyString, PyTuple};
+use super::{
+    super::{COMMANDS, CommandInvokerMethods, Player},
+    prelude::*,
+};
 
 /// Event that triggers with the "say" command. If the handler cancels it,
 /// the message will also be cancelled.
@@ -14,7 +18,6 @@ impl ChatEventDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "chat";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -94,25 +97,29 @@ fn try_handle_input(
 
 #[cfg(test)]
 mod chat_event_dispatcher_tests {
-    use super::{ChatEventDispatcher, ChatEventDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        COMMANDS,
-        channels::TeamChatChannel,
-        commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
-        events::EventDispatcherMethods,
-        pyshinqlx_setup,
-        pyshinqlx_test_support::{default_test_player, test_plugin},
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{ChatEventDispatcher, ChatEventDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                COMMANDS,
+                channels::TeamChatChannel,
+                commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
+                events::EventDispatcherMethods,
+                pyshinqlx_setup,
+                pyshinqlx_test_support::{default_test_player, test_plugin},
+            },
+        },
+        prelude::*,
+    };
 
     fn default_channel(py: Python<'_>) -> Bound<'_, PyAny> {
         Bound::new(

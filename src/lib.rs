@@ -34,6 +34,13 @@ mod quake_live_engine;
 mod quake_live_functions;
 
 pub(crate) mod prelude {
+    pub(crate) use alloc::format;
+    pub(crate) use core::{mem, ptr};
+
+    pub(crate) use log::{debug, error, warn};
+    #[cfg(test)]
+    pub(crate) use serial_test::serial;
+
     #[cfg(not(test))]
     pub(crate) use crate::quake_live_engine::QuakeLiveEngine;
     pub(crate) use crate::quake_live_engine::QuakeLiveEngineError;
@@ -41,16 +48,9 @@ pub(crate) mod prelude {
     pub(crate) use crate::quake_live_engine::{
         MockEngineBuilder, MockQuakeEngine as QuakeLiveEngine,
     };
-
-    pub(crate) use alloc::format;
-    pub(crate) use core::{mem, ptr};
-    pub(crate) use log::{debug, error, warn};
-    #[cfg(test)]
-    pub(crate) use serial_test::serial;
 }
 
-use crate::prelude::*;
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use arc_swap::ArcSwapOption;
 #[cfg(not(test))]
@@ -64,7 +64,8 @@ use log4rs::{
 };
 use once_cell::sync::Lazy;
 use signal_hook::consts::SIGSEGV;
-use std::time::Instant;
+
+use crate::prelude::*;
 
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) const QZERODED: &str = "qzeroded.x64";
@@ -138,14 +139,13 @@ fn initialize() {
 
 #[cfg(test)]
 mod lib_tests {
-    use super::*;
-    use crate::prelude::serial;
-
     use std::fs;
 
     use log::Level;
-
     use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::prelude::serial;
 
     #[test]
     #[cfg_attr(miri, ignore)]

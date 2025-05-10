@@ -1,7 +1,6 @@
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-
 use pyo3::exceptions::PyValueError;
+
+use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Force all weapons to have a specified respawn time,
 /// overriding custom map respawn times set for them.
@@ -30,14 +29,15 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
 
 #[cfg(test)]
 mod force_weapon_respawn_time_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::PyValueError;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

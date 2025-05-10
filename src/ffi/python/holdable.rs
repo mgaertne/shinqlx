@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use core::fmt::{Display, Formatter};
+
+use super::prelude::*;
 
 #[pyclass(module = "_shinqlx", name = "Holdable", frozen, eq, eq_int, str)]
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -80,10 +80,10 @@ impl From<Option<&str>> for Holdable {
 
 #[cfg(test)]
 mod holdable_tests {
-    use super::Holdable;
-
     use pretty_assertions::assert_eq;
     use rstest::rstest;
+
+    use super::Holdable;
 
     #[rstest]
     #[case(0, Holdable::None)]

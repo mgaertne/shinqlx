@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that triggers every frame. Cannot be cancelled.
 #[pyclass(module = "_events", name = "FrameEventDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl FrameEventDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "frame";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -38,20 +37,21 @@ impl<'py> FrameEventDispatcherMethods<'py> for Bound<'py, FrameEventDispatcher> 
 
 #[cfg(test)]
 mod frame_event_dispatcher_tests {
-    use super::{FrameEventDispatcher, FrameEventDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{FrameEventDispatcher, FrameEventDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

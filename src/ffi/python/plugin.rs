@@ -1,30 +1,27 @@
-use super::prelude::*;
-use super::{
-    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
-    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, addadmin, addmod, addscore,
-    addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
-    is_vote_active, lock, mute, opsay, put, pyshinqlx_get_logger, set_teamsize, tempban, unban,
-    unlock, unmute,
-};
-
-#[cfg(test)]
-use crate::hooks::mock_hooks::shinqlx_com_printf;
-#[cfg(not(test))]
-use crate::hooks::shinqlx_com_printf;
-
-use crate::MAIN_ENGINE;
-use crate::{
-    ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_YES},
-    quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
-};
-
-use pyo3::prelude::*;
 use pyo3::{
     BoundObject, PyTraverseError,
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
     gc::PyVisit,
     intern,
+    prelude::*,
     types::{PyBool, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple, PyType},
+};
+
+use super::{
+    BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
+    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, addadmin, addmod, addscore,
+    addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
+    is_vote_active, lock, mute, opsay, prelude::*, put, pyshinqlx_get_logger, set_teamsize,
+    tempban, unban, unlock, unmute,
+};
+#[cfg(test)]
+use crate::hooks::mock_hooks::shinqlx_com_printf;
+#[cfg(not(test))]
+use crate::hooks::shinqlx_com_printf;
+use crate::{
+    MAIN_ENGINE,
+    ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_YES},
+    quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
 };
 
 /// The base plugin class.
@@ -1339,24 +1336,8 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
 
 #[cfg(test)]
 mod plugin_tests {
-    use super::PluginMethods;
-
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
-    use crate::ffi::python::{
-        BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-        RED_TEAM_CHAT_CHANNEL, events::EventDispatcherManagerMethods, pyshinqlx_test_support::*,
-    };
-    use crate::hooks::mock_hooks::{
-        shinqlx_com_printf_context, shinqlx_drop_client_context,
-        shinqlx_send_server_command_context,
-    };
-
     use core::borrow::BorrowMut;
 
-    use crate::ffi::python::commands::CommandPriorities;
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use pyo3::{
@@ -1367,6 +1348,23 @@ mod plugin_tests {
         },
     };
     use rstest::rstest;
+
+    use super::PluginMethods;
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{
+                BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
+                RED_TEAM_CHAT_CHANNEL, commands::CommandPriorities,
+                events::EventDispatcherManagerMethods, prelude::*, pyshinqlx_test_support::*,
+            },
+        },
+        hooks::mock_hooks::{
+            shinqlx_com_printf_context, shinqlx_drop_client_context,
+            shinqlx_send_server_command_context,
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

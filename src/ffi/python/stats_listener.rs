@@ -1,19 +1,15 @@
-use super::prelude::*;
-use super::{EVENT_DISPATCHERS, log_exception};
-
-use crate::MAIN_ENGINE;
-use crate::quake_live_engine::FindCVar;
-
 use core::sync::atomic::{AtomicBool, Ordering};
-use once_cell::sync::Lazy;
 
+use once_cell::sync::Lazy;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
 };
-
 use serde_json::{Value, from_str};
 use zmq::{Context, DONTWAIT, POLLIN, Socket, SocketType};
+
+use super::{EVENT_DISPATCHERS, log_exception, prelude::*};
+use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import("json")
@@ -540,21 +536,20 @@ fn get_zmq_socket(address: &str, password: &str) -> zmq::Result<Socket> {
 
 #[cfg(test)]
 mod stats_listener_tests {
-    use super::{StatsListener, StatsListenerMethods};
-
-    use crate::ffi::python::pyshinqlx_setup_fixture::*;
-
-    use crate::prelude::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-
     use core::borrow::BorrowMut;
 
     use pretty_assertions::assert_eq;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::*;
 
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use super::{StatsListener, StatsListenerMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::pyshinqlx_setup_fixture::*,
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -770,35 +765,36 @@ fn handle_zmq_msg(py: Python<'_>, zmq_msg: &str) {
 
 #[cfg(test)]
 mod handle_zmq_msg_tests {
-    use super::{IN_PROGRESS, handle_zmq_msg, to_py_json_data, try_handle_zmq_msg};
-
-    use crate::ffi::python::{
-        EVENT_DISPATCHERS,
-        commands::CommandPriorities,
-        events::{
-            DeathDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-            GameEndDispatcher, GameStartDispatcher, KillDispatcher, RoundEndDispatcher,
-            StatsDispatcher, TeamSwitchDispatcher,
-        },
-        pyshinqlx_setup_fixture::*,
-        pyshinqlx_test_support::run_all_frame_tasks,
-        pyshinqlx_test_support::*,
-    };
-
-    use crate::prelude::*;
-
-    use crate::ffi::c::prelude::{
-        CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t, team_t,
-    };
-
-    use core::borrow::BorrowMut;
-    use core::sync::atomic::Ordering;
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
 
     use mockall::predicate;
+    use pyo3::{
+        exceptions::{PyAssertionError, PyEnvironmentError, PyIOError},
+        prelude::*,
+    };
     use rstest::*;
 
-    use pyo3::exceptions::{PyAssertionError, PyEnvironmentError, PyIOError};
-    use pyo3::prelude::*;
+    use super::{IN_PROGRESS, handle_zmq_msg, to_py_json_data, try_handle_zmq_msg};
+    use crate::{
+        ffi::{
+            c::prelude::{
+                CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t,
+                team_t,
+            },
+            python::{
+                EVENT_DISPATCHERS,
+                commands::CommandPriorities,
+                events::{
+                    DeathDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    GameEndDispatcher, GameStartDispatcher, KillDispatcher, RoundEndDispatcher,
+                    StatsDispatcher, TeamSwitchDispatcher,
+                },
+                pyshinqlx_setup_fixture::*,
+                pyshinqlx_test_support::{run_all_frame_tasks, *},
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

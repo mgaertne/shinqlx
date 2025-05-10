@@ -45,8 +45,6 @@ mod set_weapons;
 mod slay_with_mod;
 mod spawn_item;
 
-use crate::MAIN_ENGINE;
-
 pub(crate) use add_console_command::pyshinqlx_add_console_command;
 pub(crate) use allow_single_player::pyshinqlx_allow_single_player;
 pub(crate) use callvote::pyshinqlx_callvote;
@@ -69,6 +67,10 @@ pub(crate) use player_spawn::pyshinqlx_player_spawn;
 pub(crate) use player_state::pyshinqlx_player_state;
 pub(crate) use player_stats::pyshinqlx_player_stats;
 pub(crate) use players_info::pyshinqlx_players_info;
+use pyo3::{
+    PyResult,
+    exceptions::{PyEnvironmentError, PyValueError},
+};
 pub(crate) use register_handler::pyshinqlx_register_handler;
 pub(crate) use remove_dropped_items::pyshinqlx_remove_dropped_items;
 pub(crate) use replace_items::pyshinqlx_replace_items;
@@ -94,8 +96,7 @@ pub(crate) use set_weapons::pyshinqlx_set_weapons;
 pub(crate) use slay_with_mod::pyshinqlx_slay_with_mod;
 pub(crate) use spawn_item::pyshinqlx_spawn_item;
 
-use pyo3::PyResult;
-use pyo3::exceptions::{PyEnvironmentError, PyValueError};
+use crate::MAIN_ENGINE;
 
 fn validate_client_id(client_id: i32) -> PyResult<()> {
     let maxclients = MAIN_ENGINE.load().as_ref().map_or(

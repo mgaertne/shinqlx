@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::PyTuple;
+
+use super::prelude::*;
 
 /// Event that goes off when a round starts.
 #[pyclass(module = "_events", name = "RoundStartDispatcher", extends = EventDispatcher, frozen)]
@@ -11,7 +11,6 @@ impl RoundStartDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "round_start";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -40,20 +39,21 @@ impl<'py> RoundStartDispatcherMethods<'py> for Bound<'py, RoundStartDispatcher> 
 
 #[cfg(test)]
 mod round_start_dispatcher_tests {
-    use super::{RoundStartDispatcher, RoundStartDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyBool;
+    use super::{RoundStartDispatcher, RoundStartDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

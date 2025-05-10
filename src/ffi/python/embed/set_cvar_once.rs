@@ -1,8 +1,10 @@
-use crate::MAIN_ENGINE;
-use crate::ffi::python::prelude::*;
-use crate::quake_live_engine::{FindCVar, GetCVar};
-
 use pyo3::exceptions::PyEnvironmentError;
+
+use crate::{
+    MAIN_ENGINE,
+    ffi::python::prelude::*,
+    quake_live_engine::{FindCVar, GetCVar},
+};
 
 /// Sets a cvar.
 #[pyfunction]
@@ -33,19 +35,19 @@ pub(crate) fn pyshinqlx_set_cvar_once(
 
 #[cfg(test)]
 mod set_cvar_once_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use rstest::*;
-
     use pyo3::{
         exceptions::PyEnvironmentError,
         types::{PyInt, PyString},
+    };
+    use rstest::*;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
     };
 
     #[rstest]

@@ -1,6 +1,6 @@
-use super::prelude::*;
-
 use pyo3::types::{PyString, PyTuple};
+
+use super::prelude::*;
 
 /// Event that goes off whenever a vote starts. A vote started with Plugin.callvote()
 /// will have the caller set to None.
@@ -14,7 +14,6 @@ impl VoteStartedDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "vote_started";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -73,21 +72,25 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
 
 #[cfg(test)]
 mod vote_started_dispatcher_tests {
-    use super::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-        pyshinqlx_test_support::default_test_player,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::{
+        prelude::*,
+        types::{PyBool, PyString},
+    };
     use rstest::rstest;
 
-    use pyo3::prelude::*;
-    use pyo3::types::{PyBool, PyString};
+    use super::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                pyshinqlx_test_support::default_test_player,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

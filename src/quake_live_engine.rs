@@ -1,39 +1,41 @@
-#[cfg(target_os = "linux")]
-use crate::QZERODED;
-use crate::commands::{
-    cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
-    cmd_send_server_command, cmd_slap, cmd_slay,
-};
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-use crate::hooks::{
-    ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect, shinqlx_clientspawn,
-    shinqlx_cmd_addcommand, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
-    shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_sv_cliententerworld,
-    shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring,
-    shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
-};
-#[cfg(feature = "patches")]
-use crate::patches::patch_callvote_f;
-use crate::prelude::*;
-use crate::quake_live_functions::QuakeLiveFunction;
-#[cfg(target_os = "linux")]
-use crate::quake_live_functions::pattern_search_module;
-
 use alloc::ffi::CString;
-use arc_swap::ArcSwapOption;
-#[cfg(target_os = "linux")]
-use arrayvec::ArrayVec;
 use core::{
     ffi::{CStr, c_char, c_int},
     sync::atomic::{AtomicI32, AtomicUsize, Ordering},
 };
+
+use arc_swap::ArcSwapOption;
+#[cfg(target_os = "linux")]
+use arrayvec::ArrayVec;
 #[cfg(test)]
 use mockall::predicate;
 use once_cell::{race::OnceBool, sync::OnceCell};
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};
+
+#[cfg(target_os = "linux")]
+use crate::QZERODED;
+#[cfg(feature = "patches")]
+use crate::patches::patch_callvote_f;
+#[cfg(target_os = "linux")]
+use crate::quake_live_functions::pattern_search_module;
+use crate::{
+    commands::{
+        cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
+        cmd_send_server_command, cmd_slap, cmd_slay,
+    },
+    ffi::{c::prelude::*, python::prelude::*},
+    hooks::{
+        ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect,
+        shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage, shinqlx_g_initgame,
+        shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
+        shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
+        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+    },
+    prelude::*,
+    quake_live_functions::QuakeLiveFunction,
+};
 
 #[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
 const QAGAME: &str = "qagamex64.so";
@@ -474,20 +476,19 @@ impl VmFunctions {
 
 #[cfg(test)]
 mod vm_functions_tests {
+    use core::sync::atomic::{AtomicUsize, Ordering};
+
+    use pretty_assertions::assert_eq;
+
     use super::{
         ClientConnectDetourType, ClientSpawnDetourType, GDamageDetourType,
         GStartKamikazeDetourType, VmFunctions,
     };
-
     use crate::quake_live_engine::mock_quake_functions::{
         CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage, G_FreeEntity,
         G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item, detoured_ClientConnect,
         detoured_ClientSpawn, detoured_G_Damage, detoured_G_StartKamikaze,
     };
-
-    use core::sync::atomic::{AtomicUsize, Ordering};
-
-    use pretty_assertions::assert_eq;
 
     fn default_vm_functions() -> VmFunctions {
         VmFunctions {
@@ -1668,41 +1669,45 @@ impl QuakeLiveEngine {
 
 #[cfg(test)]
 mod quake_live_engine_tests {
-    use super::QuakeLiveEngine;
-
-    use super::mock_quake_functions::{
-        Cbuf_ExecuteText, Cmd_AddCommand, Cmd_AddCommand_context, Cmd_Argc, Cmd_Args, Cmd_Argv,
-        Cmd_ExecuteString, Cmd_Tokenizestring, Com_Printf, Cvar_FindVar, Cvar_FindVar_context,
-        Cvar_Get, Cvar_GetLimit, Cvar_Set2, Cvar_Set2_context, G_AddEvent, G_FreeEntity,
-        G_InitGame, G_RunFrame, G_ShutdownGame, LaunchItem, SV_ClientEnterWorld, SV_DropClient,
-        SV_ExecuteClientCommand, SV_GetConfigstring, SV_Map_f, SV_SendServerCommand,
-        SV_SetConfigstring, SV_Shutdown, SV_SpawnServer, Sys_SetModuleOffset,
-    };
-    use super::quake_live_engine_test_helpers::{
-        default_quake_engine, default_static_detours, default_static_functions,
+    use core::{
+        borrow::BorrowMut,
+        ffi::{CStr, c_char, c_int},
+        ptr,
+        sync::atomic::Ordering,
     };
 
-    use crate::commands::{
-        cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
-        cmd_send_server_command, cmd_slap, cmd_slay,
-    };
-    use crate::quake_live_functions::QuakeLiveFunction;
-
-    use crate::ffi::c::prelude::{
-        CVarBuilder, cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean,
-        usercmd_t, vec3_t,
-    };
-    use crate::ffi::python::PythonInitializationError;
-    use crate::ffi::python::prelude::pyshinqlx_initialize_context;
-
-    use crate::prelude::{QuakeLiveEngineError, serial};
+    use mockall::predicate;
     use pretty_assertions::assert_eq;
 
-    use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_char, c_int};
-    use core::ptr;
-    use core::sync::atomic::Ordering;
-    use mockall::predicate;
+    use super::{
+        QuakeLiveEngine,
+        mock_quake_functions::{
+            Cbuf_ExecuteText, Cmd_AddCommand, Cmd_AddCommand_context, Cmd_Argc, Cmd_Args, Cmd_Argv,
+            Cmd_ExecuteString, Cmd_Tokenizestring, Com_Printf, Cvar_FindVar, Cvar_FindVar_context,
+            Cvar_Get, Cvar_GetLimit, Cvar_Set2, Cvar_Set2_context, G_AddEvent, G_FreeEntity,
+            G_InitGame, G_RunFrame, G_ShutdownGame, LaunchItem, SV_ClientEnterWorld, SV_DropClient,
+            SV_ExecuteClientCommand, SV_GetConfigstring, SV_Map_f, SV_SendServerCommand,
+            SV_SetConfigstring, SV_Shutdown, SV_SpawnServer, Sys_SetModuleOffset,
+        },
+        quake_live_engine_test_helpers::{
+            default_quake_engine, default_static_detours, default_static_functions,
+        },
+    };
+    use crate::{
+        commands::{
+            cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
+            cmd_send_server_command, cmd_slap, cmd_slay,
+        },
+        ffi::{
+            c::prelude::{
+                CVarBuilder, cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t,
+                qboolean, usercmd_t, vec3_t,
+            },
+            python::{PythonInitializationError, prelude::pyshinqlx_initialize_context},
+        },
+        prelude::{QuakeLiveEngineError, serial},
+        quake_live_functions::QuakeLiveFunction,
+    };
 
     #[test]
     fn set_tag_with_no_cvar() {
@@ -3053,14 +3058,12 @@ mod quake_live_engine_tests {
 
 #[cfg(test)]
 mod quake_live_engine_test_helpers {
-    use super::mock_quake_functions::*;
-    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions};
-
-    use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
-
     use core::ffi::{c_char, c_int};
 
     use retour::{GenericDetour, RawDetour};
+
+    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, mock_quake_functions::*};
+    use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
 
     pub(crate) fn default_static_functions() -> StaticFunctions {
         StaticFunctions {
@@ -3182,18 +3185,13 @@ impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod find_cvar_quake_live_engine_tests {
-    use super::{FindCVar, QuakeLiveEngine};
+    use core::{borrow::BorrowMut, ffi::CStr, ptr};
 
-    use super::mock_quake_functions::Cvar_FindVar_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::CVarBuilder;
-
-    use crate::prelude::serial;
-
-    use core::borrow::BorrowMut;
-    use core::ffi::CStr;
-    use core::ptr;
+    use super::{
+        FindCVar, QuakeLiveEngine, mock_quake_functions::Cvar_FindVar_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{ffi::c::prelude::CVarBuilder, prelude::serial};
 
     #[test]
     fn find_cvar_with_no_original_func() {
@@ -3268,14 +3266,13 @@ impl<T: AsRef<str>> AddCommand<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod add_command_quake_live_engine_tests {
-    use super::{AddCommand, QuakeLiveEngine};
-
-    use super::mock_quake_functions::Cmd_AddCommand_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        AddCommand, QuakeLiveEngine, mock_quake_functions::Cmd_AddCommand_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn add_command_with_no_detour_set() {
@@ -3322,14 +3319,13 @@ impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod set_module_offset_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetModuleOffset};
-
-    use super::mock_quake_functions::Sys_SetModuleOffset_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        QuakeLiveEngine, SetModuleOffset, mock_quake_functions::Sys_SetModuleOffset_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn set_module_offset_with_no_detour_set() {
@@ -3377,15 +3373,16 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
 
 #[cfg(test)]
 mod init_game_quake_live_engine_tests {
-    use super::{InitGame, QuakeLiveEngine};
-
-    use super::mock_quake_functions::{G_InitGame, G_InitGame_context};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::sync::atomic::Ordering;
+
     use mockall::predicate;
+
+    use super::{
+        InitGame, QuakeLiveEngine,
+        mock_quake_functions::{G_InitGame, G_InitGame_context},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn init_game_with_no_function_pointer_set() {
@@ -3435,15 +3432,16 @@ impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod shutdown_game_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, ShutdownGame};
-
-    use super::mock_quake_functions::{G_ShutdownGame, G_ShutdownGame_context};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::sync::atomic::Ordering;
+
     use mockall::predicate;
+
+    use super::{
+        QuakeLiveEngine, ShutdownGame,
+        mock_quake_functions::{G_ShutdownGame, G_ShutdownGame_context},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn shutdown_game_with_function_pointer_set() {
@@ -3492,15 +3490,16 @@ impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<
 
 #[cfg(test)]
 mod execute_client_command_quake_live_engine_tests {
-    use super::{ExecuteClientCommand, QuakeLiveEngine};
-
-    use super::mock_quake_functions::SV_ExecuteClientCommand_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{Client, ClientBuilder, MockClient};
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        ExecuteClientCommand, QuakeLiveEngine,
+        mock_quake_functions::SV_ExecuteClientCommand_context, quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{Client, ClientBuilder, MockClient},
+        prelude::serial,
+    };
 
     #[test]
     fn execute_client_command_with_no_detour_set() {
@@ -3586,15 +3585,16 @@ impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod send_server_command_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SendServerCommand};
-
-    use super::mock_quake_functions::SV_SendServerCommand_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{Client, ClientBuilder, MockClient};
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        QuakeLiveEngine, SendServerCommand, mock_quake_functions::SV_SendServerCommand_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{Client, ClientBuilder, MockClient},
+        prelude::serial,
+    };
 
     #[test]
     fn send_server_command_with_no_detour_set() {
@@ -3667,15 +3667,16 @@ impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod client_enter_world_quake_live_engine_tests {
-    use super::{ClientEnterWorld, QuakeLiveEngine};
-
-    use super::mock_quake_functions::SV_ClientEnterWorld_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{ClientBuilder, MockClient, UserCmdBuilder, usercmd_t};
-    use crate::prelude::serial;
-
     use core::borrow::BorrowMut;
+
+    use super::{
+        ClientEnterWorld, QuakeLiveEngine, mock_quake_functions::SV_ClientEnterWorld_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{ClientBuilder, MockClient, UserCmdBuilder, usercmd_t},
+        prelude::serial,
+    };
 
     #[test]
     #[cfg_attr(miri, ignore)]
@@ -3738,14 +3739,13 @@ impl<T: Into<c_int>> SetConfigstring<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod set_confgistring_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetConfigstring};
-
-    use super::mock_quake_functions::SV_SetConfigstring_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        QuakeLiveEngine, SetConfigstring, mock_quake_functions::SV_SetConfigstring_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn set_configstring_with_no_detour_set() {
@@ -3794,14 +3794,13 @@ impl ComPrintf for QuakeLiveEngine {
 
 #[cfg(test)]
 mod com_printf_quake_live_engine_tests {
-    use super::{ComPrintf, QuakeLiveEngine};
-
-    use super::mock_quake_functions::Com_Printf_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        ComPrintf, QuakeLiveEngine, mock_quake_functions::Com_Printf_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn com_printf_with_no_detour_set() {
@@ -3846,14 +3845,13 @@ impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod spawn_server_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SpawnServer};
-
-    use super::mock_quake_functions::SV_SpawnServer_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        QuakeLiveEngine, SpawnServer, mock_quake_functions::SV_SpawnServer_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn spawn_server_with_no_detour_set() {
@@ -3901,14 +3899,14 @@ impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod run_frame_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, RunFrame};
-
-    use super::mock_quake_functions::{G_RunFrame, G_RunFrame_context};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::sync::atomic::Ordering;
+
+    use super::{
+        QuakeLiveEngine, RunFrame,
+        mock_quake_functions::{G_RunFrame, G_RunFrame_context},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn run_frame_with_no_detour_set() {
@@ -3958,21 +3956,17 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
 
 #[cfg(test)]
 mod client_connect_quake_live_engine_tests {
-    use super::{ClientConnect, QuakeLiveEngine};
+    use core::ffi::{CStr, c_char, c_int};
 
-    use super::mock_quake_functions::{
-        ClientConnect, ClientConnect_context, detoured_ClientConnect,
-    };
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::qboolean;
-
-    use crate::prelude::serial;
     use pretty_assertions::assert_eq;
-
     use retour::GenericDetour;
 
-    use core::ffi::{CStr, c_char, c_int};
+    use super::{
+        ClientConnect, QuakeLiveEngine,
+        mock_quake_functions::{ClientConnect, ClientConnect_context, detoured_ClientConnect},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{ffi::c::prelude::qboolean, prelude::serial};
 
     #[test]
     fn client_connect_with_no_detour_set() {
@@ -4038,16 +4032,17 @@ impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod client_spawn_quake_live_engine_tests {
-    use super::{ClientSpawn, QuakeLiveEngine};
-
-    use super::mock_quake_functions::{ClientSpawn, ClientSpawn_context, detoured_ClientSpawn};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity, gentity_t};
-
-    use crate::prelude::serial;
-
     use retour::GenericDetour;
+
+    use super::{
+        ClientSpawn, QuakeLiveEngine,
+        mock_quake_functions::{ClientSpawn, ClientSpawn_context, detoured_ClientSpawn},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{GEntityBuilder, MockGameEntity, gentity_t},
+        prelude::serial,
+    };
 
     #[test]
     fn client_spawn_with_no_detour_set() {
@@ -4111,14 +4106,13 @@ impl CmdArgs for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_args_quake_live_engine_tests {
-    use super::{CmdArgs, QuakeLiveEngine};
-
-    use super::mock_quake_functions::Cmd_Args_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ptr;
+
+    use super::{
+        CmdArgs, QuakeLiveEngine, mock_quake_functions::Cmd_Args_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn cmd_args_with_no_original_function_set() {
@@ -4181,13 +4175,13 @@ impl CmdArgc for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_argc_quake_live_engine_tests {
-    use super::{CmdArgc, QuakeLiveEngine};
-
-    use super::mock_quake_functions::Cmd_Argc_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
     use pretty_assertions::assert_eq;
+
+    use super::{
+        CmdArgc, QuakeLiveEngine, mock_quake_functions::Cmd_Argc_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn cmd_argc_with_no_original_function_set() {
@@ -4234,15 +4228,15 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod cmd_argv_quake_live_engine_tests {
-    use super::{CmdArgv, QuakeLiveEngine};
-
-    use super::mock_quake_functions::Cmd_Argv_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ptr;
+
     use mockall::predicate;
+
+    use super::{
+        CmdArgv, QuakeLiveEngine, mock_quake_functions::Cmd_Argv_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn cmd_argv_with_no_original_function_set() {
@@ -4329,16 +4323,17 @@ impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine
 
 #[cfg(test)]
 mod game_add_event_quake_live_engine_tests {
-    use super::{GameAddEvent, QuakeLiveEngine};
-
-    use super::mock_quake_functions::{G_AddEvent, G_AddEvent_context};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity, entity_event_t};
-
-    use crate::prelude::serial;
-
     use core::sync::atomic::Ordering;
+
+    use super::{
+        GameAddEvent, QuakeLiveEngine,
+        mock_quake_functions::{G_AddEvent, G_AddEvent_context},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{GEntityBuilder, MockGameEntity, entity_event_t},
+        prelude::serial,
+    };
 
     #[test]
     fn game_add_event_with_no_original_function_set() {
@@ -4398,14 +4393,13 @@ impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod console_command_quake_live_engine_tests {
-    use super::{ConsoleCommand, QuakeLiveEngine};
-
-    use super::mock_quake_functions::Cmd_ExecuteString_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
-
     use core::ffi::CStr;
+
+    use super::{
+        ConsoleCommand, QuakeLiveEngine, mock_quake_functions::Cmd_ExecuteString_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn execute_console_command_with_no_original_function_set() {
@@ -4459,17 +4453,19 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> GetCVar<T, U, V> for QuakeLiv
 
 #[cfg(test)]
 mod get_cvar_quake_live_engine_tests {
-    use super::{GetCVar, QuakeLiveEngine};
+    use core::{
+        borrow::BorrowMut,
+        ffi::{CStr, c_int},
+    };
 
-    use super::mock_quake_functions::Cvar_Get_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::CVarBuilder;
-    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
-    use crate::prelude::serial;
-
-    use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_int};
+    use super::{
+        GetCVar, QuakeLiveEngine, mock_quake_functions::Cvar_Get_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{CVarBuilder, cvar_flags::CVAR_CHEAT},
+        prelude::serial,
+    };
 
     #[test]
     fn get_cvar_with_no_original_function_set() {
@@ -4573,16 +4569,13 @@ impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for
 
 #[cfg(test)]
 mod set_cvar_forced_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetCVarForced};
+    use core::{borrow::BorrowMut, ffi::CStr};
 
-    use super::mock_quake_functions::Cvar_Set2_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::CVarBuilder;
-    use crate::prelude::serial;
-
-    use core::borrow::BorrowMut;
-    use core::ffi::CStr;
+    use super::{
+        QuakeLiveEngine, SetCVarForced, mock_quake_functions::Cvar_Set2_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{ffi::c::prelude::CVarBuilder, prelude::serial};
 
     #[test]
     fn set_cvar_forced_with_no_original_function_set() {
@@ -4669,18 +4662,19 @@ impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int>>
 
 #[cfg(test)]
 mod set_cvar_limit_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, SetCVarLimit};
+    use core::{
+        borrow::BorrowMut,
+        ffi::{CStr, c_int},
+    };
 
-    use super::mock_quake_functions::Cvar_GetLimit_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::CVarBuilder;
-    use crate::ffi::c::prelude::cvar_flags::CVAR_CHEAT;
-
-    use crate::prelude::serial;
-
-    use core::borrow::BorrowMut;
-    use core::ffi::{CStr, c_int};
+    use super::{
+        QuakeLiveEngine, SetCVarLimit, mock_quake_functions::Cvar_GetLimit_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{CVarBuilder, cvar_flags::CVAR_CHEAT},
+        prelude::serial,
+    };
 
     #[test]
     fn set_cvar_limit_with_no_original_function_set() {
@@ -4801,13 +4795,13 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod get_configstring_quake_live_engine_tests {
-    use super::{GetConfigstring, QuakeLiveEngine};
-
-    use super::mock_quake_functions::SV_GetConfigstring_context;
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::prelude::serial;
     use pretty_assertions::assert_eq;
+
+    use super::{
+        GetConfigstring, QuakeLiveEngine, mock_quake_functions::SV_GetConfigstring_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
 
     #[test]
     fn get_configstring_with_no_original_function_set() {
@@ -4893,22 +4887,21 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
 
 #[cfg(test)]
 mod register_damage_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, RegisterDamage};
-
-    use super::mock_quake_functions::{G_Damage, G_Damage_context, detoured_G_Damage};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::meansOfDeath_t::*;
-    use crate::ffi::c::prelude::{
-        DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION, gentity_t, vec3_t,
-    };
-
-    use crate::prelude::serial;
-
-    use core::ffi::c_int;
-    use core::ptr;
+    use core::{ffi::c_int, ptr};
 
     use retour::GenericDetour;
+
+    use super::{
+        QuakeLiveEngine, RegisterDamage,
+        mock_quake_functions::{G_Damage, G_Damage_context, detoured_G_Damage},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{
+            DAMAGE_NO_PROTECTION, DAMAGE_NO_TEAM_PROTECTION, gentity_t, meansOfDeath_t::*, vec3_t,
+        },
+        prelude::serial,
+    };
 
     #[test]
     fn register_damage_with_no_detour_set() {
@@ -5000,17 +4993,17 @@ impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod free_entity_quake_live_engine_tests {
-    use super::{FreeEntity, QuakeLiveEngine};
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
 
-    use super::mock_quake_functions::{G_FreeEntity, G_FreeEntity_context};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity};
-
-    use crate::prelude::serial;
-
-    use core::borrow::BorrowMut;
-    use core::sync::atomic::Ordering;
+    use super::{
+        FreeEntity, QuakeLiveEngine,
+        mock_quake_functions::{G_FreeEntity, G_FreeEntity_context},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{GEntityBuilder, MockGameEntity},
+        prelude::serial,
+    };
 
     #[test]
     fn free_entity_with_no_original_function_set() {
@@ -5076,21 +5069,18 @@ impl<T: AsMut<gitem_t>> TryLaunchItem<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod try_launch_item_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, TryLaunchItem};
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
 
-    use super::mock_quake_functions::{LaunchItem, LaunchItem_context};
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{
-        GEntityBuilder, GItemBuilder, MockGameEntity, MockGameItem, vec3_t,
+    use super::{
+        QuakeLiveEngine, TryLaunchItem,
+        mock_quake_functions::{LaunchItem, LaunchItem_context},
+        quake_live_engine_test_helpers::*,
     };
-
-    use crate::prelude::{QuakeLiveEngineError, serial};
-
-    use crate::quake_live_functions::QuakeLiveFunction;
-
-    use core::borrow::BorrowMut;
-    use core::sync::atomic::Ordering;
+    use crate::{
+        ffi::c::prelude::{GEntityBuilder, GItemBuilder, MockGameEntity, MockGameItem, vec3_t},
+        prelude::{QuakeLiveEngineError, serial},
+        quake_live_functions::QuakeLiveFunction,
+    };
 
     #[test]
     fn try_launch_item_with_no_original_function_set() {
@@ -5222,18 +5212,19 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod start_kamikaze_quake_live_engine_tests {
-    use super::{QuakeLiveEngine, StartKamikaze};
-
-    use super::mock_quake_functions::{
-        G_StartKamikaze, G_StartKamikaze_context, detoured_G_StartKamikaze,
-    };
-    use super::quake_live_engine_test_helpers::*;
-
-    use crate::ffi::c::prelude::{GEntityBuilder, MockGameEntity, gentity_t};
-
-    use crate::prelude::serial;
-
     use retour::GenericDetour;
+
+    use super::{
+        QuakeLiveEngine, StartKamikaze,
+        mock_quake_functions::{
+            G_StartKamikaze, G_StartKamikaze_context, detoured_G_StartKamikaze,
+        },
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{GEntityBuilder, MockGameEntity, gentity_t},
+        prelude::serial,
+    };
 
     #[test]
     fn register_damage_with_no_detour_set() {
@@ -5643,13 +5634,15 @@ impl Default for MockEngineBuilder {
 #[cfg_attr(test, mockall::automock)]
 #[cfg_attr(test, allow(dead_code))]
 mod quake_functions {
+    use core::{
+        ffi::{c_char, c_float, c_int},
+        ptr,
+    };
+
     use crate::ffi::c::prelude::{
         cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t,
         usercmd_t, vec3_t,
     };
-
-    use core::ffi::{c_char, c_float, c_int};
-    use core::ptr;
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
     #[cfg(not(tarpaulin_include))]

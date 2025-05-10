@@ -1,17 +1,16 @@
-use super::prelude::*;
+use once_cell::sync::Lazy;
+use pyo3::{
+    exceptions::PyEnvironmentError,
+    types::{PyBool, PyString, PyTuple},
+};
+use regex::Regex;
 
+use super::prelude::*;
 use crate::{
     MAIN_ENGINE,
     ffi::c::prelude::{CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES},
     quake_live_engine::GetConfigstring,
 };
-
-use once_cell::sync::Lazy;
-
-use pyo3::exceptions::PyEnvironmentError;
-use pyo3::types::{PyBool, PyString, PyTuple};
-
-use regex::Regex;
 
 static RE_VOTE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#).unwrap());
@@ -25,7 +24,6 @@ impl VoteEndedDispatcher {
     #[classattr]
     #[allow(non_upper_case_globals)]
     const name: &'static str = "vote_ended";
-
     #[classattr]
     #[allow(non_upper_case_globals)]
     const need_zmq_stats_enabled: bool = false;
@@ -110,21 +108,21 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
 
 #[cfg(test)]
 mod vote_ended_dispatcher_tests {
-    use super::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
-
-    use crate::ffi::c::prelude::{
-        CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, CVar, CVarBuilder, cvar_t,
-    };
-    use crate::ffi::python::{
-        commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
-    };
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
+    use pyo3::prelude::*;
     use rstest::rstest;
 
-    use pyo3::prelude::*;
+    use super::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

@@ -1,9 +1,11 @@
-use crate::ffi::c::prelude::*;
-use crate::ffi::python::prelude::*;
-use crate::prelude::*;
-
 use core::sync::atomic::Ordering;
+
 use pyo3::exceptions::PyValueError;
+
+use crate::{
+    ffi::{c::prelude::*, python::prelude::*},
+    prelude::*,
+};
 
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
@@ -43,15 +45,16 @@ pub(crate) fn pyshinqlx_player_info(
 
 #[cfg(test)]
 mod get_player_info_tests {
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::prelude::*;
-
     use core::sync::atomic::Ordering;
-    use pyo3::exceptions::PyValueError;
 
     use mockall::predicate;
+    use pyo3::exceptions::PyValueError;
     use rstest::rstest;
+
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]

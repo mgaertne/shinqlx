@@ -1,15 +1,9 @@
-use super::prelude::*;
-use super::{CONSOLE_CHANNEL, console_command, owner};
-
-use crate::MAIN_ENGINE;
-use crate::ffi::c::prelude::*;
-use crate::quake_live_engine::{GetConfigstring, SetConfigstring};
-
-use core::fmt::{Display, Formatter};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    fmt::{Display, Formatter},
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use itertools::Itertools;
-
 use pyo3::{
     BoundObject, IntoPyObjectExt,
     basic::CompareOp,
@@ -19,6 +13,13 @@ use pyo3::{
         PyValueError,
     },
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
+};
+
+use super::{CONSOLE_CHANNEL, console_command, owner, prelude::*};
+use crate::{
+    MAIN_ENGINE,
+    ffi::c::prelude::*,
+    quake_live_engine::{GetConfigstring, SetConfigstring},
 };
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
@@ -797,6 +798,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
         Ok(())
     }
+
     fn invalidate(&self, e: &str) -> PyResult<()> {
         self.borrow().valid.store(false, Ordering::SeqCst);
         Err(NonexistentPlayerError::new_err(e.to_string()))
@@ -1753,25 +1755,28 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
 #[cfg(test)]
 mod pyshinqlx_player_tests {
-    use super::{NonexistentPlayerError, PlayerMethods};
-    use crate::ffi::c::prelude::*;
-    use crate::ffi::python::prelude::*;
-    use crate::ffi::python::pyshinqlx_test_support::*;
-    use crate::hooks::mock_hooks::{
-        shinqlx_client_spawn_context, shinqlx_drop_client_context,
-        shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
-    };
-    use crate::prelude::*;
     use std::sync::atomic::Ordering;
 
     use mockall::{Sequence, predicate};
     use pretty_assertions::assert_eq;
-    use rstest::rstest;
-
     use pyo3::{
         IntoPyObjectExt,
         exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
         types::{IntoPyDict, PyBool, PyInt, PyString},
+    };
+    use rstest::rstest;
+
+    use super::{NonexistentPlayerError, PlayerMethods};
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{prelude::*, pyshinqlx_test_support::*},
+        },
+        hooks::mock_hooks::{
+            shinqlx_client_spawn_context, shinqlx_drop_client_context,
+            shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
+        },
+        prelude::*,
     };
 
     #[test]
@@ -7956,12 +7961,11 @@ impl<'py> AbstractDummyPlayerMethods<'py> for Bound<'py, AbstractDummyPlayer> {
 
 #[cfg(test)]
 mod pyshinqlx_abstract_dummy_player_tests {
-    use super::{AbstractDummyPlayer, AbstractDummyPlayerMethods};
-
-    use crate::ffi::python::prelude::*;
-
     use pyo3::exceptions::{PyAttributeError, PyNotImplementedError};
     use rstest::*;
+
+    use super::{AbstractDummyPlayer, AbstractDummyPlayerMethods};
+    use crate::ffi::python::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8112,23 +8116,21 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
 
 #[cfg(test)]
 mod pyshinqlx_rcon_dummy_player_tests {
-    use super::{RconDummyPlayer, RconDummyPlayerMethods};
-
-    use crate::ffi::python::CONSOLE_CHANNEL;
-    use crate::ffi::python::prelude::*;
-
-    use crate::ffi::c::prelude::{CVar, CVarBuilder, cvar_t};
-
-    use crate::hooks::mock_hooks::shinqlx_com_printf_context;
-    use crate::prelude::*;
-
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::*;
 
-    use pyo3::exceptions::PyEnvironmentError;
-    use pyo3::prelude::*;
+    use super::{RconDummyPlayer, RconDummyPlayerMethods};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{CONSOLE_CHANNEL, prelude::*},
+        },
+        hooks::mock_hooks::shinqlx_com_printf_context,
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
