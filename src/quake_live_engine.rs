@@ -1,15 +1,15 @@
 use alloc::ffi::CString;
 use core::{
     ffi::{CStr, c_char, c_int},
-    sync::atomic::{AtomicI32, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering},
 };
+use std::sync::OnceLock;
 
 use arc_swap::ArcSwapOption;
 #[cfg(target_os = "linux")]
 use arrayvec::ArrayVec;
 #[cfg(test)]
 use mockall::predicate;
-use once_cell::{race::OnceBool, sync::OnceCell};
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use retour::{GenericDetour, RawDetour};
@@ -761,11 +761,11 @@ fn try_find_static_function<FuncType>(
 }
 
 pub(crate) struct QuakeLiveEngine {
-    static_functions: OnceCell<StaticFunctions>,
-    static_detours: OnceCell<StaticDetours>,
+    static_functions: OnceLock<StaticFunctions>,
+    static_detours: OnceLock<StaticDetours>,
 
     pub(crate) sv_maxclients: AtomicI32,
-    common_initialized: OnceBool,
+    common_initialized: AtomicBool,
 
     vm_functions: VmFunctions,
     current_vm: AtomicUsize,
@@ -777,11 +777,11 @@ const OFFSET_CMD_ARGC: i32 = 0x81;
 impl QuakeLiveEngine {
     pub(crate) fn new() -> Self {
         Self {
-            static_functions: OnceCell::new(),
-            static_detours: OnceCell::new(),
+            static_functions: OnceLock::new(),
+            static_detours: OnceLock::new(),
 
             sv_maxclients: AtomicI32::new(0),
-            common_initialized: OnceBool::new(),
+            common_initialized: AtomicBool::default(),
 
             vm_functions: VmFunctions {
                 vm_call_table: Default::default(),
@@ -1136,6 +1136,9 @@ impl QuakeLiveEngine {
     // can safely do whatever we do below. It'll segfault if we do it at the entry
     // point, since functions like Cmd_AddCommand need initialization first.
     pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> {
+        if self.common_initialized.load(Ordering::Acquire) {
+            return Err(QuakeLiveEngineError::MainEngineNotInitialized);
+        }
         debug!(target: "shinqlx", "Initializing...");
         self.add_command("cmd", cmd_send_server_command);
         self.add_command("cp", cmd_center_print);
@@ -1151,15 +1154,12 @@ impl QuakeLiveEngine {
             QuakeLiveEngineError::PythonInitializationFailed(err)
         })?;
 
-        self.common_initialized
-            .set(true)
-            .map_err(|_| QuakeLiveEngineError::MainEngineNotInitialized)
+        self.common_initialized.store(true, Ordering::Release);
+        Ok(())
     }
 
     pub(crate) fn is_common_initialized(&self) -> bool {
-        self.common_initialized
-            .get()
-            .is_some_and(|is_initialized| is_initialized)
+        self.common_initialized.load(Ordering::Acquire)
     }
 
     #[cfg_attr(test, allow(dead_code))]
@@ -2025,7 +2025,7 @@ mod quake_live_engine_tests {
             .with(predicate::always(), predicate::always());
 
         let pyshinqlx_init_ctx = pyshinqlx_initialize_context();
-        pyshinqlx_init_ctx.expect().returning(|| Ok(())).times(1);
+        pyshinqlx_init_ctx.expect().returning(|| Ok(())).times(0);
 
         let quake_engine = QuakeLiveEngine {
             static_functions: default_static_functions().into(),
@@ -2034,8 +2034,7 @@ mod quake_live_engine_tests {
         };
         quake_engine
             .common_initialized
-            .set(true)
-            .expect("this should not happen");
+            .store(true, Ordering::Release);
 
         let result = quake_engine.initialize_static();
         assert!(result.is_err_and(|err| err == QuakeLiveEngineError::MainEngineNotInitialized));
@@ -2055,8 +2054,7 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
         quake_engine
             .common_initialized
-            .set(false)
-            .expect("this should not happen");
+            .store(false, Ordering::Release);
 
         assert!(!quake_engine.is_common_initialized());
     }
@@ -2066,8 +2064,7 @@ mod quake_live_engine_tests {
         let quake_engine = default_quake_engine();
         quake_engine
             .common_initialized
-            .set(true)
-            .expect("this should not happen");
+            .store(true, Ordering::Release);
 
         assert!(quake_engine.is_common_initialized());
     }

@@ -159,8 +159,8 @@ mod client_tests {
         borrow::BorrowMut,
         ffi::{CStr, c_char},
     };
+    use std::sync::OnceLock;
 
-    use once_cell::sync::OnceCell;
     use pretty_assertions::assert_eq;
     use retour::GenericDetour;
 
@@ -382,8 +382,8 @@ mod client_tests {
     }
 
     #[cfg_attr(test, allow(clippy::type_complexity))]
-    static SV_DROPCLIENT_DETOUR: OnceCell<GenericDetour<fn(*mut client_t, *const c_char)>> =
-        OnceCell::new();
+    static SV_DROPCLIENT_DETOUR: OnceLock<GenericDetour<fn(*mut client_t, *const c_char)>> =
+        OnceLock::new();
 
     #[test]
     #[cfg_attr(miri, ignore)]
