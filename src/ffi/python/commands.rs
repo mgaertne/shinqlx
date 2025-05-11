@@ -5,6 +5,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
 };
+use rayon::prelude::*;
 
 use super::{
     EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, owner, prelude::*, pyshinqlx_get_logger,
@@ -71,27 +72,21 @@ impl Command {
         }
 
         let mut names = vec![];
-        name.downcast::<PyList>().ok().iter().for_each(|py_list| {
+        if let Ok(py_list) = name.downcast::<PyList>() {
             py_list.iter().for_each(|py_alias| {
-                py_alias
-                    .extract::<String>()
-                    .ok()
-                    .iter()
-                    .for_each(|alias| names.push(alias.to_lowercase()));
+                if let Ok(alias) = py_alias.extract::<String>() {
+                    names.push(alias.to_lowercase())
+                }
             })
-        });
-        name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
+        } else if let Ok(py_tuple) = name.downcast::<PyTuple>() {
             py_tuple.iter().for_each(|py_alias| {
-                py_alias
-                    .extract::<String>()
-                    .ok()
-                    .iter()
-                    .for_each(|alias| names.push(alias.to_lowercase()));
+                if let Ok(alias) = py_alias.extract::<String>() {
+                    names.push(alias.to_lowercase())
+                }
             })
-        });
-        name.extract::<String>().ok().iter().for_each(|py_string| {
+        } else if let Ok(py_string) = name.extract::<String>() {
             names.push(py_string.to_owned());
-        });
+        }
 
         let channels_vec = if channels.is_none() {
             vec![]
@@ -1690,7 +1685,7 @@ impl CommandInvoker {
     }
 
     fn __clear__(&self) {
-        self.commands.write().iter_mut().for_each(|prio_cmds| {
+        self.commands.write().par_iter_mut().for_each(|prio_cmds| {
             prio_cmds.clear();
         });
     }

@@ -11,6 +11,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyString},
 };
+use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
 
 use super::{
@@ -522,7 +523,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
         let changed: Vec<&(String, String)> = new_info
             .items
-            .iter()
+            .par_iter()
             .filter(|(key, new_value)| {
                 let opt_old_value = old_info.get(key);
                 opt_old_value.is_none()
@@ -8049,12 +8050,9 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
-    PRINT_REDIRECTION
-        .load()
-        .iter()
-        .for_each(|print_redirector| {
-            print_redirector.bind(py).append(text);
-        });
+    if let Some(print_redirector) = PRINT_REDIRECTION.load().as_ref() {
+        print_redirector.bind(py).append(text);
+    }
 
     let returned = result.extract::<String>().unwrap_or(text.to_string());
     Ok(PyString::new(py, &returned).into_any().unbind())
@@ -8301,13 +8299,9 @@ mod handle_console_print_tests {
                         .is_ok_and(|str_value| str_value == "asdf")
                 }));
 
-                PRINT_REDIRECTION
-                    .load()
-                    .as_ref()
-                    .iter()
-                    .for_each(|redirector| {
-                        redirector.bind(py).flush().expect("this should not happen")
-                    });
+                if let Some(redirector) = PRINT_REDIRECTION.load().as_ref() {
+                    redirector.bind(py).flush().expect("this should not happen")
+                }
             });
         });
     }

@@ -2,6 +2,7 @@ use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
+use rayon::prelude::*;
 
 use super::prelude::*;
 
@@ -68,7 +69,7 @@ impl Powerups {
             .map(|item| item.extract::<i32>().ok())
             .collect::<ArrayVec<Option<i32>, 6>>();
 
-        if results.iter().any(|item| item.is_none()) {
+        if results.par_iter().any(|item| item.is_none()) {
             return Err(PyValueError::new_err("Powerups values need to be integer"));
         }
 

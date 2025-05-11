@@ -6,6 +6,7 @@ use pyo3::{
     prelude::*,
     types::{PyBool, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple, PyType},
 };
+use rayon::prelude::*;
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
@@ -446,8 +447,8 @@ impl Plugin {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
         if let Ok(player_steam_id) = name.extract::<i64>() {
             return Ok(players
-                .iter()
-                .find(|player| player.steam_id == player_steam_id)
+                .par_iter()
+                .find_any(|player| player.steam_id == player_steam_id)
                 .cloned());
         }
 
@@ -455,8 +456,8 @@ impl Plugin {
             return Ok(None);
         };
         Ok(players
-            .iter()
-            .find(|player| player.id == client_id)
+            .par_iter()
+            .find_any(|player| player.id == client_id)
             .cloned())
     }
 
@@ -595,8 +596,8 @@ impl Plugin {
         let clean_name = clean_text(&searched_name).to_lowercase();
 
         players
-            .iter()
-            .find(|&player| clean_text(&(&*player.name.read())).to_lowercase() == clean_name)
+            .par_iter()
+            .find_any(|&player| clean_text(&(&*player.name.read())).to_lowercase() == clean_name)
             .map(|found_player| found_player.name.read().to_owned())
     }
 
@@ -630,7 +631,7 @@ impl Plugin {
 
             let cleaned_text = clean_text(&name).to_lowercase();
             players
-                .iter()
+                .par_iter()
                 .filter(|player| {
                     let player_name = &*player.name.read();
                     clean_text(player_name)
@@ -1255,27 +1256,21 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         handler: &Bound<'py, PyAny>,
     ) -> PyResult<()> {
         let mut names = vec![];
-        name.downcast::<PyList>().ok().iter().for_each(|py_list| {
+        if let Ok(py_list) = name.downcast::<PyList>() {
             py_list.iter().for_each(|py_alias| {
-                py_alias
-                    .extract::<String>()
-                    .ok()
-                    .iter()
-                    .for_each(|alias| names.push(alias.to_owned()));
+                if let Ok(alias) = py_alias.extract::<String>() {
+                    names.push(alias.to_owned());
+                }
             })
-        });
-        name.downcast::<PyTuple>().ok().iter().for_each(|py_tuple| {
+        } else if let Ok(py_tuple) = name.downcast::<PyTuple>() {
             py_tuple.iter().for_each(|py_alias| {
-                py_alias
-                    .extract::<String>()
-                    .ok()
-                    .iter()
-                    .for_each(|alias| names.push(alias.to_owned()));
-            })
-        });
-        name.extract::<String>().ok().iter().for_each(|py_string| {
-            names.push(py_string.to_owned());
-        });
+                if let Ok(alias) = py_alias.extract::<String>() {
+                    names.push(alias.to_owned());
+                }
+            });
+        } else if let Ok(py_string) = name.extract::<String>() {
+            names.push(py_string);
+        }
 
         self.borrow()
             .commands
@@ -1287,7 +1282,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                         .bind(self.py())
                         .borrow()
                         .name
-                        .iter()
+                        .par_iter()
                         .all(|name| names.contains(name))
                     && existing_command
                         .bind(self.py())
@@ -1319,7 +1314,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                             .bind(self.py())
                             .borrow()
                             .name
-                            .iter()
+                            .par_iter()
                             .all(|name| names.contains(name))
                         || existing_command
                             .bind(self.py())

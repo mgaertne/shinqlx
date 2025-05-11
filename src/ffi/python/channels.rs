@@ -7,6 +7,7 @@ use pyo3::{
     intern,
     types::{IntoPyDict, PyBool, PyNotImplemented, PyType},
 };
+use rayon::prelude::*;
 use regex::Regex;
 
 use super::prelude::*;
@@ -1162,19 +1163,12 @@ impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
         let players_info = pyshinqlx_players_info(self.py())?;
         Ok(Some(
             players_info
-                .iter()
-                .filter_map(|opt_player_info| {
-                    opt_player_info
-                        .as_ref()
-                        .iter()
-                        .filter_map(|player_info| {
-                            if player_info.team == filtered_team {
-                                Some(player_info.client_id)
-                            } else {
-                                None
-                            }
-                        })
-                        .next()
+                .par_iter()
+                .filter_map(|opt_player_info| match opt_player_info.as_ref() {
+                    Some(player_info) if player_info.team == filtered_team => {
+                        Some(player_info.client_id)
+                    }
+                    _ => None,
                 })
                 .collect(),
         ))
