@@ -1756,7 +1756,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
 #[cfg(test)]
 mod pyshinqlx_player_tests {
-    use std::sync::atomic::Ordering;
+    use core::sync::atomic::Ordering;
 
     use mockall::{Sequence, predicate};
     use pretty_assertions::assert_eq;
