@@ -79,22 +79,25 @@ impl From<i32> for PlayerInfo {
             privileges: -1,
         };
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        GameEntity::try_from(client_id)
-            .ok()
-            .iter()
-            .for_each(|game_entity| {
-                returned.name = game_entity.get_player_name();
-                returned.team = game_entity.get_team() as i32;
-                returned.privileges = game_entity.get_privileges() as i32;
-            });
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        if let Ok(game_entity) = GameEntity::try_from(client_id) {
+            returned.name = game_entity.get_player_name();
+            returned.team = game_entity.get_team() as i32;
+            returned.privileges = game_entity.get_privileges() as i32;
+        }
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        Client::try_from(client_id).ok().iter().for_each(|client| {
+        #[cfg_attr(
+            test,
+            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
+        )]
+        if let Ok(client) = Client::try_from(client_id) {
             returned.connection_state = client.get_state() as i32;
             returned.userinfo = client.get_user_info().into();
             returned.steam_id = client.get_steam_id() as i64;
-        });
+        }
 
         returned
     }

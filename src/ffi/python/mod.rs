@@ -410,27 +410,28 @@ impl Deref for ParsedVariables {
 impl ParsedVariables {
     pub(crate) fn contains<T>(&self, item: T) -> bool
     where
-        T: AsRef<str>,
+        T: AsRef<str> + Send + Sync,
     {
-        self.items.iter().any(|(key, _value)| *key == item.as_ref())
+        self.items
+            .par_iter()
+            .any(|(key, _value)| *key == item.as_ref())
     }
 
     pub fn get<T>(&self, item: T) -> Option<String>
     where
-        T: AsRef<str>,
+        T: AsRef<str> + Send + Sync,
     {
         self.items
-            .iter()
-            .filter(|(key, _value)| *key == item.as_ref())
+            .par_iter()
+            .find_any(|(key, _value)| *key == item.as_ref())
             .map(|(_key, value)| value)
-            .next()
             .cloned()
     }
 
     pub fn set(&mut self, item: &str, value: &str) {
         let mut new_items: Vec<(String, String)> = self
             .items
-            .iter()
+            .par_iter()
             .filter(|(key, _value)| key != item)
             .cloned()
             .collect();
@@ -482,16 +483,16 @@ pub(crate) fn client_id(
 
     if let Ok(steam_id) = name.to_string().parse::<i64>() {
         return all_players
-            .iter()
-            .find(|&player| player.steam_id == steam_id)
+            .par_iter()
+            .find_any(|&player| player.steam_id == steam_id)
             .map(|player| player.id);
     }
 
     if let Ok(player_name) = name.extract::<String>() {
         let clean_name = clean_text(&player_name).to_lowercase();
         return all_players
-            .iter()
-            .find(|&player| {
+            .par_iter()
+            .find_any(|&player| {
                 let player_name = &*player.name.read();
                 clean_text(player_name).to_lowercase() == clean_name
             })

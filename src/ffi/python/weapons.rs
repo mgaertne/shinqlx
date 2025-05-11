@@ -2,6 +2,7 @@ use core::fmt::{Display, Formatter};
 
 use arrayvec::ArrayVec;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
+use rayon::prelude::*;
 
 use super::prelude::*;
 
@@ -97,7 +98,7 @@ impl Weapons {
             .map(|item| item.extract::<i32>().ok())
             .collect::<ArrayVec<Option<i32>, 15>>();
 
-        if results.iter().any(|item| item.is_none()) {
+        if results.par_iter().any(|item| item.is_none()) {
             return Err(PyValueError::new_err("Weapons values need to be boolean"));
         }
 

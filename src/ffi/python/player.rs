@@ -14,6 +14,7 @@ use pyo3::{
     },
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
 };
+use rayon::prelude::*;
 
 use super::{CONSOLE_CHANNEL, console_command, owner, prelude::*};
 use crate::{
@@ -633,7 +634,7 @@ impl Player {
         let players_info = pyshinqlx_players_info(cls.py())?;
         cls.py().allow_threads(|| {
             Ok(players_info
-                .iter()
+                .par_iter()
                 .filter_map(|opt_player_info| {
                     opt_player_info.as_ref().map(|player_info| Player {
                         valid: true.into(),
