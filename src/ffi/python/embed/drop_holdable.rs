@@ -27,9 +27,7 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
                 game_entity
                     .get_game_client()
                     .ok()
-                    .filter(|game_client| {
-                        Holdable::from(game_client.get_holdable()) != Holdable::None
-                    })
+                    .filter(|game_client| Holdable::None != game_client.get_holdable().into())
                     .is_some()
             });
         let returned = opt_game_entity_with_holdable.is_some();

@@ -20,8 +20,8 @@ pub(crate) fn pyshinqlx_set_holdable(
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok());
         let returned = opt_game_client.is_some();
-        let ql_holdable = Holdable::from(holdable);
         if let Some(mut game_client) = opt_game_client {
+            let ql_holdable: Holdable = holdable.into();
             game_client.set_holdable(ql_holdable);
         }
         Ok(returned)
