@@ -1,4 +1,4 @@
-use core::fmt::{Display, Formatter};
+use derive_more::Display;
 
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
@@ -12,7 +12,10 @@ use crate::ffi::c::prelude::*;
     sequence,
     str
 )]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Display)]
+#[display(
+    "PlayerStats(score={score}, kills={kills}, deaths={deaths}, damage_dealt={damage_dealt}, damage_taken={damage_taken}, time={time}, ping={ping})"
+)]
 pub(crate) struct PlayerStats {
     /// The player's primary score.
     pub(crate) score: i32,
@@ -41,22 +44,6 @@ impl From<GameClient> for PlayerStats {
             time: game_client.get_time_on_team(),
             ping: game_client.get_ping(),
         }
-    }
-}
-
-impl Display for PlayerStats {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "PlayerStats(score={}, kills={}, deaths={}, damage_dealt={}, damage_taken={}, time={}, ping={})",
-            self.score,
-            self.kills,
-            self.deaths,
-            self.damage_dealt,
-            self.damage_taken,
-            self.time,
-            self.ping
-        )
     }
 }
 

@@ -1,17 +1,26 @@
-use core::fmt::{Display, Formatter};
+use derive_more::Display;
 
 use super::prelude::*;
 
 #[pyclass(module = "_shinqlx", name = "Holdable", frozen, eq, eq_int, str)]
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Display)]
+#[repr(i32)]
 pub(crate) enum Holdable {
+    #[display("None")]
     None = 0,
+    #[display("teleporter")]
     Teleporter = 27,
+    #[display("medkit")]
     MedKit = 28,
+    #[display("kamikaze")]
     Kamikaze = 37,
+    #[display("portal")]
     Portal = 38,
+    #[display("invulnerability")]
     Invulnerability = 39,
+    #[display("flight")]
     Flight = 34,
+    #[display("unknown")]
     Unknown = 666,
 }
 
@@ -45,35 +54,17 @@ impl From<Holdable> for i32 {
     }
 }
 
-impl Display for Holdable {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Holdable::None => write!(f, "None"),
-            Holdable::Teleporter => write!(f, "teleporter"),
-            Holdable::MedKit => write!(f, "medkit"),
-            Holdable::Kamikaze => write!(f, "kamikaze"),
-            Holdable::Portal => write!(f, "portal"),
-            Holdable::Invulnerability => write!(f, "invulnerability"),
-            Holdable::Flight => write!(f, "flight"),
-            Holdable::Unknown => write!(f, "unknown"),
-        }
-    }
-}
-
 impl From<Option<&str>> for Holdable {
     fn from(holdable_str: Option<&str>) -> Self {
         match holdable_str {
-            None => Holdable::None,
-            Some(value) => match value {
-                "none" => Holdable::None,
-                "teleporter" => Holdable::Teleporter,
-                "medkit" => Holdable::MedKit,
-                "kamikaze" => Holdable::Kamikaze,
-                "portal" => Holdable::Portal,
-                "invulnerability" => Holdable::Invulnerability,
-                "flight" => Holdable::Flight,
-                _ => Holdable::Unknown,
-            },
+            None | Some("none") => Holdable::None,
+            Some("teleporter") => Holdable::Teleporter,
+            Some("medkit") => Holdable::MedKit,
+            Some("kamikaze") => Holdable::Kamikaze,
+            Some("portal") => Holdable::Portal,
+            Some("invulnerability") => Holdable::Invulnerability,
+            Some("flight") => Holdable::Flight,
+            _ => Holdable::Unknown,
         }
     }
 }

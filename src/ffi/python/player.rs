@@ -1,8 +1,6 @@
-use core::{
-    fmt::{Display, Formatter},
-    sync::atomic::{AtomicBool, Ordering},
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 
+use derive_more::Display;
 use itertools::Itertools;
 use pyo3::{
     BoundObject, IntoPyObjectExt,
@@ -71,7 +69,8 @@ impl TryFrom<&str> for weapon_t {
 ///    and the player has disconnected, it will raise a
 ///    :exc:`shinqlx.NonexistentPlayerError` exception.
 #[pyclass(module = "_player", name = "Player", subclass, frozen, str)]
-#[derive(Debug)]
+#[derive(Debug, Display)]
+#[display("{}", name.read())]
 pub(crate) struct Player {
     pub(crate) valid: AtomicBool,
     #[pyo3(name = "_id", get)]
@@ -105,12 +104,6 @@ impl PartialEq for Player {
             && self.user_info == other.user_info
             && self.steam_id == other.steam_id
             && *self.name.read() == *other.name.read()
-    }
-}
-
-impl Display for Player {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.name.read())
     }
 }
 

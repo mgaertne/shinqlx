@@ -1,4 +1,4 @@
-use core::fmt::{Display, Formatter};
+use derive_more::Display;
 
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
@@ -12,7 +12,10 @@ use crate::ffi::c::prelude::*;
     sequence,
     str
 )]
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Display)]
+#[display(
+    "PlayerInfo(client_id={client_id}, name={name}, connection_state={connection_state}, userinfo={userinfo}, steam_id={steam_id}, team={team}, privileges={privileges})"
+)]
 #[allow(unused)]
 pub(crate) struct PlayerInfo {
     /// The player's client ID.
@@ -29,22 +32,6 @@ pub(crate) struct PlayerInfo {
     pub(crate) team: i32,
     /// The player's privileges.
     pub(crate) privileges: i32,
-}
-
-impl Display for PlayerInfo {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "PlayerInfo(client_id={}, name={}, connection_state={}, userinfo={}, steam_id={}, team={}, privileges={})",
-            self.client_id,
-            self.name,
-            self.connection_state,
-            self.userinfo,
-            self.steam_id,
-            self.team,
-            self.privileges
-        )
-    }
 }
 
 #[pymethods]

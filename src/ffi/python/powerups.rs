@@ -1,6 +1,5 @@
-use core::fmt::{Display, Formatter};
-
 use arrayvec::ArrayVec;
+use derive_more::Display;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
 use rayon::prelude::*;
 
@@ -16,7 +15,10 @@ use super::prelude::*;
     eq,
     str
 )]
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Display)]
+#[display(
+    "Powerups(quad={_0}, battlesuit={_1}, haste={_2}, invisibility={_3}, regeneration={_4}, invulnerability={_5})"
+)]
 pub(crate) struct Powerups(
     #[pyo3(name = "quad")] pub(crate) i32,
     #[pyo3(name = "battlesuit")] pub(crate) i32,
@@ -35,16 +37,6 @@ impl From<[i32; 6]> for Powerups {
 impl From<Powerups> for [i32; 6] {
     fn from(value: Powerups) -> Self {
         [value.0, value.1, value.2, value.3, value.4, value.5]
-    }
-}
-
-impl Display for Powerups {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "Powerups(quad={}, battlesuit={}, haste={}, invisibility={}, regeneration={}, invulnerability={})",
-            self.0, self.1, self.2, self.3, self.4, self.5
-        )
     }
 }
 
