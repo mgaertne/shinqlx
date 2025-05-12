@@ -1,6 +1,5 @@
-use core::fmt::{Display, Formatter};
-
 use arrayvec::ArrayVec;
+use derive_more::Display;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
 use rayon::prelude::*;
 
@@ -16,7 +15,10 @@ use super::prelude::*;
     eq,
     str
 )]
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Display)]
+#[display(
+    "Weapons(g={_0}, mg={_1}, sg={_2}, gl={_3}, rl={_4}, lg={_5}, rg={_6}, pg={_7}, bfg={_8}, gh={_9}, ng={_10}, pl={_11}, cg={_12}, hmg={_13}, hands={_14})"
+)]
 pub(crate) struct Weapons(
     #[pyo3(name = "g")] pub(crate) i32,
     #[pyo3(name = "mg")] pub(crate) i32,
@@ -50,30 +52,6 @@ impl From<Weapons> for [i32; 15] {
             value.0, value.1, value.2, value.3, value.4, value.5, value.6, value.7, value.8,
             value.9, value.10, value.11, value.12, value.13, value.14,
         ]
-    }
-}
-
-impl Display for Weapons {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "Weapons(g={}, mg={}, sg={}, gl={}, rl={}, lg={}, rg={}, pg={}, bfg={}, gh={}, ng={}, pl={}, cg={}, hmg={}, hands={})",
-            self.0,
-            self.1,
-            self.2,
-            self.3,
-            self.4,
-            self.5,
-            self.5,
-            self.7,
-            self.8,
-            self.9,
-            self.10,
-            self.11,
-            self.12,
-            self.13,
-            self.14
-        )
     }
 }
 
@@ -384,7 +362,7 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < shi
         let ammo = Weapons(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
         assert_eq!(
             format!("{ammo}"),
-            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=5, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
+            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=6, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
         );
     }
 
@@ -393,7 +371,7 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < shi
         let ammo = Weapons(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
         assert_eq!(
             ammo.__repr__(),
-            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=5, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
+            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=6, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
         );
     }
 }

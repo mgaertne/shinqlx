@@ -1,5 +1,4 @@
-use core::fmt::{Display, Formatter};
-
+use derive_more::Display;
 use pyo3::{
     BoundObject,
     basic::CompareOp,
@@ -34,15 +33,11 @@ use crate::ffi::c::prelude::*;
     get_all,
     str
 )]
+#[derive(Display)]
+#[display("{name}")]
 pub(crate) struct AbstractChannel {
     #[pyo3(name = "_name")]
     name: String,
-}
-
-impl Display for AbstractChannel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", self.name)
-    }
 }
 
 #[pymethods]

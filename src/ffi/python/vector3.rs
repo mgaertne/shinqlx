@@ -1,9 +1,7 @@
-use core::{
-    array,
-    fmt::{Display, Formatter},
-};
+use core::array;
 
 use arrayvec::ArrayVec;
+use derive_more::Display;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 use super::prelude::*;
@@ -34,7 +32,8 @@ impl Vector3Iter {
     eq,
     str
 )]
-#[derive(PartialEq, Debug, Clone, Copy, Default)]
+#[derive(PartialEq, Debug, Clone, Copy, Default, Display)]
+#[display("Vector3(x={_0}, y={_1}, z={_2})")]
 pub(crate) struct Vector3(
     #[pyo3(name = "x")] pub(crate) i32,
     #[pyo3(name = "y")] pub(crate) i32,
@@ -44,12 +43,6 @@ pub(crate) struct Vector3(
 impl From<(f32, f32, f32)> for Vector3 {
     fn from(value: (f32, f32, f32)) -> Self {
         Self(value.0 as i32, value.1 as i32, value.2 as i32)
-    }
-}
-
-impl Display for Vector3 {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Vector3(x={}, y={}, z={})", self.0, self.1, self.2)
     }
 }
 

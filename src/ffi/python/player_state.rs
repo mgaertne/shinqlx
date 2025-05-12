@@ -1,4 +1,4 @@
-use core::fmt::{Display, Formatter};
+use derive_more::Display;
 
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
@@ -12,7 +12,10 @@ use crate::ffi::c::prelude::*;
     sequence,
     str
 )]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Display)]
+#[display(
+    "PlayerState(is_alive={is_alive}, position={position}, veclocity={velocity}, health={health}, armor={armor}, noclip={noclip}, weapon={weapon}, weapons={weapons}, ammo={ammo}, powerups={powerups}, holdable={holdable}, flight={flight}, is_chatting={is_chatting}, is_frozen={is_frozen})"
+)]
 pub(crate) struct PlayerState {
     /// Whether the player's alive or not.
     pub(crate) is_alive: bool,
@@ -70,29 +73,6 @@ impl From<GameEntity> for PlayerState {
             is_chatting: game_client.is_chatting(),
             is_frozen: game_client.is_frozen(),
         }
-    }
-}
-
-impl Display for PlayerState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "PlayerState(is_alive={}, position={}, veclocity={}, health={}, armor={}, noclip={}, weapon={}, weapons={}, ammo={}, powerups={}, holdable={}, flight={}, is_chatting={}, is_frozen={})",
-            self.is_alive,
-            self.position,
-            self.velocity,
-            self.health,
-            self.armor,
-            self.noclip,
-            self.weapon,
-            self.weapons,
-            self.ammo,
-            self.powerups,
-            self.holdable,
-            self.flight,
-            self.is_chatting,
-            self.is_frozen
-        )
     }
 }
 
@@ -174,8 +154,8 @@ mod player_state_tests {
             armor=456, \
             noclip=true, \
             weapon=11, \
-            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=0, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
-            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
+            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=1, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
+            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=7, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
             powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
             holdable=kamikaze, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
@@ -201,8 +181,8 @@ mod player_state_tests {
             armor=456, \
             noclip=true, \
             weapon=11, \
-            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=0, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
-            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
+            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=1, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
+            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=7, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
             powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
             holdable=None, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
@@ -223,8 +203,8 @@ mod player_state_tests {
             armor=456, \
             noclip=true, \
             weapon=11, \
-            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=0, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
-            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
+            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=1, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
+            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=7, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
             powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
             holdable=kamikaze, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \
@@ -250,8 +230,8 @@ mod player_state_tests {
             armor=456, \
             noclip=true, \
             weapon=11, \
-            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=0, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
-            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=6, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
+            weapons=Weapons(g=1, mg=1, sg=1, gl=0, rl=0, lg=0, rg=1, pg=1, bfg=1, gh=0, ng=0, pl=0, cg=1, hmg=1, hands=1), \
+            ammo=Weapons(g=1, mg=2, sg=3, gl=4, rl=5, lg=6, rg=7, pg=8, bfg=9, gh=10, ng=11, pl=12, cg=13, hmg=14, hands=15), \
             powerups=Powerups(quad=12, battlesuit=34, haste=56, invisibility=78, regeneration=90, invulnerability=24), \
             holdable=None, \
             flight=Flight(fuel=12, max_fuel=34, thrust=56, refuel=78), \

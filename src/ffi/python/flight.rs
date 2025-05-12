@@ -1,6 +1,5 @@
-use core::fmt::{Display, Formatter};
-
 use arrayvec::ArrayVec;
+use derive_more::Display;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
 
 use super::prelude::*;
@@ -15,7 +14,8 @@ use super::prelude::*;
     eq,
     str
 )]
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Display)]
+#[display("Flight(fuel={_0}, max_fuel={_1}, thrust={_2}, refuel={_3})")]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,
     #[pyo3(name = "max_fuel")] pub(crate) i32,
@@ -26,16 +26,6 @@ pub(crate) struct Flight(
 impl From<Flight> for [i32; 4] {
     fn from(flight: Flight) -> Self {
         [flight.0, flight.1, flight.2, flight.3]
-    }
-}
-
-impl Display for Flight {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "Flight(fuel={}, max_fuel={}, thrust={}, refuel={})",
-            self.0, self.1, self.2, self.3
-        )
     }
 }
 
