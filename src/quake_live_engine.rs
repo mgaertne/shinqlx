@@ -6,6 +6,7 @@ use core::{
 use std::sync::OnceLock;
 
 use arc_swap::ArcSwapOption;
+use derive_new::new;
 #[cfg(test)]
 use mockall::predicate;
 #[cfg(target_os = "linux")]
@@ -120,6 +121,7 @@ type GDamageDetourType = GenericDetour<
     ),
 >;
 
+#[derive(Default)]
 struct VmFunctions {
     vm_call_table: AtomicUsize,
 
@@ -759,14 +761,21 @@ fn try_find_static_function<FuncType>(
     )
 }
 
+#[derive(new)]
 pub(crate) struct QuakeLiveEngine {
+    #[new(default)]
     static_functions: OnceLock<StaticFunctions>,
+    #[new(default)]
     static_detours: OnceLock<StaticDetours>,
 
+    #[new(default)]
     pub(crate) sv_maxclients: AtomicI32,
+    #[new(default)]
     common_initialized: AtomicBool,
 
+    #[new(default)]
     vm_functions: VmFunctions,
+    #[new(default)]
     current_vm: AtomicUsize,
 }
 
@@ -774,40 +783,6 @@ pub(crate) struct QuakeLiveEngine {
 const OFFSET_CMD_ARGC: i32 = 0x81;
 
 impl QuakeLiveEngine {
-    pub(crate) fn new() -> Self {
-        Self {
-            static_functions: OnceLock::new(),
-            static_detours: OnceLock::new(),
-
-            sv_maxclients: AtomicI32::new(0),
-            common_initialized: AtomicBool::default(),
-
-            vm_functions: VmFunctions {
-                vm_call_table: Default::default(),
-                g_addevent_orig: Default::default(),
-                check_privileges_orig: Default::default(),
-                client_connect_orig: Default::default(),
-                client_spawn_orig: Default::default(),
-                g_damage_orig: Default::default(),
-                touch_item_orig: Default::default(),
-                launch_item_orig: Default::default(),
-                drop_item_orig: Default::default(),
-                g_start_kamikaze_orig: Default::default(),
-                g_free_entity_orig: Default::default(),
-                g_init_game_orig: Default::default(),
-                g_shutdown_game_orig: Default::default(),
-                g_run_frame_orig: Default::default(),
-                #[cfg(feature = "patches")]
-                cmd_callvote_f_orig: Default::default(),
-                client_spawn_detour: ArcSwapOption::empty(),
-                client_connect_detour: ArcSwapOption::empty(),
-                g_start_kamikaze_detour: ArcSwapOption::empty(),
-                g_damage_detour: ArcSwapOption::empty(),
-            },
-            current_vm: AtomicUsize::new(0),
-        }
-    }
-
     #[cfg_attr(test, allow(dead_code))]
     pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]

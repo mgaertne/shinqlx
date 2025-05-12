@@ -63,7 +63,7 @@ impl From<GameEntity> for PlayerState {
             weapons: Weapons::from(game_client.get_weapons()),
             ammo: Weapons::from(game_client.get_ammos()),
             powerups: Powerups::from(game_client.get_powerups()),
-            holdable: Holdable::from(game_client.get_holdable()),
+            holdable: game_client.get_holdable().into(),
             flight: Flight(
                 game_client.get_current_flight_fuel(),
                 game_client.get_max_flight_fuel(),
