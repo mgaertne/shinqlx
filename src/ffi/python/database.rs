@@ -188,6 +188,158 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
     }
 }
 
+#[cfg(test)]
+mod abstract_database_tests {
+    use pyo3::{exceptions::PyNotImplementedError, prelude::*};
+    use rstest::rstest;
+
+    use super::{super::prelude::pyshinqlx_setup, AbstractDatabase, AbstractDatabaseMethods};
+    use crate::ffi::python::pyshinqlx_test_support::default_test_player;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn set_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.set_permission(
+                Bound::new(py, default_test_player())
+                    .expect("this should not happen")
+                    .as_any(),
+                42,
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.get_permission(
+                Bound::new(py, default_test_player())
+                    .expect("this should not happen")
+                    .as_any(),
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn has_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.has_permission(
+                Bound::new(py, default_test_player())
+                    .expect("this should not happen")
+                    .as_any(),
+                42,
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn set_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.set_flag(
+                Bound::new(py, default_test_player())
+                    .expect("this should not happen")
+                    .as_any(),
+                "asdf",
+                true,
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn clear_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.clear_flag(
+                Bound::new(py, default_test_player())
+                    .expect("this should not happen")
+                    .as_any(),
+                "asdf",
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.get_flag(
+                Bound::new(py, default_test_player())
+                    .expect("this should not happen")
+                    .as_any(),
+                "asdf",
+                true,
+            );
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn connect_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.connect();
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn close_returns_not_implemented(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
+                    .expect("this should not happen");
+
+            let result = abstract_database.close();
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+}
+
 /// A subclass of :class:`shinqlx.AbstractDatabase` providing support for Redis.
 #[pyclass(name = "Redis", module = "database", extends = AbstractDatabase, dict, frozen)]
 pub(crate) struct Redis {}
