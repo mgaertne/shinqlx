@@ -123,17 +123,8 @@ pub(crate) trait AbstractDatabaseMethods<'py> {
 
 impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
     fn get_logger(&self) -> PyResult<Bound<'py, PyAny>> {
-        let plugin_name = self
-            .borrow()
-            .plugin
-            .bind(self.py())
-            .get_type()
-            .name()
-            .map(|value| value.to_string())?;
-        pyshinqlx_get_logger(
-            self.py(),
-            Some(PyString::new(self.py(), &plugin_name).into_any()),
-        )
+        let bound_plugin = self.borrow().plugin.bind(self.py()).to_owned();
+        pyshinqlx_get_logger(self.py(), Some(bound_plugin))
     }
 
     #[allow(unused_variables)]
@@ -190,11 +181,38 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
 
 #[cfg(test)]
 mod abstract_database_tests {
-    use pyo3::{exceptions::PyNotImplementedError, prelude::*};
+    use pyo3::{exceptions::PyNotImplementedError, intern, prelude::*};
     use rstest::rstest;
 
-    use super::{super::prelude::pyshinqlx_setup, AbstractDatabase, AbstractDatabaseMethods};
-    use crate::ffi::python::pyshinqlx_test_support::default_test_player;
+    use super::{
+        super::{
+            prelude::pyshinqlx_setup,
+            pyshinqlx_test_support::{default_test_player, test_plugin},
+        },
+        AbstractDatabase, AbstractDatabaseMethods,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_logger_returns_logger_for_plugin(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let test_plugin = test_plugin(py).call0().expect("this should not happen");
+            let abstract_database =
+                Bound::new(py, AbstractDatabase::py_new(py, test_plugin.as_any()))
+                    .expect("this should not happen");
+
+            let result = abstract_database.getattr(intern!(py, "logger"));
+            assert!(
+                result.as_ref().is_ok_and(|logger| logger
+                    .getattr(intern!(py, "name"))
+                    .expect("this should not happen")
+                    .to_string()
+                    == "shinqlx.test_plugin"),
+                "{:?}",
+                result.as_ref(),
+            );
+        });
+    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -336,6 +354,133 @@ mod abstract_database_tests {
             let result = abstract_database.close();
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)))
+        });
+    }
+
+    fn python_test_db(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code(
+            py,
+            cr#"
+from shinqlx import Plugin
+from shinqlx.database import AbstractDatabase
+
+class test_plugin(Plugin):
+    pass
+
+db = AbstractDatabase(test_plugin())
+            "#,
+            c"",
+            c"",
+        )
+        .expect("this should not happen")
+        .getattr("db")
+        .expect("this should not happen")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_logger_returns_logger_for_plugin_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.getattr(intern!(py, "logger"));
+            assert!(
+                result.as_ref().is_ok_and(|logger| logger
+                    .getattr(intern!(py, "name"))
+                    .expect("this should not happen")
+                    .to_string()
+                    == "shinqlx.test_plugin"),
+                "{:?}",
+                result.as_ref(),
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn set_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method1(intern!(py, "set_permission"), (py.None(), 0));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        })
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method1(intern!(py, "get_permission"), (py.None(),));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn has_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method1(intern!(py, "has_permission"), (py.None(),));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn set_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method1(intern!(py, "set_flag"), (py.None(), "asdf"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn clear_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method1(intern!(py, "clear_flag"), (py.None(), "asdf"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn get_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method1(intern!(py, "get_flag"), (py.None(), "asdf"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn connect_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method0(intern!(py, "connect"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn close_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let db = python_test_db(py);
+
+            let result = db.call_method0(intern!(py, "close"));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
 }
