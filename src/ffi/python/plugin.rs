@@ -503,13 +503,13 @@ impl Plugin {
             }
             Some(channel) => {
                 if channel
-                    .as_ref()
+                    .as_any()
                     .get_type()
                     .is_subclass(&cls.py().get_type::<AbstractChannel>())
                     .unwrap_or(false)
                 {
                     return channel
-                        .as_ref()
+                        .as_any()
                         .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)
                         .map(|_| ());
                 }
@@ -525,7 +525,7 @@ impl Plugin {
                         .filter(|global_chat_channel| {
                             global_chat_channel
                                 .bind(cls.py())
-                                .eq(channel.as_ref())
+                                .eq(channel.as_any())
                                 .unwrap_or(false)
                         })
                         .map(|global_chat_channel| {
@@ -545,7 +545,7 @@ impl Plugin {
                     .filter(|console_channel| {
                         console_channel
                             .bind(cls.py())
-                            .eq(channel.as_ref())
+                            .eq(channel.as_any())
                             .unwrap_or(false)
                     })
                     .map(|console_channel| {
@@ -1195,7 +1195,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                         hook_event != event
                             || hook_handler
                                 .bind(self.py())
-                                .ne(handler.as_ref())
+                                .ne(handler.as_any())
                                 .unwrap_or(false)
                             || hook_priority != &priority
                     });
@@ -1476,7 +1476,7 @@ mod plugin_tests {
             let extended_plugin = test_plugin(py);
             let redis_type = py.get_type::<Redis>();
             py.get_type::<Plugin>()
-                .setattr("database", redis_type.as_ref())
+                .setattr("database", redis_type.as_any())
                 .expect("this should not happen");
             let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
