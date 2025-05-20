@@ -1630,7 +1630,11 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_channel(&self) -> Option<Bound<'py, TellChannel>> {
-        Bound::new(self.py(), TellChannel::py_new(self.get())).ok()
+        let Ok(channel) = Bound::new(self.py(), TellChannel::py_new()) else {
+            return None;
+        };
+        TellChannel::__init__(&channel, self.get());
+        Some(channel)
     }
 
     fn center_print(&self, msg: &str) -> PyResult<()> {
@@ -2319,7 +2323,7 @@ assert(player._valid)
                         Some(&[("player", Bound::new(py, player)?)].into_py_dict(py)?),
                     )
                 });
-                assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+                assert!(result.is_ok());
             });
     }
 
@@ -6361,7 +6365,7 @@ assert(player._valid)
 
                         let result = player.set_noclip(PyString::new(py, noclip_value).as_any());
 
-                        assert!(result.as_ref().is_ok(), "{:?}", result.err());
+                        assert!(result.is_ok());
                     });
                 });
             });
@@ -6406,7 +6410,7 @@ assert(player._valid)
 
                         let result = player.set_noclip(py.None().bind(py));
 
-                        assert!(result.as_ref().is_ok(), "{:?}", result.err());
+                        assert!(result.is_ok());
                     });
                 });
             });
@@ -7871,11 +7875,10 @@ pub(crate) struct AbstractDummyPlayer;
 #[pymethods]
 impl AbstractDummyPlayer {
     #[new]
-    #[pyo3(signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
-    fn py_new(name: &str) -> PyClassInitializer<Self> {
+    fn py_new() -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,
-            name: name.to_string(),
+            name: "DummyPlayer".to_string(),
             connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: _DUMMY_USERINFO.to_string(),
             steam_id: 0,
@@ -7884,6 +7887,12 @@ impl AbstractDummyPlayer {
         };
         PyClassInitializer::from(Player::py_new(-1, Some(player_info)).unwrap())
             .add_subclass(AbstractDummyPlayer {})
+    }
+
+    #[pyo3(signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
+    fn __init__(slf: &Bound<'_, Self>, name: &str) {
+        let player = slf.as_super();
+        *player.borrow().name.write() = name.into();
     }
 
     #[getter(id)]
@@ -7959,7 +7968,10 @@ mod pyshinqlx_abstract_dummy_player_tests {
     use rstest::*;
 
     use super::{AbstractDummyPlayer, AbstractDummyPlayerMethods};
-    use crate::ffi::python::prelude::*;
+    use crate::{
+        ffi::python::prelude::*,
+        prelude::{MockEngineBuilder, serial},
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -7979,10 +7991,34 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn dummy_player_can_be_subclassed(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
+            let result = Python::with_gil(|py| {
+                py.run(
+                    cr#"
+from shinqlx import AbstractDummyPlayer
+
+class ConcreteDummyPlayer(AbstractDummyPlayer):
+    def __init__(self):
+        super().__init__("ConcreteDummyPlayer")
+
+ConcreteDummyPlayer()
+            "#,
+                    None,
+                    None,
+                )
+            });
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
-                .expect("this should not happen");
+            let player =
+                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
 
             let result = player.get_id();
 
@@ -7994,8 +8030,8 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
-                .expect("this should not happen");
+            let player =
+                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
 
             let result = player.get_steam_id();
 
@@ -8007,8 +8043,8 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
-                .expect("this should not happen");
+            let player =
+                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
 
             let result = player.update();
 
@@ -8020,8 +8056,8 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
-                .expect("this should not happen");
+            let player =
+                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
 
             let result = player.get_channel();
 
@@ -8033,8 +8069,8 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player = Bound::new(py, AbstractDummyPlayer::py_new("dummy player"))
-                .expect("this should not happen");
+            let player =
+                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
 
             let result = player.tell("asdf", None);
 
@@ -8050,7 +8086,12 @@ pub(crate) struct RconDummyPlayer;
 impl RconDummyPlayer {
     #[new]
     pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        AbstractDummyPlayer::py_new("RconDummyPlayer").add_subclass(Self {})
+        AbstractDummyPlayer::py_new().add_subclass(Self {})
+    }
+
+    fn __init__(slf: &Bound<'_, Self>) {
+        let player = slf.as_super().as_super();
+        *player.borrow().name.write() = "RconDummyPlayer".into();
     }
 
     #[getter(steam_id)]
@@ -8135,6 +8176,26 @@ mod pyshinqlx_rcon_dummy_player_tests {
 import shinqlx
 assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.Player))
 assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn dummy_player_has_default_name(_pyshinqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            py.run(
+                cr#"
+from shinqlx import RconDummyPlayer
+
+rcon_player = RconDummyPlayer()
+rcon_player.__init__()
+
+assert(rcon_player.name == "RconDummyPlayer^7")
             "#,
                 None,
                 None,

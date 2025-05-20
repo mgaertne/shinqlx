@@ -412,8 +412,9 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
 
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
@@ -439,8 +440,9 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
 
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
@@ -556,8 +558,9 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
 
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
 
@@ -612,8 +615,9 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
 
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
 
@@ -668,8 +672,9 @@ class mocked_db:
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
 
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
 
@@ -888,8 +893,9 @@ class mocked_db:
             )
             .expect("this should not happen");
 
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
             assert!(command.is_eligible_channel(chat_channel.as_any()));
         });
     }
@@ -900,13 +906,17 @@ class mocked_db:
         Python::with_gil(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
-            let red_team_chat_channel = Bound::new(
-                py,
-                TeamChatChannel::py_new("red", "red_team", "print \"{}\n\"\n"),
-            )
-            .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
+            let red_team_chat_channel =
+                Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+            TeamChatChannel::__init__(
+                &red_team_chat_channel,
+                "red",
+                "red_team",
+                "print \"{}\n\"\n",
+            );
 
             let capturing_hook = capturing_hook(py);
             let command = Bound::new(
@@ -948,21 +958,25 @@ class mocked_db:
         Python::with_gil(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
-            let chat_channel = Bound::new(
-                py,
-                TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-            )
-            .expect("this should not happen");
-            let red_team_chat_channel = Bound::new(
-                py,
-                TeamChatChannel::py_new("red", "red_team", "print \"{}\n\"\n"),
-            )
-            .expect("this should not happen");
-            let blue_team_chat_channel = Bound::new(
-                py,
-                TeamChatChannel::py_new("blue", "blue_team", "print \"{}\n\"\n"),
-            )
-            .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+            TeamChatChannel::__init__(&chat_channel, "all", "chat", "print \"{}\n\"\n");
+            let red_team_chat_channel =
+                Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+            TeamChatChannel::__init__(
+                &red_team_chat_channel,
+                "red",
+                "red_team",
+                "print \"{}\n\"\n",
+            );
+            let blue_team_chat_channel =
+                Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+            TeamChatChannel::__init__(
+                &blue_team_chat_channel,
+                "blue",
+                "blue_team",
+                "print \"{}\n\"\n",
+            );
 
             let capturing_hook = capturing_hook(py);
             let command = Bound::new(
@@ -2227,8 +2241,9 @@ mod command_invoker_tests {
     fn handle_input_for_empty_input(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
@@ -2244,8 +2259,9 @@ mod command_invoker_tests {
     fn handle_input_with_no_event_dispatcher(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
             EVENT_DISPATCHERS.store(None);
 
@@ -2263,8 +2279,9 @@ mod command_invoker_tests {
     fn handle_input_with_non_eligible_cmd_name(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
@@ -2292,8 +2309,9 @@ mod command_invoker_tests {
     fn handle_input_with_non_eligible_channel(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
-            let chat_channel = Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
+            let chat_channel =
+                Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
@@ -2336,8 +2354,8 @@ mod command_invoker_tests {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let chat_channel =
-                        Bound::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                            .expect("this should not happen");
+                        Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+                    ChatChannel::__init__(&chat_channel, "chat", "print \"{}\n\"\n");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -2387,9 +2405,9 @@ mod command_invoker_tests {
                 Python::with_gil(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
-                    let client_command_channel =
-                        Bound::new(py, ClientCommandChannel::py_new(player.get()))
-                            .expect("this should not happen");
+                    let client_command_channel = Bound::new(py, ClientCommandChannel::py_new())
+                        .expect("this should not happen");
+                    ClientCommandChannel::__init__(&client_command_channel, player.get());
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -2446,9 +2464,9 @@ mod command_invoker_tests {
                 Python::with_gil(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
-                    let client_command_channel =
-                        Bound::new(py, ClientCommandChannel::py_new(player.get()))
-                            .expect("this should not happen");
+                    let client_command_channel = Bound::new(py, ClientCommandChannel::py_new())
+                        .expect("this should not happen");
+                    ClientCommandChannel::__init__(&client_command_channel, player.get());
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -2517,9 +2535,9 @@ mod command_invoker_tests {
                 Python::with_gil(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
-                    let client_command_channel =
-                        Bound::new(py, ClientCommandChannel::py_new(player.get()))
-                            .expect("this should not happen");
+                    let client_command_channel = Bound::new(py, ClientCommandChannel::py_new())
+                        .expect("this should not happen");
+                    ClientCommandChannel::__init__(&client_command_channel, player.get());
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -2592,11 +2610,9 @@ def cmd_handler(*args, **kwargs):
                 Python::with_gil(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
-                    let chat_channel = Bound::new(
-                        py,
-                        TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                    )
-                    .expect("this should not happen");
+                    let chat_channel =
+                        Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+                    TeamChatChannel::__init__(&chat_channel, "all", "chat", "print \"{}\n\"\n");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -2674,11 +2690,9 @@ def cmd_handler(*args, **kwargs):
                 Python::with_gil(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
-                    let chat_channel = Bound::new(
-                        py,
-                        TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                    )
-                    .expect("this should not happen");
+                    let chat_channel =
+                        Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+                    TeamChatChannel::__init__(&chat_channel, "all", "chat", "print \"{}\n\"\n");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -2748,11 +2762,9 @@ def cmd_handler(*args, **kwargs):
                 Python::with_gil(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
-                    let chat_channel = Bound::new(
-                        py,
-                        TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                    )
-                    .expect("this should not happen");
+                    let chat_channel =
+                        Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
+                    TeamChatChannel::__init__(&chat_channel, "all", "chat", "print \"{}\n\"\n");
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");

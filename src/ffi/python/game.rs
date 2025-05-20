@@ -2908,13 +2908,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let result = Game::addmod(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
-            assert!(
-                result
-                    .as_ref()
-                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py)),
-                "{:?}",
-                result.as_ref()
-            );
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
 

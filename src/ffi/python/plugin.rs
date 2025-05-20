@@ -701,11 +701,10 @@ impl Plugin {
             return Err(PyValueError::new_err("could not find recipient"));
         };
         let recipient_player = Player::py_new(recipient_client_id, None)?;
-        let tell_channel = TellChannel::py_new(&recipient_player);
+        let tell_channel = Bound::new(cls.py(), TellChannel::py_new())?;
+        TellChannel::__init__(&tell_channel, &recipient_player);
 
-        let tell_channel_py = Py::new(cls.py(), tell_channel)?;
-        tell_channel_py
-            .bind(cls.py())
+        tell_channel
             .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)
             .map(|_| ())
     }
@@ -3589,14 +3588,10 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            CHAT_CHANNEL.store(Some(
-                Py::new(
-                    py,
-                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                )
-                .expect("creating new chat channel failed.")
-                .into(),
-            ));
+            let channel = Bound::new(py, TeamChatChannel::py_new())
+                .expect("creating new chat channel failed.");
+            TeamChatChannel::__init__(&channel, "all", "chat", "print \"{}\n\"\n");
+            CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
             let result = Plugin::msg(&py.get_type::<Plugin>(), "asdf", None, None);
             assert!(result.is_ok());
@@ -3615,14 +3610,10 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            CHAT_CHANNEL.store(Some(
-                Py::new(
-                    py,
-                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                )
-                .expect("creating new chat channel failed.")
-                .into(),
-            ));
+            let channel = Bound::new(py, TeamChatChannel::py_new())
+                .expect("creating new chat channel failed.");
+            TeamChatChannel::__init__(&channel, "all", "chat", "print \"{}\n\"\n");
+            CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
@@ -3696,14 +3687,10 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
             Python::with_gil(|py| {
-                RED_TEAM_CHAT_CHANNEL.store(Some(
-                    Py::new(
-                        py,
-                        TeamChatChannel::py_new("red", "red_team_chat", "print \"{}\n\"\n"),
-                    )
-                    .expect("creating new chat channel failed.")
-                    .into(),
-                ));
+                let channel = Bound::new(py, TeamChatChannel::py_new())
+                    .expect("creating new chat channel failed.");
+                TeamChatChannel::__init__(&channel, "red", "red_team_chat", "print \"{}\n\"\n");
+                RED_TEAM_CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                 let result = Plugin::msg(
                     &py.get_type::<Plugin>(),
@@ -3771,14 +3758,10 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
             Python::with_gil(|py| {
-                BLUE_TEAM_CHAT_CHANNEL.store(Some(
-                    Py::new(
-                        py,
-                        TeamChatChannel::py_new("blue", "blue_team_chat", "print \"{}\n\"\n"),
-                    )
-                    .expect("creating new chat channel failed.")
-                    .into(),
-                ));
+                let channel = Bound::new(py, TeamChatChannel::py_new())
+                    .expect("creating new chat channel failed.");
+                TeamChatChannel::__init__(&channel, "blue", "blue_team_chat", "print \"{}\n\"\n");
+                BLUE_TEAM_CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                 let result = Plugin::msg(
                     &py.get_type::<Plugin>(),
@@ -3803,11 +3786,10 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            CONSOLE_CHANNEL.store(Some(
-                Py::new(py, ConsoleChannel::py_new())
-                    .expect("creating new console channel failed.")
-                    .into(),
-            ));
+            let console_channel = Bound::new(py, ConsoleChannel::py_new())
+                .expect("creating new console channel failed.");
+            ConsoleChannel::__init__(&console_channel);
+            CONSOLE_CHANNEL.store(Some(console_channel.unbind().into()));
 
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
@@ -3846,19 +3828,16 @@ def handler():
             .withf(|client, cmd| client.is_some() && cmd == "print \"asdf qwertz\n\"\n")
             .times(1);
 
-        let channel = TellChannel::py_new(&default_test_player());
-
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
+                let channel =
+                    Bound::new(py, TellChannel::py_new()).expect("could not create tell channel");
+                TellChannel::__init__(&channel, &default_test_player());
+
                 let result = Plugin::msg(
                     &py.get_type::<Plugin>(),
                     "asdf qwertz",
-                    Some(
-                        Py::new(py, channel)
-                            .expect("could not create tell channel")
-                            .into_bound(py)
-                            .into_any(),
-                    ),
+                    Some(channel.into_any()),
                     None,
                 );
                 assert!(result.is_ok());
@@ -3880,7 +3859,7 @@ def handler():
         Python::with_gil(|py| {
             let result =
                 Plugin::console(&py.get_type::<Plugin>(), PyString::new(py, "asdf").as_any());
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
         });
     }
 
@@ -4854,7 +4833,7 @@ def handler():
                         .as_any(),
                     "",
                 );
-                assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+                assert!(result.is_ok());
             });
         });
     }
