@@ -202,15 +202,13 @@ mod abstract_database_tests {
                     .expect("this should not happen");
 
             let result = abstract_database.getattr(intern!(py, "logger"));
-            assert!(
-                result.as_ref().is_ok_and(|logger| logger
+            assert!(result.is_ok_and(|logger| {
+                logger
                     .getattr(intern!(py, "name"))
                     .expect("this should not happen")
                     .to_string()
-                    == "shinqlx.test_plugin"),
-                "{:?}",
-                result.as_ref(),
-            );
+                    == "shinqlx.test_plugin"
+            }));
         });
     }
 
@@ -384,15 +382,13 @@ db = AbstractDatabase(test_plugin())
             let db = python_test_db(py);
 
             let result = db.getattr(intern!(py, "logger"));
-            assert!(
-                result.as_ref().is_ok_and(|logger| logger
+            assert!(result.is_ok_and(|logger| {
+                logger
                     .getattr(intern!(py, "name"))
                     .expect("this should not happen")
                     .to_string()
-                    == "shinqlx.test_plugin"),
-                "{:?}",
-                result.as_ref(),
-            );
+                    == "shinqlx.test_plugin"
+            }));
         });
     }
 

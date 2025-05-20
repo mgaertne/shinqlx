@@ -930,14 +930,10 @@ mod handle_client_command_tests {
                     )
                     .run(|| {
                         Python::with_gil(|py| {
-                            CHAT_CHANNEL.store(Some(
-                                Py::new(
-                                    py,
-                                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                                )
-                                .expect("could not create TeamChatchannel in python")
-                                .into(),
-                            ));
+                            let channel = Bound::new(py, TeamChatChannel::py_new())
+                                .expect("could not create TeamChatchannel in python");
+                            TeamChatChannel::__init__(&channel, "all", "chat", "print \"{}\n\"\n");
+                            CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
@@ -1015,14 +1011,10 @@ mod handle_client_command_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
                 Python::with_gil(|py| {
-                    CHAT_CHANNEL.store(Some(
-                        Py::new(
-                            py,
-                            TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                        )
-                        .expect("could not create TeamChatchannel in python")
-                        .into(),
-                    ));
+                    let channel = Bound::new(py, TeamChatChannel::py_new())
+                        .expect("could not create TeamChatchannel in python");
+                    TeamChatChannel::__init__(&channel, "all", "chat", "print \"{}\n\"\n");
+                    CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -1120,14 +1112,10 @@ mod handle_client_command_tests {
                     )
                     .run(|| {
                         Python::with_gil(|py| {
-                            CHAT_CHANNEL.store(Some(
-                                Py::new(
-                                    py,
-                                    TeamChatChannel::py_new("all", "chat", "print \"{}\n\"\n"),
-                                )
-                                .expect("could not create TeamChatchannel in python")
-                                .into(),
-                            ));
+                            let channel = Bound::new(py, TeamChatChannel::py_new())
+                                .expect("could not create TeamChatchannel in python");
+                            TeamChatChannel::__init__(&channel, "all", "chat", "print \"{}\n\"\n");
+                            CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
@@ -1214,18 +1202,15 @@ mod handle_client_command_tests {
                     )
                     .run(|| {
                         Python::with_gil(|py| {
-                            channel.store(Some(
-                                Py::new(
-                                    py,
-                                    TeamChatChannel::py_new(
-                                        team_str,
-                                        team_name,
-                                        "print \"{}\n\"\n",
-                                    ),
-                                )
-                                .expect("could not create TeamChatchannel in python")
-                                .into(),
-                            ));
+                            let py_channel = Bound::new(py, TeamChatChannel::py_new())
+                                .expect("could not create TeamChatchannel in python");
+                            TeamChatChannel::__init__(
+                                &py_channel,
+                                team_str,
+                                team_name,
+                                "print \"{}\n\"\n",
+                            );
+                            channel.store(Some(py_channel.unbind().into()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
@@ -1369,14 +1354,10 @@ mod handle_client_command_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
                 Python::with_gil(|py| {
-                    channel.store(Some(
-                        Py::new(
-                            py,
-                            TeamChatChannel::py_new(team_str, team_name, "print \"{}\n\"\n"),
-                        )
-                        .expect("could not create TeamChatchannel in python")
-                        .into(),
-                    ));
+                    let py_channel = Bound::new(py, TeamChatChannel::py_new())
+                        .expect("could not create TeamChatchannel in python");
+                    TeamChatChannel::__init__(&py_channel, team_str, team_name, "print \"{}\n\"\n");
+                    channel.store(Some(py_channel.unbind().into()));
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -1440,18 +1421,15 @@ mod handle_client_command_tests {
                     )
                     .run(|| {
                         Python::with_gil(|py| {
-                            channel.store(Some(
-                                Py::new(
-                                    py,
-                                    TeamChatChannel::py_new(
-                                        team_str,
-                                        team_name,
-                                        "print \"{}\n\"\n",
-                                    ),
-                                )
-                                .expect("could not create TeamChatchannel in python")
-                                .into(),
-                            ));
+                            let py_channel = Bound::new(py, TeamChatChannel::py_new())
+                                .expect("could not create TeamChatchannel in python");
+                            TeamChatChannel::__init__(
+                                &py_channel,
+                                team_str,
+                                team_name,
+                                "print \"{}\n\"\n",
+                            );
+                            channel.store(Some(py_channel.unbind().into()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
@@ -8479,9 +8457,9 @@ mod print_redirector_tests {
     #[cfg_attr(miri, ignore)]
     fn constructor_with_subclass_of_abstract_channel(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
-            let result = PrintRedirector::py_new(py, channel.into_bound(py).into_any());
+            let channel = Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&channel, "chat", "print \"{}\n\"\n");
+            let result = PrintRedirector::py_new(py, channel.into_any());
             assert!(result.is_ok());
         });
     }
@@ -8490,10 +8468,10 @@ mod print_redirector_tests {
     #[cfg_attr(miri, ignore)]
     fn print_redirector_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
-            let print_redirector = PrintRedirector::py_new(py, channel.into_bound(py).into_any())
-                .expect("this should not happen");
+            let channel = Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&channel, "chat", "print \"{}\n\"\n");
+            let print_redirector =
+                PrintRedirector::py_new(py, channel.into_any()).expect("this should not happen");
             let _py_command = Py::new(py, print_redirector).expect("this should not happen");
 
             let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
@@ -8515,8 +8493,8 @@ captured_text = ""
 
 
 class CapturingChannel(AbstractChannel):
-    def __new__(cls):
-        return super().__new__(cls, "capturing")
+    def __init__(self):
+        super().__init__("capturing")
 
     def reply(self, msg):
         global captured_text
@@ -8570,9 +8548,9 @@ mod redirect_print_tests {
     #[cfg_attr(miri, ignore)]
     fn redirect_print_returns_print_redirector(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let channel = Py::new(py, ChatChannel::py_new("chat", "print \"{}\n\"\n"))
-                .expect("this should not happen");
-            let result = redirect_print(py, channel.into_bound(py).into_any());
+            let channel = Bound::new(py, ChatChannel::py_new()).expect("this should not happen");
+            ChatChannel::__init__(&channel, "chat", "print \"{}\n\"\n");
+            let result = redirect_print(py, channel.into_any());
             assert!(result.is_ok());
         });
     }
