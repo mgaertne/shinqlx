@@ -303,8 +303,12 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
     fn is_eligible_player(&self, player: &Bound<'py, PyAny>, is_client_cmd: bool) -> bool {
         if owner().unwrap_or_default().is_some_and(|owner_steam_id| {
             player
-                .downcast::<Player>()
-                .is_ok_and(|player| player.borrow().steam_id == owner_steam_id)
+                .getattr(intern!(self.py(), "steam_id"))
+                .is_ok_and(|py_steam_id| {
+                    py_steam_id
+                        .extract::<i64>()
+                        .is_ok_and(|steam_id| steam_id == owner_steam_id)
+                })
         }) {
             return true;
         }
