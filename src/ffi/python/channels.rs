@@ -41,7 +41,8 @@ impl AbstractChannel {
         }
     }
 
-    fn __init__(slf: &Bound<'_, Self>, name: &str) {
+    #[pyo3(name = "__init__")]
+    pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str) {
         *slf.borrow().name.write() = name.to_string();
     }
 
@@ -156,10 +157,11 @@ mod abstract_channel_tests {
     use rstest::*;
 
     use super::AbstractChannelMethods;
-    use crate::ffi::python::prelude::*;
+    use crate::{ffi::python::prelude::*, prelude::serial};
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_constructor = py.run(
@@ -177,6 +179,7 @@ abstract_channel.__init__("abstract")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_can_be_subclassed(_pyshinqlx_setup: ()) {
         let result = Python::with_gil(|py| {
             py.run(
@@ -420,9 +423,9 @@ impl ConsoleChannel {
         PyClassInitializer::from(AbstractChannel::py_new()).add_subclass(Self {})
     }
 
-    pub(crate) fn __init__(slf: &Bound<'_, Self>) {
-        let channel = slf.as_super();
-        *channel.borrow().name.write() = "console".into();
+    #[pyo3(name = "__init__")]
+    pub(crate) fn initiailize(slf: &Bound<'_, Self>) {
+        AbstractChannel::initialize(slf.as_super(), "console");
     }
 
     #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
@@ -519,12 +522,11 @@ impl ChatChannel {
         })
     }
 
-    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")"
+    #[pyo3(name = "__init__", signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")"
     )]
-    pub(crate) fn __init__(slf: &Bound<'_, Self>, name: &str, fmt: &str) {
+    pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str, fmt: &str) {
         *slf.borrow().fmt.write() = fmt.into();
-        let channel = slf.as_super();
-        *channel.borrow().name.write() = name.into();
+        AbstractChannel::initialize(slf.as_super(), name);
     }
 
     #[getter(fmt)]
@@ -756,7 +758,7 @@ test_channel.reply("asdf")
             Python::with_gil(|py| {
                 let tell_channel =
                     Bound::new(py, TellChannel::py_new()).expect("this should not happen");
-                TellChannel::__init__(&tell_channel, &player);
+                TellChannel::initialize(&tell_channel, &player);
                 let result = tell_channel.as_super().reply("asdf", 100, " ");
                 assert!(result.is_ok());
 
@@ -801,7 +803,7 @@ test_channel.reply("asdf")
             Python::with_gil(|py| {
                 let tell_channel =
                     Bound::new(py, TellChannel::py_new()).expect("this should not happen");
-                TellChannel::__init__(&tell_channel, &player);
+                TellChannel::initialize(&tell_channel, &player);
 
                 let result = tell_channel
                     .as_super()
@@ -849,7 +851,7 @@ test_channel.reply("asdf")
             Python::with_gil(|py| {
                 let chat_channel =
                     Bound::new(py, TellChannel::py_new()).expect("this should not happen");
-                TellChannel::__init__(&chat_channel, &player);
+                TellChannel::initialize(&chat_channel, &player);
 
                 let result = chat_channel
                     .as_super()
@@ -937,7 +939,7 @@ test_channel.reply("asdf")
             Python::with_gil(|py| {
                 let chat_channel =
                     Bound::new(py, TellChannel::py_new()).expect("this should not happen");
-                TellChannel::__init__(&chat_channel, &player);
+                TellChannel::initialize(&chat_channel, &player);
 
                 let result = chat_channel.as_super().reply(
                     "^0Lorem ipsum dolor sit amet, consectetuer adipiscing elit. \
@@ -1003,11 +1005,10 @@ impl TellChannel {
             })
     }
 
-    pub(crate) fn __init__(slf: &Bound<'_, Self>, player: &Player) {
+    #[pyo3(name = "__init__")]
+    pub(crate) fn initialize(slf: &Bound<'_, Self>, player: &Player) {
         *slf.borrow().client_id.write() = player.id;
-
-        let channel = slf.as_super().as_super();
-        *channel.borrow().name.write() = "tell".into();
+        AbstractChannel::initialize(slf.as_super().as_super(), "tell");
     }
 
     fn __repr__(&self) -> String {
@@ -1155,7 +1156,7 @@ tell_channel.__init__(player)
         Python::with_gil(|py| {
             let py_tell_channel =
                 Bound::new(py, TellChannel::py_new()).expect("this should not happen");
-            TellChannel::__init__(&py_tell_channel, &player);
+            TellChannel::initialize(&py_tell_channel, &player);
             assert!(
                 py_tell_channel
                     .recipients()
@@ -1190,16 +1191,11 @@ impl TeamChatChannel {
             })
     }
 
-    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")"
+    #[pyo3(name = "__init__", signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")"
     )]
-    pub(crate) fn __init__(slf: &Bound<'_, Self>, team: &str, name: &str, fmt: &str) {
+    pub(crate) fn initialize(slf: &Bound<'_, Self>, team: &str, name: &str, fmt: &str) {
         *slf.borrow().team.write() = team.to_string();
-
-        let chat_channel = slf.as_super();
-        *chat_channel.borrow().fmt.write() = fmt.to_string();
-
-        let abstract_channel = chat_channel.as_super();
-        *abstract_channel.borrow().name.write() = name.to_string();
+        ChatChannel::initialize(slf.as_super(), name, fmt);
     }
 
     #[getter(team)]
@@ -1336,7 +1332,7 @@ tell_channel.__init__("all")
             let result = Python::with_gil(|py| {
                 let team_chat_channel =
                     Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
-                TeamChatChannel::__init__(&team_chat_channel, team, "chat", "print \"{}\n\"\n");
+                TeamChatChannel::initialize(&team_chat_channel, team, "chat", "print \"{}\n\"\n");
                 team_chat_channel.recipients()
             });
             assert!(result.is_ok_and(|ids| ids == expected_ids));
@@ -1393,7 +1389,7 @@ tell_channel.__init__("all")
             let result = Python::with_gil(|py| {
                 let team_chat_channel =
                     Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
-                TeamChatChannel::__init__(
+                TeamChatChannel::initialize(
                     &team_chat_channel,
                     "invalid",
                     "chat",
@@ -1427,11 +1423,10 @@ impl ClientCommandChannel {
         })
     }
 
-    pub(crate) fn __init__(slf: &Bound<'_, Self>, player: &Player) {
+    #[pyo3(name = "__init__")]
+    pub(crate) fn initialize(slf: &Bound<'_, Self>, player: &Player) {
         *slf.borrow().client_id.write() = player.id;
-
-        let channel = slf.as_super();
-        *channel.borrow().name.write() = "client_command".to_string();
+        AbstractChannel::initialize(slf.as_super(), "client_command");
     }
 
     fn __repr__(&self) -> String {
@@ -1498,7 +1493,7 @@ impl ClientCommandChannelMethods for Bound<'_, ClientCommandChannel> {
     fn get_tell_channel(&self) -> PyResult<Py<TellChannel>> {
         let player = self.get_recipient()?;
         let channel = Bound::new(self.py(), TellChannel::py_new())?;
-        TellChannel::__init__(&channel, &player);
+        TellChannel::initialize(&channel, &player);
 
         Ok(channel.unbind())
     }
@@ -1675,7 +1670,7 @@ tell_channel.__init__(player)
             Python::with_gil(|py| {
                 let client_command_channel =
                     Bound::new(py, ClientCommandChannel::py_new()).expect("this should not happen");
-                ClientCommandChannel::__init__(&client_command_channel, &player);
+                ClientCommandChannel::initialize(&client_command_channel, &player);
 
                 let result = client_command_channel.reply("asdf", 100, " ");
                 assert!(result.is_ok());

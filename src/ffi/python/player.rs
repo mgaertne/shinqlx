@@ -1633,7 +1633,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let Ok(channel) = Bound::new(self.py(), TellChannel::py_new()) else {
             return None;
         };
-        TellChannel::__init__(&channel, self.get());
+        TellChannel::initialize(&channel, self.get());
         Some(channel)
     }
 
