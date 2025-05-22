@@ -186,7 +186,7 @@ impl Command {
     /// Check if a player has the rights to execute the command.
     fn is_eligible_player(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, Player>,
+        player: &Bound<'_, PyAny>,
         is_client_cmd: bool,
     ) -> bool {
         slf.is_eligible_player(player, is_client_cmd)
@@ -202,7 +202,7 @@ pub(crate) trait CommandMethods<'py> {
     ) -> PyResult<Bound<'py, PyAny>>;
     fn is_eligible_name(&self, name: &str) -> bool;
     fn is_eligible_channel(&self, channel: &Bound<'py, PyAny>) -> bool;
-    fn is_eligible_player(&self, player: &Bound<'py, Player>, is_client_cmd: bool) -> bool;
+    fn is_eligible_player(&self, player: &Bound<'py, PyAny>, is_client_cmd: bool) -> bool;
 }
 
 impl<'py> CommandMethods<'py> for Bound<'py, Command> {
@@ -300,11 +300,12 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             })
     }
 
-    fn is_eligible_player(&self, player: &Bound<'py, Player>, is_client_cmd: bool) -> bool {
-        if owner()
-            .unwrap_or_default()
-            .is_some_and(|owner_steam_id| player.borrow().steam_id == owner_steam_id)
-        {
+    fn is_eligible_player(&self, player: &Bound<'py, PyAny>, is_client_cmd: bool) -> bool {
+        if owner().unwrap_or_default().is_some_and(|owner_steam_id| {
+            player
+                .downcast::<Player>()
+                .is_ok_and(|player| player.borrow().steam_id == owner_steam_id)
+        }) {
             return true;
         }
 
