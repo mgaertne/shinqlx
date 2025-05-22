@@ -7889,8 +7889,8 @@ impl AbstractDummyPlayer {
             .add_subclass(AbstractDummyPlayer {})
     }
 
-    #[pyo3(signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
-    fn __init__(slf: &Bound<'_, Self>, name: &str) {
+    #[pyo3(name = "__init__", signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
+    pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str) {
         let player = slf.as_super();
         *player.borrow().name.write() = name.into();
     }
@@ -8000,10 +8000,11 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
 from shinqlx import AbstractDummyPlayer
 
 class ConcreteDummyPlayer(AbstractDummyPlayer):
-    def __init__(self):
-        super().__init__("ConcreteDummyPlayer")
+    def __init__(self, name):
+        super().__init__(name)
 
-ConcreteDummyPlayer()
+player = ConcreteDummyPlayer.__new__(ConcreteDummyPlayer)
+player.__init__("asdf")
             "#,
                     None,
                     None,
@@ -8089,9 +8090,9 @@ impl RconDummyPlayer {
         AbstractDummyPlayer::py_new().add_subclass(Self {})
     }
 
-    fn __init__(slf: &Bound<'_, Self>) {
-        let player = slf.as_super().as_super();
-        *player.borrow().name.write() = "RconDummyPlayer".into();
+    #[pyo3(name = "__init__")]
+    pub(crate) fn initialize(slf: &Bound<'_, Self>) {
+        AbstractDummyPlayer::initialize(slf.as_super(), "RconDummyPlayer");
     }
 
     #[getter(steam_id)]
