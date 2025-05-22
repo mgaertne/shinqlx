@@ -158,7 +158,7 @@ impl Plugin {
         exclude_channels = None,
         priority = CommandPriorities::PRI_NORMAL as u32,
         client_cmd_pass = false,
-        client_cmd_perm = 0,
+        client_cmd_perm = 5,
         prefix = true,
         usage = ""),
     text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = false, client_cmd_perm = 0, prefix = true, usage = \"\")")]
