@@ -122,8 +122,11 @@ mod chat_event_dispatcher_tests {
     };
 
     fn default_channel(py: Python<'_>) -> Bound<'_, PyAny> {
-        let channel = Bound::new(py, TeamChatChannel::py_new()).expect("this should not happen");
-        TeamChatChannel::initialize(&channel, "all", "chat", "print \"{}\n\"\n");
+        let channel = Bound::new(
+            py,
+            TeamChatChannel::py_new(py, "all", "chat", "print \"{}\n\"\n"),
+        )
+        .expect("this should not happen");
         channel.into_any()
     }
 

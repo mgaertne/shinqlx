@@ -135,8 +135,10 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
 }
 
 fn try_handle_input(py: Python<'_>, player: &Bound<'_, Player>, cmd: &str) -> PyResult<bool> {
-    let client_command_channel = Bound::new(py, ClientCommandChannel::py_new())?;
-    ClientCommandChannel::initialize(&client_command_channel, player.borrow().deref());
+    let client_command_channel = Bound::new(
+        py,
+        ClientCommandChannel::py_new(py, player.borrow().deref()),
+    )?;
     COMMANDS.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(
             "could not get access to COMMANDS",

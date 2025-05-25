@@ -1630,11 +1630,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_channel(&self) -> Option<Bound<'py, TellChannel>> {
-        let Ok(channel) = Bound::new(self.py(), TellChannel::py_new()) else {
-            return None;
-        };
-        TellChannel::initialize(&channel, self.get());
-        Some(channel)
+        Bound::new(self.py(), TellChannel::py_new(self.py(), self.get())).ok()
     }
 
     fn center_print(&self, msg: &str) -> PyResult<()> {
@@ -7875,10 +7871,15 @@ pub(crate) struct AbstractDummyPlayer;
 #[pymethods]
 impl AbstractDummyPlayer {
     #[new]
-    fn py_new() -> PyClassInitializer<Self> {
+    #[pyo3(signature = (name = "DummyPlayer", *args, **kwargs), text_signature = "(name = \"DummyPlayer\")")]
+    fn py_new(
+        name: &str,
+        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
+        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+    ) -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,
-            name: "DummyPlayer".to_string(),
+            name: name.to_string(),
             connection_state: clientState_t::CS_CONNECTED as i32,
             userinfo: _DUMMY_USERINFO.to_string(),
             steam_id: 0,
@@ -8003,8 +8004,7 @@ class ConcreteDummyPlayer(AbstractDummyPlayer):
     def __init__(self, name):
         super().__init__(name)
 
-player = ConcreteDummyPlayer.__new__(ConcreteDummyPlayer)
-player.__init__("asdf")
+player = ConcreteDummyPlayer("asdf")
             "#,
                     None,
                     None,
@@ -8018,8 +8018,11 @@ player.__init__("asdf")
     #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player =
-                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
+            let player = Bound::new(
+                py,
+                AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
+            )
+            .expect("this should not happen");
 
             let result = player.get_id();
 
@@ -8031,8 +8034,11 @@ player.__init__("asdf")
     #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player =
-                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
+            let player = Bound::new(
+                py,
+                AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
+            )
+            .expect("this should not happen");
 
             let result = player.get_steam_id();
 
@@ -8044,8 +8050,11 @@ player.__init__("asdf")
     #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player =
-                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
+            let player = Bound::new(
+                py,
+                AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
+            )
+            .expect("this should not happen");
 
             let result = player.update();
 
@@ -8057,8 +8066,11 @@ player.__init__("asdf")
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player =
-                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
+            let player = Bound::new(
+                py,
+                AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
+            )
+            .expect("this should not happen");
 
             let result = player.get_channel();
 
@@ -8070,8 +8082,11 @@ player.__init__("asdf")
     #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let player =
-                Bound::new(py, AbstractDummyPlayer::py_new()).expect("this should not happen");
+            let player = Bound::new(
+                py,
+                AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
+            )
+            .expect("this should not happen");
 
             let result = player.tell("asdf", None);
 
@@ -8086,13 +8101,9 @@ pub(crate) struct RconDummyPlayer;
 #[pymethods]
 impl RconDummyPlayer {
     #[new]
-    pub(crate) fn py_new() -> PyClassInitializer<Self> {
-        AbstractDummyPlayer::py_new().add_subclass(Self {})
-    }
-
-    #[pyo3(name = "__init__")]
-    pub(crate) fn initialize(slf: &Bound<'_, Self>) {
-        AbstractDummyPlayer::initialize(slf.as_super(), "RconDummyPlayer");
+    pub(crate) fn py_new(py: Python<'_>) -> PyClassInitializer<Self> {
+        AbstractDummyPlayer::py_new("RconDummyPlayer", py.None().bind(py), None)
+            .add_subclass(Self {})
     }
 
     #[getter(steam_id)]
@@ -8194,7 +8205,6 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
 from shinqlx import RconDummyPlayer
 
 rcon_player = RconDummyPlayer()
-rcon_player.__init__()
 
 assert(rcon_player.name == "RconDummyPlayer^7")
             "#,
@@ -8223,8 +8233,8 @@ assert(rcon_player.name == "RconDummyPlayer^7")
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let rcon_dummy_player =
-                        Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                    let rcon_dummy_player = Bound::new(py, RconDummyPlayer::py_new(py))
+                        .expect("this should not happen");
 
                     let result = rcon_dummy_player.get_steam_id();
                     assert!(result.is_ok_and(|value| value == 1234567890));
@@ -8240,7 +8250,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
 
         Python::with_gil(|py| {
             let rcon_dummy_player =
-                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new(py)).expect("this should not happen");
 
             let result = rcon_dummy_player.get_channel();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -8253,11 +8263,11 @@ assert(rcon_player.name == "RconDummyPlayer^7")
     fn get_channel_with_console_channel_properly_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let console_channel =
-                Py::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+                Py::new(py, ConsoleChannel::py_new(py)).expect("this should not happen");
             CONSOLE_CHANNEL.store(Some(console_channel.into()));
 
             let rcon_dummy_player =
-                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new(py)).expect("this should not happen");
 
             let result = rcon_dummy_player.get_channel();
             assert!(result.is_ok());
@@ -8272,7 +8282,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
 
         Python::with_gil(|py| {
             let rcon_dummy_player =
-                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new(py)).expect("this should not happen");
 
             let result = rcon_dummy_player.tell("asdf", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
@@ -8291,11 +8301,11 @@ assert(rcon_player.name == "RconDummyPlayer^7")
 
         Python::with_gil(|py| {
             let console_channel =
-                Bound::new(py, ConsoleChannel::py_new()).expect("this should not happen");
+                Bound::new(py, ConsoleChannel::py_new(py)).expect("this should not happen");
             CONSOLE_CHANNEL.store(Some(console_channel.unbind().into()));
 
             let rcon_dummy_player =
-                Bound::new(py, RconDummyPlayer::py_new()).expect("this should not happen");
+                Bound::new(py, RconDummyPlayer::py_new(py)).expect("this should not happen");
 
             let result = rcon_dummy_player.tell("asdf", None);
             assert!(result.is_ok());
