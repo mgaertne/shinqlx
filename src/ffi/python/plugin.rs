@@ -701,8 +701,7 @@ impl Plugin {
             return Err(PyValueError::new_err("could not find recipient"));
         };
         let recipient_player = Player::py_new(recipient_client_id, None)?;
-        let tell_channel = Bound::new(cls.py(), TellChannel::py_new())?;
-        TellChannel::initialize(&tell_channel, &recipient_player);
+        let tell_channel = Bound::new(cls.py(), TellChannel::py_new(cls.py(), &recipient_player))?;
 
         tell_channel
             .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)
@@ -3588,9 +3587,11 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let channel = Bound::new(py, TeamChatChannel::py_new())
-                .expect("creating new chat channel failed.");
-            TeamChatChannel::initialize(&channel, "all", "chat", "print \"{}\n\"\n");
+            let channel = Bound::new(
+                py,
+                TeamChatChannel::py_new(py, "all", "chat", "print \"{}\n\"\n"),
+            )
+            .expect("creating new chat channel failed.");
             CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
             let result = Plugin::msg(&py.get_type::<Plugin>(), "asdf", None, None);
@@ -3610,9 +3611,11 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let channel = Bound::new(py, TeamChatChannel::py_new())
-                .expect("creating new chat channel failed.");
-            TeamChatChannel::initialize(&channel, "all", "chat", "print \"{}\n\"\n");
+            let channel = Bound::new(
+                py,
+                TeamChatChannel::py_new(py, "all", "chat", "print \"{}\n\"\n"),
+            )
+            .expect("creating new chat channel failed.");
             CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
             let result = Plugin::msg(
@@ -3687,9 +3690,11 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
             Python::with_gil(|py| {
-                let channel = Bound::new(py, TeamChatChannel::py_new())
-                    .expect("creating new chat channel failed.");
-                TeamChatChannel::initialize(&channel, "red", "red_team_chat", "print \"{}\n\"\n");
+                let channel = Bound::new(
+                    py,
+                    TeamChatChannel::py_new(py, "red", "red_team_chat", "print \"{}\n\"\n"),
+                )
+                .expect("creating new chat channel failed.");
                 RED_TEAM_CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                 let result = Plugin::msg(
@@ -3758,9 +3763,11 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
             Python::with_gil(|py| {
-                let channel = Bound::new(py, TeamChatChannel::py_new())
-                    .expect("creating new chat channel failed.");
-                TeamChatChannel::initialize(&channel, "blue", "blue_team_chat", "print \"{}\n\"\n");
+                let channel = Bound::new(
+                    py,
+                    TeamChatChannel::py_new(py, "blue", "blue_team_chat", "print \"{}\n\"\n"),
+                )
+                .expect("creating new chat channel failed.");
                 BLUE_TEAM_CHAT_CHANNEL.store(Some(channel.unbind().into()));
 
                 let result = Plugin::msg(
@@ -3786,9 +3793,8 @@ def handler():
             .times(1);
 
         Python::with_gil(|py| {
-            let console_channel = Bound::new(py, ConsoleChannel::py_new())
+            let console_channel = Bound::new(py, ConsoleChannel::py_new(py))
                 .expect("creating new console channel failed.");
-            ConsoleChannel::initiailize(&console_channel);
             CONSOLE_CHANNEL.store(Some(console_channel.unbind().into()));
 
             let result = Plugin::msg(
@@ -3830,9 +3836,8 @@ def handler():
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             Python::with_gil(|py| {
-                let channel =
-                    Bound::new(py, TellChannel::py_new()).expect("could not create tell channel");
-                TellChannel::initialize(&channel, &default_test_player());
+                let channel = Bound::new(py, TellChannel::py_new(py, &default_test_player()))
+                    .expect("could not create tell channel");
 
                 let result = Plugin::msg(
                     &py.get_type::<Plugin>(),
