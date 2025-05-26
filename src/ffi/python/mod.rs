@@ -3989,7 +3989,14 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     let all_chat_channel = Bound::new(
         m.py(),
-        TeamChatChannel::py_new(m.py(), "all", "chat", "print \"{}\n\"\n"),
+        TeamChatChannel::py_new(
+            m.py(),
+            "all",
+            "chat",
+            "print \"{}\n\"\n",
+            m.py().None().bind(m.py()),
+            None,
+        ),
     )?;
     CHAT_CHANNEL.store(Some(all_chat_channel.unbind().into()));
     m.add(
@@ -4001,7 +4008,14 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     let red_team_chat_channel = Bound::new(
         m.py(),
-        TeamChatChannel::py_new(m.py(), "red", "red_team_chat", "print \"{}\n\"\n"),
+        TeamChatChannel::py_new(
+            m.py(),
+            "red",
+            "red_team_chat",
+            "print \"{}\n\"\n",
+            m.py().None().bind(m.py()),
+            None,
+        ),
     )?;
     RED_TEAM_CHAT_CHANNEL.store(Some(red_team_chat_channel.unbind().into()));
     m.add(
@@ -4013,7 +4027,14 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     let blue_team_chat_channel = Bound::new(
         m.py(),
-        TeamChatChannel::py_new(m.py(), "blue", "blue_team_chat", "print \"{}\n\"\n"),
+        TeamChatChannel::py_new(
+            m.py(),
+            "blue",
+            "blue_team_chat",
+            "print \"{}\n\"\n",
+            m.py().None().bind(m.py()),
+            None,
+        ),
     )?;
     BLUE_TEAM_CHAT_CHANNEL.store(Some(blue_team_chat_channel.unbind().into()));
     m.add(
@@ -4025,7 +4046,14 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     let free_chat_channel = Bound::new(
         m.py(),
-        TeamChatChannel::py_new(m.py(), "free", "free_chat", "print \"{}\n\"\n"),
+        TeamChatChannel::py_new(
+            m.py(),
+            "free",
+            "free_chat",
+            "print \"{}\n\"\n",
+            m.py().None().bind(m.py()),
+            None,
+        ),
     )?;
     FREE_CHAT_CHANNEL.store(Some(free_chat_channel.unbind().into()));
     m.add(
@@ -4037,7 +4065,14 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     let spec_chat_channel = Bound::new(
         m.py(),
-        TeamChatChannel::py_new(m.py(), "spectator", "spectator_chat", "print \"{}\n\"\n"),
+        TeamChatChannel::py_new(
+            m.py(),
+            "spectator",
+            "spectator_chat",
+            "print \"{}\n\"\n",
+            m.py().None().bind(m.py()),
+            None,
+        ),
     )?;
     SPECTATOR_CHAT_CHANNEL.store(Some(spec_chat_channel.unbind().into()));
     m.add(
@@ -4048,7 +4083,11 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     CONSOLE_CHANNEL.store(Some(
-        Py::new(m.py(), ConsoleChannel::py_new(m.py()))?.into(),
+        Py::new(
+            m.py(),
+            ConsoleChannel::py_new(m.py(), m.py().None().bind(m.py()), None),
+        )?
+        .into(),
     ));
     m.add(
         "CONSOLE_CHANNEL",
