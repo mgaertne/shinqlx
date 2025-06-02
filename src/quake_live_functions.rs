@@ -1,7 +1,7 @@
 #[cfg(target_os = "linux")]
 use core::borrow::Borrow;
-use core::fmt::{Display, Formatter};
 
+use derive_more::Display;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMPermissions, MemoryMap};
 use retour::{Function, GenericDetour, HookableWith};
@@ -41,7 +41,7 @@ where
     })
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Display)]
 #[allow(non_camel_case_types)]
 pub enum QuakeLiveFunction {
     Com_Printf,
@@ -83,52 +83,6 @@ pub enum QuakeLiveFunction {
     G_FreeEntity,
     #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
     Cmd_Callvote_f,
-}
-
-impl Display for QuakeLiveFunction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        match self {
-            QuakeLiveFunction::Com_Printf => f.write_str("Com_Printf"),
-            QuakeLiveFunction::Cmd_AddCommand => f.write_str("Cmd_AddCommand"),
-            QuakeLiveFunction::Cmd_Args => f.write_str("Cmd_Args"),
-            QuakeLiveFunction::Cmd_Argv => f.write_str("Cmd_Argv"),
-            QuakeLiveFunction::Cmd_Argc => f.write_str("Cmd_Argc"),
-            QuakeLiveFunction::Cmd_Tokenizestring => f.write_str("Cmd_Tokenizestring"),
-            QuakeLiveFunction::Cbuf_ExecuteText => f.write_str("Cbuf_ExecuteText"),
-            QuakeLiveFunction::Cvar_FindVar => f.write_str("Cvar_FindVar"),
-            QuakeLiveFunction::Cvar_Get => f.write_str("Cvar_Get"),
-            QuakeLiveFunction::Cvar_GetLimit => f.write_str("Cvar_GetLimit"),
-            QuakeLiveFunction::Cvar_Set2 => f.write_str("Cvar_Set2"),
-            QuakeLiveFunction::SV_SendServerCommand => f.write_str("SV_SendServerCommand"),
-            QuakeLiveFunction::SV_ExecuteClientCommand => f.write_str("SV_ExecuteClientCommand"),
-            QuakeLiveFunction::SV_Shutdown => f.write_str("SV_Shutdown"),
-            QuakeLiveFunction::SV_Map_f => f.write_str("SV_Map_f"),
-            QuakeLiveFunction::SV_ClientEnterWorld => f.write_str("SV_ClientEnterWorld"),
-            QuakeLiveFunction::SV_SetConfigstring => f.write_str("SV_SetConfigstring"),
-            QuakeLiveFunction::SV_GetConfigstring => f.write_str("SV_GetConfigstring"),
-            QuakeLiveFunction::SV_DropClient => f.write_str("SV_DropClient"),
-            QuakeLiveFunction::Sys_SetModuleOffset => f.write_str("Sys_SetModuleOffset"),
-            QuakeLiveFunction::SV_SpawnServer => f.write_str("SV_SpawnServer"),
-            QuakeLiveFunction::Cmd_ExecuteString => f.write_str("Cmd_ExecuteString"),
-            QuakeLiveFunction::G_InitGame => f.write_str("G_InitGame"),
-            QuakeLiveFunction::G_ShutdownGame => f.write_str("G_ShutdownGame"),
-            QuakeLiveFunction::G_RunFrame => f.write_str("G_RunFrame"),
-            QuakeLiveFunction::ClientConnect => f.write_str("ClientConnect"),
-            QuakeLiveFunction::G_StartKamikaze => f.write_str("G_StartKamikaze"),
-            QuakeLiveFunction::ClientSpawn => f.write_str("ClientSpawn"),
-            QuakeLiveFunction::G_Damage => f.write_str("G_Damage"),
-            QuakeLiveFunction::G_AddEvent => f.write_str("G_AddEvent"),
-            #[cfg(any(target_os = "linux", test))]
-            QuakeLiveFunction::CheckPrivileges => f.write_str("CheckPrivileges"),
-            QuakeLiveFunction::Touch_Item => f.write_str("Touch_Item"),
-            QuakeLiveFunction::LaunchItem => f.write_str("LaunchItem"),
-            #[cfg(any(target_os = "linux", test))]
-            QuakeLiveFunction::Drop_Item => f.write_str("Drop_Item"),
-            QuakeLiveFunction::G_FreeEntity => f.write_str("G_FreeEntity"),
-            #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
-            QuakeLiveFunction::Cmd_Callvote_f => f.write_str("Cmd_Callvote_f"),
-        }
-    }
 }
 
 impl QuakeLiveFunction {

@@ -9,6 +9,7 @@ use core::{
 };
 
 use derive_builder::Builder;
+use derive_more::TryFrom;
 
 // these are the only configstrings that the system reserves, all the
 // other ones are strictly for servergame to clientgame communication
@@ -687,7 +688,7 @@ pub enum holdable_t {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(u32)]
+#[repr(i32)]
 pub enum weapon_t {
     WP_NONE = 0,
     WP_GAUNTLET = 1,
@@ -746,51 +747,62 @@ impl TryFrom<i32> for weapon_t {
 #[cfg(test)]
 pub(crate) mod weapon_t_tests {
     use pretty_assertions::assert_eq;
+    use rstest::*;
+    use tap::Conv;
 
     use super::weapon_t;
 
-    #[test]
-    pub(crate) fn integer_from_weapon_t() {
-        assert_eq!(i32::from(weapon_t::WP_NONE), 0);
-        assert_eq!(i32::from(weapon_t::WP_GAUNTLET), 1);
-        assert_eq!(i32::from(weapon_t::WP_MACHINEGUN), 2);
-        assert_eq!(i32::from(weapon_t::WP_SHOTGUN), 3);
-        assert_eq!(i32::from(weapon_t::WP_GRENADE_LAUNCHER), 4);
-        assert_eq!(i32::from(weapon_t::WP_ROCKET_LAUNCHER), 5);
-        assert_eq!(i32::from(weapon_t::WP_LIGHTNING), 6);
-        assert_eq!(i32::from(weapon_t::WP_RAILGUN), 7);
-        assert_eq!(i32::from(weapon_t::WP_PLASMAGUN), 8);
-        assert_eq!(i32::from(weapon_t::WP_BFG), 9);
-        assert_eq!(i32::from(weapon_t::WP_GRAPPLING_HOOK), 10);
-        assert_eq!(i32::from(weapon_t::WP_NAILGUN), 11);
-        assert_eq!(i32::from(weapon_t::WP_PROX_LAUNCHER), 12);
-        assert_eq!(i32::from(weapon_t::WP_CHAINGUN), 13);
-        assert_eq!(i32::from(weapon_t::WP_HMG), 14);
-        assert_eq!(i32::from(weapon_t::WP_HANDS), 15);
-        assert_eq!(i32::from(weapon_t::WP_NUM_WEAPONS), 0);
+    #[rstest]
+    #[case(weapon_t::WP_NONE, 0)]
+    #[case(weapon_t::WP_GAUNTLET, 1)]
+    #[case(weapon_t::WP_MACHINEGUN, 2)]
+    #[case(weapon_t::WP_SHOTGUN, 3)]
+    #[case(weapon_t::WP_GRENADE_LAUNCHER, 4)]
+    #[case(weapon_t::WP_ROCKET_LAUNCHER, 5)]
+    #[case(weapon_t::WP_LIGHTNING, 6)]
+    #[case(weapon_t::WP_RAILGUN, 7)]
+    #[case(weapon_t::WP_PLASMAGUN, 8)]
+    #[case(weapon_t::WP_BFG, 9)]
+    #[case(weapon_t::WP_GRAPPLING_HOOK, 10)]
+    #[case(weapon_t::WP_NAILGUN, 11)]
+    #[case(weapon_t::WP_PROX_LAUNCHER, 12)]
+    #[case(weapon_t::WP_CHAINGUN, 13)]
+    #[case(weapon_t::WP_HMG, 14)]
+    #[case(weapon_t::WP_HANDS, 15)]
+    #[case(weapon_t::WP_NUM_WEAPONS, 0)]
+    fn integer_from_weapon_t(#[case] weapon: weapon_t, #[case] integer: i32) {
+        assert_eq!(weapon.conv::<i32>(), integer);
+    }
+
+    #[rstest]
+    #[case(0, weapon_t::WP_NONE)]
+    #[case(1, weapon_t::WP_GAUNTLET)]
+    #[case(2, weapon_t::WP_MACHINEGUN)]
+    #[case(3, weapon_t::WP_SHOTGUN)]
+    #[case(4, weapon_t::WP_GRENADE_LAUNCHER)]
+    #[case(5, weapon_t::WP_ROCKET_LAUNCHER)]
+    #[case(6, weapon_t::WP_LIGHTNING)]
+    #[case(7, weapon_t::WP_RAILGUN)]
+    #[case(8, weapon_t::WP_PLASMAGUN)]
+    #[case(9, weapon_t::WP_BFG)]
+    #[case(10, weapon_t::WP_GRAPPLING_HOOK)]
+    #[case(11, weapon_t::WP_NAILGUN)]
+    #[case(12, weapon_t::WP_PROX_LAUNCHER)]
+    #[case(13, weapon_t::WP_CHAINGUN)]
+    #[case(14, weapon_t::WP_HMG)]
+    #[case(15, weapon_t::WP_HANDS)]
+    fn weapon_t_from_integer(#[case] integer: i32, #[case] expected: weapon_t) {
+        assert_eq!(
+            weapon_t::try_from(integer).expect("this should not happen"),
+            expected
+        );
     }
 
     #[test]
-    pub(crate) fn weapon_t_from_integer() {
-        assert_eq!(weapon_t::try_from(0), Ok(weapon_t::WP_NONE));
-        assert_eq!(weapon_t::try_from(1), Ok(weapon_t::WP_GAUNTLET));
-        assert_eq!(weapon_t::try_from(2), Ok(weapon_t::WP_MACHINEGUN));
-        assert_eq!(weapon_t::try_from(3), Ok(weapon_t::WP_SHOTGUN));
-        assert_eq!(weapon_t::try_from(4), Ok(weapon_t::WP_GRENADE_LAUNCHER));
-        assert_eq!(weapon_t::try_from(5), Ok(weapon_t::WP_ROCKET_LAUNCHER));
-        assert_eq!(weapon_t::try_from(6), Ok(weapon_t::WP_LIGHTNING));
-        assert_eq!(weapon_t::try_from(7), Ok(weapon_t::WP_RAILGUN));
-        assert_eq!(weapon_t::try_from(8), Ok(weapon_t::WP_PLASMAGUN));
-        assert_eq!(weapon_t::try_from(9), Ok(weapon_t::WP_BFG));
-        assert_eq!(weapon_t::try_from(10), Ok(weapon_t::WP_GRAPPLING_HOOK));
-        assert_eq!(weapon_t::try_from(11), Ok(weapon_t::WP_NAILGUN));
-        assert_eq!(weapon_t::try_from(12), Ok(weapon_t::WP_PROX_LAUNCHER));
-        assert_eq!(weapon_t::try_from(13), Ok(weapon_t::WP_CHAINGUN));
-        assert_eq!(weapon_t::try_from(14), Ok(weapon_t::WP_HMG));
-        assert_eq!(weapon_t::try_from(15), Ok(weapon_t::WP_HANDS));
-        assert_eq!(weapon_t::try_from(16), Err("invalid weapon".to_string()));
-        assert_eq!(weapon_t::try_from(-1), Err("invalid weapon".to_string()));
-        assert_eq!(weapon_t::try_from(666), Err("invalid weapon".to_string()));
+    fn weapon_t_from_integer_error_cases() {
+        assert!(weapon_t::try_from(16).is_err());
+        assert!(weapon_t::try_from(-1).is_err());
+        assert!(weapon_t::try_from(666).is_err());
     }
 }
 
@@ -821,8 +833,9 @@ pub enum playerTeamStateState_t {
     TEAM_ACTIVE = 1, // Now actively playing
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, TryFrom)]
+#[try_from(repr)]
+#[repr(i32)]
 pub enum team_t {
     TEAM_FREE = 0,
     TEAM_RED = 1,
@@ -831,24 +844,11 @@ pub enum team_t {
     TEAM_NUM_TEAMS = 4,
 }
 
-impl TryFrom<i32> for team_t {
-    type Error = &'static str;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(team_t::TEAM_FREE),
-            1 => Ok(team_t::TEAM_RED),
-            2 => Ok(team_t::TEAM_BLUE),
-            3 => Ok(team_t::TEAM_SPECTATOR),
-            _ => Err("invalid team"),
-        }
-    }
-}
-
 // https://github.com/brugal/wolfcamql/blob/73e2d707e5dd1fb0fc50d4ad9f00940909c4b3ec/code/game/bg_public.h#L1142-L1188
 // means of death
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, TryFrom)]
+#[try_from(repr)]
+#[repr(i32)]
 pub enum meansOfDeath_t {
     MOD_UNKNOWN = 0,
     MOD_SHOTGUN = 1,
@@ -886,160 +886,59 @@ pub enum meansOfDeath_t {
     MOD_RAILGUN_HEADSHOT = 33,
 }
 
-impl TryFrom<i32> for meansOfDeath_t {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(meansOfDeath_t::MOD_UNKNOWN),
-            1 => Ok(meansOfDeath_t::MOD_SHOTGUN),
-            2 => Ok(meansOfDeath_t::MOD_GAUNTLET),
-            3 => Ok(meansOfDeath_t::MOD_MACHINEGUN),
-            4 => Ok(meansOfDeath_t::MOD_GRENADE),
-            5 => Ok(meansOfDeath_t::MOD_GRENADE_SPLASH),
-            6 => Ok(meansOfDeath_t::MOD_ROCKET),
-            7 => Ok(meansOfDeath_t::MOD_ROCKET_SPLASH),
-            8 => Ok(meansOfDeath_t::MOD_PLASMA),
-            9 => Ok(meansOfDeath_t::MOD_PLASMA_SPLASH),
-            10 => Ok(meansOfDeath_t::MOD_RAILGUN),
-            11 => Ok(meansOfDeath_t::MOD_LIGHTNING),
-            12 => Ok(meansOfDeath_t::MOD_BFG),
-            13 => Ok(meansOfDeath_t::MOD_BFG_SPLASH),
-            14 => Ok(meansOfDeath_t::MOD_WATER),
-            15 => Ok(meansOfDeath_t::MOD_SLIME),
-            16 => Ok(meansOfDeath_t::MOD_LAVA),
-            17 => Ok(meansOfDeath_t::MOD_CRUSH),
-            18 => Ok(meansOfDeath_t::MOD_TELEFRAG),
-            19 => Ok(meansOfDeath_t::MOD_FALLING),
-            20 => Ok(meansOfDeath_t::MOD_SUICIDE),
-            21 => Ok(meansOfDeath_t::MOD_TARGET_LASER),
-            22 => Ok(meansOfDeath_t::MOD_TRIGGER_HURT),
-            23 => Ok(meansOfDeath_t::MOD_NAIL),
-            24 => Ok(meansOfDeath_t::MOD_CHAINGUN),
-            25 => Ok(meansOfDeath_t::MOD_PROXIMITY_MINE),
-            26 => Ok(meansOfDeath_t::MOD_KAMIKAZE),
-            27 => Ok(meansOfDeath_t::MOD_JUICED),
-            28 => Ok(meansOfDeath_t::MOD_GRAPPLE),
-            29 => Ok(meansOfDeath_t::MOD_SWITCH_TEAMS),
-            30 => Ok(meansOfDeath_t::MOD_THAW),
-            31 => Ok(meansOfDeath_t::MOD_LIGHTNING_DISCHARGE),
-            32 => Ok(meansOfDeath_t::MOD_HMG),
-            33 => Ok(meansOfDeath_t::MOD_RAILGUN_HEADSHOT),
-            _ => Err("invalid means of death".to_string()),
-        }
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod meansofdeath_t_tests {
     use pretty_assertions::assert_eq;
+    use rstest::*;
 
     use super::meansOfDeath_t;
 
+    #[rstest]
+    #[case(0, meansOfDeath_t::MOD_UNKNOWN)]
+    #[case(1, meansOfDeath_t::MOD_SHOTGUN)]
+    #[case(2, meansOfDeath_t::MOD_GAUNTLET)]
+    #[case(3, meansOfDeath_t::MOD_MACHINEGUN)]
+    #[case(4, meansOfDeath_t::MOD_GRENADE)]
+    #[case(5, meansOfDeath_t::MOD_GRENADE_SPLASH)]
+    #[case(6, meansOfDeath_t::MOD_ROCKET)]
+    #[case(7, meansOfDeath_t::MOD_ROCKET_SPLASH)]
+    #[case(8, meansOfDeath_t::MOD_PLASMA)]
+    #[case(9, meansOfDeath_t::MOD_PLASMA_SPLASH)]
+    #[case(10, meansOfDeath_t::MOD_RAILGUN)]
+    #[case(11, meansOfDeath_t::MOD_LIGHTNING)]
+    #[case(12, meansOfDeath_t::MOD_BFG)]
+    #[case(13, meansOfDeath_t::MOD_BFG_SPLASH)]
+    #[case(14, meansOfDeath_t::MOD_WATER)]
+    #[case(15, meansOfDeath_t::MOD_SLIME)]
+    #[case(16, meansOfDeath_t::MOD_LAVA)]
+    #[case(17, meansOfDeath_t::MOD_CRUSH)]
+    #[case(18, meansOfDeath_t::MOD_TELEFRAG)]
+    #[case(19, meansOfDeath_t::MOD_FALLING)]
+    #[case(20, meansOfDeath_t::MOD_SUICIDE)]
+    #[case(21, meansOfDeath_t::MOD_TARGET_LASER)]
+    #[case(22, meansOfDeath_t::MOD_TRIGGER_HURT)]
+    #[case(23, meansOfDeath_t::MOD_NAIL)]
+    #[case(24, meansOfDeath_t::MOD_CHAINGUN)]
+    #[case(25, meansOfDeath_t::MOD_PROXIMITY_MINE)]
+    #[case(26, meansOfDeath_t::MOD_KAMIKAZE)]
+    #[case(27, meansOfDeath_t::MOD_JUICED)]
+    #[case(28, meansOfDeath_t::MOD_GRAPPLE)]
+    #[case(29, meansOfDeath_t::MOD_SWITCH_TEAMS)]
+    #[case(30, meansOfDeath_t::MOD_THAW)]
+    #[case(31, meansOfDeath_t::MOD_LIGHTNING_DISCHARGE)]
+    #[case(32, meansOfDeath_t::MOD_HMG)]
+    #[case(33, meansOfDeath_t::MOD_RAILGUN_HEADSHOT)]
+    fn meansofdeath_t_from_integer(#[case] integer: i32, #[case] expected: meansOfDeath_t) {
+        assert_eq!(
+            meansOfDeath_t::try_from(integer).expect("this should not happen"),
+            expected
+        );
+    }
+
     #[test]
-    pub(crate) fn meansofdeath_t_from_integer() {
-        assert_eq!(meansOfDeath_t::try_from(0), Ok(meansOfDeath_t::MOD_UNKNOWN));
-        assert_eq!(meansOfDeath_t::try_from(1), Ok(meansOfDeath_t::MOD_SHOTGUN));
-        assert_eq!(
-            meansOfDeath_t::try_from(2),
-            Ok(meansOfDeath_t::MOD_GAUNTLET)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(3),
-            Ok(meansOfDeath_t::MOD_MACHINEGUN)
-        );
-        assert_eq!(meansOfDeath_t::try_from(4), Ok(meansOfDeath_t::MOD_GRENADE));
-        assert_eq!(
-            meansOfDeath_t::try_from(5),
-            Ok(meansOfDeath_t::MOD_GRENADE_SPLASH)
-        );
-        assert_eq!(meansOfDeath_t::try_from(6), Ok(meansOfDeath_t::MOD_ROCKET));
-        assert_eq!(
-            meansOfDeath_t::try_from(7),
-            Ok(meansOfDeath_t::MOD_ROCKET_SPLASH)
-        );
-        assert_eq!(meansOfDeath_t::try_from(8), Ok(meansOfDeath_t::MOD_PLASMA));
-        assert_eq!(
-            meansOfDeath_t::try_from(9),
-            Ok(meansOfDeath_t::MOD_PLASMA_SPLASH)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(10),
-            Ok(meansOfDeath_t::MOD_RAILGUN)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(11),
-            Ok(meansOfDeath_t::MOD_LIGHTNING)
-        );
-        assert_eq!(meansOfDeath_t::try_from(12), Ok(meansOfDeath_t::MOD_BFG));
-        assert_eq!(
-            meansOfDeath_t::try_from(13),
-            Ok(meansOfDeath_t::MOD_BFG_SPLASH)
-        );
-        assert_eq!(meansOfDeath_t::try_from(14), Ok(meansOfDeath_t::MOD_WATER));
-        assert_eq!(meansOfDeath_t::try_from(15), Ok(meansOfDeath_t::MOD_SLIME));
-        assert_eq!(meansOfDeath_t::try_from(16), Ok(meansOfDeath_t::MOD_LAVA));
-        assert_eq!(meansOfDeath_t::try_from(17), Ok(meansOfDeath_t::MOD_CRUSH));
-        assert_eq!(
-            meansOfDeath_t::try_from(18),
-            Ok(meansOfDeath_t::MOD_TELEFRAG)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(19),
-            Ok(meansOfDeath_t::MOD_FALLING)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(20),
-            Ok(meansOfDeath_t::MOD_SUICIDE)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(21),
-            Ok(meansOfDeath_t::MOD_TARGET_LASER)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(22),
-            Ok(meansOfDeath_t::MOD_TRIGGER_HURT)
-        );
-        assert_eq!(meansOfDeath_t::try_from(23), Ok(meansOfDeath_t::MOD_NAIL));
-        assert_eq!(
-            meansOfDeath_t::try_from(24),
-            Ok(meansOfDeath_t::MOD_CHAINGUN)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(25),
-            Ok(meansOfDeath_t::MOD_PROXIMITY_MINE)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(26),
-            Ok(meansOfDeath_t::MOD_KAMIKAZE)
-        );
-        assert_eq!(meansOfDeath_t::try_from(27), Ok(meansOfDeath_t::MOD_JUICED));
-        assert_eq!(
-            meansOfDeath_t::try_from(28),
-            Ok(meansOfDeath_t::MOD_GRAPPLE)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(29),
-            Ok(meansOfDeath_t::MOD_SWITCH_TEAMS)
-        );
-        assert_eq!(meansOfDeath_t::try_from(30), Ok(meansOfDeath_t::MOD_THAW));
-        assert_eq!(
-            meansOfDeath_t::try_from(31),
-            Ok(meansOfDeath_t::MOD_LIGHTNING_DISCHARGE)
-        );
-        assert_eq!(meansOfDeath_t::try_from(32), Ok(meansOfDeath_t::MOD_HMG));
-        assert_eq!(
-            meansOfDeath_t::try_from(33),
-            Ok(meansOfDeath_t::MOD_RAILGUN_HEADSHOT)
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(-1),
-            Err("invalid means of death".to_string())
-        );
-        assert_eq!(
-            meansOfDeath_t::try_from(666),
-            Err("invalid means of death".to_string())
-        );
+    fn meansofdeath_t_from_integer_error_cases() {
+        assert!(meansOfDeath_t::try_from(-1).is_err());
+        assert!(meansOfDeath_t::try_from(666).is_err());
     }
 }
 

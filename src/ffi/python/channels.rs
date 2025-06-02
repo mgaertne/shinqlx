@@ -1347,12 +1347,9 @@ tell_channel.__init__("all")
                 mock_game_entity
                     .expect_get_team()
                     .returning(move || match client_id {
-                        0 => team_t::TEAM_FREE,
-                        1 => team_t::TEAM_RED,
-                        2 => team_t::TEAM_BLUE,
-                        4 => team_t::TEAM_FREE,
-                        5 => team_t::TEAM_RED,
-                        6 => team_t::TEAM_BLUE,
+                        0 | 4 => team_t::TEAM_FREE,
+                        1 | 5 => team_t::TEAM_RED,
+                        2 | 6 => team_t::TEAM_BLUE,
                         _ => team_t::TEAM_SPECTATOR,
                     });
                 mock_game_entity
@@ -1413,12 +1410,9 @@ tell_channel.__init__("all")
                 mock_game_entity
                     .expect_get_team()
                     .returning(move || match client_id {
-                        0 => team_t::TEAM_FREE,
-                        1 => team_t::TEAM_RED,
-                        2 => team_t::TEAM_BLUE,
-                        4 => team_t::TEAM_FREE,
-                        5 => team_t::TEAM_RED,
-                        6 => team_t::TEAM_BLUE,
+                        0 | 4 => team_t::TEAM_FREE,
+                        1 | 5 => team_t::TEAM_RED,
+                        2 | 6 => team_t::TEAM_BLUE,
                         _ => team_t::TEAM_SPECTATOR,
                     });
                 mock_game_entity

@@ -176,27 +176,23 @@ impl GameEntity {
 
     pub(crate) fn get_player_name(&self) -> String {
         match self.get_game_client() {
-            Err(_) => "".into(),
-            Ok(game_client) => {
-                if game_client.get_connection_state() == clientConnected_t::CON_DISCONNECTED {
-                    "".into()
-                } else {
-                    game_client.get_player_name().into()
-                }
+            Ok(game_client)
+                if game_client.get_connection_state() != clientConnected_t::CON_DISCONNECTED =>
+            {
+                game_client.get_player_name().into()
             }
+            _ => "".into(),
         }
     }
 
     pub(crate) fn get_team(&self) -> team_t {
         match self.get_game_client() {
-            Err(_) => team_t::TEAM_SPECTATOR,
-            Ok(game_client) => {
-                if game_client.get_connection_state() == clientConnected_t::CON_DISCONNECTED {
-                    team_t::TEAM_SPECTATOR
-                } else {
-                    game_client.get_team()
-                }
+            Ok(game_client)
+                if game_client.get_connection_state() != clientConnected_t::CON_DISCONNECTED =>
+            {
+                game_client.get_team()
             }
+            _ => team_t::TEAM_SPECTATOR,
         }
     }
 

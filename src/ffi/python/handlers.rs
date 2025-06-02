@@ -4945,11 +4945,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
 
     let configstring_value = result.extract::<String>().unwrap_or(value.to_string());
     match index {
-        CS_VOTE_STRING => {
-            if configstring_value.is_empty() {
-                return Ok(PyString::new(py, &configstring_value).into_any().unbind());
-            }
-
+        CS_VOTE_STRING if !configstring_value.is_empty() => {
             let (vote, args) = configstring_value
                 .split_once(' ')
                 .unwrap_or((configstring_value.as_str(), ""));
