@@ -1650,6 +1650,7 @@ mod quake_live_engine_tests {
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
+    use tap::Conv;
 
     use super::{
         QuakeLiveEngine,
@@ -1751,7 +1752,7 @@ mod quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
                     && !cvar_value.is_null()
                     && unsafe { CStr::from_ptr(cvar_value) } == c"shinqlx,ca,elo"
-                    && !<qboolean as Into<bool>>::into(forced)
+                    && !forced.conv::<bool>()
             })
             .returning_st(move |_, _, _| returned2.borrow_mut())
             .times(1);
@@ -1796,7 +1797,7 @@ mod quake_live_engine_tests {
                     && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
                     && !cvar_value.is_null()
                     && unsafe { CStr::from_ptr(cvar_value) } == c"shinqlx"
-                    && !<qboolean as Into<bool>>::into(forced)
+                    && !forced.conv::<bool>()
             })
             .returning_st(move |_, _, _| returned2.borrow_mut())
             .times(1);
@@ -3927,6 +3928,7 @@ mod client_connect_quake_live_engine_tests {
 
     use pretty_assertions::assert_eq;
     use retour::GenericDetour;
+    use tap::Conv;
 
     use super::{
         ClientConnect, QuakeLiveEngine,
@@ -3953,7 +3955,7 @@ mod client_connect_quake_live_engine_tests {
         client_connect_ctx
             .expect()
             .withf(|&client_num, &first_time, &is_bot| {
-                client_num == 42 && first_time.into() && !<qboolean as Into<bool>>::into(is_bot)
+                client_num == 42 && first_time.into() && !is_bot.conv::<bool>()
             })
             .returning(move |_, _, _| returned.as_ptr().cast_mut())
             .times(1);

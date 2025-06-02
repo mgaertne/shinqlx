@@ -3,7 +3,7 @@ use core::{
     ffi::{CStr, VaList, c_char, c_int},
 };
 
-use tap::TapOptional;
+use tap::{Conv, TapOptional};
 
 use crate::{
     MAIN_ENGINE,
@@ -114,11 +114,7 @@ where
     };
 
     if !passed_on_cmd_str.is_empty() {
-        main_engine.execute_client_command(
-            client,
-            passed_on_cmd_str,
-            <bool as Into<qboolean>>::into(client_ok.into()),
-        );
+        main_engine.execute_client_command(client, passed_on_cmd_str, client_ok.conv::<qboolean>());
     }
 }
 
@@ -318,10 +314,7 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
     }
 
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
-        main_engine.spawn_server(
-            server_str.as_ref(),
-            <qboolean as Into<bool>>::into(kill_bots),
-        );
+        main_engine.spawn_server(server_str.as_ref(), kill_bots.conv::<bool>());
 
         new_game_dispatcher(false);
     });
@@ -369,11 +362,7 @@ pub(crate) extern "C" fn shinqlx_client_connect(
         .load()
         .as_ref()
         .map_or(ptr::null_mut(), |main_engine| {
-            main_engine.client_connect(
-                client_num,
-                <qboolean as Into<bool>>::into(first_time),
-                <qboolean as Into<bool>>::into(is_bot),
-            )
+            main_engine.client_connect(client_num, first_time.conv::<bool>(), is_bot.conv::<bool>())
         })
 }
 
@@ -531,6 +520,7 @@ mod hooks_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
     use rstest::*;
+    use tap::Conv;
 
     use super::{
         shinqlx_client_connect, shinqlx_client_spawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
@@ -839,9 +829,7 @@ mod hooks_tests {
         MockEngineBuilder::default()
             .with_execute_client_command(
                 |client, cmd, &client_ok| {
-                    client.is_some()
-                        && cmd == "cp asdf"
-                        && !<qboolean as Into<bool>>::into(client_ok)
+                    client.is_some() && cmd == "cp asdf" && !client_ok.conv::<bool>()
                 },
                 1,
             )

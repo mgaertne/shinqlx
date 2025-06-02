@@ -88,6 +88,7 @@ mod powerups_tests {
     use pretty_assertions::assert_eq;
     use pyo3::exceptions::{PyTypeError, PyValueError};
     use rstest::rstest;
+    use tap::Conv;
 
     use crate::ffi::python::prelude::*;
 
@@ -102,7 +103,7 @@ mod powerups_tests {
     #[test]
     fn powerups_into_integer_array() {
         assert_eq!(
-            <Powerups as Into<[i32; 6]>>::into(Powerups(1, 2, 3, 4, 5, 6)),
+            Powerups(1, 2, 3, 4, 5, 6).conv::<[i32; 6]>(),
             [1, 2, 3, 4, 5, 6]
         );
     }
