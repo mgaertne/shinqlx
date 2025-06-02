@@ -169,15 +169,12 @@ where
     let mut passed_on_cmd_str = cmd.into();
 
     match client.as_ref() {
-        Some(safe_client) => {
-            if safe_client.has_gentity() {
-                let client_id = safe_client.get_client_id();
-                let Some(res) = server_command_dispatcher(Some(client_id), passed_on_cmd_str)
-                else {
-                    return;
-                };
-                passed_on_cmd_str = res;
-            }
+        Some(safe_client) if safe_client.has_gentity() => {
+            let client_id = safe_client.get_client_id();
+            let Some(res) = server_command_dispatcher(Some(client_id), passed_on_cmd_str) else {
+                return;
+            };
+            passed_on_cmd_str = res;
         }
         None => {
             let Some(res) = server_command_dispatcher(None, passed_on_cmd_str) else {
@@ -185,6 +182,7 @@ where
             };
             passed_on_cmd_str = res;
         }
+        _ => (),
     }
 
     if !passed_on_cmd_str.is_empty() {

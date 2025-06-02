@@ -57,11 +57,10 @@ impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
             Err(e) => {
                 log_exception(self.py(), &e);
             }
-            Ok(handle_input_return) => {
-                if !handle_input_return {
-                    return Ok(PyBool::new(self.py(), false).to_owned().into_any());
-                }
+            Ok(false) => {
+                return Ok(PyBool::new(self.py(), false).to_owned().into_any());
             }
+            Ok(true) => (),
         };
 
         let args_tuple = PyTuple::new(

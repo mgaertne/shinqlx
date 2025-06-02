@@ -431,11 +431,10 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                                     log_exception(self.py(), &e);
                                     continue;
                                 }
-                                Ok(return_handler) => {
-                                    if !return_handler.is_none() {
-                                        return return_handler;
-                                    }
+                                Ok(return_handler) if !return_handler.is_none() => {
+                                    return return_handler;
                                 }
+                                _ => (),
                             }
                         }
                     }

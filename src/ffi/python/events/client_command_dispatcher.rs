@@ -123,11 +123,10 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
             Err(e) => {
                 log_exception(self.py(), &e);
             }
-            Ok(handle_input_return) => {
-                if !handle_input_return {
-                    return Ok(PyBool::new(self.py(), false).to_owned().into_any());
-                }
+            Ok(false) => {
+                return Ok(PyBool::new(self.py(), false).to_owned().into_any());
             }
+            Ok(true) => (),
         };
 
         Ok(return_value.bind(self.py()).to_owned())

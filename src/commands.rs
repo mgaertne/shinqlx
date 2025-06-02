@@ -266,20 +266,17 @@ pub extern "C" fn cmd_restart_python() {
         main_engine.com_printf("Restarting Python...\n");
 
         match pyshinqlx_is_initialized() {
-            true => {
-                if pyshinqlx_reload().is_ok() {
-                    // shinqlx initializes after the first new game starts, but since the game already
-                    // start, we manually trigger the event to make it initialize properly.
-                    new_game_dispatcher(false);
-                }
+            true if pyshinqlx_reload().is_ok() => {
+                // shinqlx initializes after the first new game starts, but since the game already
+                // start, we manually trigger the event to make it initialize properly.
+                new_game_dispatcher(false);
             }
-            false => {
-                if pyshinqlx_initialize().is_ok() {
-                    // shinqlx initializes after the first new game starts, but since the game already
-                    // start, we manually trigger the event to make it initialize properly.
-                    new_game_dispatcher(false);
-                }
+            false if pyshinqlx_initialize().is_ok() => {
+                // shinqlx initializes after the first new game starts, but since the game already
+                // start, we manually trigger the event to make it initialize properly.
+                new_game_dispatcher(false);
             }
+            _ => (),
         }
     });
 }
