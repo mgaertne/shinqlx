@@ -193,7 +193,6 @@ jobs:
           path: cobertura.xml
 
   llvm-cov-coverage:
-    continue-on-error: true
     runs-on: ubuntu-latest
     needs: [ build ]
     steps:
