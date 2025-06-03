@@ -386,59 +386,43 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
         let plugins = event_dispatcher.plugins.read();
-        for i in 0..5 {
-            for (_, handlers) in &*plugins {
-                for handler in &handlers[i] {
-                    match handler.call1(self.py(), args) {
-                        Err(e) => {
-                            log_exception(self.py(), &e);
-                            continue;
-                        }
-                        Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(self.py());
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
-                            {
-                                continue;
+        for handler in (0..5).flat_map(|i| {
+            plugins.iter().flat_map(move |(_, handlers)| {
+                handlers[i]
+                    .iter()
+                    .map(|handler| handler.clone_ref(self.py()))
+            })
+        }) {
+            match handler.call1(self.py(), args) {
+                Err(e) => {
+                    log_exception(self.py(), &e);
+                }
+                Ok(res) => match res.extract::<PythonReturnCodes>(self.py()) {
+                    Ok(PythonReturnCodes::RET_NONE) => (),
+                    Ok(PythonReturnCodes::RET_STOP) => {
+                        return PyBool::new(self.py(), true).to_owned().into_any();
+                    }
+                    Ok(PythonReturnCodes::RET_STOP_EVENT) => {
+                        return_value = PyBool::new(self.py(), false).to_owned().into_any().unbind();
+                    }
+                    Ok(PythonReturnCodes::RET_STOP_ALL) => {
+                        return PyBool::new(self.py(), false).to_owned().into_any();
+                    }
+                    _ => {
+                        match self.call_method1(
+                            intern!(self.py(), "handle_return"),
+                            (handler.bind(self.py()), res),
+                        ) {
+                            Err(e) => {
+                                log_exception(self.py(), &e);
                             }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
-                            {
-                                return PyBool::new(self.py(), true).to_owned().into_any();
+                            Ok(return_handler) if !return_handler.is_none() => {
+                                return return_handler;
                             }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
-                            {
-                                return_value =
-                                    PyBool::new(self.py(), false).to_owned().into_any().unbind();
-                                continue;
-                            }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
-                            {
-                                return PyBool::new(self.py(), false).to_owned().into_any();
-                            }
-
-                            match self.call_method1(
-                                intern!(self.py(), "handle_return"),
-                                (handler.bind(self.py()), res),
-                            ) {
-                                Err(e) => {
-                                    log_exception(self.py(), &e);
-                                    continue;
-                                }
-                                Ok(return_handler) if !return_handler.is_none() => {
-                                    return return_handler;
-                                }
-                                _ => (),
-                            }
+                            _ => (),
                         }
                     }
-                }
+                },
             }
         }
 

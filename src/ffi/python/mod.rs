@@ -204,39 +204,24 @@ impl FromPyObject<'_> for PythonReturnCodes {
         if item.is_instance_of::<PyBool>() {
             return Err(PyValueError::new_err("unsupported PythonReturnCode"));
         }
-        let item_i32 = item.extract::<i32>();
-        if item_i32
-            .as_ref()
-            .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE as i32)
-        {
-            return Ok(PythonReturnCodes::RET_NONE);
+        match item.extract::<i32>() {
+            Ok(ret_none) if ret_none == PythonReturnCodes::RET_NONE as i32 => {
+                Ok(PythonReturnCodes::RET_NONE)
+            }
+            Ok(ret_stop) if ret_stop == PythonReturnCodes::RET_STOP as i32 => {
+                Ok(PythonReturnCodes::RET_STOP)
+            }
+            Ok(ret_stop_all) if ret_stop_all == PythonReturnCodes::RET_STOP_ALL as i32 => {
+                Ok(PythonReturnCodes::RET_STOP_ALL)
+            }
+            Ok(ret_stop_event) if ret_stop_event == PythonReturnCodes::RET_STOP_EVENT as i32 => {
+                Ok(PythonReturnCodes::RET_STOP_EVENT)
+            }
+            Ok(ret_usage) if ret_usage == PythonReturnCodes::RET_USAGE as i32 => {
+                Ok(PythonReturnCodes::RET_USAGE)
+            }
+            _ => Err(PyValueError::new_err("unsupported PythonReturnCode")),
         }
-        if item_i32
-            .as_ref()
-            .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP as i32)
-        {
-            return Ok(PythonReturnCodes::RET_STOP);
-        }
-        if item_i32
-            .as_ref()
-            .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL as i32)
-        {
-            return Ok(PythonReturnCodes::RET_STOP_ALL);
-        }
-        if item_i32
-            .as_ref()
-            .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT as i32)
-        {
-            return Ok(PythonReturnCodes::RET_STOP_EVENT);
-        }
-        if item_i32
-            .as_ref()
-            .is_ok_and(|&value| value == PythonReturnCodes::RET_USAGE as i32)
-        {
-            return Ok(PythonReturnCodes::RET_USAGE);
-        }
-
-        Err(PyValueError::new_err("unsupported PythonReturnCode"))
     }
 }
 

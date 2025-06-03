@@ -43,57 +43,43 @@ impl<'py> SetConfigstringDispatcherMethods<'py> for Bound<'py, SetConfigstringDi
 
         let super_class = self.borrow().into_super();
         let plugins = super_class.plugins.read();
-        for i in 0..5 {
-            for (_, handlers) in plugins.iter() {
-                for handler in &handlers[i] {
-                    match handler.call1(self.py(), (index, &forwarded_value)) {
-                        Err(e) => {
-                            log_exception(self.py(), &e);
-                            continue;
+        for handler in (0..5).flat_map(|i| {
+            plugins.iter().flat_map(move |(_, handlers)| {
+                handlers[i]
+                    .iter()
+                    .map(|handler| handler.clone_ref(self.py()))
+            })
+        }) {
+            match handler.call1(self.py(), (index, &forwarded_value)) {
+                Err(e) => {
+                    log_exception(self.py(), &e);
+                }
+                Ok(res) => match res.extract::<PythonReturnCodes>(self.py()) {
+                    Ok(PythonReturnCodes::RET_NONE) => (),
+                    Ok(PythonReturnCodes::RET_STOP) => {
+                        return Ok(PyBool::new(self.py(), true).to_owned().into_any());
+                    }
+                    Ok(PythonReturnCodes::RET_STOP_EVENT) => {
+                        return_value = PyBool::new(self.py(), false).to_owned().into_any().unbind();
+                    }
+                    Ok(PythonReturnCodes::RET_STOP_ALL) => {
+                        return Ok(PyBool::new(self.py(), false).to_owned().into_any());
+                    }
+                    _ => match res.extract::<String>(self.py()) {
+                        Err(_) => {
+                            log_unexpected_return_value(
+                                self.py(),
+                                SetConfigstringDispatcher::name,
+                                res.bind(self.py()),
+                                handler.bind(self.py()),
+                            );
                         }
-                        Ok(res) => {
-                            let res_i32 = res.extract::<PythonReturnCodes>(self.py());
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
-                            {
-                                continue;
-                            }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP)
-                            {
-                                return Ok(PyBool::new(self.py(), true).to_owned().into_any());
-                            }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
-                            {
-                                return_value =
-                                    PyBool::new(self.py(), false).to_owned().into_any().unbind();
-                                continue;
-                            }
-                            if res_i32
-                                .as_ref()
-                                .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_ALL)
-                            {
-                                return Ok(PyBool::new(self.py(), false).to_owned().into_any());
-                            }
-
-                            let Ok(str_value) = res.extract::<String>(self.py()) else {
-                                log_unexpected_return_value(
-                                    self.py(),
-                                    SetConfigstringDispatcher::name,
-                                    res.bind(self.py()),
-                                    handler.bind(self.py()),
-                                );
-                                continue;
-                            };
+                        Ok(str_value) => {
                             forwarded_value.clone_from(&str_value);
                             return_value = PyString::new(self.py(), &str_value).into_any().unbind();
                         }
-                    }
-                }
+                    },
+                },
             }
         }
 
