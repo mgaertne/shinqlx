@@ -724,6 +724,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn execute_calls_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
@@ -1978,87 +1979,73 @@ def remove_command(cmd):
 
         let slf = self.borrow();
         let commands = slf.commands.read();
-        for priority_level in 0..commands.len() {
-            for cmd in commands[priority_level].iter() {
-                let bound_cmd = cmd.bind(self.py());
-                if !bound_cmd.is_eligible_name(&name) {
-                    continue;
-                }
-                if !bound_cmd.is_eligible_channel(channel) {
-                    continue;
-                }
-                if !bound_cmd.is_eligible_player(player, is_client_cmd) {
-                    continue;
-                }
+        for cmd in (0..commands.len()).flat_map(|priority_level| commands[priority_level].iter()) {
+            let bound_cmd = cmd.bind(self.py());
+            if !bound_cmd.is_eligible_name(&name) {
+                continue;
+            }
+            if !bound_cmd.is_eligible_channel(channel) {
+                continue;
+            }
+            if !bound_cmd.is_eligible_player(player, is_client_cmd) {
+                continue;
+            }
 
-                if is_client_cmd {
-                    pass_through = bound_cmd.borrow().client_cmd_pass;
-                }
+            if is_client_cmd {
+                pass_through = bound_cmd.borrow().client_cmd_pass;
+            }
 
-                let cmd_copy = Command {
-                    plugin: bound_cmd.borrow().plugin.clone_ref(self.py()),
-                    name: bound_cmd.borrow().name.to_owned(),
-                    handler: bound_cmd.borrow().handler.clone_ref(self.py()),
-                    permission: bound_cmd.borrow().permission,
-                    channels: bound_cmd
-                        .borrow()
-                        .channels
-                        .read()
-                        .iter()
-                        .map(|channel| channel.clone_ref(self.py()))
-                        .collect::<Vec<Py<PyAny>>>()
-                        .into(),
-                    exclude_channels: bound_cmd
-                        .borrow()
-                        .exclude_channels
-                        .read()
-                        .iter()
-                        .map(|channel| channel.clone_ref(self.py()))
-                        .collect::<Vec<Py<PyAny>>>()
-                        .into(),
-                    client_cmd_pass: bound_cmd.borrow().client_cmd_pass,
-                    client_cmd_perm: bound_cmd.borrow().client_cmd_perm,
-                    prefix: bound_cmd.borrow().prefix,
-                    usage: bound_cmd.borrow().usage.to_owned(),
-                };
+            let cmd_copy = Command {
+                plugin: bound_cmd.borrow().plugin.clone_ref(self.py()),
+                name: bound_cmd.borrow().name.to_owned(),
+                handler: bound_cmd.borrow().handler.clone_ref(self.py()),
+                permission: bound_cmd.borrow().permission,
+                channels: bound_cmd
+                    .borrow()
+                    .channels
+                    .read()
+                    .iter()
+                    .map(|channel| channel.clone_ref(self.py()))
+                    .collect::<Vec<Py<PyAny>>>()
+                    .into(),
+                exclude_channels: bound_cmd
+                    .borrow()
+                    .exclude_channels
+                    .read()
+                    .iter()
+                    .map(|channel| channel.clone_ref(self.py()))
+                    .collect::<Vec<Py<PyAny>>>()
+                    .into(),
+                client_cmd_pass: bound_cmd.borrow().client_cmd_pass,
+                client_cmd_perm: bound_cmd.borrow().client_cmd_perm,
+                prefix: bound_cmd.borrow().prefix,
+                usage: bound_cmd.borrow().usage.to_owned(),
+            };
 
-                let dispatcher_result = CommandDispatcherMethods::dispatch(
-                    command_dispatcher.downcast()?,
-                    &Bound::new(self.py(), player.to_owned())?,
-                    &Bound::new(self.py(), cmd_copy)?,
-                    msg,
-                )?;
-                if dispatcher_result
-                    .downcast::<PyBool>()
-                    .is_ok_and(|value| !value.is_true())
-                {
-                    return Ok(true);
-                }
+            let dispatcher_result = CommandDispatcherMethods::dispatch(
+                command_dispatcher.downcast()?,
+                &Bound::new(self.py(), player.to_owned())?,
+                &Bound::new(self.py(), cmd_copy)?,
+                msg,
+            )?;
+            if dispatcher_result
+                .downcast::<PyBool>()
+                .is_ok_and(|value| !value.is_true())
+            {
+                return Ok(true);
+            }
 
-                let cmd_result = bound_cmd.execute(player, msg, channel)?;
-                let cmd_result_return_code = cmd_result.extract::<PythonReturnCodes>();
-                if cmd_result_return_code.as_ref().is_ok_and(|value| {
-                    [PythonReturnCodes::RET_STOP, PythonReturnCodes::RET_STOP_ALL].contains(value)
-                }) {
+            let cmd_result = bound_cmd.execute(player, msg, channel)?;
+            match cmd_result.extract::<PythonReturnCodes>() {
+                Ok(PythonReturnCodes::RET_STOP) | Ok(PythonReturnCodes::RET_STOP_ALL) => {
                     return Ok(false);
                 }
-                if cmd_result_return_code
-                    .as_ref()
-                    .is_ok_and(|&value| value == PythonReturnCodes::RET_STOP_EVENT)
-                {
-                    pass_through = false;
-                } else if cmd_result_return_code
-                    .as_ref()
-                    .is_ok_and(|&value| value == PythonReturnCodes::RET_USAGE)
-                {
-                    if !bound_cmd.borrow().usage.is_empty() {
-                        let usage_msg = format!("^7Usage: ^6{} {}", name, bound_cmd.borrow().usage);
-                        channel.call_method1(intern!(self.py(), "reply"), (&usage_msg,))?;
-                    }
-                } else if !cmd_result_return_code
-                    .as_ref()
-                    .is_ok_and(|&value| value == PythonReturnCodes::RET_NONE)
-                {
+                Ok(PythonReturnCodes::RET_STOP_EVENT) => pass_through = false,
+                Ok(PythonReturnCodes::RET_USAGE) if !bound_cmd.borrow().usage.is_empty() => {
+                    let usage_msg = format!("^7Usage: ^6{} {}", name, bound_cmd.borrow().usage);
+                    channel.call_method1(intern!(self.py(), "reply"), (&usage_msg,))?;
+                }
+                Ok(PythonReturnCodes::RET_NONE) => {
                     pyshinqlx_get_logger(self.py(), None).and_then(|logger| {
                         let cmd_handler_name = bound_cmd
                             .borrow()
@@ -2071,37 +2058,38 @@ def remove_command(cmd):
                                 logging_module.getattr(intern!(self.py(), "WARNING"))
                             })?;
                         logger
-                            .call_method(
-                                intern!(self.py(), "makeRecord"),
-                                (
-                                    intern!(self.py(), "shinqlx"),
-                                    warning_level,
-                                    intern!(self.py(), ""),
-                                    -1,
-                                    intern!(
+                                .call_method(
+                                    intern!(self.py(), "makeRecord"),
+                                    (
+                                        intern!(self.py(), "shinqlx"),
+                                        warning_level,
+                                        intern!(self.py(), ""),
+                                        -1,
+                                        intern!(
                             self.py(),
                             "Command '%s' with handler '%s' returned an unknown return value: %s"
                         ),
-                                    (
-                                        bound_cmd.borrow().name.to_owned(),
-                                        cmd_handler_name,
-                                        cmd_result,
+                                        (
+                                            bound_cmd.borrow().name.to_owned(),
+                                            cmd_handler_name,
+                                            cmd_result,
+                                        ),
+                                        self.py().None(),
                                     ),
-                                    self.py().None(),
-                                ),
-                                Some(
-                                    &[(
-                                        intern!(self.py(), "func"),
-                                        intern!(self.py(), "handle_input"),
-                                    )]
-                                    .into_py_dict(self.py())?,
-                                ),
-                            )
-                            .and_then(|log_record| {
-                                logger.call_method1(intern!(self.py(), "handle"), (log_record,))
-                            })
+                                    Some(
+                                        &[(
+                                            intern!(self.py(), "func"),
+                                            intern!(self.py(), "handle_input"),
+                                        )]
+                                            .into_py_dict(self.py())?,
+                                    ),
+                                )
+                                .and_then(|log_record| {
+                                    logger.call_method1(intern!(self.py(), "handle"), (log_record,))
+                                })
                     })?;
                 }
+                _ => (),
             }
         }
 
