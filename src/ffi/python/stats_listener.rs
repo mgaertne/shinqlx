@@ -7,6 +7,7 @@ use pyo3::{
 };
 use rayon::prelude::*;
 use serde_json::{Value, from_str};
+use tap::{TapFallible, TapOptional};
 use zmq::{Context, DONTWAIT, POLLIN, Socket, SocketType};
 
 use super::{EVENT_DISPATCHERS, log_exception, prelude::*};
@@ -517,11 +518,14 @@ def run_zmq_thread(poller):
                 continue;
             }
 
-            if let Ok(zmq_msg) = self.py().allow_threads(|| socket.recv_msg(DONTWAIT)) {
-                if let Some(zmq_str) = zmq_msg.as_str() {
-                    handle_zmq_msg(self.py(), zmq_str);
-                }
-            }
+            let _ = self
+                .py()
+                .allow_threads(|| socket.recv_msg(DONTWAIT))
+                .tap_ok(|zmq_msg| {
+                    zmq_msg.as_str().tap_some(|zmq_str| {
+                        handle_zmq_msg(self.py(), zmq_str);
+                    });
+                });
         }
     }
 }
@@ -765,9 +769,9 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
 }
 
 fn handle_zmq_msg(py: Python<'_>, zmq_msg: &str) {
-    if let Err(e) = try_handle_zmq_msg(py, zmq_msg) {
-        log_exception(py, &e);
-    }
+    let _ = try_handle_zmq_msg(py, zmq_msg).tap_err(|e| {
+        log_exception(py, e);
+    });
 }
 
 #[cfg(test)]

@@ -1,3 +1,5 @@
+use tap::TapFallible;
+
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Calls a vote as if started by the server and not a player.
@@ -9,9 +11,9 @@ pub(crate) fn pyshinqlx_callvote(
     vote_time: Option<i32>,
 ) {
     py.allow_threads(|| {
-        if let Ok(mut current_level) = CurrentLevel::try_get() {
+        let _ = CurrentLevel::try_get().tap_ok_mut(|current_level| {
             current_level.callvote(vote, vote_disp, vote_time);
-        }
+        });
     })
 }
 

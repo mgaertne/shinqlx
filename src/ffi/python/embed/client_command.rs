@@ -1,3 +1,5 @@
+use tap::TryConv;
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 #[cfg(test)]
@@ -16,8 +18,7 @@ pub(crate) fn pyshinqlx_client_command(
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let opt_client = Client::try_from(client_id).ok().filter(|client| {
+        let opt_client = client_id.try_conv::<Client>().ok().filter(|client| {
             ![clientState_t::CS_FREE, clientState_t::CS_ZOMBIE].contains(&client.get_state())
         });
         let returned = opt_client.is_some();

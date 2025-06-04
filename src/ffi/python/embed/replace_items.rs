@@ -1,35 +1,34 @@
 use arrayvec::ArrayVec;
 use pyo3::exceptions::PyValueError;
+use tap::TryConv;
 
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
 fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
-    if let Ok(item_id) = item.extract::<i32>() {
-        if !(0..GameItem::get_num_items()).contains(&item_id) {
-            return Err(PyValueError::new_err(format!(
-                "item2 needs to be between 0 and {}.",
-                GameItem::get_num_items() - 1
-            )));
-        }
-        return Ok(item_id);
+    match item.extract::<i32>() {
+        Ok(item_id) if (0..GameItem::get_num_items()).contains(&item_id) => Ok(item_id),
+        Ok(_) => Err(PyValueError::new_err(format!(
+            "item2 needs to be between 0 and {}.",
+            GameItem::get_num_items() - 1
+        ))),
+        Err(_) => match item.extract::<String>() {
+            Ok(item_classname) => item.py().allow_threads(|| {
+                (1..GameItem::get_num_items())
+                    .filter(|&i| {
+                        i.try_conv::<GameItem>()
+                            .is_ok_and(|game_item| game_item.get_classname() == item_classname)
+                    })
+                    .take(1)
+                    .next()
+                    .ok_or(PyValueError::new_err(format!(
+                        "invalid item classname: {item_classname}"
+                    )))
+            }),
+            Err(_) => Err(PyValueError::new_err(
+                "item2 needs to be of type int or string.",
+            )),
+        },
     }
-
-    let Ok(item_classname) = item.extract::<String>() else {
-        return Err(PyValueError::new_err(
-            "item2 needs to be of type int or string.",
-        ));
-    };
-
-    (1..GameItem::get_num_items())
-        .filter(|&i| {
-            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-            GameItem::try_from(i).is_ok_and(|game_item| game_item.get_classname() == item_classname)
-        })
-        .take(1)
-        .next()
-        .ok_or(PyValueError::new_err(format!(
-            "invalid item classname: {item_classname}"
-        )))
 }
 
 /// Replaces target entity's item with specified one.
@@ -43,66 +42,55 @@ pub(crate) fn pyshinqlx_replace_items(
     let item2_id = determine_item_id(item2)?;
     // Note: if item_id == 0 and item_classname == NULL, then item will be removed
 
-    if let Ok(item1_id) = item1.extract::<i32>() {
-        // replacing item by entity_id
-
-        // entity_id checking
-        if !(0..GameItem::get_num_items()).contains(&item1_id) {
-            return Err(PyValueError::new_err(format!(
-                "item1 needs to be between 0 and {}.",
-                GameItem::get_num_items() - 1
-            )));
+    match item1.extract::<i32>() {
+        Ok(item1_id) if (0..GameItem::get_num_items()).contains(&item1_id) => {
+            py.allow_threads(|| {
+                item1_id
+                    .try_conv::<GameEntity>()
+                    .ok()
+                    .filter(|game_entity| {
+                        game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
+                    })
+                    .map_or(
+                        Err(PyValueError::new_err(format!(
+                            "entity #{item1_id} is not a valid game item"
+                        ))),
+                        |mut game_entity| {
+                            game_entity.replace_item(item2_id);
+                            Ok(true)
+                        },
+                    )
+            })
         }
+        Ok(_) => Err(PyValueError::new_err(format!(
+            "item1 needs to be between 0 and {}.",
+            GameItem::get_num_items() - 1
+        ))),
+        Err(_) => match item1.extract::<String>() {
+            Ok(item1_classname) => py.allow_threads(|| {
+                let mut matching_item1_entities: ArrayVec<
+                    Box<GameEntity>,
+                    { MAX_GENTITIES as usize },
+                > = (0..MAX_GENTITIES)
+                    .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
+                    .filter(|game_entity| {
+                        game_entity.in_use()
+                            && game_entity.is_game_item(entityType_t::ET_ITEM)
+                            && game_entity.get_classname() == item1_classname
+                    })
+                    .collect();
 
-        return py.allow_threads(|| {
-            #[cfg_attr(
-                test,
-                allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-            )]
-            let opt_game_entity = GameEntity::try_from(item1_id).ok().filter(|game_entity| {
-                game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
-            });
+                matching_item1_entities
+                    .iter_mut()
+                    .for_each(|game_entity| game_entity.replace_item(item2_id));
 
-            if opt_game_entity.is_none() {
-                return Err(PyValueError::new_err(format!(
-                    "entity #{item1_id} is not a valid game item"
-                )));
-            }
-
-            if let Some(mut game_entity) = opt_game_entity {
-                game_entity.replace_item(item2_id);
-            }
-
-            Ok(true)
-        });
+                Ok(!matching_item1_entities.is_empty())
+            }),
+            Err(_) => Err(PyValueError::new_err(
+                "item1 needs to be of type int or string.",
+            )),
+        },
     }
-
-    if let Ok(item1_classname) = item1.extract::<String>() {
-        return py.allow_threads(|| {
-            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-            let mut matching_item1_entities: ArrayVec<
-                Box<GameEntity>,
-                { MAX_GENTITIES as usize },
-            > = (0..MAX_GENTITIES)
-                .filter_map(|i| GameEntity::try_from(i as i32).ok().map(Box::new))
-                .filter(|game_entity| {
-                    game_entity.in_use()
-                        && game_entity.is_game_item(entityType_t::ET_ITEM)
-                        && game_entity.get_classname() == item1_classname
-                })
-                .collect();
-
-            matching_item1_entities
-                .iter_mut()
-                .for_each(|game_entity| game_entity.replace_item(item2_id));
-
-            Ok(!matching_item1_entities.is_empty())
-        });
-    }
-
-    Err(PyValueError::new_err(
-        "item1 needs to be of type int or string.",
-    ))
 }
 
 #[cfg(test)]

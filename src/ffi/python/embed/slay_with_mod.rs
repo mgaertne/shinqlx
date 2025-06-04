@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyValueError;
+use tap::{TapOptional, TryConv};
 
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
@@ -14,26 +15,23 @@ pub(crate) fn pyshinqlx_slay_with_mod(
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        let Ok(means_of_death): Result<meansOfDeath_t, _> = mean_of_death.try_into() else {
-            return Err(PyValueError::new_err(
+        mean_of_death.try_conv::<meansOfDeath_t>().map_or(
+            Err(PyValueError::new_err(
                 "means of death needs to be a valid enum value.",
-            ));
-        };
-
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        let opt_game_entity = GameEntity::try_from(client_id)
-            .ok()
-            .filter(|game_entity| game_entity.get_game_client().is_ok());
-        let returned = opt_game_entity.is_some();
-        if let Some(mut game_entity) = opt_game_entity {
-            if game_entity.get_health() > 0 {
-                game_entity.slay_with_mod(means_of_death);
-            }
-        }
-        Ok(returned)
+            )),
+            |means_of_death| {
+                Ok(client_id
+                    .try_conv::<GameEntity>()
+                    .ok()
+                    .filter(|game_entity| game_entity.get_game_client().is_ok())
+                    .tap_some_mut(|game_entity| {
+                        if game_entity.get_health() > 0 {
+                            game_entity.slay_with_mod(means_of_death);
+                        }
+                    })
+                    .is_some())
+            },
+        )
     })
 }
 

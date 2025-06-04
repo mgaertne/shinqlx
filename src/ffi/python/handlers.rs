@@ -13,6 +13,7 @@ use pyo3::{
 };
 use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
+use tap::{TapFallible, TapOptional};
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
@@ -3699,9 +3700,12 @@ def next_frame_tasks_runner():
 /// and have it be executed here.
 #[pyfunction]
 pub(crate) fn handle_frame(py: Python<'_>) -> Option<bool> {
-    while let Err(e) = try_run_frame_tasks(py) {
-        log_exception(py, &e);
-    }
+    while try_run_frame_tasks(py)
+        .tap_err(|e| {
+            log_exception(py, e);
+        })
+        .is_err()
+    {}
 
     let return_value = try_handle_frame(py).map_or_else(
         |e| {
@@ -4223,12 +4227,12 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
 
 #[pyfunction]
 pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> {
-    if let Err(e) = try_handle_new_game(py, is_restart) {
-        log_exception(py, &e);
-        return Some(true);
+    match try_handle_new_game(py, is_restart).tap_err(|e| {
+        log_exception(py, e);
+    }) {
+        Err(_) => Some(true),
+        _ => None,
     }
-
-    None
 }
 
 #[cfg(test)]
@@ -8069,9 +8073,12 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
-    if let Some(print_redirector) = PRINT_REDIRECTION.load().as_ref() {
-        print_redirector.bind(py).append(text);
-    }
+    PRINT_REDIRECTION
+        .load()
+        .as_ref()
+        .tap_some(|print_redirector| {
+            print_redirector.bind(py).append(text);
+        });
 
     let returned = result.extract::<String>().unwrap_or(text.to_string());
     Ok(PyString::new(py, &returned).into_any().unbind())
@@ -8097,6 +8104,7 @@ mod handle_console_print_tests {
     use mockall::predicate;
     use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
     use rstest::*;
+    use tap::TapOptional;
 
     use super::{
         PRINT_REDIRECTION, PrintRedirector, PrintRedirectorMethods, handle_console_print,
@@ -8319,9 +8327,15 @@ mod handle_console_print_tests {
                         .is_ok_and(|str_value| str_value == "asdf")
                 }));
 
-                if let Some(redirector) = PRINT_REDIRECTION.load().as_ref() {
-                    redirector.bind(py).flush().expect("this should not happen")
-                }
+                PRINT_REDIRECTION
+                    .load()
+                    .as_ref()
+                    .tap_some(|print_redirector| {
+                        print_redirector
+                            .bind(py)
+                            .flush()
+                            .expect("this should not happen")
+                    });
             });
         });
     }

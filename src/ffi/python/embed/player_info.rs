@@ -1,6 +1,7 @@
 use core::sync::atomic::Ordering;
 
 use pyo3::exceptions::PyValueError;
+use tap::TryConv;
 
 use crate::{
     ffi::{c::prelude::*, python::prelude::*},
@@ -22,10 +23,10 @@ pub(crate) fn pyshinqlx_player_info(
         }
 
         let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let opt_client = Client::try_from(client_id).ok();
 
-        if opt_client
+        if client_id
+            .try_conv::<Client>()
+            .ok()
             .filter(|client| {
                 client.get_state() == clientState_t::CS_FREE
                     && allowed_free_clients & (1 << client_id as u64) == 0

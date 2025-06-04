@@ -1,6 +1,6 @@
 use core::ffi::c_char;
 
-use tap::TapOptional;
+use tap::{TapOptional, TryConv};
 
 use super::prelude::*;
 #[cfg(test)]
@@ -75,9 +75,8 @@ impl CurrentLevel {
 
             let maxclients = main_engine.get_max_clients();
 
-            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
             (0..maxclients)
-                .filter_map(|client_id| GameEntity::try_from(client_id).ok())
+                .filter_map(|client_id| client_id.try_conv::<GameEntity>().ok())
                 .filter_map(|game_entity| game_entity.get_game_client().ok())
                 .for_each(|mut game_client| game_client.set_vote_pending());
 

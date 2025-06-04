@@ -13,6 +13,7 @@ use mockall::predicate;
 use procfs::process::{MMapPath, MemoryMap, Process};
 use rayon::prelude::*;
 use retour::{GenericDetour, RawDetour};
+use tap::{Conv, TapFallible, TapOptional};
 
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
@@ -307,15 +308,14 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
         })?;
 
-        if let Some(detour) = self
-            .client_connect_detour
+        self.client_connect_detour
             .swap(Some(client_connect_detour.into()))
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
+                });
+            });
 
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::Acquire);
         let g_start_kamikaze_func = unsafe {
@@ -331,15 +331,14 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
         })?;
 
-        if let Some(detour) = self
-            .g_start_kamikaze_detour
+        self.g_start_kamikaze_detour
             .swap(Some(g_start_kamikaze_detour.into()))
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
+                });
+            });
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::Acquire);
         let client_spawn_func =
@@ -352,15 +351,14 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
         })?;
 
-        if let Some(detour) = self
-            .client_spawn_detour
+        self.client_spawn_detour
             .swap(Some(client_spawn_detour.into()))
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
+                });
+            });
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::Acquire);
         let g_damage_func = unsafe {
@@ -386,15 +384,14 @@ impl VmFunctions {
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
         })?;
 
-        if let Some(detour) = self
-            .g_damage_detour
+        self.g_damage_detour
             .swap(Some(g_damage_detour.into()))
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling damage detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
+                });
+            });
 
         Ok(())
     }
@@ -433,45 +430,41 @@ impl VmFunctions {
             field.store(0, Ordering::Release);
         });
 
-        if let Some(detour) = self
-            .client_connect_detour
+        self.client_connect_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
+                });
+            });
 
-        if let Some(detour) = self
-            .g_start_kamikaze_detour
+        self.g_start_kamikaze_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
+                });
+            });
 
-        if let Some(detour) = self
-            .client_spawn_detour
+        self.client_spawn_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
+                });
+            });
 
-        if let Some(detour) = self
-            .g_damage_detour
+        self.g_damage_detour
             .swap(None)
             .filter(|detour| detour.is_enabled())
-        {
-            if let Err(e) = unsafe { detour.disable() } {
-                error!(target: "shinqlx", "error when disabling damage detour: {e}");
-            }
-        }
+            .tap_some(|detour| {
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
+                });
+            });
     }
 }
 
@@ -1076,8 +1069,7 @@ impl QuakeLiveEngine {
     pub(crate) fn set_tag(&self) {
         const SV_TAGS_PREFIX: &str = "shinqlx";
 
-        if let Some(new_tags) = self
-            .find_cvar("sv_tags")
+        self.find_cvar("sv_tags")
             .map(|cvar| cvar.get_string().to_string())
             .filter(|sv_tags_string| sv_tags_string.split(',').all(|tag| tag != SV_TAGS_PREFIX))
             .map(|mut sv_tags_string| {
@@ -1087,17 +1079,17 @@ impl QuakeLiveEngine {
                 sv_tags_string.insert_str(0, SV_TAGS_PREFIX);
                 sv_tags_string
             })
-        {
-            self.set_cvar_forced("sv_tags", new_tags, false);
-        }
+            .tap_some(|new_tags| {
+                self.set_cvar_forced("sv_tags", new_tags, false);
+            });
     }
 
     // Called after the game is initialized.
     pub(crate) fn initialize_cvars(&self) {
-        if let Some(maxclients) = self.find_cvar("sv_maxclients") {
+        self.find_cvar("sv_maxclients").tap_some(|maxclients| {
             self.sv_maxclients
                 .store(maxclients.get_integer(), Ordering::Release);
-        }
+        });
     }
 
     pub(crate) fn get_max_clients(&self) -> i32 {
@@ -3226,11 +3218,9 @@ pub(crate) trait AddCommand<T: AsRef<str>> {
 
 impl<T: AsRef<str>> AddCommand<T> for QuakeLiveEngine {
     fn add_command(&self, cmd: T, func: unsafe extern "C" fn()) {
-        if let Ok(detour) = self.cmd_addcommand_detour() {
-            if let Ok(c_cmd) = CString::new(cmd.as_ref()) {
-                detour.call(c_cmd.as_ptr(), func)
-            }
-        }
+        let _ = self.cmd_addcommand_detour().tap_ok(|detour| {
+            let _ = CString::new(cmd.as_ref()).tap_ok(|c_cmd| detour.call(c_cmd.as_ptr(), func));
+        });
     }
 }
 
@@ -3279,11 +3269,11 @@ pub(crate) trait SetModuleOffset<T: AsRef<str>> {
 
 impl<T: AsRef<str>> SetModuleOffset<T> for QuakeLiveEngine {
     fn set_module_offset(&self, module_name: T, offset: unsafe extern "C" fn()) {
-        if let Ok(detour) = self.sys_setmoduleoffset_detour() {
-            if let Ok(c_module_name) = CString::new(module_name.as_ref()) {
+        let _ = self.sys_setmoduleoffset_detour().tap_ok(|detour| {
+            let _ = CString::new(module_name.as_ref()).tap_ok(|c_module_name| {
                 detour.call(c_module_name.as_ptr().cast_mut(), offset);
-            }
-        }
+            });
+        });
     }
 }
 
@@ -3335,9 +3325,9 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
         let level_time_param = level_time.into();
         let random_seed_param = random_seed.into();
         let restart_param = restart.into();
-        if let Ok(original_func) = self.g_init_game_orig() {
+        let _ = self.g_init_game_orig().tap_ok(|original_func| {
             original_func(level_time_param, random_seed_param, restart_param);
-        }
+        });
     }
 }
 
@@ -3392,9 +3382,9 @@ pub(crate) trait ShutdownGame<T: Into<c_int>> {
 impl<T: Into<c_int>> ShutdownGame<T> for QuakeLiveEngine {
     fn shutdown_game(&self, restart: T) {
         let restart_param = restart.into();
-        if let Ok(original_func) = self.g_shutdown_game_orig() {
+        let _ = self.g_shutdown_game_orig().tap_ok(|original_func| {
             original_func(restart_param);
-        }
+        });
     }
 }
 
@@ -3447,12 +3437,12 @@ impl<T: AsMut<client_t>, U: AsRef<str>, V: Into<qboolean>> ExecuteClientCommand<
     for QuakeLiveEngine
 {
     fn execute_client_command(&self, client: Option<T>, cmd: U, client_ok: V) {
-        if let Ok(detour) = self.sv_executeclientcommand_detour() {
-            if let Ok(c_command) = CString::new(cmd.as_ref()) {
+        let _ = self.sv_executeclientcommand_detour().tap_ok(|detour| {
+            let _ = CString::new(cmd.as_ref()).tap_ok(|c_command| {
                 let raw_client = client.map_or(ptr::null_mut(), |mut c_client| c_client.as_mut());
                 detour.call(raw_client, c_command.as_ptr(), client_ok.into());
-            }
-        }
+            });
+        });
     }
 }
 
@@ -3538,16 +3528,19 @@ pub(crate) trait SendServerCommand<T: AsRef<client_t>> {
 
 impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<T>, command: &str) {
-        if let Ok(original_func) = self.sv_sendservercommand_detour().map(|detour| unsafe {
-            mem::transmute::<&(), extern "C" fn(*const client_t, *const c_char, ...)>(
-                detour.trampoline(),
-            )
-        }) {
-            if let Ok(c_command) = CString::new(command) {
-                let raw_client = client.map_or(ptr::null(), |c_client| c_client.as_ref());
-                original_func(raw_client, c_command.as_ptr());
-            }
-        }
+        let _ = self
+            .sv_sendservercommand_detour()
+            .map(|detour| unsafe {
+                mem::transmute::<&(), extern "C" fn(*const client_t, *const c_char, ...)>(
+                    detour.trampoline(),
+                )
+            })
+            .tap_ok(|original_func| {
+                let _ = CString::new(command).tap_ok(|c_command| {
+                    let raw_client = client.map_or(ptr::null(), |c_client| c_client.as_ref());
+                    original_func(raw_client, c_command.as_ptr());
+                });
+            });
     }
 }
 
@@ -3627,9 +3620,9 @@ pub(crate) trait ClientEnterWorld<T: AsMut<client_t>> {
 
 impl<T: AsMut<client_t>> ClientEnterWorld<T> for QuakeLiveEngine {
     fn client_enter_world(&self, mut client: T, cmd: *mut usercmd_t) {
-        if let Ok(detour) = self.sv_cliententerworld_detour() {
+        let _ = self.sv_cliententerworld_detour().tap_ok(|detour| {
             detour.call(client.as_mut(), cmd);
-        }
+        });
     }
 }
 
@@ -3697,11 +3690,11 @@ pub(crate) trait SetConfigstring<T: Into<c_int>> {
 
 impl<T: Into<c_int>> SetConfigstring<T> for QuakeLiveEngine {
     fn set_configstring(&self, index: T, value: &str) {
-        if let Ok(detour) = self.sv_setconfgistring_detour() {
-            if let Ok(c_value) = CString::new(value) {
+        let _ = self.sv_setconfgistring_detour().tap_ok(|detour| {
+            let _ = CString::new(value).tap_ok(|c_value| {
                 detour.call(index.into(), c_value.as_ptr());
-            }
-        }
+            });
+        });
     }
 }
 
@@ -3750,13 +3743,16 @@ pub(crate) trait ComPrintf {
 
 impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
-        if let Ok(original_func) = self.com_printf_detour().map(|detour| unsafe {
-            mem::transmute::<&(), extern "C" fn(*const c_char, ...)>(detour.trampoline())
-        }) {
-            if let Ok(c_msg) = CString::new(msg) {
-                original_func(c_msg.as_ptr());
-            }
-        }
+        let _ = self
+            .com_printf_detour()
+            .map(|detour| unsafe {
+                mem::transmute::<&(), extern "C" fn(*const c_char, ...)>(detour.trampoline())
+            })
+            .tap_ok(|original_func| {
+                let _ = CString::new(msg).tap_ok(|c_msg| {
+                    original_func(c_msg.as_ptr());
+                });
+            });
     }
 }
 
@@ -3803,11 +3799,11 @@ pub(crate) trait SpawnServer<T: AsRef<str>, U: Into<qboolean>> {
 
 impl<T: AsRef<str>, U: Into<qboolean>> SpawnServer<T, U> for QuakeLiveEngine {
     fn spawn_server(&self, server: T, kill_bots: U) {
-        if let Ok(detour) = self.sv_spawnserver_detour() {
-            if let Ok(c_server) = CString::new(server.as_ref()) {
+        let _ = self.sv_spawnserver_detour().tap_ok(|detour| {
+            let _ = CString::new(server.as_ref()).tap_ok(|c_server| {
                 detour.call(c_server.as_ptr().cast_mut(), kill_bots.into());
-            }
-        }
+            });
+        });
     }
 }
 
@@ -3858,10 +3854,10 @@ pub(crate) trait RunFrame<T: Into<c_int>> {
 
 impl<T: Into<c_int>> RunFrame<T> for QuakeLiveEngine {
     fn run_frame(&self, time: T) {
-        let time_param = time.into();
-        if let Ok(original_func) = self.g_run_frame_orig() {
+        let time_param = time.conv::<c_int>();
+        let _ = self.g_run_frame_orig().tap_ok(|original_func| {
             original_func(time_param);
-        }
+        });
     }
 }
 
@@ -3991,9 +3987,13 @@ pub(crate) trait ClientSpawn<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
     fn client_spawn(&self, mut ent: T) {
-        if let Some(detour) = self.vm_functions.client_spawn_detour.load().as_ref() {
-            detour.call(ent.as_mut());
-        }
+        self.vm_functions
+            .client_spawn_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(ent.as_mut());
+            });
     }
 }
 
@@ -4281,10 +4281,10 @@ pub(crate) trait GameAddEvent<T: AsMut<gentity_t>, U: Into<c_int>> {
 
 impl<T: AsMut<gentity_t>, U: Into<c_int>> GameAddEvent<T, U> for QuakeLiveEngine {
     fn game_add_event(&self, mut game_entity: T, event: entity_event_t, event_param: U) {
-        let event_param_param = event_param.into();
-        if let Ok(original_func) = self.g_addevent_orig() {
-            original_func(game_entity.as_mut(), event, event_param_param)
-        }
+        let event_param_param = event_param.conv::<c_int>();
+        let _ = self
+            .g_addevent_orig()
+            .tap_ok(|original_func| original_func(game_entity.as_mut(), event, event_param_param));
     }
 }
 
@@ -4350,11 +4350,11 @@ pub(crate) trait ConsoleCommand<T: AsRef<str>> {
 
 impl<T: AsRef<str>> ConsoleCommand<T> for QuakeLiveEngine {
     fn execute_console_command(&self, cmd: T) {
-        if let Ok(original_func) = self.cmd_executestring_orig() {
-            if let Ok(c_cmd) = CString::new(cmd.as_ref()) {
+        let _ = self.cmd_executestring_orig().tap_ok(|original_func| {
+            let _ = CString::new(cmd.as_ref()).tap_ok(|c_cmd| {
                 original_func(c_cmd.as_ptr());
-            }
-        }
+            });
+        });
     }
 }
 
@@ -4833,18 +4833,22 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
         let damage_param = damage.into();
         let dflags_param = dflags.into();
         let means_of_death_param = means_of_death.into();
-        if let Some(detour) = self.vm_functions.g_damage_detour.load().as_ref() {
-            detour.call(
-                target,
-                inflictor,
-                attacker,
-                dir,
-                pos,
-                damage_param,
-                dflags_param,
-                means_of_death_param,
-            );
-        }
+        self.vm_functions
+            .g_damage_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(
+                    target,
+                    inflictor,
+                    attacker,
+                    dir,
+                    pos,
+                    damage_param,
+                    dflags_param,
+                    means_of_death_param,
+                );
+            });
     }
 }
 
@@ -4948,9 +4952,9 @@ pub(crate) trait FreeEntity<T: AsMut<gentity_t>> {
 
 impl<T: AsMut<gentity_t>> FreeEntity<T> for QuakeLiveEngine {
     fn free_entity(&self, mut gentity: T) {
-        if let Ok(original_func) = self.g_free_entity_orig() {
+        let _ = self.g_free_entity_orig().tap_ok(|original_func| {
             original_func(gentity.as_mut());
-        }
+        });
     }
 }
 
@@ -5165,9 +5169,13 @@ pub(crate) trait StartKamikaze<T: AsMut<gentity_t> + ?Sized> {
 
 impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
     fn start_kamikaze(&self, mut gentity: T) {
-        if let Some(detour) = self.vm_functions.g_start_kamikaze_detour.load().as_ref() {
-            detour.call(gentity.as_mut());
-        }
+        self.vm_functions
+            .g_start_kamikaze_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(gentity.as_mut());
+            });
     }
 }
 

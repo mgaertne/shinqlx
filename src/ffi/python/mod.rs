@@ -145,7 +145,7 @@ use pyo3::{
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
-use tap::prelude::*;
+use tap::{Conv, TapFallible, TapOptional};
 
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
@@ -454,38 +454,37 @@ pub(crate) fn client_id(
         return None;
     }
 
-    if let Ok(value) = name.to_string().parse::<i32>() {
-        if (0..64).contains(&value) {
-            return Some(value);
-        }
+    match name.to_string().parse::<i32>() {
+        Ok(value) if (0..64).contains(&value) => Some(value),
+        _ => match name.downcast::<Player>() {
+            Ok(player) => Some(player.borrow().id),
+            _ => {
+                let all_players = player_list.unwrap_or_else(|| {
+                    Player::all_players(&py.get_type::<Player>()).unwrap_or_default()
+                });
+
+                match name.to_string().parse::<i64>() {
+                    Ok(steam_id) => all_players
+                        .par_iter()
+                        .find_any(|&player| player.steam_id == steam_id)
+                        .map(|player| player.id),
+                    _ => match name.extract::<String>() {
+                        Ok(player_name) => {
+                            let clean_name = clean_text(&player_name).to_lowercase();
+                            all_players
+                                .par_iter()
+                                .find_any(|&player| {
+                                    let player_name = &*player.name.read();
+                                    clean_text(player_name).to_lowercase() == clean_name
+                                })
+                                .map(|player| player.id)
+                        }
+                        _ => None,
+                    },
+                }
+            }
+        },
     }
-
-    if let Ok(player) = name.downcast::<Player>() {
-        return Some(player.borrow().id);
-    }
-
-    let all_players = player_list
-        .unwrap_or_else(|| Player::all_players(&py.get_type::<Player>()).unwrap_or_default());
-
-    if let Ok(steam_id) = name.to_string().parse::<i64>() {
-        return all_players
-            .par_iter()
-            .find_any(|&player| player.steam_id == steam_id)
-            .map(|player| player.id);
-    }
-
-    if let Ok(player_name) = name.extract::<String>() {
-        let clean_name = clean_text(&player_name).to_lowercase();
-        return all_players
-            .par_iter()
-            .find_any(|&player| {
-                let player_name = &*player.name.read();
-                clean_text(player_name).to_lowercase() == clean_name
-            })
-            .map(|player| player.id);
-    }
-
-    None
 }
 
 fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
@@ -2098,18 +2097,20 @@ fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
     MAIN_ENGINE.load().as_ref().map_or(
         Err(PluginLoadError::new_err("no main engine found")),
         |main_engine| {
-            if let Some(plugins_cvar) = main_engine.find_cvar("qlx_plugins") {
-                let plugins_str = plugins_cvar.get_string();
-                let mut plugins: Vec<&str> =
-                    plugins_str.split(',').map(|value| value.trim()).collect();
-                if plugins.contains(&"DEFAULT") {
-                    plugins.extend_from_slice(&DEFAULT_PLUGINS);
-                    plugins.retain(|&value| value != "DEFAULT");
-                }
-                plugins.iter().unique().for_each(|&plugin| {
-                    let _ = load_plugin(py, plugin);
+            main_engine
+                .find_cvar("qlx_plugins")
+                .tap_some(|plugins_cvar| {
+                    let plugins_str = plugins_cvar.get_string();
+                    let mut plugins: Vec<&str> =
+                        plugins_str.split(',').map(|value| value.trim()).collect();
+                    if plugins.contains(&"DEFAULT") {
+                        plugins.extend_from_slice(&DEFAULT_PLUGINS);
+                        plugins.retain(|&value| value != "DEFAULT");
+                    }
+                    plugins.iter().unique().for_each(|&plugin| {
+                        let _ = load_plugin(py, plugin);
+                    });
                 });
-            };
 
             Ok(())
         },
@@ -2208,12 +2209,9 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 return reload_plugin(py, plugin);
             }
 
-            let plugin_load_result = try_load_plugin(py, plugin, plugins_path.as_path());
-            if let Err(e) = plugin_load_result.as_ref() {
+            try_load_plugin(py, plugin, plugins_path.as_path()).tap_err(|e| {
                 log_exception(py, e);
-            }
-
-            plugin_load_result
+            })
         },
     )
 }
@@ -2259,7 +2257,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                     .try_iter()?
                     .flatten()
                     .for_each(|hook| {
-                        if let Err(ref err) = hook
+                        let _ = hook
                             .downcast_into::<PyTuple>()
                             .map_err(PyErr::from)
                             .and_then(|hook_tuple| {
@@ -2287,9 +2285,9 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                                         },
                                     )
                             })
-                        {
-                            log_exception(py, err);
-                        }
+                            .tap_err(|err| {
+                                log_exception(py, err);
+                            });
                     });
 
                 loaded_plugin
@@ -2297,14 +2295,18 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                     .try_iter()?
                     .flatten()
                     .for_each(|cmd| {
-                        if let Err(ref err) = COMMANDS.load().as_ref().map_or(
-                            Err(PyEnvironmentError::new_err(
-                                "could not get access to commands",
-                            )),
-                            |commands| commands.bind(py).remove_command(cmd.downcast()?),
-                        ) {
-                            log_exception(py, err);
-                        };
+                        let _ = COMMANDS
+                            .load()
+                            .as_ref()
+                            .map_or(
+                                Err(PyEnvironmentError::new_err(
+                                    "could not get access to commands",
+                                )),
+                                |commands| commands.bind(py).remove_command(cmd.downcast()?),
+                            )
+                            .tap_err(|err| {
+                                log_exception(py, err);
+                            });
                     });
 
                 loaded_plugins.del_item(plugin)
@@ -2344,12 +2346,9 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         return Err(PluginUnloadError::new_err(error_msg));
     }
 
-    let plugin_unload_result = try_unload_plugin(py, plugin);
-    if let Err(ref e) = plugin_unload_result {
+    try_unload_plugin(py, plugin).tap_err(|e| {
         log_exception(py, e);
-    }
-
-    plugin_unload_result
+    })
 }
 
 fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
@@ -2375,12 +2374,9 @@ fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
 fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let _ = unload_plugin(py, plugin);
 
-    let plugin_reload_result = try_reload_plugin(py, plugin);
-    if let Err(ref e) = plugin_reload_result {
+    try_reload_plugin(py, plugin).tap_err(|e| {
         log_exception(py, e);
-    }
-
-    plugin_reload_result
+    })
 }
 
 #[cfg(test)]

@@ -6,7 +6,7 @@ use core::{
 };
 
 use arrayvec::ArrayVec;
-use tap::TapOptional;
+use tap::{TapFallible, TapOptional, TryConv};
 
 use super::prelude::*;
 use crate::{
@@ -46,24 +46,23 @@ impl TryFrom<i32> for GameEntity {
     type Error = QuakeLiveEngineError;
 
     fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
-        if let Ok(max_gentities) = i32::try_from(MAX_GENTITIES) {
-            if entity_id >= max_gentities {
-                return Err(QuakeLiveEngineError::InvalidId(entity_id));
+        match MAX_GENTITIES.try_conv::<i32>() {
+            Ok(max_gentities) if !(0..max_gentities).contains(&entity_id) => {
+                Err(QuakeLiveEngineError::InvalidId(entity_id))
+            }
+            _ => {
+                let g_entities = GameEntity::get_entities_list();
+                if g_entities.is_null() {
+                    Err(QuakeLiveEngineError::EntityNotFound(
+                        "g_entities not initialized".to_string(),
+                    ))
+                } else {
+                    Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
+                        QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
+                    })
+                }
             }
         }
-        if entity_id < 0 {
-            return Err(QuakeLiveEngineError::InvalidId(entity_id));
-        }
-
-        let g_entities = GameEntity::get_entities_list();
-        if g_entities.is_null() {
-            return Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".to_string(),
-            ));
-        }
-
-        Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
-            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".to_string()))
     }
 }
 
@@ -94,13 +93,13 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     trace: *mut trace_t,
 ) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
-        if let Ok(original_func) = main_engine.touch_item_orig() {
+        let _ = main_engine.touch_item_orig().tap_ok(|original_func| {
             (unsafe { ent.as_ref() }).tap_some(|&entity| {
                 if !ptr::eq(entity.parent, other) {
                     original_func(ent, other, trace);
                 }
             });
-        }
+        });
     });
 }
 
@@ -227,9 +226,9 @@ impl GameEntity {
                 0
             };
 
-        if let Ok(mut game_client) = self.get_game_client() {
+        let _ = self.get_game_client().tap_ok_mut(|game_client| {
             game_client.set_armor(0);
-        }
+        });
 
         // self damage = half damage, so multiplaying by 2
         MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
@@ -342,11 +341,8 @@ impl GameEntity {
             let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
             main_engine.com_printf(&class_name.to_string_lossy());
             if item_id != 0 {
-                #[cfg_attr(
-                    test,
-                    allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-                )]
-                let Ok(gitem) = GameItem::try_from(item_id) else {
+                #[cfg_attr(test, allow(irrefutable_let_patterns))]
+                let Ok(gitem) = item_id.try_conv::<GameItem>() else {
                     return;
                 };
                 self.gentity_t.s.modelindex = item_id;

@@ -7,6 +7,7 @@ use pyo3::{
     types::{PyBool, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple, PyType},
 };
 use rayon::prelude::*;
+use tap::TapOptional;
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
@@ -434,31 +435,31 @@ impl Plugin {
         name: &Bound<'_, PyAny>,
         player_list: Option<Vec<Player>>,
     ) -> PyResult<Option<Player>> {
-        if let Ok(player) = name.extract::<Player>() {
-            return Ok(Some(player));
+        match name.extract::<Player>() {
+            Ok(player) => Ok(Some(player)),
+            _ => match name.extract::<i32>() {
+                Ok(player_id) if (0..64).contains(&player_id) => {
+                    Player::py_new(player_id, None).map(Some)
+                }
+                _ => {
+                    let players =
+                        player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
+                    match name.extract::<i64>() {
+                        Ok(player_steam_id) => Ok(players
+                            .par_iter()
+                            .find_any(|player| player.steam_id == player_steam_id)
+                            .cloned()),
+                        _ => match client_id(cls.py(), name, Some(players.to_owned())) {
+                            Some(client_id) => Ok(players
+                                .par_iter()
+                                .find_any(|player| player.id == client_id)
+                                .cloned()),
+                            _ => Ok(None),
+                        },
+                    }
+                }
+            },
         }
-
-        if let Ok(player_id) = name.extract::<i32>() {
-            if (0..64).contains(&player_id) {
-                return Player::py_new(player_id, None).map(Some);
-            }
-        }
-
-        let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
-        if let Ok(player_steam_id) = name.extract::<i64>() {
-            return Ok(players
-                .par_iter()
-                .find_any(|player| player.steam_id == player_steam_id)
-                .cloned());
-        }
-
-        let Some(client_id) = client_id(cls.py(), name, Some(players.to_owned())) else {
-            return Ok(None);
-        };
-        Ok(players
-            .par_iter()
-            .find_any(|player| player.id == client_id)
-            .cloned())
     }
 
     /// Send a message to the chat, or any other channel.
@@ -584,21 +585,25 @@ impl Plugin {
         name: &Bound<'_, PyAny>,
         player_list: Option<Vec<Player>>,
     ) -> Option<String> {
-        if let Ok(player) = name.extract::<Player>() {
-            return Some(player.name.read().to_owned());
+        match name.extract::<Player>() {
+            Ok(player) => Some(player.name.read().to_owned()),
+            Err(_) => name
+                .str()
+                .map(|searched_name| {
+                    let players =
+                        player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
+                    let clean_name = clean_text(&searched_name.to_string()).to_lowercase();
+
+                    players
+                        .par_iter()
+                        .find_any(|&player| {
+                            clean_text(&(&*player.name.read())).to_lowercase() == clean_name
+                        })
+                        .map(|found_player| found_player.name.read().to_owned())
+                })
+                .ok()
+                .flatten(),
         }
-
-        let Ok(searched_name) = name.str().map(|value| value.to_string()) else {
-            return None;
-        };
-
-        let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
-        let clean_name = clean_text(&searched_name).to_lowercase();
-
-        players
-            .par_iter()
-            .find_any(|&player| clean_text(&(&*player.name.read())).to_lowercase() == clean_name)
-            .map(|found_player| found_player.name.read().to_owned())
     }
 
     /// Get a player's client id from the name, client ID,
@@ -1262,21 +1267,25 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         handler: &Bound<'py, PyAny>,
     ) -> PyResult<()> {
         let mut names = vec![];
-        if let Ok(py_list) = name.downcast::<PyList>() {
-            py_list.iter().for_each(|py_alias| {
-                if let Ok(alias) = py_alias.extract::<String>() {
-                    names.push(alias.to_owned());
-                }
-            })
-        } else if let Ok(py_tuple) = name.downcast::<PyTuple>() {
-            py_tuple.iter().for_each(|py_alias| {
-                if let Ok(alias) = py_alias.extract::<String>() {
-                    names.push(alias.to_owned());
-                }
-            });
-        } else if let Ok(py_string) = name.extract::<String>() {
-            names.push(py_string);
-        }
+        name.downcast::<PyList>().ok().tap_some(|py_list| {
+            names.extend(py_list.iter().filter_map(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .map(|alias| alias.to_lowercase())
+            }));
+        });
+        name.downcast::<PyTuple>().ok().tap_some(|py_tuple| {
+            names.extend(py_tuple.iter().filter_map(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .map(|alias| alias.to_lowercase())
+            }));
+        });
+        name.extract::<String>().ok().tap_some(|py_string| {
+            names.push(py_string.to_lowercase());
+        });
 
         self.borrow()
             .commands

@@ -1,6 +1,7 @@
 use arrayvec::ArrayVec;
 use pyo3::exceptions::PyEnvironmentError;
 use rayon::prelude::*;
+use tap::TryConv;
 
 use crate::{
     MAIN_ENGINE,
@@ -13,9 +14,8 @@ use crate::{
 #[pyo3(name = "dev_print_items")]
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
     py.allow_threads(|| {
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         let formatted_items: ArrayVec<String, { MAX_GENTITIES as usize }> = (0..MAX_GENTITIES)
-            .filter_map(|i| GameEntity::try_from(i as i32).ok().map(Box::new))
+            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
             })

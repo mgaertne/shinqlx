@@ -1,3 +1,5 @@
+use tap::{TapOptional, TryConv};
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -8,16 +10,13 @@ pub(crate) fn pyshinqlx_set_health(py: Python<'_>, client_id: i32, health: i32) 
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        let opt_game_entity = GameEntity::try_from(client_id).ok();
-        let returned = opt_game_entity.is_some();
-        if let Some(mut game_entity) = opt_game_entity {
-            game_entity.set_health(health);
-        }
-        Ok(returned)
+        Ok(client_id
+            .try_conv::<GameEntity>()
+            .ok()
+            .tap_some_mut(|game_entity| {
+                game_entity.set_health(health);
+            })
+            .is_some())
     })
 }
 

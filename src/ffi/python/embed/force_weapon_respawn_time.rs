@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyValueError;
+use tap::TryConv;
 
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -17,9 +18,8 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
             ));
         }
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..MAX_GENTITIES)
-            .filter_map(|i| GameEntity::try_from(i as i32).ok())
+            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| game_entity.in_use() && game_entity.is_respawning_weapon())
             .for_each(|mut game_entity| game_entity.set_respawn_time(respawn_time));
 

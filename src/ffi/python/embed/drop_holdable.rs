@@ -1,3 +1,5 @@
+use tap::{TapOptional, TryConv};
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -8,33 +10,28 @@ pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResul
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        if let Some(mut game_client) = GameEntity::try_from(client_id)
+        client_id
+            .try_conv::<GameEntity>()
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
-        {
-            game_client.remove_kamikaze_flag();
-        }
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        let opt_game_entity_with_holdable =
-            GameEntity::try_from(client_id).ok().filter(|game_entity| {
+            .tap_some_mut(|game_client| {
+                game_client.remove_kamikaze_flag();
+            });
+
+        Ok(client_id
+            .try_conv::<GameEntity>()
+            .ok()
+            .filter(|game_entity| {
                 game_entity
                     .get_game_client()
                     .ok()
                     .filter(|game_client| Holdable::None != game_client.get_holdable().into())
                     .is_some()
-            });
-        let returned = opt_game_entity_with_holdable.is_some();
-        if let Some(mut game_entity) = opt_game_entity_with_holdable {
-            game_entity.drop_holdable();
-        }
-        Ok(returned)
+            })
+            .tap_some_mut(|game_entity| {
+                game_entity.drop_holdable();
+            })
+            .is_some())
     })
 }
 

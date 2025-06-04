@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyValueError;
+use tap::TryConv;
 
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -14,8 +15,7 @@ pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> Py
             )));
         }
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        GameEntity::try_from(entity_id).map_or_else(
+        entity_id.try_conv::<GameEntity>().map_or_else(
             |_| Ok(vec![]),
             |entity| Ok(entity.get_targetting_entity_ids()),
         )

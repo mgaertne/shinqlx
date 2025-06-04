@@ -717,29 +717,34 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn set_permission(&self, player: &Bound<'py, PyAny>, level: i32) -> PyResult<()> {
-        let key = if let Ok(rust_player) = player.extract::<Player>() {
-            format!("minqlx:players:{}:permission", rust_player.steam_id)
-        } else {
-            format!("minqlx:players:{}:permission", player.str()?)
+        let key = match player.extract::<Player>() {
+            Ok(rust_player) => format!("minqlx:players:{}:permission", rust_player.steam_id),
+            _ => format!("minqlx:players:{}:permission", player.str()?),
         };
 
         self.set_item(&key, PyInt::new(self.py(), level))
     }
 
     fn get_permission(&self, player: &Bound<'py, PyAny>) -> PyResult<i32> {
-        let steam_id = if let Ok(rust_player) = player.extract::<Player>() {
-            Ok(rust_player.steam_id)
-        } else if let Ok(rust_int) = player.extract::<i64>() {
-            Ok(rust_int)
-        } else if let Ok(rust_str) = player.extract::<String>() {
-            rust_str.parse::<i64>().map_err(|_| {
-                let error_msg = format!("invalid literal for int() with base 10: '{rust_str}'");
-                PyValueError::new_err(error_msg)
-            })
-        } else {
-            Err(PyValueError::new_err(
-                "Invalid player. Use either a shinqlx.Player instance or a SteamID64.",
-            ))
+        let steam_id = match player.extract::<Player>() {
+            Ok(rust_player) => Ok(rust_player.steam_id),
+            _ => match player.extract::<i64>() {
+                Ok(steam_id) => Ok(steam_id),
+                _ => player
+                    .extract::<String>()
+                    .and_then(|rust_str| {
+                        rust_str.parse::<i64>().map_err(|_| {
+                            let error_msg =
+                                format!("invalid literal for int() with base 10: '{rust_str}'");
+                            PyValueError::new_err(error_msg)
+                        })
+                    })
+                    .map_err(|_| {
+                        PyValueError::new_err(
+                            "Invalid player. Use either a shinqlx.Player instance or a SteamID64.",
+                        )
+                    }),
+            },
         }?;
 
         if Some(steam_id) == owner()? {
@@ -763,10 +768,9 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn set_flag(&self, player: &Bound<'py, PyAny>, flag: &str, value: bool) -> PyResult<()> {
-        let key = if let Ok(rust_player) = player.extract::<Player>() {
-            format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag)
-        } else {
-            format!("minqlx:players:{}:flags:{}", player.str()?, flag)
+        let key = match player.extract::<Player>() {
+            Ok(rust_player) => format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag),
+            _ => format!("minqlx:players:{}:flags:{}", player.str()?, flag),
         };
 
         let redis_value = if value { 1i32 } else { 0i32 };
@@ -779,10 +783,9 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn get_flag(&self, player: &Bound<'py, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
-        let key = if let Ok(rust_player) = player.extract::<Player>() {
-            format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag)
-        } else {
-            format!("minqlx:players:{}:flags:{}", player.str()?, flag)
+        let key = match player.extract::<Player>() {
+            Ok(rust_player) => format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag),
+            _ => format!("minqlx:players:{}:flags:{}", player.str()?, flag),
         };
 
         if !self.contains(&key)? {
@@ -793,142 +796,152 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn connect(&self) -> PyResult<Bound<'py, PyAny>> {
-        if let Ok(redis_connection) = self.getattr(intern!(self.py(), "_conn")) {
-            if !redis_connection.is_none() {
-                return Ok(redis_connection);
+        match self.getattr(intern!(self.py(), "_conn")) {
+            Ok(redis_connection) if !redis_connection.is_none() => Ok(redis_connection),
+            _ => {
+                match self
+                    .py()
+                    .get_type::<Redis>()
+                    .getattr(intern!(self.py(), "_conn"))
+                {
+                    Ok(class_connection) if !class_connection.is_none() => Ok(class_connection),
+                    _ => {
+                        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
+                        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
+
+                        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                            return Err(PyEnvironmentError::new_err(
+                                "could not get access to main engine.",
+                            ));
+                        };
+
+                        let Some(cvar_host) = main_engine.find_cvar("qlx_redisAddress") else {
+                            return Err(PyValueError::new_err(
+                                "cvar qlx_redisAddress misconfigured",
+                            ));
+                        };
+                        let Some(redis_db_cvar) = main_engine
+                            .find_cvar("qlx_redisDatabase")
+                            .and_then(|cvar| cvar.get_string().parse::<i64>().ok())
+                        else {
+                            return Err(PyValueError::new_err(
+                                "cvar qlx_redisDatabase misconfigured.",
+                            ));
+                        };
+                        let Some(unix_socket_cvar) =
+                            main_engine.find_cvar("qlx_redisUnixSocket").map(|cvar| {
+                                let cvar_string = cvar.get_string();
+                                !cvar_string.is_empty() && cvar_string != "0"
+                            })
+                        else {
+                            return Err(PyValueError::new_err(
+                                "cvar qlx_redisUnixSocket misconfigured.",
+                            ));
+                        };
+                        let Some(password_cvar) = main_engine.find_cvar("qlx_redisPassword") else {
+                            return Err(PyValueError::new_err(
+                                "cvar qlx_redisPassword misconfigured.",
+                            ));
+                        };
+
+                        let class_connection = if unix_socket_cvar {
+                            strict_redis.call(
+                                PyTuple::empty(self.py()),
+                                Some(
+                                    &[
+                                        (
+                                            "unix_socket_path",
+                                            PyString::new(self.py(), &cvar_host.get_string())
+                                                .into_any(),
+                                        ),
+                                        ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
+                                        (
+                                            "password",
+                                            PyString::new(self.py(), &password_cvar.get_string())
+                                                .into_any(),
+                                        ),
+                                        (
+                                            "decode_responses",
+                                            PyBool::new(self.py(), true).to_owned().into_any(),
+                                        ),
+                                    ]
+                                    .into_py_dict(self.py())?,
+                                ),
+                            )
+                        } else {
+                            let hostname = cvar_host.get_string();
+                            let (redis_hostname, port) = hostname
+                                .split_once(':')
+                                .unwrap_or((hostname.as_ref(), "6379"));
+                            let redis_port = if port.is_empty() { "6379" } else { port };
+                            let connection_pool =
+                                py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
+
+                            let redis_pool = connection_pool.call(
+                                PyTuple::empty(self.py()),
+                                Some(
+                                    &[
+                                        (
+                                            "host",
+                                            PyString::new(self.py(), redis_hostname).into_any(),
+                                        ),
+                                        ("port", PyString::new(self.py(), redis_port).into_any()),
+                                        ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
+                                        (
+                                            "password",
+                                            PyString::new(self.py(), &password_cvar.get_string())
+                                                .into_any(),
+                                        ),
+                                        (
+                                            "decode_responses",
+                                            PyBool::new(self.py(), true).to_owned().into_any(),
+                                        ),
+                                    ]
+                                    .into_py_dict(self.py())?,
+                                ),
+                            )?;
+                            self.py()
+                                .get_type::<Redis>()
+                                .setattr(intern!(self.py(), "_pool"), &redis_pool)?;
+                            strict_redis.call(
+                                PyTuple::empty(self.py()),
+                                Some(
+                                    &[
+                                        ("connection_pool", redis_pool),
+                                        (
+                                            "decode_responses",
+                                            PyBool::new(self.py(), true).to_owned().into_any(),
+                                        ),
+                                    ]
+                                    .into_py_dict(self.py())?,
+                                ),
+                            )
+                        }?;
+                        self.py()
+                            .get_type::<Redis>()
+                            .setattr(intern!(self.py(), "_conn"), &class_connection)?;
+                        self.setattr(intern!(self.py(), "_conn"), self.py().None())?;
+                        Ok(class_connection)
+                    }
+                }
             }
         }
-
-        if let Ok(class_connection) = self
-            .py()
-            .get_type::<Redis>()
-            .getattr(intern!(self.py(), "_conn"))
-        {
-            if !class_connection.is_none() {
-                return Ok(class_connection);
-            }
-        }
-
-        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
-        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
-
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
-                "could not get access to main engine.",
-            ));
-        };
-
-        let Some(cvar_host) = main_engine.find_cvar("qlx_redisAddress") else {
-            return Err(PyValueError::new_err("cvar qlx_redisAddress misconfigured"));
-        };
-        let Some(redis_db_cvar) = main_engine
-            .find_cvar("qlx_redisDatabase")
-            .and_then(|cvar| cvar.get_string().parse::<i64>().ok())
-        else {
-            return Err(PyValueError::new_err(
-                "cvar qlx_redisDatabase misconfigured.",
-            ));
-        };
-        let Some(unix_socket_cvar) = main_engine.find_cvar("qlx_redisUnixSocket").map(|cvar| {
-            let cvar_string = cvar.get_string();
-            !cvar_string.is_empty() && cvar_string != "0"
-        }) else {
-            return Err(PyValueError::new_err(
-                "cvar qlx_redisUnixSocket misconfigured.",
-            ));
-        };
-        let Some(password_cvar) = main_engine.find_cvar("qlx_redisPassword") else {
-            return Err(PyValueError::new_err(
-                "cvar qlx_redisPassword misconfigured.",
-            ));
-        };
-
-        let class_connection = if unix_socket_cvar {
-            strict_redis.call(
-                PyTuple::empty(self.py()),
-                Some(
-                    &[
-                        (
-                            "unix_socket_path",
-                            PyString::new(self.py(), &cvar_host.get_string()).into_any(),
-                        ),
-                        ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
-                        (
-                            "password",
-                            PyString::new(self.py(), &password_cvar.get_string()).into_any(),
-                        ),
-                        (
-                            "decode_responses",
-                            PyBool::new(self.py(), true).to_owned().into_any(),
-                        ),
-                    ]
-                    .into_py_dict(self.py())?,
-                ),
-            )
-        } else {
-            let hostname = cvar_host.get_string();
-            let (redis_hostname, port) = hostname
-                .split_once(':')
-                .unwrap_or((hostname.as_ref(), "6379"));
-            let redis_port = if port.is_empty() { "6379" } else { port };
-            let connection_pool = py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
-
-            let redis_pool = connection_pool.call(
-                PyTuple::empty(self.py()),
-                Some(
-                    &[
-                        ("host", PyString::new(self.py(), redis_hostname).into_any()),
-                        ("port", PyString::new(self.py(), redis_port).into_any()),
-                        ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
-                        (
-                            "password",
-                            PyString::new(self.py(), &password_cvar.get_string()).into_any(),
-                        ),
-                        (
-                            "decode_responses",
-                            PyBool::new(self.py(), true).to_owned().into_any(),
-                        ),
-                    ]
-                    .into_py_dict(self.py())?,
-                ),
-            )?;
-            self.py()
-                .get_type::<Redis>()
-                .setattr(intern!(self.py(), "_pool"), &redis_pool)?;
-            strict_redis.call(
-                PyTuple::empty(self.py()),
-                Some(
-                    &[
-                        ("connection_pool", redis_pool),
-                        (
-                            "decode_responses",
-                            PyBool::new(self.py(), true).to_owned().into_any(),
-                        ),
-                    ]
-                    .into_py_dict(self.py())?,
-                ),
-            )
-        }?;
-        self.py()
-            .get_type::<Redis>()
-            .setattr(intern!(self.py(), "_conn"), &class_connection)?;
-        self.setattr(intern!(self.py(), "_conn"), self.py().None())?;
-        Ok(class_connection)
     }
 
     fn close(&self) -> PyResult<()> {
-        if self
-            .getattr(intern!(self.py(), "_conn"))
-            .is_ok_and(|instance_connection| !instance_connection.is_none())
-        {
-            self.setattr(intern!(self.py(), "_conn"), self.py().None())?;
-            if let Ok(instance_pool) = self.getattr(intern!(self.py(), "_pool")) {
-                if !instance_pool.is_none() {
-                    instance_pool.call_method0(intern!(self.py(), "disconnect"))?;
-                    self.setattr(intern!(self.py(), "_pool"), self.py().None())?;
+        match self.getattr(intern!(self.py(), "_conn")) {
+            Ok(instance_connection) if !instance_connection.is_none() => {
+                self.setattr(intern!(self.py(), "_conn"), self.py().None())?;
+                match self.getattr(intern!(self.py(), "_pool")) {
+                    Ok(instance_pool) if !instance_pool.is_none() => {
+                        instance_pool.call_method0(intern!(self.py(), "disconnect"))?;
+                        self.setattr(intern!(self.py(), "_pool"), self.py().None())?;
+                    }
+                    _ => (),
                 }
             }
-        };
+            _ => (),
+        }
 
         let redis_type = self.py().get_type::<Redis>();
         let class_counter = redis_type
@@ -941,11 +954,12 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                 .is_ok_and(|class_connection| !class_connection.is_none())
         {
             redis_type.setattr(intern!(self.py(), "_conn"), self.py().None())?;
-            if let Ok(class_pool) = redis_type.getattr(intern!(self.py(), "_pool")) {
-                if !class_pool.is_none() {
+            match redis_type.getattr(intern!(self.py(), "_pool")) {
+                Ok(class_pool) if !class_pool.is_none() => {
                     class_pool.call_method0(intern!(self.py(), "disconnect"))?;
                     redis_type.setattr(intern!(self.py(), "_pool"), self.py().None())?;
                 }
+                _ => (),
             }
         }
         Ok(())
@@ -1009,81 +1023,84 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
         unix_socket: bool,
         password: Option<&str>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        if let Ok(redis_connection) = self.getattr(intern!(self.py(), "_conn")) {
-            if !redis_connection.is_none() {
-                return Ok(redis_connection);
+        match self.getattr(intern!(self.py(), "_conn")) {
+            Ok(redis_connection) if !redis_connection.is_none() => Ok(redis_connection),
+            _ => {
+                match self
+                    .py()
+                    .get_type::<Redis>()
+                    .getattr(intern!(self.py(), "_conn"))
+                {
+                    Ok(class_connection) if !class_connection.is_none() => Ok(class_connection),
+                    _ => {
+                        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
+                        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
+                        let instance_connection = if unix_socket {
+                            strict_redis.call(
+                                PyTuple::empty(self.py()),
+                                Some(
+                                    &[
+                                        (
+                                            "unix_socket_path",
+                                            PyString::new(self.py(), host).into_any(),
+                                        ),
+                                        ("db", PyInt::new(self.py(), database).into_any()),
+                                        ("password", password.into_bound_py_any(self.py())?),
+                                        (
+                                            "decode_responses",
+                                            PyBool::new(self.py(), true).to_owned().into_any(),
+                                        ),
+                                    ]
+                                    .into_py_dict(self.py())?,
+                                ),
+                            )
+                        } else {
+                            let (redis_hostname, port) =
+                                host.split_once(':').unwrap_or((host, "6379"));
+                            let redis_port = if port.is_empty() { "6379" } else { port };
+                            let connection_pool =
+                                py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
+
+                            let redis_pool = connection_pool.call(
+                                PyTuple::empty(self.py()),
+                                Some(
+                                    &[
+                                        (
+                                            "host",
+                                            PyString::new(self.py(), redis_hostname).into_any(),
+                                        ),
+                                        ("port", PyString::new(self.py(), redis_port).into_any()),
+                                        ("db", PyInt::new(self.py(), database).into_any()),
+                                        ("password", password.into_bound_py_any(self.py())?),
+                                        (
+                                            "decode_responses",
+                                            PyBool::new(self.py(), true).to_owned().into_any(),
+                                        ),
+                                    ]
+                                    .into_py_dict(self.py())?,
+                                ),
+                            )?;
+                            self.setattr(intern!(self.py(), "_pool"), &redis_pool)?;
+                            strict_redis.call(
+                                PyTuple::empty(self.py()),
+                                Some(
+                                    &[
+                                        ("connection_pool", redis_pool),
+                                        (
+                                            "decode_responses",
+                                            PyBool::new(self.py(), true).to_owned().into_any(),
+                                        ),
+                                    ]
+                                    .into_py_dict(self.py())?,
+                                ),
+                            )
+                        }?;
+                        self.setattr(intern!(self.py(), "_conn"), &instance_connection)?;
+                        Ok(instance_connection)
+                    }
+                }
             }
         }
-
-        if let Ok(class_connection) = self
-            .py()
-            .get_type::<Redis>()
-            .getattr(intern!(self.py(), "_conn"))
-        {
-            if !class_connection.is_none() {
-                return Ok(class_connection);
-            }
-        }
-
-        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
-        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
-        let instance_connection = if unix_socket {
-            strict_redis.call(
-                PyTuple::empty(self.py()),
-                Some(
-                    &[
-                        (
-                            "unix_socket_path",
-                            PyString::new(self.py(), host).into_any(),
-                        ),
-                        ("db", PyInt::new(self.py(), database).into_any()),
-                        ("password", password.into_bound_py_any(self.py())?),
-                        (
-                            "decode_responses",
-                            PyBool::new(self.py(), true).to_owned().into_any(),
-                        ),
-                    ]
-                    .into_py_dict(self.py())?,
-                ),
-            )
-        } else {
-            let (redis_hostname, port) = host.split_once(':').unwrap_or((host, "6379"));
-            let redis_port = if port.is_empty() { "6379" } else { port };
-            let connection_pool = py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
-
-            let redis_pool = connection_pool.call(
-                PyTuple::empty(self.py()),
-                Some(
-                    &[
-                        ("host", PyString::new(self.py(), redis_hostname).into_any()),
-                        ("port", PyString::new(self.py(), redis_port).into_any()),
-                        ("db", PyInt::new(self.py(), database).into_any()),
-                        ("password", password.into_bound_py_any(self.py())?),
-                        (
-                            "decode_responses",
-                            PyBool::new(self.py(), true).to_owned().into_any(),
-                        ),
-                    ]
-                    .into_py_dict(self.py())?,
-                ),
-            )?;
-            self.setattr(intern!(self.py(), "_pool"), &redis_pool)?;
-            strict_redis.call(
-                PyTuple::empty(self.py()),
-                Some(
-                    &[
-                        ("connection_pool", redis_pool),
-                        (
-                            "decode_responses",
-                            PyBool::new(self.py(), true).to_owned().into_any(),
-                        ),
-                    ]
-                    .into_py_dict(self.py())?,
-                ),
-            )
-        }?;
-        self.setattr(intern!(self.py(), "_conn"), &instance_connection)?;
-        Ok(instance_connection)
     }
 
     fn mset(

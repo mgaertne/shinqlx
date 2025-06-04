@@ -1,4 +1,5 @@
 use derive_more::Display;
+use tap::{TapFallible, TryConv};
 
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
@@ -66,25 +67,17 @@ impl From<i32> for PlayerInfo {
             privileges: -1,
         };
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        if let Ok(game_entity) = GameEntity::try_from(client_id) {
+        let _ = client_id.try_conv::<GameEntity>().tap_ok(|game_entity| {
             returned.name = game_entity.get_player_name();
             returned.team = game_entity.get_team() as i32;
             returned.privileges = game_entity.get_privileges() as i32;
-        }
+        });
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        if let Ok(client) = Client::try_from(client_id) {
+        let _ = client_id.try_conv::<Client>().tap_ok(|client| {
             returned.connection_state = client.get_state() as i32;
             returned.userinfo = client.get_user_info().into();
             returned.steam_id = client.get_steam_id() as i64;
-        }
+        });
 
         returned
     }
