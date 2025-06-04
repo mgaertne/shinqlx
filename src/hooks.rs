@@ -3,7 +3,7 @@ use core::{
     ffi::{CStr, VaList, c_char, c_int},
 };
 
-use tap::{Conv, TapOptional};
+use tap::{Conv, TapFallible, TapOptional, TryConv};
 
 use crate::{
     MAIN_ENGINE,
@@ -19,11 +19,11 @@ use crate::{
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if !main_engine.is_common_initialized() {
-            if let Err(err) = main_engine.initialize_static() {
+            let _ = main_engine.initialize_static().tap_err(|err| {
                 error!(target: "shinqlx", "{err:?}");
                 error!(target: "shinqlx", "Static initialization failed. Exiting.");
                 panic!("Static initialization failed. Exiting.");
-            }
+            });
         }
 
         let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
@@ -47,11 +47,11 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
 
         main_engine.set_module_offset(&converted_module_name, offset);
 
-        if let Err(err) = main_engine.initialize_vm(offset as usize) {
+        let _ = main_engine.initialize_vm(offset as usize).tap_err(|err| {
             error!(target: "shinqlx", "{err:?}");
             error!(target: "shinqlx", "VM could not be initializied. Exiting.");
             panic!("VM could not be initializied. Exiting.");
-        }
+        });
     });
 }
 
@@ -228,31 +228,31 @@ where
     T: TryInto<c_int> + Into<u32> + Copy,
 {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
-        if let Ok(c_index) = index.try_into() {
+        match index.try_conv::<c_int>() {
             // Indices 16 and 66X are spammed a ton every frame for some reason,
             // so we add some exceptions for those. I don't think we should have any
             // use for those particular ones anyway. If we don't do this, we get
             // like a 25% increase in CPU usage on an empty server.
-            if c_index == 16 || (662..670).contains(&c_index) {
+            Ok(c_index) if c_index == 16 || (662..670).contains(&c_index) => {
                 main_engine.set_configstring(c_index, value.as_ref());
-                return;
             }
-
-            let Some(res) = set_configstring_dispatcher(index.into(), value) else {
-                return;
-            };
-            main_engine.set_configstring(c_index, &res);
+            Ok(c_index) => {
+                set_configstring_dispatcher(index.conv::<u32>(), value).tap_some(|res| {
+                    main_engine.set_configstring(c_index, res);
+                });
+            }
+            _ => (),
         }
     });
 }
 
 pub(crate) extern "C" fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
-    if let Ok(mut safe_client) = Client::try_from(client) {
+    let _ = Client::try_from(client).tap_ok_mut(|safe_client| {
         shinqlx_drop_client(
-            &mut safe_client,
+            safe_client,
             unsafe { CStr::from_ptr(reason) }.to_string_lossy(),
         );
-    }
+    });
 }
 
 pub(crate) fn shinqlx_drop_client<T>(client: &mut Client, reason: T)
@@ -332,14 +332,16 @@ static CLIENT_CONNECT_BUFFER: [parking_lot::RwLock<
     [const { parking_lot::RwLock::new(arrayvec::ArrayVec::new_const()) }; MAX_CLIENTS as usize];
 
 fn to_return_string(client_id: i32, input: String) -> *const c_char {
-    if let Some(mut buffer_write_guard) = CLIENT_CONNECT_BUFFER[client_id as usize].try_write() {
-        *buffer_write_guard = input
-            .as_bytes()
-            .iter()
-            .map(|&char| char as c_char)
-            .collect();
-        buffer_write_guard.push(0);
-    }
+    CLIENT_CONNECT_BUFFER[client_id as usize]
+        .try_write()
+        .tap_some_mut(|buffer_write_guard| {
+            **buffer_write_guard = input
+                .as_bytes()
+                .iter()
+                .map(|&char| char as c_char)
+                .collect();
+            buffer_write_guard.push(0);
+        });
     CLIENT_CONNECT_BUFFER[client_id as usize].read().as_ptr()
 }
 
@@ -348,9 +350,9 @@ pub(crate) extern "C" fn shinqlx_client_connect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
-    if first_time.into() {
-        if let Some(res) = client_connect_dispatcher(client_num, is_bot.into()) {
-            if (!is_bot).into() {
+    if first_time.conv::<bool>() {
+        if let Some(res) = client_connect_dispatcher(client_num, is_bot.conv::<bool>()) {
+            if !is_bot.conv::<bool>() {
                 return to_return_string(client_num, res);
             }
         }
@@ -365,9 +367,9 @@ pub(crate) extern "C" fn shinqlx_client_connect(
 }
 
 pub(crate) extern "C" fn shinqlx_clientspawn(ent: *mut gentity_t) {
-    if let Ok(mut game_entity) = GameEntity::try_from(ent) {
-        shinqlx_client_spawn(&mut game_entity);
-    }
+    let _ = GameEntity::try_from(ent).tap_ok_mut(|game_entity| {
+        shinqlx_client_spawn(game_entity);
+    });
 }
 
 pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
@@ -386,18 +388,18 @@ pub(crate) extern "C" fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
         return;
     };
 
-    let client_id = if let Ok(game_client) = game_entity.get_game_client() {
-        game_client.get_client_num()
-    } else if let Ok(activator) = game_entity.get_activator() {
-        activator.get_owner_num()
-    } else {
-        -1
+    let client_id = match game_entity.get_game_client() {
+        Ok(game_client) => game_client.get_client_num(),
+        _ => match game_entity.get_activator() {
+            Ok(activator) => activator.get_owner_num(),
+            _ => -1,
+        },
     };
 
-    if let Ok(mut game_client) = game_entity.get_game_client() {
+    let _ = game_entity.get_game_client().tap_ok_mut(|game_client| {
         game_client.remove_kamikaze_flag();
         kamikaze_use_dispatcher(client_id);
-    }
+    });
     game_entity.start_kamikaze();
 
     if client_id == -1 {
@@ -435,9 +437,18 @@ pub(crate) extern "C" fn shinqlx_g_damage(
             means_of_death,
         );
 
-        if let Ok(target_entity) = GameEntity::try_from(target) {
-            match attacker.is_null() {
-                true => {
+        let _ = GameEntity::try_from(target).tap_ok(|target_entity| match attacker.is_null() {
+            true => {
+                damage_dispatcher(
+                    target_entity.get_entity_id(),
+                    None,
+                    damage,
+                    dflags,
+                    means_of_death,
+                );
+            }
+            false => match GameEntity::try_from(attacker) {
+                Err(_) => {
                     damage_dispatcher(
                         target_entity.get_entity_id(),
                         None,
@@ -446,28 +457,17 @@ pub(crate) extern "C" fn shinqlx_g_damage(
                         means_of_death,
                     );
                 }
-                false => match GameEntity::try_from(attacker) {
-                    Err(_) => {
-                        damage_dispatcher(
-                            target_entity.get_entity_id(),
-                            None,
-                            damage,
-                            dflags,
-                            means_of_death,
-                        );
-                    }
-                    Ok(attacker_entity) => {
-                        damage_dispatcher(
-                            target_entity.get_entity_id(),
-                            Some(attacker_entity.get_entity_id()),
-                            damage,
-                            dflags,
-                            means_of_death,
-                        );
-                    }
-                },
-            }
-        }
+                Ok(attacker_entity) => {
+                    damage_dispatcher(
+                        target_entity.get_entity_id(),
+                        Some(attacker_entity.get_entity_id()),
+                        damage,
+                        dflags,
+                        means_of_death,
+                    );
+                }
+            },
+        });
     });
 }
 

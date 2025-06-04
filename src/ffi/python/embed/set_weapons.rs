@@ -1,3 +1,5 @@
+use tap::{TapOptional, TryConv};
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -12,18 +14,14 @@ pub(crate) fn pyshinqlx_set_weapons(
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        let opt_game_client = GameEntity::try_from(client_id)
+        Ok(client_id
+            .try_conv::<GameEntity>()
             .ok()
-            .and_then(|game_entity| game_entity.get_game_client().ok());
-        let returned = opt_game_client.is_some();
-        if let Some(mut game_client) = opt_game_client {
-            game_client.set_weapons((*weapons).into());
-        }
-        Ok(returned)
+            .and_then(|game_entity| game_entity.get_game_client().ok())
+            .tap_some_mut(|game_client| {
+                game_client.set_weapons((*weapons).into());
+            })
+            .is_some())
     })
 }
 

@@ -1,3 +1,5 @@
+use tap::TryConv;
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -11,8 +13,8 @@ pub(crate) fn pyshinqlx_player_state(
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        Ok(GameEntity::try_from(client_id)
+        Ok(client_id
+            .try_conv::<GameEntity>()
             .ok()
             .filter(|game_entity| game_entity.get_game_client().is_ok())
             .map(PlayerState::from))

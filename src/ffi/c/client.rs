@@ -1,7 +1,7 @@
 use alloc::{borrow::Cow, ffi::CString};
 use core::ffi::{CStr, c_char};
 
-use tap::TapOptional;
+use tap::{TapFallible, TapOptional};
 
 use super::prelude::*;
 use crate::{MAIN_ENGINE, prelude::*};
@@ -80,9 +80,9 @@ impl Client {
         let c_reason = CString::new(reason.as_ref()).unwrap_or_else(|_| c"".into());
 
         MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
-            if let Ok(detour) = main_engine.sv_dropclient_detour() {
+            let _ = main_engine.sv_dropclient_detour().tap_ok(|detour| {
                 detour.call(self.client_t, c_reason.as_ptr());
-            }
+            });
         });
     }
 

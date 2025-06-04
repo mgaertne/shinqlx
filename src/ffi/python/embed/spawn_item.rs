@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyValueError;
+use tap::{TapFallible, TryConv};
 
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -21,13 +22,9 @@ pub(crate) fn pyshinqlx_spawn_item(
             )));
         }
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        if let Ok(mut gitem) = GameItem::try_from(item_id) {
+        let _ = item_id.try_conv::<GameItem>().tap_ok_mut(|gitem| {
             gitem.spawn((x, y, z));
-        }
+        });
 
         Ok(true)
     })

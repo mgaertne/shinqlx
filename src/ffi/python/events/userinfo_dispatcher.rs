@@ -48,17 +48,13 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
         let super_class = self.borrow().into_super();
-        if let Ok(player_str) = player.repr() {
-            if let Ok(changed_str) = changed.repr() {
-                let dbgstr = format!(
-                    "{}({}, {})",
-                    UserinfoDispatcher::name,
-                    player_str,
-                    changed_str
-                );
-                dispatcher_debug_log(self.py(), &dbgstr);
-            }
-        }
+        let dbgstr = format!(
+            "{}({}, {})",
+            UserinfoDispatcher::name,
+            player.repr()?,
+            changed.repr()?
+        );
+        dispatcher_debug_log(self.py(), &dbgstr);
 
         let plugins = super_class.plugins.read();
         for handler in (0..5).flat_map(|i| {

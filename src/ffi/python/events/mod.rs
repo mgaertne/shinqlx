@@ -95,6 +95,7 @@ pub(crate) use set_configstring_dispatcher::{
 };
 #[allow(unused_imports)]
 pub(crate) use stats_dispatcher::{StatsDispatcher, StatsDispatcherMethods};
+use tap::TapFallible;
 pub(crate) use team_switch_attempt_dispatcher::{
     TeamSwitchAttemptDispatcher, TeamSwitchAttemptDispatcherMethods,
 };
@@ -141,9 +142,9 @@ fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
 }
 
 pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: &str) {
-    if let Err(e) = try_dispatcher_debug_log(py, debug_str) {
-        log_exception(py, &e);
-    }
+    let _ = try_dispatcher_debug_log(py, debug_str).tap_err(|e| {
+        log_exception(py, e);
+    });
 }
 
 fn try_log_unexpected_return_value(
@@ -187,9 +188,9 @@ pub(crate) fn log_unexpected_return_value(
     result: &Bound<'_, PyAny>,
     handler: &Bound<'_, PyAny>,
 ) {
-    if let Err(e) = try_log_unexpected_return_value(py, event_name, result, handler) {
-        log_exception(py, &e);
-    }
+    let _ = try_log_unexpected_return_value(py, event_name, result, handler).tap_err(|e| {
+        log_exception(py, e);
+    });
 }
 
 #[pyclass(name = "EventDispatcher", module = "_events", subclass, frozen)]

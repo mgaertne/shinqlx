@@ -1,3 +1,5 @@
+use tap::TryConv;
+
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Removes all dropped items.
@@ -5,9 +7,8 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyo3(name = "remove_dropped_items")]
 pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.allow_threads(|| {
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
         (0..MAX_GENTITIES)
-            .filter_map(|i| GameEntity::try_from(i as i32).ok())
+            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.has_flags() && game_entity.is_dropped_item()
             })

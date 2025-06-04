@@ -1,3 +1,5 @@
+use tap::{TapFallible, TapOptional, TryConv};
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 #[cfg(test)]
@@ -12,24 +14,17 @@ pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        let opt_game_entity = GameEntity::try_from(client_id)
+        Ok(client_id
+            .try_conv::<GameEntity>()
             .ok()
-            .filter(|game_entity| game_entity.get_game_client().is_ok());
-
-        let returned = opt_game_entity.is_some();
-        if returned {
-            if let Some(mut game_entity) = opt_game_entity {
-                if let Ok(mut game_client) = game_entity.get_game_client() {
+            .filter(|game_entity| game_entity.get_game_client().is_ok())
+            .tap_some_mut(|game_entity| {
+                let _ = game_entity.get_game_client().tap_ok_mut(|game_client| {
                     game_client.spawn();
-                }
-                shinqlx_client_spawn(&mut game_entity)
-            }
-        }
-        Ok(returned)
+                });
+                shinqlx_client_spawn(game_entity)
+            })
+            .is_some())
     })
 }
 

@@ -8,6 +8,7 @@ use pyo3::{
 };
 use rayon::prelude::*;
 use regex::Regex;
+use tap::TapOptional;
 
 use super::prelude::*;
 use crate::ffi::c::prelude::*;
@@ -633,9 +634,12 @@ def reply(targets, msg):
                 }
             }
 
-            if let Some(color_tag) = re_color_tag.find_iter(&message).last() {
-                last_color = color_tag.as_str().to_string();
-            }
+            re_color_tag
+                .find_iter(&message)
+                .last()
+                .tap_some(|color_tag| {
+                    last_color = color_tag.as_str().to_string();
+                });
         }
 
         Ok(())

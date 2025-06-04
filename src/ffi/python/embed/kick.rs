@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyValueError;
+use tap::{TapOptional, TryConv};
 
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
@@ -15,21 +16,18 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(
-            test,
-            allow(clippy::unnecessary_fallible_conversions, irrefutable_let_patterns)
-        )]
-        let opt_client = Client::try_from(client_id)
+        if client_id
+            .try_conv::<Client>()
             .ok()
-            .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
-        let client_was_some = opt_client.is_some();
-        let reason_str = reason
-            .filter(|rsn| !rsn.is_empty())
-            .unwrap_or("was kicked.");
-        if let Some(mut client) = opt_client {
-            shinqlx_drop_client(&mut client, reason_str);
-        }
-        if client_was_some {
+            .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
+            .tap_some_mut(|client| {
+                let reason_str = reason
+                    .filter(|rsn| !rsn.is_empty())
+                    .unwrap_or("was kicked.");
+                shinqlx_drop_client(client, reason_str);
+            })
+            .is_some()
+        {
             Ok(())
         } else {
             Err(PyValueError::new_err(

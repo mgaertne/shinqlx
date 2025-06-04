@@ -63,6 +63,7 @@ use log4rs::{
     encode::pattern::PatternEncoder,
 };
 use signal_hook::consts::SIGSEGV;
+use tap::TapFallible;
 
 use crate::prelude::*;
 
@@ -106,30 +107,31 @@ fn initialize() {
         return;
     }
 
-    if let Err(err) = unsafe {
+    let _ = unsafe {
         signal_hook_registry::register_signal_unchecked(SIGSEGV, move || {
             signal_hook::low_level::exit(1);
         })
-    } {
+    }
+    .tap_err(|err| {
         error!(target: "shinqlx", "{err:?}");
         error!(target: "shinqlx", "Could not register exit handler");
         panic!("Could not register exit handler");
-    };
+    });
 
     initialize_logging();
     let main_engine = QuakeLiveEngine::new();
-    if let Err(err) = main_engine.search_static_functions() {
+    let _ = main_engine.search_static_functions().tap_err(|err| {
         error!(target: "shinqlx", "{err:?}");
         error!(target: "shinqlx", "Static functions could not be initializied. Exiting.");
         panic!("Static functions could not be initializied. Exiting.");
-    }
+    });
 
     debug!(target: "shinqlx", "Shared library loaded");
-    if let Err(err) = main_engine.hook_static() {
+    let _ = main_engine.hook_static().tap_err(|err| {
         error!(target: "shinqlx", "{err:?}");
         error!(target: "shinqlx", "Failed to hook static methods. Exiting.");
         panic!("Failed to hook static methods. Exiting.");
-    }
+    });
 
     MAIN_ENGINE.store(Some(main_engine.into()));
 

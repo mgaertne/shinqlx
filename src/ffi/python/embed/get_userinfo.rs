@@ -1,5 +1,7 @@
 use core::sync::atomic::Ordering;
 
+use tap::TryConv;
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 
@@ -9,13 +11,15 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
     py.allow_threads(|| {
         validate_client_id(client_id)?;
 
-        #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-        let opt_client = Client::try_from(client_id).ok().filter(|client| {
-            let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
-            client.get_state() != clientState_t::CS_FREE
-                || allowed_free_clients & (1 << client_id as u64) != 0
-        });
-        Ok(opt_client.map(|client| client.get_user_info().into()))
+        Ok(client_id
+            .try_conv::<Client>()
+            .ok()
+            .filter(|client| {
+                let allowed_free_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
+                client.get_state() != clientState_t::CS_FREE
+                    || allowed_free_clients & (1 << client_id as u64) != 0
+            })
+            .map(|client| client.get_user_info().into()))
     })
 }
 

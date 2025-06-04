@@ -1,4 +1,5 @@
 use pyo3::exceptions::PyEnvironmentError;
+use tap::TryConv;
 
 use crate::{
     MAIN_ENGINE,
@@ -25,15 +26,14 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
             |main_engine| {
                 let maxclients = main_engine.get_max_clients();
 
-                #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
                 (0..maxclients)
                     .filter(|i| {
-                        Client::try_from(*i)
+                        (*i).try_conv::<Client>()
                             .ok()
                             .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
                             .is_some()
                     })
-                    .filter_map(|client_id| GameEntity::try_from(client_id).ok())
+                    .filter_map(|client_id| client_id.try_conv::<GameEntity>().ok())
                     .filter_map(|game_entity| game_entity.get_game_client().ok())
                     .for_each(|mut game_client| game_client.set_vote_state(pass));
                 Ok(true)

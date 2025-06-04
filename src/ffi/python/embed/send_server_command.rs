@@ -1,3 +1,5 @@
+use tap::TryConv;
+
 use super::validate_client_id;
 use crate::ffi::{c::prelude::*, python::prelude::*};
 #[cfg(test)]
@@ -22,8 +24,8 @@ pub(crate) fn pyshinqlx_send_server_command(
         Some(actual_client_id) => {
             validate_client_id(actual_client_id)?;
 
-            #[cfg_attr(test, allow(clippy::unnecessary_fallible_conversions))]
-            let opt_client = Client::try_from(actual_client_id)
+            let opt_client = actual_client_id
+                .try_conv::<Client>()
                 .ok()
                 .filter(|client| client.get_state() == clientState_t::CS_ACTIVE);
             let returned = opt_client.is_some();

@@ -6,6 +6,7 @@ use pyo3::{
     types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
 };
 use rayon::prelude::*;
+use tap::TapOptional;
 
 use super::{
     EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, owner, prelude::*, pyshinqlx_get_logger,
@@ -72,21 +73,27 @@ impl Command {
         }
 
         let mut names = vec![];
-        if let Ok(py_list) = name.downcast::<PyList>() {
-            py_list.iter().for_each(|py_alias| {
-                if let Ok(alias) = py_alias.extract::<String>() {
-                    names.push(alias.to_lowercase())
-                }
-            })
-        } else if let Ok(py_tuple) = name.downcast::<PyTuple>() {
-            py_tuple.iter().for_each(|py_alias| {
-                if let Ok(alias) = py_alias.extract::<String>() {
-                    names.push(alias.to_lowercase())
-                }
-            })
-        } else if let Ok(py_string) = name.extract::<String>() {
-            names.push(py_string.to_owned());
-        }
+        name.downcast::<PyList>().ok().tap_some(|py_list| {
+            names.extend(py_list.iter().filter_map(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .map(|alias| alias.to_lowercase())
+            }));
+        });
+
+        name.downcast::<PyTuple>().ok().tap_some(|py_tuple| {
+            names.extend(py_tuple.iter().filter_map(|py_alias| {
+                py_alias
+                    .extract::<String>()
+                    .ok()
+                    .map(|alias| alias.to_lowercase())
+            }));
+        });
+
+        name.extract::<String>().ok().tap_some(|py_string| {
+            names.push(py_string.to_lowercase());
+        });
 
         let channels_vec = if channels.is_none() {
             vec![]
