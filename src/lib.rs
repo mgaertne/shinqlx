@@ -50,9 +50,10 @@ pub(crate) mod prelude {
     };
 }
 
-use std::{path::Path, sync::LazyLock, time::Instant};
+use std::{path::Path, sync::LazyLock};
 
 use arc_swap::ArcSwapOption;
+use chrono::{DateTime, Utc};
 #[cfg(not(test))]
 use ctor::ctor;
 use log::LevelFilter;
@@ -73,7 +74,7 @@ pub(crate) const QZERODED: &str = "qzeroded.x64";
 pub(crate) static MAIN_ENGINE: LazyLock<ArcSwapOption<QuakeLiveEngine>> =
     LazyLock::new(ArcSwapOption::empty);
 
-pub(crate) static _INIT_TIME: LazyLock<Instant> = LazyLock::new(Instant::now);
+pub(crate) static _INIT_TIME: LazyLock<DateTime<Utc>> = LazyLock::new(Utc::now);
 
 fn initialize_logging() {
     if Path::new("./shinqlx_log.yml").exists() {
@@ -135,7 +136,7 @@ fn initialize() {
 
     MAIN_ENGINE.store(Some(main_engine.into()));
 
-    let _ = _INIT_TIME.elapsed();
+    let _ = _INIT_TIME.timestamp();
 }
 
 #[cfg(test)]
