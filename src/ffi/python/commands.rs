@@ -2037,6 +2037,7 @@ def remove_command(cmd):
 
             let cmd_result = bound_cmd.execute(player, msg, channel)?;
             match cmd_result.extract::<PythonReturnCodes>() {
+                Ok(PythonReturnCodes::RET_NONE) => (),
                 Ok(PythonReturnCodes::RET_STOP) | Ok(PythonReturnCodes::RET_STOP_ALL) => {
                     return Ok(false);
                 }
@@ -2045,7 +2046,7 @@ def remove_command(cmd):
                     let usage_msg = format!("^7Usage: ^6{} {}", name, bound_cmd.borrow().usage);
                     channel.call_method1(intern!(self.py(), "reply"), (&usage_msg,))?;
                 }
-                Ok(PythonReturnCodes::RET_NONE) => {
+                _ => {
                     pyshinqlx_get_logger(self.py(), None).and_then(|logger| {
                         let cmd_handler_name = bound_cmd
                             .borrow()
@@ -2089,7 +2090,6 @@ def remove_command(cmd):
                                 })
                     })?;
                 }
-                _ => (),
             }
         }
 
