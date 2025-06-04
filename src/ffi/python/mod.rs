@@ -132,6 +132,7 @@ use std::{
 };
 
 use arc_swap::ArcSwapOption;
+use chrono::Utc;
 use commands::CommandPriorities;
 use itertools::Itertools;
 use log::*;
@@ -145,7 +146,7 @@ use pyo3::{
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
-use tap::{Conv, TapFallible, TapOptional};
+use tap::{Conv, TapFallible, TapOptional, TryConv};
 
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
@@ -1723,14 +1724,12 @@ def thread(func, force=False):
 #[pyfunction]
 fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
     let (elapsed_days, elapsed_seconds, elapsed_microseconds) = py.allow_threads(|| {
-        let elapsed = _INIT_TIME.elapsed();
-        let elapsed_days: i32 = (elapsed.as_secs() / (24 * 60 * 60))
-            .try_into()
+        let elapsed = Utc::now() - *_INIT_TIME;
+        let elapsed_days = elapsed.num_days().try_conv::<i32>().unwrap_or_default();
+        let elapsed_seconds = (elapsed.num_seconds() % (24 * 60 * 60))
+            .try_conv::<i32>()
             .unwrap_or_default();
-        let elapsed_seconds: i32 = (elapsed.as_secs() % (24 * 60 * 60))
-            .try_into()
-            .unwrap_or_default();
-        let elapsed_microseconds: i32 = elapsed.subsec_micros().try_into().unwrap_or_default();
+        let elapsed_microseconds = elapsed.subsec_micros();
         (elapsed_days, elapsed_seconds, elapsed_microseconds)
     });
     PyDelta::new(
@@ -1754,7 +1753,7 @@ mod uptime_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn uptime_returns_uptime(_pyshinqlx_setup: ()) {
-        let _ = _INIT_TIME.elapsed();
+        let _ = _INIT_TIME.timestamp();
 
         Python::with_gil(|py| {
             let result = uptime(py);
