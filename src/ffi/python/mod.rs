@@ -145,6 +145,7 @@ use pyo3::{
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
+use tap::prelude::*;
 
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
@@ -560,7 +561,7 @@ fn set_configstring(index: u16, value: &str) -> PyResult<()> {
         )));
     }
 
-    shinqlx_set_configstring(Into::<u32>::into(index), value);
+    shinqlx_set_configstring(index.conv::<u32>(), value);
 
     Ok(())
 }
