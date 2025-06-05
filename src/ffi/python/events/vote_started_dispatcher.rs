@@ -49,7 +49,7 @@ pub(crate) trait VoteStartedDispatcherMethods<'py> {
 impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher> {
     fn dispatch(&self, vote: &str, args: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
         let player = &self
-            .borrow()
+            .get()
             .player
             .try_read()
             .unwrap()
@@ -66,7 +66,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
     }
 
     fn caller(&self, player: &Bound<'py, PyAny>) {
-        *self.borrow().player.write() = player.to_owned().unbind();
+        *self.get().player.write() = player.as_unbound().clone_ref(self.py());
     }
 }
 

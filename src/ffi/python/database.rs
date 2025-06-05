@@ -123,7 +123,7 @@ pub(crate) trait AbstractDatabaseMethods<'py> {
 
 impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
     fn get_logger(&self) -> PyResult<Bound<'py, PyAny>> {
-        let bound_plugin = self.borrow().plugin.bind(self.py()).to_owned();
+        let bound_plugin = self.get().plugin.bind(self.py()).to_owned();
         pyshinqlx_get_logger(self.py(), Some(bound_plugin))
     }
 

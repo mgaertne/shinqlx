@@ -49,7 +49,7 @@ impl AbstractChannel {
 
     #[pyo3(name = "__init__")]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str) {
-        *slf.borrow().name.write() = name.to_string();
+        *slf.get().name.write() = name.to_string();
     }
 
     fn __repr__(&self) -> String {
@@ -143,7 +143,7 @@ pub(crate) trait AbstractChannelMethods {
 
 impl AbstractChannelMethods for Bound<'_, AbstractChannel> {
     fn get_name(&self) -> String {
-        self.borrow().name.read().to_owned()
+        self.get().name.read().to_owned()
     }
 
     fn reply(
@@ -529,13 +529,13 @@ impl ChatChannel {
     #[pyo3(name = "__init__", signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")"
     )]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str, fmt: &str) {
-        *slf.borrow().fmt.write() = fmt.into();
+        *slf.get().fmt.write() = fmt.into();
         AbstractChannel::initialize(slf.as_super(), name);
     }
 
     #[getter(fmt)]
     fn get_fmt(slf: Bound<'_, Self>) -> String {
-        slf.borrow().fmt.read().to_owned()
+        slf.get().fmt.read().to_owned()
     }
 
     fn recipients(slf: &Bound<'_, Self>) -> PyResult<Option<Vec<i32>>> {
@@ -561,7 +561,7 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
 
     fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
-        let fmt = self.borrow().fmt.read().to_owned();
+        let fmt = self.get().fmt.read().to_owned();
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = self
             .call_method0(intern!(self.py(), "recipients"))?
@@ -1031,7 +1031,7 @@ impl TellChannel {
 
     #[pyo3(name = "__init__")]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, player: &Player) {
-        *slf.borrow().client_id.write() = player.id;
+        *slf.get().client_id.write() = player.id;
         AbstractChannel::initialize(slf.as_super().as_super(), "tell");
     }
 
@@ -1041,7 +1041,7 @@ impl TellChannel {
 
     #[getter(client_id)]
     fn get_client_id(slf: &Bound<'_, Self>) -> i32 {
-        *slf.borrow().client_id.read()
+        *slf.get().client_id.read()
     }
 
     #[getter(recipient)]
@@ -1066,7 +1066,7 @@ impl AbstractChannelMethods for Bound<'_, TellChannel> {
 
 impl ChatChannelMethods for Bound<'_, TellChannel> {
     fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
-        Ok(Some(vec![*self.borrow().client_id.read()]))
+        Ok(Some(vec![*self.get().client_id.read()]))
     }
 }
 
@@ -1076,7 +1076,7 @@ pub(crate) trait TellChannelMethods {
 
 impl TellChannelMethods for Bound<'_, TellChannel> {
     fn get_recipient(&self) -> PyResult<Player> {
-        Player::py_new(*self.borrow().client_id.read(), None)
+        Player::py_new(*self.get().client_id.read(), None)
     }
 }
 
@@ -1231,13 +1231,13 @@ impl TeamChatChannel {
     #[pyo3(name = "__init__", signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")"
     )]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, team: &str, name: &str, fmt: &str) {
-        *slf.borrow().team.write() = team.to_string();
+        *slf.get().team.write() = team.to_string();
         ChatChannel::initialize(slf.as_super(), name, fmt);
     }
 
     #[getter(team)]
     fn get_team(slf: &Bound<'_, Self>) -> String {
-        slf.borrow().team.read().to_owned()
+        slf.get().team.read().to_owned()
     }
 
     fn recipients(slf: &Bound<'_, Self>) -> PyResult<Option<Vec<i32>>> {
@@ -1257,11 +1257,11 @@ impl AbstractChannelMethods for Bound<'_, TeamChatChannel> {
 
 impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
     fn recipients(&self) -> PyResult<Option<Vec<i32>>> {
-        if *self.borrow().team.read() == "all" {
+        if *self.get().team.read() == "all" {
             return Ok(None);
         }
 
-        let filtered_team: i32 = match self.borrow().team.read().as_str() {
+        let filtered_team: i32 = match self.get().team.read().as_str() {
             "red" => team_t::TEAM_RED as i32,
             "blue" => team_t::TEAM_BLUE as i32,
             "free" => team_t::TEAM_FREE as i32,
@@ -1480,7 +1480,7 @@ impl ClientCommandChannel {
 
     #[pyo3(name = "__init__")]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, player: &Player) {
-        *slf.borrow().client_id.write() = player.id;
+        *slf.get().client_id.write() = player.id;
         AbstractChannel::initialize(slf.as_super(), "client_command");
     }
 
@@ -1490,7 +1490,7 @@ impl ClientCommandChannel {
 
     #[getter(client_id)]
     fn get_client_id(slf: &Bound<'_, Self>) -> i32 {
-        *slf.borrow().client_id.read()
+        *slf.get().client_id.read()
     }
 
     #[getter(recipient)]
@@ -1524,7 +1524,7 @@ impl AbstractChannelMethods for Bound<'_, ClientCommandChannel> {
                 fmt: "print \"{}\n\"\n".to_string().into(),
             })
             .add_subclass(TellChannel {
-                client_id: (*self.borrow().client_id.read()).into(),
+                client_id: (*self.get().client_id.read()).into(),
             }),
         )?;
 
@@ -1537,7 +1537,7 @@ impl AbstractChannelMethods for Bound<'_, ClientCommandChannel> {
 
 impl TellChannelMethods for Bound<'_, ClientCommandChannel> {
     fn get_recipient(&self) -> PyResult<Player> {
-        Player::py_new(*self.borrow().client_id.read(), None)
+        Player::py_new(*self.get().client_id.read(), None)
     }
 }
 pub(crate) trait ClientCommandChannelMethods {

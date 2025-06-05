@@ -340,38 +340,34 @@ pub(crate) trait EventDispatcherMethods<'py> {
 
 impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
     fn get_plugins(&self) -> Bound<'py, PyDict> {
-        self.try_borrow()
-            .ok()
-            .and_then(|event_dispatcher| {
-                event_dispatcher.plugins.try_read().and_then(|plugins| {
-                    plugins
-                        .iter()
-                        .map(|(plugin_name, hooks)| {
-                            (
-                                plugin_name.to_owned(),
-                                hooks
-                                    .iter()
-                                    .map(|prio_hooks| {
-                                        prio_hooks
-                                            .iter()
-                                            .map(|hook| hook.clone_ref(self.py()))
-                                            .collect()
-                                    })
-                                    .collect(),
-                            )
-                        })
-                        .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
-                        .into_py_dict(self.py())
-                        .ok()
-                })
+        self.get()
+            .plugins
+            .try_read()
+            .and_then(|plugins| {
+                plugins
+                    .iter()
+                    .map(|(plugin_name, hooks)| {
+                        (
+                            plugin_name.to_owned(),
+                            hooks
+                                .iter()
+                                .map(|prio_hooks| {
+                                    prio_hooks
+                                        .iter()
+                                        .map(|hook| hook.clone_ref(self.py()))
+                                        .collect()
+                                })
+                                .collect(),
+                        )
+                    })
+                    .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
+                    .into_py_dict(self.py())
+                    .ok()
             })
             .unwrap_or(PyDict::new(self.py()))
     }
 
     fn dispatch(&self, args: &Bound<'py, PyTuple>) -> Bound<'py, PyAny> {
-        let Ok(event_dispatcher) = self.try_borrow() else {
-            return self.py().None().into_bound(self.py());
-        };
         let Ok(dispatcher_name) = self
             .get_type()
             .getattr(intern!(self.py(), "name"))
@@ -386,7 +382,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
 
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
-        let plugins = event_dispatcher.plugins.read();
+        let plugins = self.get().plugins.read();
         for handler in (0..5).flat_map(|i| {
             plugins.iter().flat_map(move |(_, handlers)| {
                 handlers[i]
@@ -450,9 +446,6 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
             return Err(PyValueError::new_err(error_description));
         }
 
-        let event_dispatcher = self
-            .try_borrow()
-            .map_err(|_| PyValueError::new_err("could not borrow event_dispatcher"))?;
         let dispatcher_name = self
             .get_type()
             .getattr(intern!(self.py(), "name"))
@@ -480,7 +473,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
             return Err(PyAssertionError::new_err(error_description));
         }
 
-        match event_dispatcher.plugins.try_write() {
+        match self.get().plugins.try_write() {
             None => {
                 let add_hook_func = PyModule::from_code(
                     self.py(),
@@ -532,9 +525,6 @@ def add_hook(event, plugin, handler, priority):
     }
 
     fn remove_hook(&self, plugin: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
-        let event_dispatcher = self
-            .try_borrow()
-            .map_err(|_| PyValueError::new_err("could not borrow event_dispatcher"))?;
         let dispatcher_name = self
             .get_type()
             .getattr(intern!(self.py(), "name"))
@@ -544,7 +534,7 @@ def add_hook(event, plugin, handler, priority):
                     "Cannot remove a hook from an event dispatcher with no name.",
                 )
             })?;
-        match event_dispatcher.plugins.try_write() {
+        match self.get().plugins.try_write() {
             None => {
                 let remove_hook_func = PyModule::from_code(
                     self.py(),
@@ -1768,7 +1758,7 @@ pub(crate) trait EventDispatcherManagerMethods<'py> {
 
 impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManager> {
     fn __contains__(&self, key: &str) -> bool {
-        self.borrow()
+        self.get()
             .dispatchers
             .read()
             .iter()
@@ -1776,7 +1766,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
     }
 
     fn __getitem__(&self, key: &str) -> PyResult<Bound<'py, PyAny>> {
-        self.borrow()
+        self.get()
             .dispatchers
             .read()
             .iter()
@@ -1791,7 +1781,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
     }
 
     fn get_dispatchers(&self) -> PyResult<Bound<'py, PyDict>> {
-        self.borrow()
+        self.get()
             .dispatchers
             .read()
             .iter()
@@ -1823,7 +1813,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             return Err(PyValueError::new_err("Event name already taken."));
         }
 
-        self.borrow()
+        self.get()
             .dispatchers
             .write()
             .push((dispatcher_name_str, dispatcher.call0()?.unbind()));
@@ -1847,7 +1837,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             return Err(PyValueError::new_err("Event name not found."));
         }
 
-        match self.borrow().dispatchers.try_write() {
+        match self.get().dispatchers.try_write() {
             None => {
                 let remove_dispatcher_by_name_func = PyModule::from_code(
                     self.py(),

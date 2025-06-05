@@ -97,7 +97,7 @@ impl Game {
                 let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                 if configstring.is_empty() {
-                    slf.borrow().valid.store(false, Ordering::SeqCst);
+                    slf.get().valid.store(false, Ordering::SeqCst);
                     return Err(NonexistentGameError::new_err(
                         "Invalid game. Is the server loading a new map?",
                     ));
@@ -117,7 +117,7 @@ impl Game {
                 let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                 if configstring.is_empty() {
-                    slf.borrow().valid.store(false, Ordering::SeqCst);
+                    slf.get().valid.store(false, Ordering::SeqCst);
                     return Err(NonexistentGameError::new_err(
                         "Invalid game. Is the server loading a new map?",
                     ));
@@ -508,11 +508,11 @@ pub(crate) trait GameMethods<'py> {
 
 impl<'py> GameMethods<'py> for Bound<'py, Game> {
     fn get_cached(&self) -> bool {
-        self.borrow().cached.load(Ordering::SeqCst)
+        self.get().cached.load(Ordering::SeqCst)
     }
 
     fn get_valid(&self) -> bool {
-        self.borrow().valid.load(Ordering::SeqCst)
+        self.get().valid.load(Ordering::SeqCst)
     }
 
     fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>> {
@@ -526,7 +526,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
                     if configstring.is_empty() {
-                        self.borrow().valid.store(false, Ordering::SeqCst);
+                        self.get().valid.store(false, Ordering::SeqCst);
                         return Err(NonexistentGameError::new_err(
                             "Invalid game. Is the server loading a new map?",
                         ));

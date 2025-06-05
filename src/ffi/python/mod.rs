@@ -458,7 +458,7 @@ pub(crate) fn client_id(
     match name.to_string().parse::<i32>() {
         Ok(value) if (0..64).contains(&value) => Some(value),
         _ => match name.downcast::<Player>() {
-            Ok(player) => Some(player.borrow().id),
+            Ok(player) => Some(player.get().id),
             _ => {
                 let all_players = player_list.unwrap_or_else(|| {
                     Player::all_players(&py.get_type::<Player>()).unwrap_or_default()
@@ -3562,7 +3562,7 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                             intern!(module.py(), ""),
                             -1,
                             intern!(module.py(), "Stats listener started on %s."),
-                            (&stats_value.borrow().address,),
+                            (&stats_value.get().address,),
                             module.py().None(),
                         ),
                         Some(

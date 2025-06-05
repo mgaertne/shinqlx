@@ -477,11 +477,11 @@ pub(crate) trait StatsListenerMethods<'py> {
 
 impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
     fn get_done(&self) -> bool {
-        self.borrow().done.load(Ordering::SeqCst)
+        self.get().done.load(Ordering::SeqCst)
     }
 
     fn stop(&self) {
-        self.borrow().done.store(true, Ordering::SeqCst);
+        self.get().done.store(true, Ordering::SeqCst);
     }
 
     fn keep_receiving(&self) -> PyResult<()> {
@@ -502,7 +502,7 @@ def run_zmq_thread(poller):
     }
 
     fn _poll_zmq(&self) -> PyResult<()> {
-        let socket = get_zmq_socket(&self.borrow().address, &self.borrow().password).map_err(
+        let socket = get_zmq_socket(&self.get().address, &self.get().password).map_err(
             |err: zmq::Error| {
                 let error_msg = format!("zmq error: {err:?}");
                 PyIOError::new_err(error_msg)

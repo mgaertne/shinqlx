@@ -30,7 +30,6 @@ fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
     COMMANDS.load().as_ref().map_or(Ok(None), |commands| {
         let rcon_dummy_player =
             Bound::new(py, RconDummyPlayer::py_new(py, py.None().bind(py), None))?;
-        let player = rcon_dummy_player.into_super().into_super();
 
         let shinqlx_console_channel = CONSOLE_CHANNEL
             .load()
@@ -39,7 +38,11 @@ fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
 
         commands
             .bind(py)
-            .handle_input(&player, cmd, shinqlx_console_channel.bind(py).as_any())
+            .handle_input(
+                rcon_dummy_player.as_super().as_super(),
+                cmd,
+                shinqlx_console_channel.bind(py),
+            )
             .map(|_| None)
     })
 }
@@ -3122,14 +3125,18 @@ static RE_VOTE_ENDED: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
-fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
+fn try_handle_server_command<'py>(
+    py: Python<'py>,
+    client_id: i32,
+    cmd: &str,
+) -> PyResult<Bound<'py, PyAny>> {
     let Ok(player) = (0..MAX_CLIENTS as i32)
         .find(|&id| id == client_id)
         .map_or(Ok(py.None().bind(py).to_owned()), |id| {
             Player::py_new(id, None).and_then(|player| Ok(Bound::new(py, player)?.into_any()))
         })
     else {
-        return Ok(PyBool::new(py, true).to_owned().into_any().unbind());
+        return Ok(PyBool::new(py, true).to_owned().into_any());
     };
 
     let return_value = EVENT_DISPATCHERS
@@ -3157,13 +3164,13 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         .downcast::<PyBool>()
         .is_ok_and(|value| !value.is_true())
     {
-        return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
+        return Ok(PyBool::new(py, false).to_owned().into_any());
     };
 
     let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
 
     RE_VOTE_ENDED.captures(updated_cmd).map_or(
-        Ok(PyString::new(py, updated_cmd).into_any().unbind()),
+        Ok(PyString::new(py, updated_cmd).into_any()),
         |captures| {
             EVENT_DISPATCHERS
                 .load()
@@ -3188,17 +3195,19 @@ fn try_handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         )
                     },
                 )?;
-            Ok(PyString::new(py, updated_cmd).into_any().unbind())
+            Ok(PyString::new(py, updated_cmd).into_any())
         },
     )
 }
 
 #[pyfunction]
-pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyObject {
-    try_handle_server_command(py, client_id, cmd).unwrap_or_else(|e| {
-        log_exception(py, &e);
-        PyBool::new(py, true).to_owned().into_any().unbind()
-    })
+pub(crate) fn handle_server_command<'py>(py: Python<'py>, client_id: i32, cmd: &str) -> PyObject {
+    try_handle_server_command(py, client_id, cmd)
+        .unwrap_or_else(|e| {
+            log_exception(py, &e);
+            PyBool::new(py, true).to_owned().into_any()
+        })
+        .unbind()
 }
 
 #[cfg(test)]
@@ -3277,7 +3286,7 @@ mod handle_server_command_tests {
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .extract::<String>(py)
+                            .extract::<String>()
                             .is_ok_and(|str_value| str_value == "cp \"asdf\"")
                     }));
                     assert!(
@@ -3355,7 +3364,7 @@ mod handle_server_command_tests {
                             let result = try_handle_server_command(py, 42, "cp \"asdf\"");
                             assert!(result.is_ok_and(|value| {
                                 value
-                                    .extract::<String>(py)
+                                    .extract::<String>()
                                     .is_ok_and(|str_value| str_value == "cp \"asdf\"")
                             }));
                             assert!(
@@ -3421,7 +3430,6 @@ mod handle_server_command_tests {
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .bind(py)
                             .downcast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
@@ -3470,7 +3478,7 @@ mod handle_server_command_tests {
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .extract::<String>(py)
+                            .extract::<String>()
                             .is_ok_and(|str_value| str_value == "quit")
                     }));
                 });
@@ -3527,7 +3535,7 @@ mod handle_server_command_tests {
                     let result = try_handle_server_command(py, -1, "print \"Vote passed.\n\"");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .extract::<String>(py)
+                            .extract::<String>()
                             .is_ok_and(|str_value| str_value == "print \"Vote passed.\n\"")
                     }));
                     assert!(
@@ -3592,7 +3600,7 @@ mod handle_server_command_tests {
                     let result = try_handle_server_command(py, -1, "print \"Vote failed.\n\"");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .extract::<String>(py)
+                            .extract::<String>()
                             .is_ok_and(|str_value| str_value == "print \"Vote failed.\n\"")
                     }));
                     assert!(
@@ -8475,11 +8483,11 @@ impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
     }
 
     fn flush(&self) -> PyResult<()> {
-        let print_buffer_contents = self.borrow().print_buffer.read().to_owned();
-        self.borrow().print_buffer.write().clear();
+        let print_buffer_contents = self.get().print_buffer.read().to_owned();
+        self.get().print_buffer.write().clear();
 
         let _ = self
-            .borrow()
+            .get()
             .channel
             .bind(self.py())
             .call_method1(intern!(self.py(), "reply"), (print_buffer_contents,))?;
@@ -8488,7 +8496,7 @@ impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
     }
 
     fn append(&self, text: &str) {
-        self.borrow().print_buffer.write().push_str(text);
+        self.get().print_buffer.write().push_str(text);
     }
 }
 

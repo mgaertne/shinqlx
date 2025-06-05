@@ -1,5 +1,3 @@
-use core::ops::Deref;
-
 use pyo3::{
     exceptions::PyEnvironmentError,
     types::{PyBool, PyString},
@@ -55,8 +53,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
         let mut forwarded_cmd = cmd.to_string();
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
-        let super_class = self.borrow().into_super();
-        let plugins = super_class.plugins.read();
+        let plugins = self.as_super().get().plugins.read();
 
         for handler in (0..5).flat_map(|i| {
             plugins.iter().flat_map(move |(_, handlers)| {
@@ -116,14 +113,14 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
             Ok(true) => (),
         };
 
-        Ok(return_value.bind(self.py()).to_owned())
+        Ok(return_value.into_bound(self.py()))
     }
 }
 
 fn try_handle_input(py: Python<'_>, player: &Bound<'_, Player>, cmd: &str) -> PyResult<bool> {
     let client_command_channel = Bound::new(
         py,
-        ClientCommandChannel::py_new(py, player.borrow().deref(), py.None().bind(py), None),
+        ClientCommandChannel::py_new(py, player.get(), py.None().bind(py), None),
     )?;
     COMMANDS.load().as_ref().map_or(
         Err(PyEnvironmentError::new_err(

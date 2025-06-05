@@ -35,8 +35,7 @@ impl<'py> ConsolePrintDispatcherMethods<'py> for Bound<'py, ConsolePrintDispatch
         let mut forwarded_text = text.to_string();
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
-        let super_class = self.borrow().into_super();
-        let plugins = super_class.plugins.read();
+        let plugins = self.as_super().get().plugins.read();
         for handler in (0..5).flat_map(|i| {
             plugins.iter().flat_map(move |(_, handlers)| {
                 handlers[i]
@@ -77,7 +76,7 @@ impl<'py> ConsolePrintDispatcherMethods<'py> for Bound<'py, ConsolePrintDispatch
             }
         }
 
-        Ok(return_value.bind(self.py()).to_owned())
+        Ok(return_value.into_bound(self.py()))
     }
 }
 
