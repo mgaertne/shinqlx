@@ -166,11 +166,11 @@ impl Player {
             CompareOp::Eq => {
                 if let Ok(other_player) = other.extract::<Self>() {
                     Ok(
-                        PyBool::new(slf.py(), slf.borrow().steam_id == other_player.steam_id)
+                        PyBool::new(slf.py(), slf.get().steam_id == other_player.steam_id)
                             .into_any(),
                     )
                 } else if let Ok(steam_id) = other.extract::<i64>() {
-                    Ok(PyBool::new(slf.py(), slf.borrow().steam_id == steam_id).into_any())
+                    Ok(PyBool::new(slf.py(), slf.get().steam_id == steam_id).into_any())
                 } else {
                     Ok(PyBool::new(slf.py(), false).into_any())
                 }
@@ -178,11 +178,11 @@ impl Player {
             CompareOp::Ne => {
                 if let Ok(other_player) = other.extract::<Self>() {
                     Ok(
-                        PyBool::new(slf.py(), slf.borrow().steam_id != other_player.steam_id)
+                        PyBool::new(slf.py(), slf.get().steam_id != other_player.steam_id)
                             .into_any(),
                     )
                 } else if let Ok(steam_id) = other.extract::<i64>() {
-                    Ok(PyBool::new(slf.py(), slf.borrow().steam_id != steam_id).into_any())
+                    Ok(PyBool::new(slf.py(), slf.get().steam_id != steam_id).into_any())
                 } else {
                     Ok(PyBool::new(slf.py(), true).into_any())
                 }
@@ -749,63 +749,63 @@ pub(crate) trait PlayerMethods<'py> {
 
 impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
-        if !self.borrow().valid.load(Ordering::SeqCst) {
+        if !self.get().valid.load(Ordering::SeqCst) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         Ok(cvars.get(item).is_some())
     }
 
     fn __getitem__(&self, item: &str) -> PyResult<String> {
-        if !self.borrow().valid.load(Ordering::SeqCst) {
+        if !self.get().valid.load(Ordering::SeqCst) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars
             .get(item)
             .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
     }
 
     fn update(&self) -> PyResult<()> {
-        *self.borrow().player_info.write() = PlayerInfo::from(self.borrow().id);
+        *self.get().player_info.write() = PlayerInfo::from(self.get().id);
 
-        if self.borrow().player_info.read().steam_id != self.borrow().steam_id {
-            self.borrow().valid.store(false, Ordering::SeqCst);
+        if self.get().player_info.read().steam_id != self.get().steam_id {
+            self.get().valid.store(false, Ordering::SeqCst);
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        let name = if self.borrow().player_info.read().name.is_empty() {
-            let cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let name = if self.get().player_info.read().name.is_empty() {
+            let cvars = parse_variables(&self.get().player_info.read().userinfo);
             cvars.get("name").unwrap_or_default()
         } else {
-            self.borrow().player_info.read().name.to_owned()
+            self.get().player_info.read().name.to_owned()
         };
-        *self.borrow().name.write() = name;
+        *self.get().name.write() = name;
 
         Ok(())
     }
 
     fn invalidate(&self, e: &str) -> PyResult<()> {
-        self.borrow().valid.store(false, Ordering::SeqCst);
+        self.get().valid.store(false, Ordering::SeqCst);
         Err(NonexistentPlayerError::new_err(e.to_string()))
     }
 
     fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>> {
-        if !self.borrow().valid.load(Ordering::SeqCst) {
+        if !self.get().valid.load(Ordering::SeqCst) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
         }
 
-        parse_variables(&self.borrow().user_info).into_py_dict(self.py())
+        parse_variables(&self.get().user_info).into_py_dict(self.py())
     }
 
     fn set_cvars(&self, new_cvars: &Bound<'_, PyDict>) -> PyResult<()> {
@@ -814,20 +814,20 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             .map(|(key, value)| format!(r"\{key}\{value}"))
             .join("");
         let client_command = format!(r#"userinfo "{new}""#);
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command)?;
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
         Ok(())
     }
 
     fn get_steam_id(&self) -> i64 {
-        self.borrow().steam_id
+        self.get().steam_id
     }
 
     fn get_id(&self) -> i32 {
-        self.borrow().id
+        self.get().id
     }
 
     fn get_ip(&self) -> String {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars
             .get("ip")
             .map(|value| value.split(':').next().unwrap_or("").to_string())
@@ -839,8 +839,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return "".to_string();
         };
 
-        let configstring =
-            main_engine.get_configstring(CS_PLAYERS as u16 + self.borrow().id as u16);
+        let configstring = main_engine.get_configstring(CS_PLAYERS as u16 + self.get().id as u16);
         let parsed_cs = parse_variables(&configstring);
         parsed_cs.get("cn").unwrap_or("".to_string())
     }
@@ -850,7 +849,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return;
         };
 
-        let config_index = 529 + self.borrow().id as u16;
+        let config_index = 529 + self.get().id as u16;
 
         let configstring = main_engine.get_configstring(config_index);
         let mut parsed_variables = parse_variables(&configstring);
@@ -862,29 +861,29 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_name(&self) -> String {
-        if self.borrow().name.read().ends_with("^7") {
-            self.borrow().name.read().to_owned()
+        if self.get().name.read().ends_with("^7") {
+            self.get().name.read().to_owned()
         } else {
-            format!("{}^7", self.borrow().name.read())
+            format!("{}^7", self.get().name.read())
         }
     }
 
     fn set_name(&self, value: &str) -> PyResult<()> {
-        let mut new_cvars = parse_variables(&self.borrow().user_info);
+        let mut new_cvars = parse_variables(&self.get().user_info);
         new_cvars.set("name", value);
         let new: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command)?;
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
         Ok(())
     }
 
     fn get_clean_name(&self) -> String {
-        clean_text(&(&*self.borrow().name.read()))
+        clean_text(&(&*self.get().name.read()))
     }
 
     fn get_qport(&self) -> i32 {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars
             .get("qport")
             .map(|value| value.parse::<i32>().unwrap_or(-1))
@@ -892,7 +891,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_team(&self) -> PyResult<String> {
-        match team_t::try_from(self.borrow().player_info.read().team) {
+        match team_t::try_from(self.get().player_info.read().team) {
             Ok(team_t::TEAM_FREE) => Ok("free".to_string()),
             Ok(team_t::TEAM_RED) => Ok("red".to_string()),
             Ok(team_t::TEAM_BLUE) => Ok("blue".to_string()),
@@ -906,12 +905,12 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err("Invalid team."));
         }
 
-        let team_change_cmd = format!("put {} {}", self.borrow().id, new_team.to_lowercase());
+        let team_change_cmd = format!("put {} {}", self.get().id, new_team.to_lowercase());
         console_command(&team_change_cmd)
     }
 
     fn get_colors(&self) -> (f32, f32) {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         let color1 = cvars
             .get("color1")
             .map(|value| value.parse::<f32>().unwrap_or(0.0))
@@ -924,52 +923,52 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_colors(&self, new: (i32, i32)) -> PyResult<()> {
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("color1", &format!("{}", new.0));
         new_cvars.set("color2", &format!("{}", new.1));
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command)?;
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
         Ok(())
     }
 
     fn get_model(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars
             .get("model")
             .map_or_else(|| Err(PyKeyError::new_err("'model'")), Ok)
     }
 
     fn set_model(&self, value: &str) -> PyResult<()> {
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("model", value);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command)?;
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
         Ok(())
     }
 
     fn get_headmodel(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars
             .get("headmodel")
             .map_or_else(|| Err(PyKeyError::new_err("'headmodel'")), Ok)
     }
 
     fn set_headmodel(&self, value: &str) -> PyResult<()> {
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("headmodel", value);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command)?;
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
         Ok(())
     }
 
     fn get_handicap(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars
             .get("handicap")
             .map_or_else(|| Err(PyKeyError::new_err("'handicap'")), Ok)
@@ -982,16 +981,16 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err(error_msg));
         }
 
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("handicap", &new_handicap);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command).map(|_| ())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_autohop(&self) -> PyResult<i32> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars.get("autohop").map_or_else(
             || Err(PyKeyError::new_err("'autohop'")),
             |value| {
@@ -1010,16 +1009,16 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err(error_msg));
         }
 
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("autohop", &new_autohop);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command).map(|_| ())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_autoaction(&self) -> PyResult<i32> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars.get("autoaction").map_or_else(
             || Err(PyKeyError::new_err("'autoaction'")),
             |value| {
@@ -1038,16 +1037,16 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err(error_msg));
         }
 
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("autoaction", &new_autoaction);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command).map(|_| ())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_predictitems(&self) -> PyResult<i32> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         cvars.get("cg_predictitems").map_or_else(
             || Err(PyKeyError::new_err("'cg_predictitems'")),
             |value| {
@@ -1066,16 +1065,16 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err(error_msg));
         }
 
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo);
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo);
         new_cvars.set("cg_predictitems", &new_predictitems);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command).map(|_| ())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_connection_state(&self) -> PyResult<String> {
-        match clientState_t::try_from(self.borrow().player_info.read().connection_state) {
+        match clientState_t::try_from(self.get().player_info.read().connection_state) {
             Ok(clientState_t::CS_FREE) => Ok("free".to_string()),
             Ok(clientState_t::CS_ZOMBIE) => Ok("zombie".to_string()),
             Ok(clientState_t::CS_CONNECTED) => Ok("connected".to_string()),
@@ -1086,11 +1085,11 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_state(&self) -> PyResult<Option<PlayerState>> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
     }
 
     fn get_privileges(&self) -> Option<String> {
-        match privileges_t::from(self.borrow().player_info.read().privileges) {
+        match privileges_t::from(self.get().player_info.read().privileges) {
             privileges_t::PRIV_MOD => Some("mod".to_string()),
             privileges_t::PRIV_ADMIN => Some("admin".to_string()),
             privileges_t::PRIV_ROOT => Some("root".to_string()),
@@ -1107,14 +1106,14 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
             |new_privilege| {
-                pyshinqlx_set_privileges(self.py(), self.borrow().id, new_privilege as i32)?;
+                pyshinqlx_set_privileges(self.py(), self.get().id, new_privilege as i32)?;
                 Ok(())
             },
         )
     }
 
     fn get_country(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.borrow().user_info);
+        let cvars = parse_variables(&self.get().user_info);
         self.py().allow_threads(|| {
             cvars
                 .get("country")
@@ -1123,25 +1122,25 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_country(&self, value: &str) -> PyResult<()> {
-        let mut new_cvars = parse_variables(&self.borrow().player_info.read().userinfo.to_owned());
+        let mut new_cvars = parse_variables(&self.get().player_info.read().userinfo.to_owned());
         new_cvars.set("country", value);
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.borrow().id, &client_command)?;
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
         Ok(())
     }
 
     fn get_valid(&self) -> bool {
-        self.borrow().valid.load(Ordering::SeqCst)
+        self.get().valid.load(Ordering::SeqCst)
     }
 
     fn get_stats(&self) -> PyResult<Option<PlayerStats>> {
-        pyshinqlx_player_stats(self.py(), self.borrow().id)
+        pyshinqlx_player_stats(self.py(), self.get().id)
     }
 
     fn get_ping(&self) -> PyResult<i32> {
-        pyshinqlx_player_stats(self.py(), self.borrow().id)
+        pyshinqlx_player_stats(self.py(), self.get().id)
             .map(|opt_stats| opt_stats.map(|stats| stats.ping).unwrap_or(999))
     }
 
@@ -1153,7 +1152,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let pos = if reset {
             Vector3(0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.borrow().id)? {
+            match pyshinqlx_player_state(self.py(), self.get().id)? {
                 None => Vector3(0, 0, 0),
                 Some(state) => state.position,
             }
@@ -1177,7 +1176,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
                 let vector = Vector3(x, y, z);
 
-                pyshinqlx_set_position(self.py(), self.borrow().id, &vector)
+                pyshinqlx_set_position(self.py(), self.get().id, &vector)
                     .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
             }
         }
@@ -1191,7 +1190,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let vel = if reset {
             Vector3(0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.borrow().id)? {
+            match pyshinqlx_player_state(self.py(), self.get().id)? {
                 None => Vector3(0, 0, 0),
                 Some(state) => state.velocity,
             }
@@ -1215,7 +1214,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
                 let vector = Vector3(x, y, z);
 
-                pyshinqlx_set_velocity(self.py(), self.borrow().id, &vector)
+                pyshinqlx_set_velocity(self.py(), self.get().id, &vector)
                     .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
             }
         }
@@ -1229,7 +1228,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.borrow().id)? {
+            match pyshinqlx_player_state(self.py(), self.get().id)? {
                 None => Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 Some(state) => state.weapons,
             }
@@ -1303,7 +1302,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                     g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                 );
 
-                pyshinqlx_set_weapons(self.py(), self.borrow().id, &weapons)
+                pyshinqlx_set_weapons(self.py(), self.get().id, &weapons)
                     .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
             }
         }
@@ -1311,7 +1310,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<Bound<'py, PyAny>> {
         let Some(weapon) = new_weapon else {
-            let weapon = match pyshinqlx_player_state(self.py(), self.borrow().id)? {
+            let weapon = match pyshinqlx_player_state(self.py(), self.get().id)? {
                 None => weapon_t::WP_HANDS as i32,
                 Some(state) => state.weapon,
             };
@@ -1329,7 +1328,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err("invalid new_weapon"));
         };
 
-        pyshinqlx_set_weapon(self.py(), self.borrow().id, converted_weapon as i32)
+        pyshinqlx_set_weapon(self.py(), self.get().id, converted_weapon as i32)
             .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
     }
 
@@ -1341,7 +1340,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.borrow().id)? {
+            match pyshinqlx_player_state(self.py(), self.get().id)? {
                 None => Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                 Some(state) => state.ammo,
             }
@@ -1415,7 +1414,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                     g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
                 );
 
-                pyshinqlx_set_ammo(self.py(), self.borrow().id, &weapons)
+                pyshinqlx_set_ammo(self.py(), self.get().id, &weapons)
                     .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
             }
         }
@@ -1429,7 +1428,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.borrow().id)? {
+            match pyshinqlx_player_state(self.py(), self.get().id)? {
                 None => Powerups(0, 0, 0, 0, 0, 0),
                 Some(state) => state.powerups,
             }
@@ -1465,14 +1464,14 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
                 let powerups = Powerups(quad, bs, haste, invis, regen, invul);
 
-                pyshinqlx_set_powerups(self.py(), self.borrow().id, &powerups)
+                pyshinqlx_set_powerups(self.py(), self.get().id, &powerups)
                     .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
             }
         }
     }
 
     fn get_holdable(&self) -> PyResult<Option<String>> {
-        pyshinqlx_player_state(self.py(), self.borrow().id).map(|opt_state| {
+        pyshinqlx_player_state(self.py(), self.get().id).map(|opt_state| {
             opt_state
                 .filter(|state| state.holdable != Holdable::None)
                 .map(|state| state.holdable.to_string())
@@ -1483,10 +1482,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         match Holdable::from(holdable) {
             Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
             value => {
-                pyshinqlx_set_holdable(self.py(), self.borrow().id, value.into())?;
+                pyshinqlx_set_holdable(self.py(), self.get().id, value.into())?;
                 if value == Holdable::Flight {
                     let flight = Flight(16000, 16000, 1200, 0);
-                    pyshinqlx_set_flight(self.py(), self.borrow().id, &flight)?;
+                    pyshinqlx_set_flight(self.py(), self.get().id, &flight)?;
                 }
                 Ok(())
             }
@@ -1494,7 +1493,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn drop_holdable(&self) -> PyResult<()> {
-        pyshinqlx_drop_holdable(self.py(), self.borrow().id)?;
+        pyshinqlx_drop_holdable(self.py(), self.get().id)?;
         Ok(())
     }
 
@@ -1503,7 +1502,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let opt_state = pyshinqlx_player_state(self.py(), self.borrow().id)?;
+        let opt_state = pyshinqlx_player_state(self.py(), self.get().id)?;
         let init_flight = if !opt_state
             .as_ref()
             .is_some_and(|state| state.holdable == Holdable::Flight)
@@ -1545,14 +1544,14 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
                 let flight = Flight(fuel, max_fuel, thrust, refuel);
 
-                pyshinqlx_set_flight(self.py(), self.borrow().id, &flight)
+                pyshinqlx_set_flight(self.py(), self.get().id, &flight)
                     .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
             }
         }
     }
 
     fn get_noclip(&self) -> PyResult<bool> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
             .map(|opt_state| opt_state.map(|state| state.noclip).unwrap_or(false))
     }
 
@@ -1567,31 +1566,31 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 },
             },
         };
-        pyshinqlx_noclip(self.py(), self.borrow().id, noclip_value).map(|_| ())
+        pyshinqlx_noclip(self.py(), self.get().id, noclip_value).map(|_| ())
     }
 
     fn get_health(&self) -> PyResult<i32> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
             .map(|opt_state| opt_state.map(|state| state.health).unwrap_or(0))
     }
 
     fn set_health(&self, value: i32) -> PyResult<()> {
-        pyshinqlx_set_health(self.py(), self.borrow().id, value)?;
+        pyshinqlx_set_health(self.py(), self.get().id, value)?;
         Ok(())
     }
 
     fn get_armor(&self) -> PyResult<i32> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
             .map(|opt_state| opt_state.map(|state| state.armor).unwrap_or(0))
     }
 
     fn set_armor(&self, value: i32) -> PyResult<()> {
-        pyshinqlx_set_armor(self.py(), self.borrow().id, value)?;
+        pyshinqlx_set_armor(self.py(), self.get().id, value)?;
         Ok(())
     }
 
     fn get_is_alive(&self) -> PyResult<bool> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
             .map(|opt_state| opt_state.map(|state| state.is_alive).unwrap_or(false))
     }
 
@@ -1599,7 +1598,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let current = self.get_is_alive()?;
 
         if !current && value {
-            pyshinqlx_player_spawn(self.py(), self.borrow().id)?;
+            pyshinqlx_player_spawn(self.py(), self.get().id)?;
         }
 
         if current && !value {
@@ -1610,22 +1609,22 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_is_frozen(&self) -> PyResult<bool> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
             .map(|opt_state| opt_state.map(|state| state.is_frozen).unwrap_or(false))
     }
 
     fn get_is_chatting(&self) -> PyResult<bool> {
-        pyshinqlx_player_state(self.py(), self.borrow().id)
+        pyshinqlx_player_state(self.py(), self.get().id)
             .map(|opt_state| opt_state.map(|state| state.is_chatting).unwrap_or(false))
     }
 
     fn get_score(&self) -> PyResult<i32> {
-        pyshinqlx_player_stats(self.py(), self.borrow().id)
+        pyshinqlx_player_stats(self.py(), self.get().id)
             .map(|opt_stats| opt_stats.map(|stats| stats.score).unwrap_or(0))
     }
 
     fn set_score(&self, value: i32) -> PyResult<()> {
-        pyshinqlx_set_score(self.py(), self.borrow().id, value)?;
+        pyshinqlx_set_score(self.py(), self.get().id, value)?;
         Ok(())
     }
 
@@ -1644,7 +1643,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn center_print(&self, msg: &str) -> PyResult<()> {
         let cmd = format!(r#"cp "{msg}""#);
-        pyshinqlx_send_server_command(self.py(), Some(self.borrow().id), &cmd).map(|_| ())
+        pyshinqlx_send_server_command(self.py(), Some(self.get().id), &cmd).map(|_| ())
     }
 
     fn tell(&self, msg: &str, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<()> {
@@ -1677,41 +1676,41 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn kick(&self, reason: &str) -> PyResult<()> {
-        pyshinqlx_kick(self.py(), self.borrow().id, Some(reason))
+        pyshinqlx_kick(self.py(), self.get().id, Some(reason))
     }
 
     fn ban(&self) -> PyResult<()> {
-        let ban_cmd = format!("ban {}", self.borrow().id);
+        let ban_cmd = format!("ban {}", self.get().id);
         console_command(&ban_cmd)
     }
 
     fn tempban(&self) -> PyResult<()> {
-        let tempban_cmd = format!("tempban {}", self.borrow().id);
+        let tempban_cmd = format!("tempban {}", self.get().id);
         console_command(&tempban_cmd)
     }
 
     fn addadmin(&self) -> PyResult<()> {
-        let addadmin_cmd = format!("addadmin {}", self.borrow().id);
+        let addadmin_cmd = format!("addadmin {}", self.get().id);
         console_command(&addadmin_cmd)
     }
 
     fn addmod(&self) -> PyResult<()> {
-        let addmod_cmd = format!("addmod {}", self.borrow().id);
+        let addmod_cmd = format!("addmod {}", self.get().id);
         console_command(&addmod_cmd)
     }
 
     fn demote(&self) -> PyResult<()> {
-        let demote_cmd = format!("demote {}", self.borrow().id);
+        let demote_cmd = format!("demote {}", self.get().id);
         console_command(&demote_cmd)
     }
 
     fn mute(&self) -> PyResult<()> {
-        let mute_cmd = format!("mute {}", self.borrow().id);
+        let mute_cmd = format!("mute {}", self.get().id);
         console_command(&mute_cmd)
     }
 
     fn unmute(&self) -> PyResult<()> {
-        let unmute_cmd = format!("unmute {}", self.borrow().id);
+        let unmute_cmd = format!("unmute {}", self.get().id);
         console_command(&unmute_cmd)
     }
 
@@ -1720,12 +1719,12 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             return Err(PyValueError::new_err("Invalid team."));
         }
 
-        let team_change_cmd = format!("put {} {}", self.borrow().id, team.to_lowercase());
+        let team_change_cmd = format!("put {} {}", self.get().id, team.to_lowercase());
         console_command(&team_change_cmd)
     }
 
     fn addscore(&self, score: i32) -> PyResult<()> {
-        let addscore_cmd = format!("addscore {} {}", self.borrow().id, score);
+        let addscore_cmd = format!("addscore {} {}", self.get().id, score);
         console_command(&addscore_cmd)
     }
 
@@ -1742,17 +1741,17 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn slap(&self, damage: i32) -> PyResult<()> {
-        let slap_cmd = format!("slap {} {}", self.borrow().id, damage);
+        let slap_cmd = format!("slap {} {}", self.get().id, damage);
         console_command(&slap_cmd)
     }
 
     fn slay(&self) -> PyResult<()> {
-        let slay_cmd = format!("slay {}", self.borrow().id);
+        let slay_cmd = format!("slay {}", self.get().id);
         console_command(&slay_cmd)
     }
 
     fn slay_with_mod(&self, means_of_death: i32) -> PyResult<()> {
-        pyshinqlx_slay_with_mod(self.py(), self.borrow().id, means_of_death).map(|_| ())
+        pyshinqlx_slay_with_mod(self.py(), self.get().id, means_of_death).map(|_| ())
     }
 }
 
@@ -2283,7 +2282,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                     assert!(
                         result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py))
                     );
-                    assert_eq!(player.borrow().valid.load(Ordering::SeqCst), false);
+                    assert_eq!(player.get().valid.load(Ordering::SeqCst), false);
                 });
             });
     }
@@ -2368,8 +2367,8 @@ assert(player._valid)
                     .expect("this should not happen");
 
                     player.update().expect("this should not happen");
-                    assert_eq!(player.borrow().valid.load(Ordering::SeqCst), true);
-                    assert_eq!(&*player.borrow().name.read(), "NewUnnamedPlayer");
+                    assert_eq!(player.get().valid.load(Ordering::SeqCst), true);
+                    assert_eq!(&*player.get().name.read(), "NewUnnamedPlayer");
                 });
             });
     }
@@ -2412,8 +2411,8 @@ assert(player._valid)
                     .expect("this should not happen");
 
                     player.update().expect("this should not happen");
-                    assert_eq!(player.borrow().valid.load(Ordering::SeqCst), true);
-                    assert_eq!(&*player.borrow().name.read(), "NewUnnamedPlayer");
+                    assert_eq!(player.get().valid.load(Ordering::SeqCst), true);
+                    assert_eq!(&*player.get().name.read(), "NewUnnamedPlayer");
                 });
             });
     }
@@ -2424,7 +2423,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let result = player.invalidate("invalid player");
-            assert_eq!(player.borrow().valid.load(Ordering::SeqCst), false);
+            assert_eq!(player.get().valid.load(Ordering::SeqCst), false);
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
@@ -7902,7 +7901,7 @@ impl AbstractDummyPlayer {
     #[pyo3(name = "__init__", signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str) {
         let player = slf.as_super();
-        *player.borrow().name.write() = name.into();
+        *player.get().name.write() = name.into();
     }
 
     #[getter(id)]

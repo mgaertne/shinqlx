@@ -1078,7 +1078,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             return Err(PyRuntimeError::new_err(error_msg));
         }
 
-        let plugin = self.borrow();
+        let plugin = self.get();
         if plugin.db_instance.read().bind(self.py()).is_none() {
             let db_instance = db_class.call1((self,))?;
             *plugin.db_instance.write() = db_instance.unbind();
@@ -1106,7 +1106,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
     }
 
     fn get_hooks(&self) -> Vec<(String, Py<PyAny>, i32)> {
-        self.borrow()
+        self.get()
             .hooks
             .read()
             .iter()
@@ -1117,7 +1117,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
     }
 
     fn get_commands(&self) -> Vec<Py<Command>> {
-        self.borrow()
+        self.get()
             .commands
             .read()
             .iter()
@@ -1161,17 +1161,11 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                 },
             )?;
 
-        self.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
-            |plugin| {
-                plugin.hooks.write().push((
-                    event.to_string(),
-                    handler.to_owned().unbind(),
-                    priority,
-                ));
-                Ok(())
-            },
-        )
+        self.get()
+            .hooks
+            .write()
+            .push((event.to_string(), handler.to_owned().unbind(), priority));
+        Ok(())
     }
 
     fn remove_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
@@ -1196,23 +1190,18 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                 },
             )?;
 
-        self.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("could not borrow plugin hooks")),
-            |plugin| {
-                plugin
-                    .hooks
-                    .write()
-                    .retain(|(hook_event, hook_handler, hook_priority)| {
-                        hook_event != event
-                            || hook_handler
-                                .bind(self.py())
-                                .ne(handler.as_any())
-                                .unwrap_or(false)
-                            || hook_priority != &priority
-                    });
-                Ok(())
-            },
-        )
+        self.get()
+            .hooks
+            .write()
+            .retain(|(hook_event, hook_handler, hook_priority)| {
+                hook_event != event
+                    || hook_handler
+                        .bind(self.py())
+                        .ne(handler.as_any())
+                        .unwrap_or(false)
+                    || hook_priority != &priority
+            });
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1246,13 +1235,10 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         )?;
         let py_command = Bound::new(self.py(), new_command)?;
 
-        self.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
-            |plugin| {
-                plugin.commands.write().push(py_command.to_owned().unbind());
-                Ok(())
-            },
-        )?;
+        self.get()
+            .commands
+            .write()
+            .push(py_command.to_owned().unbind());
 
         COMMANDS.load().as_ref().map_or(Ok(()), |commands| {
             commands
@@ -1287,21 +1273,21 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             names.push(py_string.to_lowercase());
         });
 
-        self.borrow()
+        self.get()
             .commands
             .read()
             .iter()
             .find(|&existing_command| {
-                existing_command.bind(self.py()).borrow().name.len() == names.len()
+                existing_command.bind(self.py()).get().name.len() == names.len()
                     && existing_command
                         .bind(self.py())
-                        .borrow()
+                        .get()
                         .name
                         .par_iter()
                         .all(|name| names.contains(name))
                     && existing_command
                         .bind(self.py())
-                        .borrow()
+                        .get()
                         .handler
                         .bind(self.py())
                         .eq(handler)
@@ -1320,28 +1306,23 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                 )
             })?;
 
-        self.try_borrow().map_or(
-            Err(PyEnvironmentError::new_err("cound not borrow plugin hooks")),
-            |plugin| {
-                plugin.commands.write().retain(|existing_command| {
-                    existing_command.bind(self.py()).borrow().name.len() != names.len()
-                        || !existing_command
-                            .bind(self.py())
-                            .borrow()
-                            .name
-                            .par_iter()
-                            .all(|name| names.contains(name))
-                        || existing_command
-                            .bind(self.py())
-                            .borrow()
-                            .handler
-                            .bind(self.py())
-                            .ne(handler)
-                            .unwrap_or(true)
-                });
-                Ok(())
-            },
-        )
+        self.get().commands.write().retain(|existing_command| {
+            existing_command.bind(self.py()).get().name.len() != names.len()
+                || !existing_command
+                    .bind(self.py())
+                    .get()
+                    .name
+                    .par_iter()
+                    .all(|name| names.contains(name))
+                || existing_command
+                    .bind(self.py())
+                    .get()
+                    .handler
+                    .bind(self.py())
+                    .ne(handler)
+                    .unwrap_or(true)
+        });
+        Ok(())
     }
 }
 

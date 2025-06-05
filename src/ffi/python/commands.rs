@@ -219,7 +219,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         msg: &str,
         channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let slf = self.borrow();
+        let slf = self.get();
         let Some(command_name) = slf.name.first() else {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
@@ -244,12 +244,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
                         intern!(self.py(), ""),
                         -1,
                         intern!(self.py(), "%s executed: %s @ %s -> %s"),
-                        (
-                            player.borrow().steam_id,
-                            command_name,
-                            plugin_name,
-                            &channel,
-                        ),
+                        (player.get().steam_id, command_name, plugin_name, &channel),
                         self.py().None(),
                     ),
                     Some(
@@ -269,7 +264,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
     }
 
     fn is_eligible_name(&self, name: &str) -> bool {
-        let compared_name = if !self.borrow().prefix {
+        let compared_name = if !self.get().prefix {
             Some(name)
         } else {
             MAIN_ENGINE.load().as_ref().and_then(|main_engine| {
@@ -279,12 +274,12 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             })
         };
 
-        compared_name.is_some_and(|name| self.borrow().name.contains(&name.to_lowercase()))
+        compared_name.is_some_and(|name| self.get().name.contains(&name.to_lowercase()))
     }
 
     fn is_eligible_channel(&self, channel: &Bound<'py, PyAny>) -> bool {
         if self
-            .borrow()
+            .get()
             .exclude_channels
             .read()
             .iter()
@@ -298,8 +293,8 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             return false;
         }
 
-        self.borrow().channels.read().is_empty()
-            || self.borrow().channels.read().iter().any(|allowed_channel| {
+        self.get().channels.read().is_empty()
+            || self.get().channels.read().iter().any(|allowed_channel| {
                 allowed_channel
                     .bind(self.py())
                     .eq(channel.to_owned())
@@ -323,29 +318,29 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         let perm = if is_client_cmd {
             let client_cmd_permission_cvar = format!(
                 "qlx_ccmd_perm_{}",
-                self.borrow().name.first().unwrap_or(&"invalid".to_string())
+                self.get().name.first().unwrap_or(&"invalid".to_string())
             );
             get_cvar(&client_cmd_permission_cvar)
                 .unwrap_or_default()
                 .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(self.borrow().client_cmd_perm)
+                .unwrap_or(self.get().client_cmd_perm)
         } else {
             let cmd_permission_cvar = format!(
                 "qlx_perm_{}",
-                self.borrow().name.first().unwrap_or(&"invalid".to_string())
+                self.get().name.first().unwrap_or(&"invalid".to_string())
             );
             let configured_cmd_permission = get_cvar(&cmd_permission_cvar);
             configured_cmd_permission
                 .unwrap_or_default()
                 .and_then(|value| value.parse::<i32>().ok())
-                .unwrap_or(self.borrow().permission)
+                .unwrap_or(self.get().permission)
         };
 
         if perm == 0 {
             return true;
         }
 
-        self.borrow()
+        self.get()
             .plugin
             .bind(self.py())
             .getattr(intern!(self.py(), "db"))
@@ -1813,13 +1808,13 @@ pub(crate) trait CommandInvokerMethods {
 
 impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
     fn get_commands(&self) -> Vec<Command> {
-        self.borrow()
+        self.get()
             .commands
             .read()
             .iter()
             .flat_map(|cmds| {
                 cmds.iter().map(|command| {
-                    let bound_cmd = command.bind(self.py()).borrow();
+                    let bound_cmd = command.bind(self.py()).get();
                     Command {
                         plugin: bound_cmd.plugin.clone_ref(self.py()),
                         name: bound_cmd.name.to_owned(),
@@ -1850,10 +1845,10 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
     }
 
     fn is_registered(&self, command: &Bound<'_, Command>) -> bool {
-        let borrowed_command = command.borrow();
-        self.borrow().commands.read().iter().any(|prio_cmds| {
+        let borrowed_command = command.get();
+        self.get().commands.read().iter().any(|prio_cmds| {
             prio_cmds.iter().any(|cmd| {
-                let bound_cmd = cmd.bind(self.py()).borrow();
+                let bound_cmd = cmd.bind(self.py()).get();
                 bound_cmd.name.len() == borrowed_command.name.len()
                     && bound_cmd
                         .name
@@ -1874,8 +1869,7 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
                 "Attempted to add an already registered command.",
             ));
         }
-        let slf = self.borrow();
-        let Some(mut commands) = slf.commands.try_write() else {
+        let Some(mut commands) = self.get().commands.try_write() else {
             return PyModule::from_code(
                 self.py(),
                 cr#"
@@ -1906,8 +1900,7 @@ def add_command(cmd, priority):
             ));
         }
 
-        let slf = self.borrow();
-        let Some(mut commands) = slf.commands.try_write() else {
+        let Some(mut commands) = self.get().commands.try_write() else {
             return PyModule::from_code(
                 self.py(),
                 cr#"
@@ -1926,10 +1919,10 @@ def remove_command(cmd):
             })
             .map(|_| ());
         };
-        let borrowed_command = command.borrow();
+        let borrowed_command = command.get();
         commands.iter_mut().for_each(|prio_commands| {
             prio_commands.retain(|cmd| {
-                let bound_cmd = cmd.bind(self.py()).borrow();
+                let bound_cmd = cmd.bind(self.py()).get();
                 bound_cmd.name.len() != borrowed_command.name.len()
                     || !borrowed_command
                         .name
@@ -1984,8 +1977,7 @@ def remove_command(cmd):
             ));
         };
 
-        let slf = self.borrow();
-        let commands = slf.commands.read();
+        let commands = self.get().commands.read();
         for cmd in (0..commands.len()).flat_map(|priority_level| commands[priority_level].iter()) {
             let bound_cmd = cmd.bind(self.py());
             if !bound_cmd.is_eligible_name(&name) {
@@ -1999,16 +1991,16 @@ def remove_command(cmd):
             }
 
             if is_client_cmd {
-                pass_through = bound_cmd.borrow().client_cmd_pass;
+                pass_through = bound_cmd.get().client_cmd_pass;
             }
 
             let cmd_copy = Command {
-                plugin: bound_cmd.borrow().plugin.clone_ref(self.py()),
-                name: bound_cmd.borrow().name.to_owned(),
-                handler: bound_cmd.borrow().handler.clone_ref(self.py()),
-                permission: bound_cmd.borrow().permission,
+                plugin: bound_cmd.get().plugin.clone_ref(self.py()),
+                name: bound_cmd.get().name.to_owned(),
+                handler: bound_cmd.get().handler.clone_ref(self.py()),
+                permission: bound_cmd.get().permission,
                 channels: bound_cmd
-                    .borrow()
+                    .get()
                     .channels
                     .read()
                     .iter()
@@ -2016,17 +2008,17 @@ def remove_command(cmd):
                     .collect::<Vec<Py<PyAny>>>()
                     .into(),
                 exclude_channels: bound_cmd
-                    .borrow()
+                    .get()
                     .exclude_channels
                     .read()
                     .iter()
                     .map(|channel| channel.clone_ref(self.py()))
                     .collect::<Vec<Py<PyAny>>>()
                     .into(),
-                client_cmd_pass: bound_cmd.borrow().client_cmd_pass,
-                client_cmd_perm: bound_cmd.borrow().client_cmd_perm,
-                prefix: bound_cmd.borrow().prefix,
-                usage: bound_cmd.borrow().usage.to_owned(),
+                client_cmd_pass: bound_cmd.get().client_cmd_pass,
+                client_cmd_perm: bound_cmd.get().client_cmd_perm,
+                prefix: bound_cmd.get().prefix,
+                usage: bound_cmd.get().usage.to_owned(),
             };
 
             let dispatcher_result = CommandDispatcherMethods::dispatch(
@@ -2049,14 +2041,14 @@ def remove_command(cmd):
                     return Ok(false);
                 }
                 Ok(PythonReturnCodes::RET_STOP_EVENT) => pass_through = false,
-                Ok(PythonReturnCodes::RET_USAGE) if !bound_cmd.borrow().usage.is_empty() => {
-                    let usage_msg = format!("^7Usage: ^6{} {}", name, bound_cmd.borrow().usage);
+                Ok(PythonReturnCodes::RET_USAGE) if !bound_cmd.get().usage.is_empty() => {
+                    let usage_msg = format!("^7Usage: ^6{} {}", name, bound_cmd.get().usage);
                     channel.call_method1(intern!(self.py(), "reply"), (&usage_msg,))?;
                 }
                 _ => {
                     pyshinqlx_get_logger(self.py(), None).and_then(|logger| {
                         let cmd_handler_name = bound_cmd
-                            .borrow()
+                            .get()
                             .handler
                             .getattr(self.py(), intern!(self.py(), "__name__"))?;
                         let warning_level = self
@@ -2078,7 +2070,7 @@ def remove_command(cmd):
                             "Command '%s' with handler '%s' returned an unknown return value: %s"
                         ),
                                         (
-                                            bound_cmd.borrow().name.to_owned(),
+                                            bound_cmd.get().name.to_owned(),
                                             cmd_handler_name,
                                             cmd_result,
                                         ),

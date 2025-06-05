@@ -41,18 +41,21 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref());
+        let result =
+            handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref()).into_bound(py);
 
-        if result.bind(py).is_instance_of::<PyBool>()
-            && result
-                .extract::<bool>(py)
-                .is_ok_and(|bool_value| !bool_value)
+        if result
+            .downcast::<PyBool>()
+            .is_ok_and(|py_bool| !py_bool.is_true())
         {
             None
-        } else if result.bind(py).is_instance_of::<PyString>() {
-            result.extract::<String>(py).ok()
         } else {
-            Some(cmd.as_ref().to_string())
+            Some(
+                result
+                    .downcast::<PyString>()
+                    .ok()
+                    .map_or(cmd.as_ref().to_string(), |py_string| py_string.to_string()),
+            )
         }
     })
 }
@@ -76,18 +79,18 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     }
 
     let returned: Option<String> = Python::with_gil(|py| {
-        let result = handle_player_connect(py, client_id, is_bot);
+        let result = handle_player_connect(py, client_id, is_bot).into_bound(py);
 
         if result
-            .bind(py)
             .downcast::<PyBool>()
-            .is_ok_and(|bool_value| !bool_value.is_true())
+            .is_ok_and(|py_bool| !py_bool.is_true())
         {
             Some("You are banned from this server.".to_string())
-        } else if result.bind(py).is_instance_of::<PyString>() {
-            result.extract::<String>(py).ok()
         } else {
-            None
+            result
+                .downcast::<PyString>()
+                .ok()
+                .map(|py_string| py_string.to_string())
         }
     });
 
@@ -154,18 +157,22 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_set_configstring(py, index.into(), value.as_ref());
+        let result = handle_set_configstring(py, index.into(), value.as_ref()).into_bound(py);
 
-        if result.bind(py).is_instance_of::<PyBool>()
-            && result
-                .extract::<bool>(py)
-                .is_ok_and(|bool_value| !bool_value)
+        if result
+            .downcast::<PyBool>()
+            .is_ok_and(|py_bool| !py_bool.is_true())
         {
             None
-        } else if result.bind(py).is_instance_of::<PyString>() {
-            result.extract::<String>(py).ok()
         } else {
-            Some(value.as_ref().to_string())
+            Some(
+                result
+                    .downcast::<PyString>()
+                    .ok()
+                    .map_or(value.as_ref().to_string(), |py_string| {
+                        py_string.to_string()
+                    }),
+            )
         }
     })
 }
@@ -190,18 +197,20 @@ where
     }
 
     Python::with_gil(|py| {
-        let result = handle_console_print(py, text.as_ref());
+        let result = handle_console_print(py, text.as_ref()).into_bound(py);
 
-        if result.bind(py).is_instance_of::<PyBool>()
-            && result
-                .extract::<bool>(py)
-                .is_ok_and(|bool_value| !bool_value)
+        if result
+            .downcast::<PyBool>()
+            .is_ok_and(|py_bool| !py_bool.is_true())
         {
             None
-        } else if result.bind(py).is_instance_of::<PyString>() {
-            result.extract::<String>(py).ok()
         } else {
-            Some(text.as_ref().to_string())
+            Some(
+                result
+                    .downcast::<PyString>()
+                    .ok()
+                    .map_or(text.as_ref().to_string(), |py_string| py_string.to_string()),
+            )
         }
     })
 }

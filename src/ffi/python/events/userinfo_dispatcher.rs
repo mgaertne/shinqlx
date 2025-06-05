@@ -47,7 +47,6 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
         let mut forwarded_userinfo = changed.to_owned();
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();
 
-        let super_class = self.borrow().into_super();
         let dbgstr = format!(
             "{}({}, {})",
             UserinfoDispatcher::name,
@@ -56,7 +55,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
         );
         dispatcher_debug_log(self.py(), &dbgstr);
 
-        let plugins = super_class.plugins.read();
+        let plugins = self.as_super().get().plugins.read();
         for handler in (0..5).flat_map(|i| {
             plugins.iter().flat_map(move |(_, handlers)| {
                 handlers[i]
@@ -98,7 +97,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
             }
         }
 
-        Ok(return_value.bind(self.py()).to_owned())
+        Ok(return_value.into_bound(self.py()))
     }
 }
 

@@ -50,7 +50,7 @@ pub(crate) mod prelude {
     };
 }
 
-use std::{path::Path, sync::LazyLock};
+use std::{env, path::Path, sync::LazyLock};
 
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
@@ -100,7 +100,7 @@ fn initialize_logging() {
 #[cfg_attr(not(test), ctor)]
 #[cfg_attr(test, allow(dead_code))]
 fn initialize() {
-    if std::env::args()
+    if env::args()
         .next()
         .filter(|progname| progname.ends_with(QZERODED))
         .is_none()
@@ -156,11 +156,9 @@ mod lib_tests {
         let config_path = Path::new("./shinqlx_log.yml");
         let backup_path = Path::new("./shinqlx_log.yml.bak");
 
-        let had_existing = if config_path.exists() {
+        let had_existing = config_path.exists();
+        if had_existing {
             fs::rename(config_path, backup_path).unwrap();
-            true
-        } else {
-            false
         };
 
         initialize_logging();
@@ -177,7 +175,7 @@ mod lib_tests {
     #[serial]
     fn test_initialize_non_qzeroded_program() {
         unsafe {
-            std::env::set_var("RUST_TEST_PROGRAM", "some_other_program");
+            env::set_var("RUST_TEST_PROGRAM", "some_other_program");
         }
 
         initialize();
