@@ -66,14 +66,10 @@ impl Game {
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> String {
-        let Ok(classname) = slf.get_type().qualname() else {
+        let (Ok(classname), Ok(factory_type), Ok(mapname)) =
+            (slf.get_type().qualname(), slf.get_gametype(), slf.get_map())
+        else {
             return "Game(N/A@N/A)".to_string();
-        };
-        let Ok(factory_type) = slf.get_gametype() else {
-            return format!("{classname}(N/A@N/A)");
-        };
-        let Ok(mapname) = slf.get_map() else {
-            return format!("{classname}(N/A@N/A)");
         };
         format!("{classname}({factory_type}@{mapname})")
     }
