@@ -86,7 +86,7 @@ pub(crate) struct Player {
 impl Clone for Player {
     fn clone(&self) -> Self {
         Self {
-            valid: self.valid.load(Ordering::SeqCst).into(),
+            valid: self.valid.load(Ordering::Acquire).into(),
             id: self.id,
             player_info: self.player_info.read().to_owned().into(),
             user_info: self.user_info.to_owned(),
@@ -98,7 +98,7 @@ impl Clone for Player {
 
 impl PartialEq for Player {
     fn eq(&self, other: &Self) -> bool {
-        self.valid.load(Ordering::SeqCst) == other.valid.load(Ordering::SeqCst)
+        self.valid.load(Ordering::Acquire) == other.valid.load(Ordering::Acquire)
             && self.id == other.id
             && *self.player_info.read() == *other.player_info.read()
             && self.user_info == other.user_info
@@ -141,7 +141,7 @@ impl Player {
         let clean_name = slf.get_clean_name();
         let steam_id = slf.get_steam_id();
 
-        if !slf.get().valid.load(Ordering::SeqCst) {
+        if !slf.get().valid.load(Ordering::Acquire) {
             format!("{classname}(INVALID:'{clean_name}':{steam_id})")
         } else {
             format!("{classname}({id}:'{clean_name}':{steam_id})")
@@ -748,7 +748,7 @@ pub(crate) trait PlayerMethods<'py> {
 
 impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
-        if !self.get().valid.load(Ordering::SeqCst) {
+        if !self.get().valid.load(Ordering::Acquire) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -759,7 +759,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn __getitem__(&self, item: &str) -> PyResult<String> {
-        if !self.get().valid.load(Ordering::SeqCst) {
+        if !self.get().valid.load(Ordering::Acquire) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -775,7 +775,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         *self.get().player_info.write() = PlayerInfo::from(self.get().id);
 
         if self.get().player_info.read().steam_id != self.get().steam_id {
-            self.get().valid.store(false, Ordering::SeqCst);
+            self.get().valid.store(false, Ordering::Release);
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -793,12 +793,12 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn invalidate(&self, e: &str) -> PyResult<()> {
-        self.get().valid.store(false, Ordering::SeqCst);
+        self.get().valid.store(false, Ordering::Release);
         Err(NonexistentPlayerError::new_err(e.to_string()))
     }
 
     fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>> {
-        if !self.get().valid.load(Ordering::SeqCst) {
+        if !self.get().valid.load(Ordering::Acquire) {
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -1131,7 +1131,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_valid(&self) -> bool {
-        self.get().valid.load(Ordering::SeqCst)
+        self.get().valid.load(Ordering::Acquire)
     }
 
     fn get_stats(&self) -> PyResult<Option<PlayerStats>> {
@@ -2304,7 +2304,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
                     assert!(
                         result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py))
                     );
-                    assert_eq!(player.get().valid.load(Ordering::SeqCst), false);
+                    assert_eq!(player.get().valid.load(Ordering::Acquire), false);
                 });
             });
     }
@@ -2389,7 +2389,7 @@ assert(player._valid)
                     .expect("this should not happen");
 
                     player.update().expect("this should not happen");
-                    assert_eq!(player.get().valid.load(Ordering::SeqCst), true);
+                    assert_eq!(player.get().valid.load(Ordering::Acquire), true);
                     assert_eq!(&*player.get().name.read(), "NewUnnamedPlayer");
                 });
             });
@@ -2433,7 +2433,7 @@ assert(player._valid)
                     .expect("this should not happen");
 
                     player.update().expect("this should not happen");
-                    assert_eq!(player.get().valid.load(Ordering::SeqCst), true);
+                    assert_eq!(player.get().valid.load(Ordering::Acquire), true);
                     assert_eq!(&*player.get().name.read(), "NewUnnamedPlayer");
                 });
             });
@@ -2445,7 +2445,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let result = player.invalidate("invalid player");
-            assert_eq!(player.get().valid.load(Ordering::SeqCst), false);
+            assert_eq!(player.get().valid.load(Ordering::Acquire), false);
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }

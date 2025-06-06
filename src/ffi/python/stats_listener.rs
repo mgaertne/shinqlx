@@ -394,7 +394,7 @@ impl PartialEq for StatsListener {
     fn eq(&self, other: &Self) -> bool {
         self.address == other.address
             && self.password == other.password
-            && self.done.load(Ordering::SeqCst) == other.done.load(Ordering::SeqCst)
+            && self.done.load(Ordering::Acquire) == other.done.load(Ordering::Acquire)
     }
 }
 
@@ -477,11 +477,11 @@ pub(crate) trait StatsListenerMethods<'py> {
 
 impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
     fn get_done(&self) -> bool {
-        self.get().done.load(Ordering::SeqCst)
+        self.get().done.load(Ordering::Acquire)
     }
 
     fn stop(&self) {
-        self.get().done.store(true, Ordering::SeqCst);
+        self.get().done.store(true, Ordering::Release);
     }
 
     fn keep_receiving(&self) -> PyResult<()> {
@@ -751,15 +751,15 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
     dispatch_stats_event(py, &stats.to_string())?;
     match stats["TYPE"].as_str() {
         Some("MATCH_STARTED") => {
-            IN_PROGRESS.store(true, Ordering::SeqCst);
+            IN_PROGRESS.store(true, Ordering::Release);
             dispatch_game_start_event(py, &stats["DATA"].to_string())
         }
         Some("ROUND_OVER") => dispatch_round_end_event(py, &stats["DATA"].to_string()),
         Some("MATCH_REPORT") => {
-            if IN_PROGRESS.load(Ordering::SeqCst) {
+            if IN_PROGRESS.load(Ordering::Acquire) {
                 dispatch_game_end_event(py, &stats["DATA"].to_string())?;
             }
-            IN_PROGRESS.store(false, Ordering::SeqCst);
+            IN_PROGRESS.store(false, Ordering::Release);
             Ok(())
         }
         Some("PLAYER_DEATH") => handle_player_death_event(py, stats),
@@ -964,7 +964,7 @@ mod handle_zmq_msg_tests {
 
                     let result = try_handle_zmq_msg(py, game_start_data);
                     assert!(result.is_ok());
-                    assert!(IN_PROGRESS.load(Ordering::SeqCst));
+                    assert!(IN_PROGRESS.load(Ordering::Acquire));
 
                     run_all_frame_tasks(py).expect("this should not happen");
 
@@ -1175,11 +1175,11 @@ mod handle_zmq_msg_tests {
                         .expect("could not add hook to game_end dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    IN_PROGRESS.store(true, Ordering::SeqCst);
+                    IN_PROGRESS.store(true, Ordering::Release);
 
                     let result = try_handle_zmq_msg(py, game_end_data);
                     assert!(result.is_ok());
-                    assert!(!IN_PROGRESS.load(Ordering::SeqCst));
+                    assert!(!IN_PROGRESS.load(Ordering::Acquire));
 
                     run_all_frame_tasks(py).expect("this should not happen");
 
@@ -1265,11 +1265,11 @@ mod handle_zmq_msg_tests {
                         .expect("could not add hook to game_end dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    IN_PROGRESS.store(false, Ordering::SeqCst);
+                    IN_PROGRESS.store(false, Ordering::Release);
 
                     let result = try_handle_zmq_msg(py, game_end_data);
                     assert!(result.is_ok());
-                    assert!(!IN_PROGRESS.load(Ordering::SeqCst));
+                    assert!(!IN_PROGRESS.load(Ordering::Acquire));
 
                     run_all_frame_tasks(py).expect("this should not happen");
 
@@ -1308,7 +1308,7 @@ mod handle_zmq_msg_tests {
                 .expect("could not add stats dispatcher");
             EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-            IN_PROGRESS.store(true, Ordering::SeqCst);
+            IN_PROGRESS.store(true, Ordering::Release);
 
             let result = try_handle_zmq_msg(py, game_end_data);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
