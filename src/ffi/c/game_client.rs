@@ -36,7 +36,7 @@ impl GameClient {
         self.game_client.pers.connected
     }
 
-    pub(crate) fn get_player_name(&self) -> Cow<str> {
+    pub(crate) fn get_player_name(&self) -> Cow<'_, str> {
         unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()) }.to_string_lossy()
     }
 

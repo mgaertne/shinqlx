@@ -112,7 +112,7 @@ impl GameItem {
             })
     }
 
-    pub(crate) fn get_classname(&self) -> Cow<str> {
+    pub(crate) fn get_classname(&self) -> Cow<'_, str> {
         unsafe { CStr::from_ptr(self.gitem_t.classname) }.to_string_lossy()
     }
 
