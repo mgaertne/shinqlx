@@ -137,16 +137,15 @@ impl Player {
         let Ok(classname) = slf.get_type().qualname() else {
             return "NonexistentPlayer".to_string();
         };
-        let Ok(id) = slf.getattr("id") else {
-            return format!("{classname}(N/A:'':-1)");
-        };
-        let Ok(clean_name) = slf.getattr("clean_name") else {
-            return format!("{classname}({id}:'':-1)");
-        };
-        let Ok(steam_id) = slf.getattr("steam_id") else {
-            return format!("{classname}({id}:'{clean_name}':-1)");
-        };
-        format!("{classname}({id}:'{clean_name}':{steam_id})")
+        let id = slf.get_id();
+        let clean_name = slf.get_clean_name();
+        let steam_id = slf.get_steam_id();
+
+        if !slf.get().valid.load(Ordering::SeqCst) {
+            format!("{classname}(INVALID:'{clean_name}':{steam_id})")
+        } else {
+            format!("{classname}({id}:'{clean_name}':{steam_id})")
+        }
     }
 
     fn __contains__(slf: &Bound<'_, Self>, item: &str) -> PyResult<bool> {
@@ -1894,6 +1893,29 @@ mod pyshinqlx_player_tests {
             Player::__repr__(&player)
         });
         assert_eq!(result, "Player(2:'UnnamedPlayer':1234567890)");
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn repr_with_an_invalidated_player(_pyshinqlx_setup: ()) {
+        let result = Python::with_gil(|py| {
+            let player = Bound::new(
+                py,
+                Player {
+                    player_info: PlayerInfo {
+                        name: "UnnamedPlayer".to_string(),
+                        ..default_test_player_info()
+                    }
+                    .into(),
+                    name: "UnnamedPlayer".to_string().into(),
+                    valid: false.into(),
+                    ..default_test_player()
+                },
+            )
+            .expect("this should not happen");
+            Player::__repr__(&player)
+        });
+        assert_eq!(result, "Player(INVALID:'UnnamedPlayer':1234567890)");
     }
 
     #[test]
