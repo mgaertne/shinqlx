@@ -4154,16 +4154,16 @@ static IS_FIRST_GAME: AtomicBool = AtomicBool::new(true);
 
 fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
     let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
-    if IS_FIRST_GAME.load(Ordering::SeqCst) {
+    if IS_FIRST_GAME.load(Ordering::Acquire) {
         late_init(&shinqlx_module)?;
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
 
         let zmq_enabled = MAIN_ENGINE.load().as_ref().is_some_and(|main_engine| {
             main_engine
                 .find_cvar("zmq_stats_enable")
                 .is_some_and(|cvar| cvar.get_string() != "0")
         });
-        if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::SeqCst) {
+        if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::Acquire) {
             pyshinqlx_get_logger(py, None).and_then(|logger| {
                 let warning_level = py.import(intern!(py, "logging")).and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
                 logger.call_method(
@@ -4183,7 +4183,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
                 ).and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
             })?;
 
-            ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+            ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
         }
     }
 
@@ -4293,8 +4293,8 @@ mod handle_new_game_tests {
             })
             .times(1);
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         MockEngineBuilder::default()
             .with_get_configstring(CS_MESSAGE as u16, "thunderstruck", 1)
@@ -4332,8 +4332,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
@@ -4399,8 +4399,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         MockEngineBuilder::default()
             .with_get_configstring(CS_MESSAGE as u16, "", 1)
@@ -4431,8 +4431,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let cvar_string = c"1";
         let mut raw_zmq_cvar = CVarBuilder::default()
@@ -4539,8 +4539,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let map_string = c"campgrounds";
         let mut raw_mapname_cvar = CVarBuilder::default()
@@ -4597,8 +4597,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(true, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(false, Ordering::SeqCst);
+        IS_FIRST_GAME.store(true, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(false, Ordering::Release);
 
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");
@@ -4677,8 +4677,8 @@ mod handle_new_game_tests {
                         .and_then(|module| module.setattr("_stats", py.None()));
                     assert!(result.is_ok());
 
-                    assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
-                    assert!(!ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
+                    assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
+                    assert!(!ZMQ_WARNING_ISSUED.load(Ordering::Acquire));
                 });
             });
     }
@@ -4692,8 +4692,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(true, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(false, Ordering::SeqCst);
+        IS_FIRST_GAME.store(true, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(false, Ordering::Release);
 
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");
@@ -4772,8 +4772,8 @@ mod handle_new_game_tests {
                         .and_then(|module| module.setattr("_stats", py.None()));
                     assert!(result.is_ok());
 
-                    assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
-                    assert!(ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
+                    assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
+                    assert!(ZMQ_WARNING_ISSUED.load(Ordering::Acquire));
                 });
             });
     }
@@ -4789,8 +4789,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(true, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(true, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");
@@ -4870,8 +4870,8 @@ mod handle_new_game_tests {
                         .and_then(|module| module.setattr("_stats", py.None()));
                     assert!(result.is_ok());
 
-                    assert!(!IS_FIRST_GAME.load(Ordering::SeqCst));
-                    assert!(ZMQ_WARNING_ISSUED.load(Ordering::SeqCst));
+                    assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
+                    assert!(ZMQ_WARNING_ISSUED.load(Ordering::Acquire));
                 });
             });
     }
@@ -4882,8 +4882,8 @@ mod handle_new_game_tests {
     fn handle_new_game_when_game_restarted_with_missing_new_game_dispatcher(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         Python::with_gil(|py| {
             let result = handle_new_game(py, true);
@@ -4900,8 +4900,8 @@ mod handle_new_game_tests {
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
-        IS_FIRST_GAME.store(false, Ordering::SeqCst);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::SeqCst);
+        IS_FIRST_GAME.store(false, Ordering::Release);
+        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         MockEngineBuilder::default()
             .with_get_configstring(CS_MESSAGE as u16, "", 1)
@@ -5005,7 +5005,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 return Ok(PyString::new(py, &configstring_value).into_any().unbind());
             }
             if (old_state, new_state) == ("PRE_GAME", "COUNT_DOWN") {
-                AD_ROUND_NUMBER.store(1, Ordering::SeqCst);
+                AD_ROUND_NUMBER.store(1, Ordering::Release);
                 EVENT_DISPATCHERS
                     .load()
                     .as_ref()
@@ -5109,8 +5109,8 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                             })
                         })?;
                 let ad_round_number = cs_round_number * 2 + 1 + cs_turn;
-                AD_ROUND_NUMBER.store(ad_round_number, Ordering::SeqCst);
-                AD_ROUND_NUMBER.load(Ordering::SeqCst)
+                AD_ROUND_NUMBER.store(ad_round_number, Ordering::Release);
+                AD_ROUND_NUMBER.load(Ordering::Acquire)
             } else {
                 if cs_round_number == 0 {
                     return Ok(PyString::new(py, &configstring_value).into_any().unbind());
@@ -5682,7 +5682,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add hook to game_countdown dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    AD_ROUND_NUMBER.store(42, Ordering::SeqCst);
+                    AD_ROUND_NUMBER.store(42, Ordering::Release);
                     let result =
                         try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
                     assert!(result.is_ok_and(|value| {
@@ -5695,7 +5695,7 @@ mod handle_set_configstring_tests {
                             .call_method1("assert_called_with", ())
                             .is_ok()
                     );
-                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 1);
+                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 1);
                 });
             });
     }
@@ -5756,11 +5756,11 @@ mod handle_set_configstring_tests {
                         .expect("could not add set_configstring dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    AD_ROUND_NUMBER.store(42, Ordering::SeqCst);
+                    AD_ROUND_NUMBER.store(42, Ordering::Release);
                     let result =
                         try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\COUNT_DOWN");
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 1);
+                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 1);
                 });
             });
     }
@@ -5905,7 +5905,7 @@ mod handle_set_configstring_tests {
                             .call_method1("assert_called_with", (18,))
                             .is_ok()
                     );
-                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 18);
+                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 18);
                 });
             });
     }
@@ -6025,7 +6025,7 @@ mod handle_set_configstring_tests {
                             .call_method1("assert_called_with", (8,))
                             .is_ok()
                     );
-                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::SeqCst), 8);
+                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 8);
                 });
             });
     }
