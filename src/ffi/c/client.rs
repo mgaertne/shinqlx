@@ -86,7 +86,7 @@ impl Client {
         });
     }
 
-    pub(crate) fn get_name(&self) -> Cow<str> {
+    pub(crate) fn get_name(&self) -> Cow<'_, str> {
         unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }.to_string_lossy()
     }
 
