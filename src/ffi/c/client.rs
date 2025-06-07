@@ -55,7 +55,7 @@ impl AsRef<client_t> for Client<'_> {
     }
 }
 
-impl Client<'_> {
+impl<'a> Client<'a> {
     pub(crate) fn get_client_id(&self) -> i32 {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;
@@ -86,11 +86,11 @@ impl Client<'_> {
         });
     }
 
-    pub(crate) fn get_name(&self) -> Cow<'_, str> {
+    pub(crate) fn get_name(&self) -> Cow<'a, str> {
         unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }.to_string_lossy()
     }
 
-    pub(crate) fn get_user_info(&self) -> Cow<'_, str> {
+    pub(crate) fn get_user_info(&self) -> Cow<'a, str> {
         unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }.to_string_lossy()
     }
 
