@@ -480,39 +480,22 @@ pub(crate) extern "C" fn shinqlx_g_damage(
 }
 
 #[cfg(test)]
-#[cfg_attr(test, mockall::automock)]
-#[cfg_attr(test, allow(dead_code))]
-#[allow(clippy::module_inception)]
+#[mockall::automock]
+#[allow(dead_code, clippy::module_inception)]
+#[cfg(not(tarpaulin_include))]
 pub(crate) mod hooks {
     use super::{Client, GameEntity};
 
-    #[allow(unused_attributes)]
-    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_execute_client_command(
         _client: Option<Client>,
         _cmd: &str,
         _client_ok: bool,
     ) {
     }
-
-    #[allow(unused_attributes)]
-    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: &str) {}
-
-    #[allow(unused_attributes)]
-    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: &str) {}
-
-    #[allow(unused_attributes)]
-    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
-
-    #[allow(unused_attributes)]
-    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: &str) {}
-
-    #[allow(unused_attributes)]
-    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 

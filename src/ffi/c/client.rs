@@ -100,56 +100,34 @@ impl Client<'_> {
 }
 
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mockall::mock! {
     pub(crate) Client {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_name(&self) -> Cow<'_, str>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn has_gentity(&self) -> bool;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_client_id(&self) -> i32;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_state(&self) -> clientState_t;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn disconnect(&mut self, reason: &str);
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_user_info(&self) -> Cow<'_, str>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_steam_id(&self) -> u64;
     }
 
     impl TryFrom<*mut client_t> for Client {
         type Error = QuakeLiveEngineError;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
     }
 
     impl From<i32> for Client {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn from(entity_id: i32) -> Self;
     }
 
     impl AsRef<client_t> for Client {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn as_ref(&self) -> &client_t;
     }
 
     impl AsMut<client_t> for Client {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn as_mut(&mut self) -> &mut client_t;
     }
-
 }
 
 #[cfg(test)]
@@ -190,9 +168,9 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_try_from_negative_client_id() {
-        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        let server_static_try_get_ctx = MockServerStatic::try_get_context();
         server_static_try_get_ctx.expect().return_once(|| {
-            let mut server_static_mock = MockTestServerStatic::new();
+            let mut server_static_mock = MockServerStatic::new();
             server_static_mock
                 .expect_try_get_client_by_id()
                 .returning(|id| Err(QuakeLiveEngineError::InvalidId(id)));
@@ -208,9 +186,9 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_try_from_too_large_client_id() {
-        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        let server_static_try_get_ctx = MockServerStatic::try_get_context();
         server_static_try_get_ctx.expect().return_once(|| {
-            let mut server_static_mock = MockTestServerStatic::new();
+            let mut server_static_mock = MockServerStatic::new();
             server_static_mock
                 .expect_try_get_client_by_id()
                 .returning(|id| Err(QuakeLiveEngineError::InvalidId(id)));
@@ -226,9 +204,9 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_try_from_valid_client_id_but_null() {
-        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        let server_static_try_get_ctx = MockServerStatic::try_get_context();
         server_static_try_get_ctx.expect().return_once(|| {
-            let mut server_static_mock = MockTestServerStatic::new();
+            let mut server_static_mock = MockServerStatic::new();
             server_static_mock
                 .expect_try_get_client_by_id()
                 .returning(|_| Ok(ptr::null_mut() as *mut client_t));
@@ -246,7 +224,7 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_get_client_id_when_no_serverstatic_found() {
-        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        let server_static_try_get_ctx = MockServerStatic::try_get_context();
         server_static_try_get_ctx
             .expect()
             .return_once(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
@@ -262,9 +240,9 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_get_client_id_from_server_static() {
-        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        let server_static_try_get_ctx = MockServerStatic::try_get_context();
         server_static_try_get_ctx.expect().return_once(|| {
-            let mut server_static_mock = MockTestServerStatic::new();
+            let mut server_static_mock = MockServerStatic::new();
             server_static_mock
                 .expect_try_determine_client_id()
                 .return_once(|_| Ok(0));
@@ -283,9 +261,9 @@ mod client_tests {
     #[test]
     #[serial]
     fn client_get_client_id_from_server_static_not_first_position() {
-        let server_static_try_get_ctx = MockTestServerStatic::try_get_context();
+        let server_static_try_get_ctx = MockServerStatic::try_get_context();
         server_static_try_get_ctx.expect().return_once(|| {
-            let mut server_static_mock = MockTestServerStatic::new();
+            let mut server_static_mock = MockServerStatic::new();
             server_static_mock
                 .expect_try_determine_client_id()
                 .return_once(|_| Ok(2));
@@ -369,13 +347,10 @@ mod client_tests {
             });
     }
 
+    #[cfg(not(tarpaulin_include))]
     mockall::mock! {
        SV_DropcClient {
-            #[allow(unused_attributes)]
-            #[cfg(not(tarpaulin_include))]
             fn original_func(_client: *mut client_t, _reason: *const c_char);
-            #[allow(unused_attributes)]
-            #[cfg(not(tarpaulin_include))]
             fn replacement_func(_client: *mut client_t, _reason: *const c_char);
         }
     }

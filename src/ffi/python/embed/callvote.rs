@@ -31,7 +31,7 @@ mod callvote_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn callvote_with_no_current_level(_pyshinqlx_setup: ()) {
-        let level_ctx = MockTestCurrentLevel::try_get_context();
+        let level_ctx = MockCurrentLevel::try_get_context();
         level_ctx
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
@@ -45,9 +45,9 @@ mod callvote_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn callvote_with_current_level_calls_vote(_pyshinqlx_setup: ()) {
-        let level_ctx = MockTestCurrentLevel::try_get_context();
+        let level_ctx = MockCurrentLevel::try_get_context();
         level_ctx.expect().returning(|| {
-            let mut mock_level = MockTestCurrentLevel::new();
+            let mut mock_level = MockCurrentLevel::new();
             mock_level
                 .expect_callvote()
                 .with(
