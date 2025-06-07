@@ -4,7 +4,7 @@ use core::{
     ffi::{CStr, c_float},
 };
 
-use tap::TapFallible;
+use tap::{TapFallible, TapOptional};
 
 use super::prelude::*;
 use crate::{
@@ -117,10 +117,6 @@ impl GameItem {
     }
 
     pub(crate) fn spawn(&mut self, origin: (i32, i32, i32)) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-
         let mut origin_vec = [
             origin.0 as c_float,
             origin.1 as c_float,
@@ -128,14 +124,16 @@ impl GameItem {
         ];
         let mut velocity = [0.0, 0.0, 0.9];
 
-        let _ = main_engine
-            .try_launch_item(self, origin_vec.borrow_mut(), velocity.borrow_mut())
-            .tap_ok_mut(|gentity| {
-                gentity.set_next_think(0);
-                gentity.set_think(None);
-                // make item be scaled up
-                main_engine.game_add_event(gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
-            });
+        MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+            let _ = main_engine
+                .try_launch_item(self, origin_vec.borrow_mut(), velocity.borrow_mut())
+                .tap_ok_mut(|gentity| {
+                    gentity.set_next_think(0);
+                    gentity.set_think(None);
+                    // make item be scaled up
+                    main_engine.game_add_event(gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
+                });
+        });
     }
 }
 

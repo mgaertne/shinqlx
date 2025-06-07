@@ -89,10 +89,9 @@ where
     T: AsRef<str> + Into<String>,
     U: Into<qboolean> + Into<bool> + Copy,
 {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+    if MAIN_ENGINE.load().is_none() {
         return;
-    };
-
+    }
     if cmd.as_ref().is_empty() {
         return;
     }
@@ -114,7 +113,13 @@ where
     };
 
     if !passed_on_cmd_str.is_empty() {
-        main_engine.execute_client_command(client, passed_on_cmd_str, client_ok.conv::<qboolean>());
+        MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+            main_engine.execute_client_command(
+                client,
+                passed_on_cmd_str,
+                client_ok.conv::<qboolean>(),
+            )
+        });
     }
 }
 
@@ -159,9 +164,9 @@ pub(crate) fn shinqlx_send_server_command<T>(client: Option<Client>, cmd: T)
 where
     T: AsRef<str> + Into<String>,
 {
-    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+    if MAIN_ENGINE.load().is_none() {
         return;
-    };
+    }
 
     if cmd.as_ref().is_empty() {
         return;
@@ -186,7 +191,10 @@ where
     }
 
     if !passed_on_cmd_str.is_empty() {
-        main_engine.send_server_command(client, &passed_on_cmd_str);
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .tap_some(|main_engine| main_engine.send_server_command(client, &passed_on_cmd_str));
     }
 }
 

@@ -13,6 +13,7 @@ use pyo3::{
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
 };
 use rayon::prelude::*;
+use tap::TapOptional;
 
 use super::{CONSOLE_CHANNEL, console_command, owner, prelude::*};
 use crate::{
@@ -834,29 +835,27 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_clan(&self) -> String {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        let Some(configstring) = MAIN_ENGINE.load().as_ref().map(|main_engine| {
+            main_engine.get_configstring(CS_PLAYERS as u16 + self.get().id as u16)
+        }) else {
             return "".to_string();
         };
-
-        let configstring = main_engine.get_configstring(CS_PLAYERS as u16 + self.get().id as u16);
         let parsed_cs = parse_variables(&configstring);
         parsed_cs.get("cn").unwrap_or("".to_string())
     }
 
     fn set_clan(&self, tag: &str) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-
         let config_index = 529 + self.get().id as u16;
 
-        let configstring = main_engine.get_configstring(config_index);
-        let mut parsed_variables = parse_variables(&configstring);
-        parsed_variables.set("xcn", tag);
-        parsed_variables.set("cn", tag);
+        MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+            let configstring = main_engine.get_configstring(config_index);
+            let mut parsed_variables = parse_variables(&configstring);
+            parsed_variables.set("xcn", tag);
+            parsed_variables.set("cn", tag);
 
-        let new_configstring: String = parsed_variables.into();
-        main_engine.set_configstring(config_index as i32, &new_configstring);
+            let new_configstring: String = parsed_variables.into();
+            main_engine.set_configstring(config_index as i32, &new_configstring);
+        });
     }
 
     fn get_name(&self) -> String {

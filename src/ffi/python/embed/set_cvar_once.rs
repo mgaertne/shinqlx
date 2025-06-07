@@ -18,18 +18,19 @@ pub(crate) fn pyshinqlx_set_cvar_once(
 ) -> PyResult<bool> {
     let value_string = value.to_string();
     py.allow_threads(|| {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return Err(PyEnvironmentError::new_err(
+        MAIN_ENGINE.load().as_ref().map_or(
+            Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
-            ));
-        };
+            )),
+            |main_engine| {
+                if main_engine.find_cvar(cvar).is_some() {
+                    return Ok(false);
+                }
 
-        if main_engine.find_cvar(cvar).is_some() {
-            return Ok(false);
-        }
-
-        main_engine.get_cvar(cvar, &value_string, Some(flags));
-        Ok(true)
+                main_engine.get_cvar(cvar, &value_string, Some(flags));
+                Ok(true)
+            },
+        )
     })
 }
 
