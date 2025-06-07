@@ -204,6 +204,7 @@ impl GameEntity {
         self.gentity_t.client.try_into()
     }
 
+    #[allow(mismatched_lifetime_syntaxes)]
     pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError> {
         self.gentity_t.activator.try_into()
     }
