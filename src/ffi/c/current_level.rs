@@ -11,11 +11,11 @@ use crate::{MAIN_ENGINE, prelude::*};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
-pub(crate) struct CurrentLevel {
-    level: &'static mut level_locals_t,
+pub(crate) struct CurrentLevel<'a> {
+    level: &'a mut level_locals_t,
 }
 
-impl TryFrom<*mut level_locals_t> for CurrentLevel {
+impl TryFrom<*mut level_locals_t> for CurrentLevel<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
@@ -29,7 +29,7 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
 
 const OFFSET_LEVEL: usize = 0x4A1;
 
-impl CurrentLevel {
+impl CurrentLevel<'_> {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         MAIN_ENGINE.load().as_ref().map_or(
             Err(QuakeLiveEngineError::MainEngineNotInitialized),

@@ -4,11 +4,11 @@ use crate::{MAIN_ENGINE, prelude::*};
 #[derive(Debug, PartialEq)]
 #[allow(non_snake_case)]
 #[repr(transparent)]
-pub(crate) struct ServerStatic {
-    serverStatic_t: &'static mut serverStatic_t,
+pub(crate) struct ServerStatic<'a> {
+    serverStatic_t: &'a mut serverStatic_t,
 }
 
-impl TryFrom<*mut serverStatic_t> for ServerStatic {
+impl TryFrom<*mut serverStatic_t> for ServerStatic<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(server_static: *mut serverStatic_t) -> Result<Self, Self::Error> {
@@ -22,7 +22,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
     }
 }
 
-impl ServerStatic {
+impl ServerStatic<'_> {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         MAIN_ENGINE.load().as_ref().map_or(
             Err(QuakeLiveEngineError::MainEngineNotInitialized),

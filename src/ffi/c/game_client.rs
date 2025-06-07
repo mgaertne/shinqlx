@@ -9,11 +9,11 @@ use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
-pub(crate) struct GameClient {
-    game_client: &'static mut gclient_t,
+pub(crate) struct GameClient<'a> {
+    game_client: &'a mut gclient_t,
 }
 
-impl TryFrom<*mut gclient_t> for GameClient {
+impl TryFrom<*mut gclient_t> for GameClient<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_client: *mut gclient_t) -> Result<Self, Self::Error> {
@@ -27,7 +27,7 @@ impl TryFrom<*mut gclient_t> for GameClient {
     }
 }
 
-impl GameClient {
+impl GameClient<'_> {
     pub(crate) fn get_client_num(&self) -> i32 {
         self.game_client.ps.clientNum
     }
