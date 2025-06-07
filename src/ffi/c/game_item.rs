@@ -138,44 +138,29 @@ impl GameItem {
 }
 
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mockall::mock! {
     pub(crate) GameItem {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_mocked_item_list() -> *mut gitem_t;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_num_items() -> i32;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_classname(&self) -> Cow<'_, str>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn spawn(&mut self, _origin: (i32, i32, i32));
     }
 
     impl TryFrom<*mut gitem_t> for GameItem {
         type Error = QuakeLiveEngineError;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn try_from(game_item: *mut gitem_t) -> Result<Self, QuakeLiveEngineError> {}
     }
 
     impl From<i32> for GameItem {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn from(_item_id: i32) -> Self {}
     }
 
     impl AsMut<gitem_t> for GameItem {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn as_mut(&mut self) -> &mut gitem_t {}
     }
 
     impl AsRef<gitem_t> for GameItem {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn as_ref(&self) -> &gitem_t {}
     }
 }

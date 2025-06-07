@@ -4642,9 +4642,9 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn callvote_calls_vote(_pyshinqlx_setup: ()) {
-        let current_level_ctx = MockTestCurrentLevel::try_get_context();
+        let current_level_ctx = MockCurrentLevel::try_get_context();
         current_level_ctx.expect().returning(|| {
-            let mut mock_level = MockTestCurrentLevel::new();
+            let mut mock_level = MockCurrentLevel::new();
             mock_level
                 .expect_callvote()
                 .withf(|vote_str, vote_disp_str, opt_time| {
@@ -4714,9 +4714,9 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_forces_vote_passed(_pyshinqlx_setup: ()) {
-        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        let current_level_try_get_ctx = MockCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
-            let mut mock_level = MockTestCurrentLevel::new();
+            let mut mock_level = MockCurrentLevel::new();
             mock_level.expect_get_vote_time().return_const(21);
             Ok(mock_level)
         });
@@ -4759,9 +4759,9 @@ def handler():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_forces_vote_fail(_pyshinqlx_setup: ()) {
-        let current_level_try_get_ctx = MockTestCurrentLevel::try_get_context();
+        let current_level_try_get_ctx = MockCurrentLevel::try_get_context();
         current_level_try_get_ctx.expect().returning(|| {
-            let mut mock_level = MockTestCurrentLevel::new();
+            let mut mock_level = MockCurrentLevel::new();
             mock_level.expect_get_vote_time().return_const(21);
             Ok(mock_level)
         });

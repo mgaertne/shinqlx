@@ -26,17 +26,14 @@ impl Activator {
 }
 
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mockall::mock! {
     pub(crate) Activator {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_owner_num(&self) -> i32;
     }
 
     impl TryFrom<*mut gentity_t> for Activator {
         type Error = QuakeLiveEngineError;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn try_from(game_entity: *mut gentity_t) -> Result<Self, QuakeLiveEngineError>;
     }
 }

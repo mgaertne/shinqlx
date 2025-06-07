@@ -93,22 +93,13 @@ impl CurrentLevel<'_> {
 }
 
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mockall::mock! {
-    pub(crate) TestCurrentLevel {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
+    pub(crate) CurrentLevel {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_vote_time(&self) -> Option<i32>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn get_leveltime(&self) -> i32;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>);
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn set_training_map(&mut self, is_training_map: bool);
     }
 }

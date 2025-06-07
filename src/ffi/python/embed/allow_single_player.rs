@@ -27,7 +27,7 @@ mod allow_single_player_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn allow_single_player_with_no_current_level(_pyshinqlx_setup: ()) {
-        let level_ctx = MockTestCurrentLevel::try_get_context();
+        let level_ctx = MockCurrentLevel::try_get_context();
         level_ctx
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
@@ -39,9 +39,9 @@ mod allow_single_player_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn allow_single_player_sets_training_map(_pyshinqlx_setup: ()) {
-        let level_ctx = MockTestCurrentLevel::try_get_context();
+        let level_ctx = MockCurrentLevel::try_get_context();
         level_ctx.expect().returning(|| {
-            let mut mock_level = MockTestCurrentLevel::new();
+            let mut mock_level = MockCurrentLevel::new();
             mock_level
                 .expect_set_training_map()
                 .with(predicate::eq(true))

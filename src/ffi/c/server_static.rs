@@ -71,28 +71,22 @@ impl ServerStatic<'_> {
 }
 
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 mockall::mock! {
-    pub(crate) TestServerStatic {
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
+    pub(crate) ServerStatic {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn try_get_client_by_id(
             &self,
             client_id: i32,
         ) -> Result<*mut client_t, QuakeLiveEngineError>;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         pub(crate) fn try_determine_client_id(
             &self,
             client_t: *const client_t,
         ) -> Result<i32, QuakeLiveEngineError>;
     }
-    impl TryFrom<*mut serverStatic_t> for TestServerStatic {
+
+    impl TryFrom<*mut serverStatic_t> for ServerStatic {
         type Error = QuakeLiveEngineError;
-        #[allow(unused_attributes)]
-        #[cfg(not(tarpaulin_include))]
         fn try_from(server_static: *mut serverStatic_t) -> Result<Self, QuakeLiveEngineError>;
     }
 }
