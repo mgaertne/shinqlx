@@ -5,11 +5,11 @@ use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
-pub(crate) struct CVar {
-    cvar: &'static mut cvar_t,
+pub(crate) struct CVar<'a> {
+    cvar: &'a mut cvar_t,
 }
 
-impl TryFrom<*mut cvar_t> for CVar {
+impl TryFrom<*mut cvar_t> for CVar<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
@@ -19,7 +19,7 @@ impl TryFrom<*mut cvar_t> for CVar {
     }
 }
 
-impl CVar {
+impl CVar<'_> {
     pub(crate) fn get_string(&self) -> String {
         if self.cvar.string.is_null() {
             return "".into();

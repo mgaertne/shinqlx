@@ -3129,11 +3129,11 @@ mod quake_live_engine_test_helpers {
 }
 
 pub(crate) trait FindCVar<T: AsRef<str>> {
-    fn find_cvar(&self, name: T) -> Option<CVar>;
+    fn find_cvar(&self, name: T) -> Option<CVar<'_>>;
 }
 
 impl<T: AsRef<str>> FindCVar<T> for QuakeLiveEngine {
-    fn find_cvar(&self, name: T) -> Option<CVar> {
+    fn find_cvar(&self, name: T) -> Option<CVar<'_>> {
         self.cvar_findvar_orig()
             .ok()
             .and_then(|original_func| {
@@ -4396,11 +4396,11 @@ mod console_command_quake_live_engine_tests {
 }
 
 pub(crate) trait GetCVar<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> {
-    fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar>;
+    fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar<'_>>;
 }
 
 impl<T: AsRef<str>, U: AsRef<str>, V: Into<c_int>> GetCVar<T, U, V> for QuakeLiveEngine {
-    fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar> {
+    fn get_cvar(&self, name: T, value: U, flags: Option<V>) -> Option<CVar<'_>> {
         self.cvar_get_orig()
             .ok()
             .and_then(|original_func| {
@@ -4516,11 +4516,11 @@ mod get_cvar_quake_live_engine_tests {
 }
 
 pub(crate) trait SetCVarForced<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> {
-    fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar>;
+    fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar<'_>>;
 }
 
 impl<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> SetCVarForced<T, U, V> for QuakeLiveEngine {
-    fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar> {
+    fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar<'_>> {
         self.cvar_set2_orig()
             .ok()
             .and_then(|original_func| {
@@ -4597,13 +4597,27 @@ pub(crate) trait SetCVarLimit<
     X: Into<c_int>,
 >
 {
-    fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar>;
+    fn set_cvar_limit(
+        &self,
+        name: T,
+        value: U,
+        min: V,
+        max: W,
+        flags: Option<X>,
+    ) -> Option<CVar<'_>>;
 }
 
 impl<T: AsRef<str>, U: AsRef<str>, V: AsRef<str>, W: AsRef<str>, X: Into<c_int>>
     SetCVarLimit<T, U, V, W, X> for QuakeLiveEngine
 {
-    fn set_cvar_limit(&self, name: T, value: U, min: V, max: W, flags: Option<X>) -> Option<CVar> {
+    fn set_cvar_limit(
+        &self,
+        name: T,
+        value: U,
+        min: V,
+        max: W,
+        flags: Option<X>,
+    ) -> Option<CVar<'_>> {
         self.cvar_getlimit_orig()
             .ok()
             .and_then(|original_func| {
@@ -5347,16 +5361,16 @@ mockall::mock! {
         fn execute_console_command(&self, cmd: &str);
     }
     impl FindCVar<&str> for QuakeEngine {
-        fn find_cvar(&self, name: &str) -> Option<CVar>;
+        fn find_cvar(&self, name: &str) -> Option<CVar<'static>>;
     }
     impl GetCVar<&str, &str, i32> for QuakeEngine {
-        fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar>;
+        fn get_cvar(&self, name: &str, value: &str, flags: Option<i32>) -> Option<CVar<'static>>;
     }
     impl SetCVarForced<&str, &str, bool> for QuakeEngine {
-        fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar>;
+        fn set_cvar_forced(&self, name: &str, value: &str, forced: bool) -> Option<CVar<'static>>;
     }
     impl SetCVarLimit<&str, &str, &str, &str, i32> for QuakeEngine {
-        fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar>;
+        fn set_cvar_limit(&self, name: &str, value: &str, min: &str, max: &str, flags: Option<i32>) -> Option<CVar<'static>>;
     }
 }
 
@@ -5468,7 +5482,7 @@ impl MockEngineBuilder {
     pub(crate) fn with_find_cvar<F, G, H>(self, expect: F, returned: G, times: H) -> Self
     where
         F: Fn(&str) -> bool + Send + 'static,
-        G: FnMut(&str) -> Option<CVar> + 'static,
+        G: FnMut(&str) -> Option<CVar<'static>> + 'static,
         H: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {
