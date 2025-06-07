@@ -8,11 +8,11 @@ use crate::{MAIN_ENGINE, prelude::*};
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
-pub(crate) struct Client {
-    client_t: &'static mut client_t,
+pub(crate) struct Client<'a> {
+    client_t: &'a mut client_t,
 }
 
-impl TryFrom<*const client_t> for Client {
+impl TryFrom<*const client_t> for Client<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client: *const client_t) -> Result<Self, Self::Error> {
@@ -20,7 +20,7 @@ impl TryFrom<*const client_t> for Client {
     }
 }
 
-impl TryFrom<*mut client_t> for Client {
+impl TryFrom<*mut client_t> for Client<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
@@ -32,7 +32,7 @@ impl TryFrom<*mut client_t> for Client {
     }
 }
 
-impl TryFrom<i32> for Client {
+impl TryFrom<i32> for Client<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
@@ -43,19 +43,19 @@ impl TryFrom<i32> for Client {
     }
 }
 
-impl AsMut<client_t> for Client {
+impl AsMut<client_t> for Client<'_> {
     fn as_mut(&mut self) -> &mut client_t {
         self.client_t
     }
 }
 
-impl AsRef<client_t> for Client {
+impl AsRef<client_t> for Client<'_> {
     fn as_ref(&self) -> &client_t {
         self.client_t
     }
 }
 
-impl Client {
+impl Client<'_> {
     pub(crate) fn get_client_id(&self) -> i32 {
         let Ok(server_static) = ServerStatic::try_get() else {
             return -1;

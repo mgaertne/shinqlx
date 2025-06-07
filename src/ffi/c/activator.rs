@@ -3,11 +3,11 @@ use crate::prelude::*;
 
 #[derive(Debug, PartialEq)]
 #[repr(transparent)]
-pub(crate) struct Activator {
-    activator: &'static gentity_t,
+pub(crate) struct Activator<'a> {
+    activator: &'a gentity_t,
 }
 
-impl TryFrom<*mut gentity_t> for Activator {
+impl TryFrom<*mut gentity_t> for Activator<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
@@ -19,7 +19,7 @@ impl TryFrom<*mut gentity_t> for Activator {
     }
 }
 
-impl Activator {
+impl Activator<'_> {
     pub(crate) fn get_owner_num(&self) -> i32 {
         self.activator.r.ownerNum
     }

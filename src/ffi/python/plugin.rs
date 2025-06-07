@@ -207,15 +207,13 @@ impl Plugin {
         name: &str,
         return_type: Option<Py<PyType>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        #[allow(clippy::question_mark)]
-        let cvar = cls.py().allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return None;
-            };
-            main_engine.find_cvar(name)
+        let cvar_string = cls.py().allow_threads(|| {
+            MAIN_ENGINE
+                .load()
+                .as_ref()?
+                .find_cvar(name)
+                .map(|value| value.get_string())
         });
-
-        let cvar_string = cvar.as_ref().map(|value| value.get_string());
 
         let Some(py_return_type) = return_type else {
             return match cvar_string {
