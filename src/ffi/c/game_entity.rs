@@ -166,11 +166,9 @@ impl GameEntity {
     }
 
     pub(crate) fn start_kamikaze(&mut self) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-
-        main_engine.start_kamikaze(self);
+        MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+            main_engine.start_kamikaze(self);
+        });
     }
 
     pub(crate) fn get_player_name(&self) -> String {
@@ -290,9 +288,9 @@ impl GameEntity {
     }
 
     pub(crate) fn drop_holdable(&mut self) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        if MAIN_ENGINE.load().is_none() {
             return;
-        };
+        }
 
         let level_time = CurrentLevel::try_get()
             .map(|current_level| current_level.get_leveltime())
@@ -309,18 +307,20 @@ impl GameEntity {
 
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
-        let mut entity = main_engine
-            .try_launch_item(
-                gitem.borrow_mut(),
-                self.gentity_t.s.pos.trBase.borrow_mut(),
-                velocity.borrow_mut(),
-            )
-            .unwrap();
-        entity.set_touch(Some(ShiNQlx_Touch_Item));
-        entity.set_parent(self.gentity_t);
-        entity.set_think(Some(ShiNQlx_Switch_Touch_Item));
-        entity.set_next_think(level_time + 1000);
-        entity.set_position_trace_time(level_time - 500);
+        MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+            let mut entity = main_engine
+                .try_launch_item(
+                    gitem.borrow_mut(),
+                    self.gentity_t.s.pos.trBase.borrow_mut(),
+                    velocity.borrow_mut(),
+                )
+                .unwrap();
+            entity.set_touch(Some(ShiNQlx_Touch_Item));
+            entity.set_parent(self.gentity_t);
+            entity.set_think(Some(ShiNQlx_Switch_Touch_Item));
+            entity.set_next_think(level_time + 1000);
+            entity.set_position_trace_time(level_time - 500);
+        });
         game_client.set_holdable(0);
     }
 
@@ -329,11 +329,10 @@ impl GameEntity {
     }
 
     pub(crate) fn free_entity(&mut self) {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            return;
-        };
-
-        main_engine.free_entity(self);
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .tap_some(|main_engine| main_engine.free_entity(self));
     }
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {

@@ -308,19 +308,20 @@ impl Plugin {
         let value_str = value.str()?.to_string();
 
         cls.py().allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err("could not get main_engine"));
-            };
-            let cvar = main_engine.find_cvar(name);
-
-            if cvar.is_none() {
-                main_engine.get_cvar(name, value_str.as_str(), Some(flags));
-                Ok(true)
-            } else {
-                let console_cmd = format!(r#"{name} "{value_str}""#);
-                main_engine.execute_console_command(console_cmd.as_str());
-                Ok(false)
-            }
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                |main_engine| match main_engine.find_cvar(name) {
+                    None => {
+                        main_engine.get_cvar(name, value_str.as_str(), Some(flags));
+                        Ok(true)
+                    }
+                    Some(_) => {
+                        let console_cmd = format!(r#"{name} "{value_str}""#);
+                        main_engine.execute_console_command(console_cmd.as_str());
+                        Ok(false)
+                    }
+                },
+            )
         })
     }
 
@@ -341,20 +342,22 @@ impl Plugin {
         let maximum_str = maximum.str()?.to_string();
 
         cls.py().allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err("could not get main_engine"));
-            };
-            let cvar = main_engine.find_cvar(name);
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                |main_engine| {
+                    let cvar = main_engine.find_cvar(name);
 
-            main_engine.set_cvar_limit(
-                name,
-                value_str.as_str(),
-                minimum_str.as_str(),
-                maximum_str.as_str(),
-                Some(flags),
-            );
+                    main_engine.set_cvar_limit(
+                        name,
+                        value_str.as_str(),
+                        minimum_str.as_str(),
+                        maximum_str.as_str(),
+                        Some(flags),
+                    );
 
-            Ok(cvar.is_none())
+                    Ok(cvar.is_none())
+                },
+            )
         })
     }
 
@@ -370,15 +373,17 @@ impl Plugin {
         let value_str = value.str()?.to_string();
 
         cls.py().allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err("could not get main_engine"));
-            };
-            let cvar = main_engine.find_cvar(name);
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                |main_engine| {
+                    let cvar = main_engine.find_cvar(name);
 
-            if cvar.is_none() {
-                main_engine.get_cvar(name, value_str.as_str(), Some(flags));
-            }
-            Ok(cvar.is_none())
+                    if cvar.is_none() {
+                        main_engine.get_cvar(name, value_str.as_str(), Some(flags));
+                    }
+                    Ok(cvar.is_none())
+                },
+            )
         })
     }
 
@@ -398,22 +403,24 @@ impl Plugin {
         let maximum_str = maximum.str()?.to_string();
 
         cls.py().allow_threads(|| {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                return Err(PyEnvironmentError::new_err("could not get main_engine"));
-            };
-            let cvar = main_engine.find_cvar(name);
+            MAIN_ENGINE.load().as_ref().map_or(
+                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                |main_engine| {
+                    let cvar = main_engine.find_cvar(name);
 
-            if cvar.is_none() {
-                main_engine.set_cvar_limit(
-                    name,
-                    value_str.as_str(),
-                    minimum_str.as_str(),
-                    maximum_str.as_str(),
-                    Some(flags),
-                );
-            }
+                    if cvar.is_none() {
+                        main_engine.set_cvar_limit(
+                            name,
+                            value_str.as_str(),
+                            minimum_str.as_str(),
+                            maximum_str.as_str(),
+                            Some(flags),
+                        );
+                    }
 
-            Ok(cvar.is_none())
+                    Ok(cvar.is_none())
+                },
+            )
         })
     }
 
