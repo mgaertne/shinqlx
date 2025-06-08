@@ -482,20 +482,25 @@ pub(crate) extern "C" fn shinqlx_g_damage(
 #[cfg(test)]
 #[mockall::automock]
 #[allow(dead_code, clippy::module_inception)]
-#[cfg(not(tarpaulin_include))]
 pub(crate) mod hooks {
     use super::{Client, GameEntity};
 
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_execute_client_command(
         _client: Option<Client>,
         _cmd: &str,
         _client_ok: bool,
     ) {
     }
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_send_server_command(_client: Option<Client>, _cmd: &str) {}
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_drop_client(_client: &mut Client, _reason: &str) {}
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_client_spawn(_game_entity: &mut GameEntity) {}
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_set_configstring(_index: u32, _value: &str) {}
+    #[cfg(not(tarpaulin_include))]
     pub(crate) fn shinqlx_com_printf(_msg: &str) {}
 }
 
