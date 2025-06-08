@@ -419,7 +419,7 @@ impl ConsoleChannel {
     }
 
     #[pyo3(name = "__init__")]
-    pub(crate) fn initiailize(slf: &Bound<'_, Self>) {
+    pub(crate) fn initialize(slf: &Bound<'_, Self>) {
         AbstractChannel::initialize(slf.as_super(), "console");
     }
 

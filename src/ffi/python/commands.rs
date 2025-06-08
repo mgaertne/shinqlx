@@ -219,13 +219,11 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         msg: &str,
         channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let slf = self.get();
-        let Some(command_name) = slf.name.first() else {
+        let Some(command_name) = self.get().name.first() else {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
 
-        let plugin = slf.plugin.bind(self.py());
-        let plugin_name = plugin.downcast::<Plugin>()?.get_name()?;
+        let plugin_name = self.get().plugin.downcast_bound::<Plugin>(self.py())?.get_name()?;
         pyshinqlx_get_logger(
             self.py(),
             Some(PyString::new(self.py(), &plugin_name).into_any()),
@@ -244,7 +242,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
                         intern!(self.py(), ""),
                         -1,
                         intern!(self.py(), "%s executed: %s @ %s -> %s"),
-                        (player.get().steam_id, command_name, plugin_name, &channel),
+                        (player.get().steam_id, command_name, &plugin_name, channel),
                         self.py().None(),
                     ),
                     Some(
@@ -258,9 +256,9 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         })?;
 
         let msg_vec: Vec<&str> = msg.split(' ').collect();
-        slf.handler
+        self.get().handler
             .bind(self.py())
-            .call1((player, msg_vec, &channel))
+            .call1((player, msg_vec, channel))
     }
 
     fn is_eligible_name(&self, name: &str) -> bool {
@@ -488,9 +486,7 @@ class mocked_db:
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
-                PyTuple::new(py, names_pylist)
-                    .expect("this should not happen")
-                    .as_any(),
+                names_pylist.as_any(),
                 &capturing_hook
                     .getattr("hook")
                     .expect("could not get capturing hook"),
@@ -517,13 +513,11 @@ class mocked_db:
                 "name2".to_string(),
                 "name3".to_string(),
             ];
-            let names_pylist = PyTuple::new(py, &names_vec).expect("this should not happen");
+            let names_pytuple = PyTuple::new(py, &names_vec).expect("this should not happen");
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
-                PyTuple::new(py, names_pylist)
-                    .expect("this should not happen")
-                    .as_any(),
+                names_pytuple.as_any(),
                 &capturing_hook
                     .getattr("hook")
                     .expect("could not get capturing hook"),
@@ -601,24 +595,17 @@ class mocked_db:
                 "",
             );
             assert!(command.is_ok_and(|cmd| {
-                PyList::new(
-                    py,
-                    cmd.channels
-                        .read()
-                        .iter()
-                        .map(|channel| channel.clone_ref(py))
-                        .collect::<Vec<PyObject>>(),
-                )
-                .expect("this should not happen")
-                .eq(PyList::new(
-                    py,
-                    [
-                        chat_channel.to_owned().as_any(),
-                        console_channel.to_owned().as_any(),
-                    ],
-                )
-                .expect("this should not happen"))
-                .expect("this should not happen")
+                PyList::new(py, cmd.get_channels(py))
+                    .expect("this should not happen")
+                    .eq(PyList::new(
+                        py,
+                        [
+                            chat_channel.to_owned().as_any(),
+                            console_channel.to_owned().as_any(),
+                        ],
+                    )
+                    .expect("this should not happen"))
+                    .expect("this should not happen")
             }));
         });
     }
@@ -661,24 +648,17 @@ class mocked_db:
                 "",
             );
             assert!(command.is_ok_and(|cmd| {
-                PyList::new(
-                    py,
-                    cmd.exclude_channels
-                        .read()
-                        .iter()
-                        .map(|channel| channel.clone_ref(py))
-                        .collect::<Vec<PyObject>>(),
-                )
-                .expect("this should not happen")
-                .eq(PyList::new(
-                    py,
-                    [
-                        chat_channel.to_owned().as_any(),
-                        console_channel.to_owned().as_any(),
-                    ],
-                )
-                .expect("this should not happen"))
-                .expect("this should not happen")
+                PyList::new(py, cmd.get_exclude_channels(py))
+                    .expect("this should not happen")
+                    .eq(PyList::new(
+                        py,
+                        [
+                            chat_channel.to_owned().as_any(),
+                            console_channel.to_owned().as_any(),
+                        ],
+                    )
+                    .expect("this should not happen"))
+                    .expect("this should not happen")
             }));
         });
     }
