@@ -5531,7 +5531,6 @@ impl Default for MockEngineBuilder {
 #[cfg(test)]
 #[mockall::automock]
 #[allow(dead_code)]
-#[cfg(not(tarpaulin_include))]
 mod quake_functions {
     use core::{
         ffi::{c_char, c_float, c_int},
@@ -5544,15 +5543,19 @@ mod quake_functions {
     };
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, ...) {}
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn detoured_Com_Printf(_fmt: *const c_char, ...) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_AddCommand(_cmd: *const c_char, _func: unsafe extern "C" fn()) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_Cmd_AddCommand(
         _cmd: *const c_char,
         _func: unsafe extern "C" fn(),
@@ -5560,29 +5563,35 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Args() -> *const c_char {
         ptr::null()
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Argv(_arg: c_int) -> *const c_char {
         ptr::null()
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Tokenizestring(_text_in: *const c_char) -> *const c_char {
         ptr::null()
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cbuf_ExecuteText(_exec_when: cbufExec_t, _text: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_FindVar(_var_name: *const c_char) -> *mut cvar_t {
         ptr::null_mut()
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_Get(
         _var_name: *const c_char,
         _var_value: *const c_char,
@@ -5592,6 +5601,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_GetLimit(
         _var_name: *const c_char,
         _var_value: *const c_char,
@@ -5603,6 +5613,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_Set2(
         _var_name: *const c_char,
         _value: *const c_char,
@@ -5612,6 +5623,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn SV_SendServerCommand(
         _cl: *mut client_t,
         _fmt: *const c_char,
@@ -5620,6 +5632,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn detoured_SV_SendServerCommand(
         _cl: *mut client_t,
         _fmt: *const c_char,
@@ -5628,6 +5641,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_ExecuteClientCommand(
         _cl: *mut client_t,
         _s: *const c_char,
@@ -5636,6 +5650,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_ExecuteClientCommand(
         _cl: *mut client_t,
         _s: *const c_char,
@@ -5644,15 +5659,19 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_Shutdown(_finalmsg: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_Map_f() {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_ClientEnterWorld(_client: *mut client_t, _cmd: *mut usercmd_t) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_ClientEnterWorld(
         _client: *mut client_t,
         _cmd: *mut usercmd_t,
@@ -5660,12 +5679,15 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_GetConfigstring(
         _index: c_int,
         _buffer: *mut c_char,
@@ -5674,12 +5696,15 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Sys_SetModuleOffset(
         _moduleName: *mut c_char,
         _offset: unsafe extern "C" fn(),
@@ -5687,6 +5712,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_Sys_SetModuleOffset(
         _moduleName: *mut c_char,
         _offset: unsafe extern "C" fn(),
@@ -5694,29 +5720,37 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_ExecuteString(_text: *const c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Argc() -> c_int {
         0
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_InitGame(_level_time: c_int, _random_see: c_int, _restart: c_int) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_ShutdownGame(_restart: c_int) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_RunFrame(_time: c_int) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn ClientConnect(
         _client_num: c_int,
         _first_time: qboolean,
@@ -5726,6 +5760,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_ClientConnect(
         _client_num: c_int,
         _first_time: qboolean,
@@ -5735,12 +5770,15 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn ClientSpawn(_client: *mut gentity_t) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_ClientSpawn(_client: *mut gentity_t) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_AddEvent(
         _ent: *mut gentity_t,
         _event: entity_event_t,
@@ -5749,6 +5787,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_Damage(
         _target: *mut gentity_t,
         _inflictor: *mut gentity_t,
@@ -5762,6 +5801,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_G_Damage(
         _target: *mut gentity_t,
         _inflictor: *mut gentity_t,
@@ -5775,9 +5815,11 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_FreeEntity(_ent: *mut gentity_t) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn LaunchItem(
         _item: *mut gitem_t,
         _origin: *mut vec3_t,
@@ -5787,15 +5829,19 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_StartKamikaze(_ent: *mut gentity_t) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_G_StartKamikaze(_ent: *mut gentity_t) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn CheckPrivileges(_ent: *mut gentity_t, _cmd: *mut c_char) {}
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Touch_Item(
         _ent: *mut gentity_t,
         _other: *mut gentity_t,
@@ -5804,6 +5850,7 @@ mod quake_functions {
     }
 
     #[allow(unused_attributes, non_snake_case)]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Drop_Item(
         _ent: *mut gentity_t,
         _item: *mut gitem_t,
