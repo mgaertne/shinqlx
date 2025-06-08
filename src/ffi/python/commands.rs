@@ -223,7 +223,11 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
 
-        let plugin_name = self.get().plugin.downcast_bound::<Plugin>(self.py())?.get_name()?;
+        let plugin_name = self
+            .get()
+            .plugin
+            .downcast_bound::<Plugin>(self.py())?
+            .get_name()?;
         pyshinqlx_get_logger(
             self.py(),
             Some(PyString::new(self.py(), &plugin_name).into_any()),
@@ -256,7 +260,8 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         })?;
 
         let msg_vec: Vec<&str> = msg.split(' ').collect();
-        self.get().handler
+        self.get()
+            .handler
             .bind(self.py())
             .call1((player, msg_vec, channel))
     }
