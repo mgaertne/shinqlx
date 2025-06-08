@@ -30,7 +30,6 @@ from ._commands import (
 )
 from ._core import (
     _thread_name,
-    _thread_count,
     DEFAULT_PLUGINS,
     set_plugins_version,
     set_map_subtitles,
@@ -771,7 +770,6 @@ __all__ = [
     "COMMANDS",
     # from _core.pyi
     "_thread_name",
-    "_thread_count",
     "DEFAULT_PLUGINS",
     "set_cvar_once",
     "set_cvar_limit_once",

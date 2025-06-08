@@ -14,7 +14,6 @@ class PluginUnloadError(Exception): ...
 
 DEFAULT_PLUGINS: tuple[str, ...]
 
-_thread_count: int
 _thread_name: str
 
 def parse_variables(varstr: str, ordered: bool = False) -> dict[str, str]: ...
