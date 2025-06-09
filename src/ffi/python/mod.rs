@@ -142,7 +142,7 @@ use pyo3::{
     exceptions::{PyAttributeError, PyEnvironmentError, PyException, PyValueError},
     ffi::Py_IsInitialized,
     intern, prepare_freethreaded_python,
-    types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFunction, PyInt, PyString, PyTuple, PyType},
+    types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFloat, PyInt, PyString, PyTuple, PyType},
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
@@ -159,7 +159,6 @@ use crate::{
 };
 
 const SHINQLX_THREADNAME: &str = "shinqlxthread";
-static SHINQLX_THREAD_COUNT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
@@ -1511,36 +1510,34 @@ fn try_log_messages(
         })
 }
 
-#[pyclass(name = "next_frame")]
-struct NextFrameDecorator {
-    func: Py<PyAny>,
-}
-
-#[pymethods]
-impl NextFrameDecorator {
-    #[new]
-    fn py_new(func: Py<PyAny>) -> Self {
-        Self { func }
+#[pyfunction]
+fn next_frame<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+    if !func.is_callable() {
+        return Err(PyValueError::new_err(
+            "func has to be a callable Python function",
+        ));
     }
 
-    #[pyo3(signature = (*args, **kwargs))]
-    fn __call__<'py>(
-        &self,
-        py: Python<'py>,
-        args: &Bound<'py, PyTuple>,
-        kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        py.import(intern!(py, "shinqlx"))
-            .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "next_frame_tasks")))?
-            .call_method1(
-                intern!(py, "put_nowait"),
-                ((
-                    self.func.clone_ref(py),
-                    args,
-                    kwargs.unwrap_or(&PyDict::new(py)),
-                ),),
-            )
-    }
+    PyModule::from_code(
+        py,
+        cr#"
+from functools import wraps
+
+import shinqlx
+
+
+def next_frame(func):
+    @wraps(func)
+    def f(*args, **kwargs):
+        shinqlx.next_frame_tasks.put_nowait((func, args, kwargs))
+
+    return f
+        "#,
+        c"",
+        c"",
+    )
+    .and_then(|next_frame_def| next_frame_def.getattr(intern!(py, "next_frame")))
+    .and_then(|next_frame_func| next_frame_func.call1((func,)))
 }
 
 #[cfg(test)]
@@ -1618,9 +1615,10 @@ TestClass().test_func()
                 None,
                 None,
             );
-            assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert!(result.is_ok());
 
-            let _ = run_all_frame_tasks(py);
+            let result2 = run_all_frame_tasks(py);
+            assert!(result2.is_ok());
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -1644,54 +1642,31 @@ TestClass().test_func()
 ///         It cannot guarantee you that it will be called right as the timer
 ///         expires, but unless some plugin is for some reason blocking, then
 ///         you can expect it to be called practically as soon as it expires.
-#[pyclass(name = "delay")]
-struct DelayDecorator {
-    time: f64,
-}
+#[pyfunction]
+fn delay<'py>(py: Python<'py>, time: f64) -> PyResult<Bound<'py, PyAny>> {
+    PyModule::from_code(
+        py,
+        cr#"
+from functools import wraps
 
-#[pymethods]
-impl DelayDecorator {
-    #[new]
-    fn py_new(time: f64) -> Self {
-        Self { time }
-    }
+import shinqlx
 
-    fn __call__(&self, func: Py<PyAny>) -> DelayInnerDecorator {
-        DelayInnerDecorator {
-            time: self.time,
-            func,
-        }
-    }
-}
 
-#[pyclass(name = "delay_wrap")]
-struct DelayInnerDecorator {
-    time: f64,
-    func: Py<PyAny>,
-}
+def delay(time):
+    def wrap(func):
+        @wraps(func)
+        def f(*args, **kwargs):
+            shinqlx.frame_tasks.enter(time, 1, func, args, kwargs)
 
-#[pymethods]
-impl DelayInnerDecorator {
-    #[pyo3(signature = (*args, **kwargs))]
-    fn __call__<'py>(
-        &self,
-        py: Python<'py>,
-        args: &Bound<'py, PyTuple>,
-        kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        py.import(intern!(py, "shinqlx"))
-            .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "frame_tasks")))?
-            .call_method1(
-                intern!(py, "enter"),
-                (
-                    self.time,
-                    1,
-                    self.func.clone_ref(py),
-                    args,
-                    kwargs.unwrap_or(&PyDict::new(py)),
-                ),
-            )
-    }
+        return f
+
+    return wrap
+    "#,
+        c"",
+        c"",
+    )
+    .and_then(|delay_def| delay_def.getattr(intern!(py, "delay")))
+    .and_then(|delay_func| delay_func.call1((PyFloat::new(py, time),)))
 }
 
 #[cfg(test)]
@@ -1812,7 +1787,7 @@ import shinqlx
 
 class TestClass:
     @shinqlx.delay(0.0001)
-    def test_func():
+    def test_func(self):
         pass
 
 TestClass().test_func()
@@ -1827,7 +1802,7 @@ TestClass().test_func()
                 .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "frame_tasks")))
                 .expect("this should not happen");
             let sched_result = frame_tasks.call_method0(intern!(py, "run"));
-            assert!(sched_result.as_ref().is_ok(), "{:?}", sched_result.as_ref());
+            assert!(sched_result.is_ok());
             assert!(
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
@@ -1842,59 +1817,50 @@ TestClass().test_func()
 /// Starts a thread with the function passed as its target. If a function decorated
 /// with this is called within a function also decorated, it will **not** create a second
 /// thread unless told to do so with the *force* keyword.
-#[pyclass(name = "thread")]
-struct ThreadDecorator {
-    func: Py<PyFunction>,
+#[pyfunction]
+#[pyo3(signature = (func, force = false), text_signature = "(func, force = False)")]
+fn thread<'py>(
+    py: Python<'py>,
+    func: &Bound<'py, PyAny>,
     force: bool,
-}
-
-#[pymethods]
-impl ThreadDecorator {
-    #[new]
-    #[pyo3(signature = (func, force = false), text_signature = "(func, force = false)")]
-    fn py_new(func: Py<PyFunction>, force: bool) -> Self {
-        Self { func, force }
+) -> PyResult<Bound<'py, PyAny>> {
+    if !func.is_callable() {
+        return Err(PyValueError::new_err(
+            "func has to be a callable Python function",
+        ));
     }
 
-    #[pyo3(signature = (*args, **kwargs))]
-    fn __call__<'py>(
-        &self,
-        py: Python<'py>,
-        args: &Bound<'py, PyTuple>,
-        kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
-        let threading_module = py.import(intern!(py, "threading"))?;
+    PyModule::from_code(
+        py,
+        cr#"
+import threading
+from functools import wraps
 
-        let current_thread_name = threading_module
-            .call_method0(intern!(py, "current_thread"))
-            .and_then(|current_thread| current_thread.getattr(intern!(py, "name")))?
-            .to_string();
-        if !self.force && current_thread_name.ends_with(SHINQLX_THREADNAME) {
-            return self
-                .func
-                .bind(py)
-                .call(args, Some(kwargs.unwrap_or(&PyDict::new(py))));
-        }
+import shinqlx
 
-        let func_name = self.func.getattr(py, intern!(py, "__name__"))?.to_string();
-        let thread_count = SHINQLX_THREAD_COUNT.load(Ordering::Acquire);
-        let thread_name = format!("{func_name}-{thread_count}-{SHINQLX_THREADNAME}");
-        let thread_options = PyDict::new(py);
-        thread_options.set_item(intern!(py, "target"), self.func.clone_ref(py))?;
-        thread_options.set_item(intern!(py, "name"), &thread_name)?;
-        thread_options.set_item(intern!(py, "args"), args)?;
-        thread_options.set_item(intern!(py, "kwargs"), kwargs.unwrap_or(&PyDict::new(py)))?;
-        thread_options.set_item(intern!(py, "daemon"), true)?;
-        let thread = threading_module.call_method(
-            intern!(py, "Thread"),
-            PyTuple::empty(py),
-            Some(&thread_options),
-        )?;
-        thread.call_method0(intern!(py, "start"))?;
-        SHINQLX_THREAD_COUNT.fetch_add(1, Ordering::Release);
 
-        Ok(thread)
-    }
+def thread(func, force=False):
+    @wraps(func)
+    def f(*args, **kwargs):
+        if not force and threading.current_thread().name.endswith(shinqlx._thread_name):
+            func(*args, **kwargs)
+        else:
+            name = f"{func.__name__}-{str(shinqlx._thread_count)}-{shinqlx._thread_name}"
+            t = threading.Thread(
+                target=func, name=name, args=args, kwargs=kwargs, daemon=True
+            )
+            t.start()
+            shinqlx._thread_count += 1
+
+            return t
+
+    return f
+        "#,
+        c"",
+        c"",
+    )
+    .and_then(|thread_def| thread_def.getattr(intern!(py, "thread")))
+    .and_then(|thread_func| thread_func.call1((func, PyBool::new(py, force))))
 }
 
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
@@ -4069,6 +4035,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     m.add("DEFAULT_PLUGINS", PyTuple::new(m.py(), DEFAULT_PLUGINS)?)?;
 
+    m.add("_thread_count", 0)?;
     m.add("_thread_name", SHINQLX_THREADNAME)?;
 
     m.add("_stats", m.py().None())?;
@@ -4094,9 +4061,9 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
     m.add_function(wrap_pyfunction!(set_plugins_version, m)?)?;
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
-    m.add_class::<NextFrameDecorator>()?;
-    m.add_class::<DelayDecorator>()?;
-    m.add_class::<ThreadDecorator>()?;
+    m.add_function(wrap_pyfunction!(next_frame, m)?)?;
+    m.add_function(wrap_pyfunction!(delay, m)?)?;
+    m.add_function(wrap_pyfunction!(thread, m)?)?;
     m.add_function(wrap_pyfunction!(load_preset_plugins, m)?)?;
     m.add_function(wrap_pyfunction!(load_plugin, m)?)?;
     m.add_function(wrap_pyfunction!(unload_plugin, m)?)?;
