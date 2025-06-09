@@ -209,6 +209,7 @@ ConcreteChannel("asdf", 42)
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_repr_assert = py.run(
@@ -225,6 +226,7 @@ assert repr(shinqlx.AbstractChannel("abstract")) == "abstract"
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let abstract_channel_str_assert = py.run(
@@ -1121,6 +1123,7 @@ tell_channel = shinqlx.TellChannel(player)
     }
 
     #[test]
+    #[serial]
     fn repr_returns_tell_client_id() {
         let tell_channel = TellChannel {
             client_id: 42.into(),
@@ -1573,6 +1576,7 @@ mod client_command_channel_tests {
     };
 
     #[rstest]
+    #[serial]
     #[cfg_attr(miri, ignore)]
     fn client_command_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
