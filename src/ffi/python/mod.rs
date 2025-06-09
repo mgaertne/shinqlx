@@ -1658,6 +1658,9 @@ def delay(time):
         def f(*args, **kwargs):
             shinqlx.frame_tasks.enter(time, 1, func, args, kwargs)
 
+        if not callable(func):
+            raise ValueError("'func' must be callable")
+
         return f
 
     return wrap
@@ -1818,12 +1821,7 @@ TestClass().test_func()
 /// with this is called within a function also decorated, it will **not** create a second
 /// thread unless told to do so with the *force* keyword.
 #[pyfunction]
-#[pyo3(signature = (func, force = false), text_signature = "(func, force = False)")]
-fn thread<'py>(
-    py: Python<'py>,
-    func: &Bound<'py, PyAny>,
-    force: bool,
-) -> PyResult<Bound<'py, PyAny>> {
+fn thread<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     if !func.is_callable() {
         return Err(PyValueError::new_err(
             "func has to be a callable Python function",
@@ -1839,10 +1837,10 @@ from functools import wraps
 import shinqlx
 
 
-def thread(func, force=False):
+def thread(func):
     @wraps(func)
     def f(*args, **kwargs):
-        if not force and threading.current_thread().name.endswith(shinqlx._thread_name):
+        if threading.current_thread().name.endswith(shinqlx._thread_name):
             func(*args, **kwargs)
         else:
             name = f"{func.__name__}-{str(shinqlx._thread_count)}-{shinqlx._thread_name}"
@@ -1860,7 +1858,86 @@ def thread(func, force=False):
         c"",
     )
     .and_then(|thread_def| thread_def.getattr(intern!(py, "thread")))
-    .and_then(|thread_func| thread_func.call1((func, PyBool::new(py, force))))
+    .and_then(|thread_func| thread_func.call1((func,)))
+}
+
+#[cfg(test)]
+mod thread_tests {
+    use pyo3::{intern, prelude::*, types::PyBool};
+    use rstest::rstest;
+
+    use super::pyshinqlx_setup_fixture::*;
+    use crate::prelude::serial;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn thread_on_callable_function(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let py_test_module = PyModule::from_code(
+                py,
+                cr#"
+import shinqlx
+
+called = False
+
+@shinqlx.thread
+def threaded_func():
+    global called
+    called = True
+"#,
+                c"",
+                c"",
+            )
+            .expect("this should not happen");
+
+            let result = py_test_module.call_method0(intern!(py, "threaded_func"));
+            assert!(result.is_ok());
+
+            assert!(py_test_module.getattr("called").is_ok_and(|called| {
+                called
+                    .downcast::<PyBool>()
+                    .is_ok_and(|pybool| pybool.is_true())
+            }));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn thread_on_nested_thread(_pyshinqlx_setup: ()) {
+        Python::with_gil(|py| {
+            let py_test_module = PyModule::from_code(
+                py,
+                cr#"
+import shinqlx
+
+called = False
+
+@shinqlx.thread
+def inner_thread():
+    global called
+    called = True
+
+@shinqlx.thread
+def threaded_func():
+    inner_thread()
+"#,
+                c"",
+                c"",
+            )
+            .expect("this should not happen");
+
+            let result = py_test_module.call_method0(intern!(py, "threaded_func"));
+            assert!(result.is_ok());
+
+            assert!(py_test_module.getattr("called").is_ok_and(|called| {
+                called
+                    .downcast::<PyBool>()
+                    .is_ok_and(|pybool| pybool.is_true())
+            }));
+        });
+    }
 }
 
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
