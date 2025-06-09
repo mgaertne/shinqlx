@@ -5,6 +5,7 @@ use log::*;
 use pyo3::{
     create_exception,
     exceptions::{PyEnvironmentError, PyException, PyKeyError, PyValueError},
+    intern,
     types::{IntoPyDict, PyDict, PyType},
 };
 
@@ -534,8 +535,11 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_gametype(&self) -> PyResult<String> {
-        let factory_type = self.get_item("g_gametype")?.to_string();
-        match factory_type.parse::<i32>() {
+        match self
+            .get_item(intern!(self.py(), "g_gametype"))?
+            .extract::<String>()?
+            .parse::<i32>()
+        {
             Ok(0) => Ok("Free for All".to_string()),
             Ok(1) => Ok("Duel".to_string()),
             Ok(2) => Ok("Race".to_string()),
@@ -553,8 +557,11 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_gametype_short(&self) -> PyResult<String> {
-        let factory_type = self.get_item("g_gametype")?.to_string();
-        match factory_type.parse::<i32>() {
+        match self
+            .get_item(intern!(self.py(), "g_gametype"))?
+            .extract::<String>()?
+            .parse::<i32>()
+        {
             Ok(0) => Ok("ffa".to_string()),
             Ok(1) => Ok("duel".to_string()),
             Ok(2) => Ok("race".to_string()),
@@ -572,7 +579,8 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_map(&self) -> PyResult<String> {
-        self.get_item("mapname").map(|value| value.to_string())
+        self.get_item(intern!(self.py(), "mapname"))
+            .map(|value| value.to_string())
     }
 
     fn set_map(&self, value: &str) -> PyResult<()> {
@@ -583,21 +591,24 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_map_title(&self) -> PyResult<String> {
-        let base_module = self.py().import("shinqlx")?;
-        let map_title = base_module.getattr("_map_title")?;
-        map_title.extract::<String>()
+        self.py()
+            .import(intern!(self.py(), "shinqlx"))?
+            .getattr(intern!(self.py(), "_map_title"))?
+            .extract()
     }
 
     fn get_map_subtitle1(&self) -> PyResult<String> {
-        let base_module = self.py().import("shinqlx")?;
-        let map_title = base_module.getattr("_map_subtitle1")?;
-        map_title.extract::<String>()
+        self.py()
+            .import(intern!(self.py(), "shinqlx"))?
+            .getattr(intern!(self.py(), "_map_subtitle1"))?
+            .extract()
     }
 
     fn get_map_subtitle2(&self) -> PyResult<String> {
-        let base_module = self.py().import("shinqlx")?;
-        let map_title = base_module.getattr("_map_subtitle2")?;
-        map_title.extract::<String>()
+        self.py()
+            .import(intern!(self.py(), "shinqlx"))?
+            .getattr(intern!(self.py(), "_map_subtitle2"))?
+            .extract()
     }
 
     fn get_red_score(&self) -> PyResult<i32> {
@@ -629,26 +640,23 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_state(&self) -> PyResult<String> {
-        let game_state = self.get_item("g_gameState")?.to_string();
-        if game_state == "PRE_GAME" {
-            return Ok("warmup".to_string());
+        match self
+            .get_item(intern!(self.py(), "g_gameState"))?
+            .to_string()
+            .as_str()
+        {
+            "PRE_GAME" => Ok("warmup".to_string()),
+            "COUNT_DOWN" => Ok("countdown".to_string()),
+            "IN_PROGRESS" => Ok("in_progress".to_string()),
+            game_state => {
+                warn!(target: "shinqlx", "Got unknown game state: {game_state}");
+                Ok(game_state.to_string())
+            }
         }
-
-        if game_state == "COUNT_DOWN" {
-            return Ok("countdown".to_string());
-        }
-
-        if game_state == "IN_PROGRESS" {
-            return Ok("in_progress".to_string());
-        }
-
-        warn!(target: "shinqlx", "Got unknown game state: {game_state}");
-
-        Ok(game_state)
     }
 
     fn get_factory(&self) -> PyResult<String> {
-        self.get_item("g_factory").map(|value| value.to_string())
+        self.get_item(intern!(self.py(), "g_factory"))?.extract()
     }
 
     fn set_factory(&self, value: &str) -> PyResult<()> {
@@ -660,22 +668,22 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_factory_title(&self) -> PyResult<String> {
-        self.get_item("g_factoryTitle")
-            .map(|value| value.to_string())
+        self.get_item(intern!(self.py(), "g_factoryTitle"))?
+            .extract()
     }
 
     fn get_hostname(&self) -> PyResult<String> {
-        self.get_item("sv_hostname").map(|value| value.to_string())
+        self.get_item(intern!(self.py(), "sv_hostname"))?.extract()
     }
 
     fn set_hostname(&self, value: &str) -> PyResult<()> {
-        pyshinqlx_set_cvar(self.py(), "sv_hostname", value, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "sv_hostname", value, None).map(|_| ())
     }
 
     fn get_instagib(&self) -> PyResult<bool> {
-        let insta_cvar = self.get_item("g_instagib")?.to_string();
-        Ok(insta_cvar.parse::<i32>().is_ok_and(|value| value != 0))
+        self.get_item(intern!(self.py(), "g_instagib"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
     fn set_instagib(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -696,8 +704,9 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_loadout(&self) -> PyResult<bool> {
-        let loadout_cvar = self.get_item("g_loadout")?.to_string();
-        Ok(loadout_cvar.parse::<i32>().is_ok_and(|value| value != 0))
+        self.get_item(intern!(self.py(), "g_loadout"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
     fn set_loadout(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -718,85 +727,86 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_maxclients(&self) -> PyResult<i32> {
-        let maxclients_cvar = self.get_item("sv_maxclients")?.to_string();
-        Ok(maxclients_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "sv_maxclients"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_maxclients(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "sv_maxclients", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "sv_maxclients", &value_str, None).map(|_| ())
     }
 
     fn get_timelimit(&self) -> PyResult<i32> {
-        let timelimit_cvar = self.get_item("timelimit")?.to_string();
-        Ok(timelimit_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "timelimit"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_timelimit(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "timelimit", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "timelimit", &value_str, None).map(|_| ())
     }
 
     fn get_fraglimit(&self) -> PyResult<i32> {
-        let fraglimit_cvar = self.get_item("fraglimit")?.to_string();
-        Ok(fraglimit_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "fraglimit"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_fraglimit(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "fraglimit", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "fraglimit", &value_str, None).map(|_| ())
     }
 
     fn get_roundlimit(&self) -> PyResult<i32> {
-        let roundlimit_cvar = self.get_item("roundlimit")?.to_string();
-        Ok(roundlimit_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "roundlimit"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_roundlimit(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "roundlimit", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "roundlimit", &value_str, None).map(|_| ())
     }
 
     fn get_roundtimelimit(&self) -> PyResult<i32> {
-        let roundtimelimit_cvar = self.get_item("roundtimelimit")?.to_string();
-        Ok(roundtimelimit_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "roundtimelimit"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_roundtimelimit(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "roundtimelimit", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "roundtimelimit", &value_str, None).map(|_| ())
     }
 
     fn get_scorelimit(&self) -> PyResult<i32> {
-        let scorelimit_cvar = self.get_item("scorelimit")?.to_string();
-        Ok(scorelimit_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "scorelimit"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_scorelimit(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "scorelimit", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "scorelimit", &value_str, None).map(|_| ())
     }
 
     fn get_capturelimit(&self) -> PyResult<i32> {
-        let capturelimit_cvar = self.get_item("capturelimit")?.to_string();
-        Ok(capturelimit_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "capturelimit"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_capturelimit(&self, value: i32) -> PyResult<()> {
         let value_str = format!("{value}");
-        pyshinqlx_set_cvar(self.py(), "capturelimit", &value_str, None)?;
-        Ok(())
+        pyshinqlx_set_cvar(self.py(), "capturelimit", &value_str, None).map(|_| ())
     }
 
     fn get_teamsize(&self) -> PyResult<i32> {
-        let teamsize_cvar = self.get_item("teamsize")?.to_string();
-        Ok(teamsize_cvar.parse::<i32>().unwrap_or_default())
+        self.get_item(intern!(self.py(), "teamsize"))?
+            .extract::<String>()
+            .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
     fn set_teamsize(&self, value: i32) -> PyResult<()> {
@@ -804,8 +814,9 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_tags(&self) -> PyResult<Vec<String>> {
-        let tags_cvar = self.get_item("sv_tags")?.to_string();
-        Ok(tags_cvar.split(',').map(|value| value.into()).collect())
+        self.get_item(intern!(self.py(), "sv_tags"))?
+            .extract::<String>()
+            .map(|value| value.split(',').map(|value| value.into()).collect())
     }
 
     fn set_tags(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
