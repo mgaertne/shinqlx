@@ -787,11 +787,9 @@ Functions
 
    :param float time: The number of seconds before the function should be called.
 
-.. decorator:: thread(force = False)
+.. decorator:: thread
 
-   Starts a thread with the function passed as its target. If a function decorated with this is called within a function also decorated, it will **not** create a second thread unless told to do so with the *force* keyword.
-
-   :param bool force: Force it to create a new thread even if already in one created by this decorator. (default: ``False``)
+   Starts a thread with the function passed as its target. If a function decorated with this is called within a function also decorated, it will **not** create a second thread.
 
 .. function:: load_preset_plugins()
 
