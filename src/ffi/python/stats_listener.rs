@@ -856,10 +856,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -879,8 +879,8 @@ mod handle_zmq_msg_tests {
 
                     let expected_json_data =
                         to_py_json_data(py, stats_msg).expect("this should not happen");
-                    let asdf =
-                        capturing_hook.call_method1("assert_called_with", (expected_json_data,));
+                    let asdf = capturing_hook
+                        .call_method1(intern!(py, "assert_called_with"), (expected_json_data,));
                     assert!(asdf.as_ref().is_ok());
                 });
             });
@@ -932,10 +932,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add game_start dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -947,10 +947,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("game_start")
+                        .get_item(intern!(py, "game_start"))
                         .and_then(|game_start_dispatcher| {
                             game_start_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -973,15 +973,18 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, game_start_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (expected_json_data
-                                    .get_item("DATA")
+                                    .get_item(intern!(py, "DATA"))
                                     .expect("this should not happen"),)
                             )
                             .is_ok()
@@ -1039,10 +1042,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add round_end dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1054,10 +1057,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("round_end")
+                        .get_item(intern!(py, "round_end"))
                         .and_then(|round_end_dispatcher| {
                             round_end_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1079,15 +1082,18 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, round_end_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (expected_json_data
-                                    .get_item("DATA")
+                                    .get_item(intern!(py, "DATA"))
                                     .expect("this should not happen"),)
                             )
                             .is_ok()
@@ -1145,10 +1151,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add game_end dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1160,10 +1166,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("game_end")
+                        .get_item(intern!(py, "game_end"))
                         .and_then(|game_end_dispatcher| {
                             game_end_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1188,15 +1194,18 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, game_end_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (expected_json_data
-                                    .get_item("DATA")
+                                    .get_item(intern!(py, "DATA"))
                                     .expect("this should not happen"),)
                             )
                             .is_ok()
@@ -1235,10 +1244,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add game_end dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1250,10 +1259,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("game_end")
+                        .get_item(intern!(py, "game_end"))
                         .and_then(|game_end_dispatcher| {
                             game_end_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1278,15 +1287,18 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, game_end_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (expected_json_data
-                                    .get_item("DATA")
+                                    .get_item(intern!(py, "DATA"))
                                     .expect("this should not happen"),)
                             )
                             .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
@@ -1343,10 +1355,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1368,7 +1380,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -1468,10 +1480,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add death dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1483,10 +1495,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("death")
+                        .get_item(intern!(py, "death"))
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1508,18 +1520,21 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (
                                     "_",
                                     py.None(),
                                     expected_json_data
-                                        .get_item("DATA")
+                                        .get_item(intern!(py, "DATA"))
                                         .expect("this should not happen"),
                                 )
                             )
@@ -1622,10 +1637,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add death dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1637,10 +1652,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("death")
+                        .get_item(intern!(py, "death"))
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1662,18 +1677,21 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (
                                     "_",
                                     py.None(),
                                     expected_json_data
-                                        .get_item("DATA")
+                                        .get_item(intern!(py, "DATA"))
                                         .expect("this should not happen"),
                                 )
                             )
@@ -1745,10 +1763,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -1770,7 +1788,7 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -1991,10 +2009,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add kill dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2006,10 +2024,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("death")
+                        .get_item(intern!(py, "death"))
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2021,10 +2039,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to death dispatcher");
                     event_dispatcher
-                        .__getitem__("kill")
+                        .get_item(intern!(py, "kill"))
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2046,18 +2064,21 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (
                                     "_",
                                     "_",
                                     expected_json_data
-                                        .get_item("DATA")
+                                        .get_item(intern!(py, "DATA"))
                                         .expect("this should not happen"),
                                 )
                             )
@@ -2066,12 +2087,12 @@ mod handle_zmq_msg_tests {
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (
                                     "_",
                                     "_",
                                     expected_json_data
-                                        .get_item("DATA")
+                                        .get_item(intern!(py, "DATA"))
                                         .expect("this should not happen"),
                                 )
                             )
@@ -2207,10 +2228,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add kill dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2222,10 +2243,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("death")
+                        .get_item(intern!(py, "death"))
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2237,10 +2258,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to death dispatcher");
                     event_dispatcher
-                        .__getitem__("kill")
+                        .get_item(intern!(py, "kill"))
                         .and_then(|death_dispatcher| {
                             death_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2262,18 +2283,21 @@ mod handle_zmq_msg_tests {
                         to_py_json_data(py, player_death_data).expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data.to_owned(),))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (expected_json_data.to_owned(),)
+                            )
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (
                                     "_",
                                     "_",
                                     expected_json_data
-                                        .get_item("DATA")
+                                        .get_item(intern!(py, "DATA"))
                                         .expect("this should not happen"),
                                 )
                             )
@@ -2282,12 +2306,12 @@ mod handle_zmq_msg_tests {
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 (
                                     "_",
                                     "_",
                                     expected_json_data
-                                        .get_item("DATA")
+                                        .get_item(intern!(py, "DATA"))
                                         .expect("this should not happen"),
                                 )
                             )
@@ -2509,10 +2533,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add team_switch dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2524,10 +2548,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("team_switch")
+                        .get_item(intern!(py, "team_switch"))
                         .and_then(|team_switch_dispatcher| {
                             team_switch_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2549,12 +2573,15 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ("_", "spectator", "blue"))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                ("_", "spectator", "blue")
+                            )
                             .is_ok()
                     );
                 });
@@ -2654,10 +2681,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add team_switch dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2669,10 +2696,10 @@ mod handle_zmq_msg_tests {
                         })
                         .expect("could not add hook to stats dispatcher");
                     event_dispatcher
-                        .__getitem__("team_switch")
+                        .get_item(intern!(py, "team_switch"))
                         .and_then(|team_switch_dispatcher| {
                             team_switch_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2694,12 +2721,15 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ("_", "spectator", "blue"))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                ("_", "spectator", "blue")
+                            )
                             .is_ok()
                     );
                 });
@@ -2798,10 +2828,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2823,7 +2853,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -2920,10 +2950,10 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
@@ -2945,7 +2975,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3042,7 +3072,7 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
                                 intern!(py, "add_hook"),
@@ -3067,7 +3097,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3164,7 +3194,7 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
                                 intern!(py, "add_hook"),
@@ -3189,7 +3219,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3256,7 +3286,7 @@ mod handle_zmq_msg_tests {
                         .expect("could not add stats dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("stats")
+                        .get_item(intern!(py, "stats"))
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
                                 intern!(py, "add_hook"),
@@ -3281,7 +3311,7 @@ mod handle_zmq_msg_tests {
                         .expect("this should not happen");
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (expected_json_data,))
+                            .call_method1(intern!(py, "assert_called_with"), (expected_json_data,))
                             .is_ok()
                     );
                 });
@@ -3467,10 +3497,10 @@ mod handle_zmq_msg_tests {
                         .add_dispatcher(&py.get_type::<TeamSwitchDispatcher>())
                         .expect("could not add team_switch dispatcher");
                     event_dispatcher
-                        .__getitem__("team_switch")
+                        .get_item(intern!(py, "team_switch"))
                         .and_then(|team_switch_dispatcher| {
                             team_switch_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     returning_false_hook(py),

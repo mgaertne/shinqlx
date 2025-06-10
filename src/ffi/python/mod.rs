@@ -889,7 +889,7 @@ fn pyshinqlx_parse_variables<'py>(
 
 #[cfg(test)]
 mod pyshinqlx_parse_variables_test {
-    use pyo3::prelude::*;
+    use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
     use super::{pyshinqlx_parse_variables, pyshinqlx_setup_fixture::*};
@@ -899,11 +899,11 @@ mod pyshinqlx_parse_variables_test {
     fn parse_variables_with_space(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let variables = pyshinqlx_parse_variables(py, r"\name\Unnamed Player\country\de", true);
-            assert!(variables.get_item("name").is_ok_and(|value| {
+            assert!(variables.get_item(intern!(py, "name")).is_ok_and(|value| {
                 value.is_some_and(|str_value| str_value.to_string() == "Unnamed Player")
             }));
             assert!(variables
-                .get_item("country")
+                .get_item(intern!(py, "country"))
                 .is_ok_and(|value| value.is_some_and(|str_value| str_value.to_string() == "de")));
         });
     }
@@ -975,7 +975,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                 )?;
 
                 logging_module
-                    .call_method0("StreamHandler")
+                    .call_method0(intern!(py, "StreamHandler"))
                     .and_then(|console_handler| {
                         console_handler.call_method1(intern!(py, "setLevel"), (&info_level,))?;
                         console_handler.call_method1(intern!(py, "setFormatter"), (console_fmt,))?;
@@ -994,7 +994,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                     let py_num_max_logs = PyInt::new(py, num_max_logs).into_any();
                     handlers_submodule
                         .call_method(
-                            "RotatingFileHandler",
+                            intern!(py, "RotatingFileHandler"),
                             (format!("{homepath}/shinqlx.log"),),
                             Some(
                                 &[
@@ -1015,7 +1015,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                 let datetime_now = py.import(intern!(py, "datetime")).and_then(|datetime_module| {
                     datetime_module
                         .getattr(intern!(py, "datetime"))
-                        .and_then(|datetime_object| datetime_object.call_method0("now"))
+                        .and_then(|datetime_object| datetime_object.call_method0(intern!(py, "now")))
                 })?;
                 shinqlx_logger
                     .call_method1(
@@ -1719,7 +1719,7 @@ test_func()
                 .expect("this should not happen");
             assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
             let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
-            let _ = frame_tasks.call_method1("cancel", (queue_entry,));
+            let _ = frame_tasks.call_method1(intern!(py, "cancel"), (queue_entry,));
             assert!(
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
@@ -1768,7 +1768,7 @@ test_func()
                 .expect("this should not happen");
             assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
             let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
-            let _ = frame_tasks.call_method1("cancel", (queue_entry,));
+            let _ = frame_tasks.call_method1(intern!(py, "cancel"), (queue_entry,));
             assert!(
                 frame_tasks
                     .call_method0(intern!(py, "empty"))

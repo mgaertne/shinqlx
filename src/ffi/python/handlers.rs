@@ -128,7 +128,7 @@ mod handle_rcon_tests {
             assert!(result.is_ok_and(|value| value.is_none()));
             assert!(
                 capturing_hook
-                    .call_method1("assert_called_with", ("_", ["asdf"], "_"))
+                    .call_method1(intern!(py, "assert_called_with"), ("_", ["asdf"], "_"))
                     .is_ok()
             );
         })
@@ -682,7 +682,7 @@ mod handle_client_command_tests {
                                 .expect("could not add client_command dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("client_command")
+                                .get_item(intern!(py, "client_command"))
                                 .and_then(|client_command_dispatcher| {
                                     client_command_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -706,7 +706,10 @@ mod handle_client_command_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
+                                    .call_method1(
+                                        intern!(py, "assert_called_with"),
+                                        ("_", "cp \"asdf\"",)
+                                    )
                                     .is_ok()
                             );
                         });
@@ -798,7 +801,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<ClientCommandDispatcher>())
                                 .expect("could not add client_command dispatcher");
                             event_dispatcher
-                                .__getitem__("client_command")
+                                .get_item(intern!(py, "client_command"))
                                 .and_then(|client_command_dispatcher| {
                                     client_command_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -872,7 +875,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<ClientCommandDispatcher>())
                                 .expect("could not add client_command dispatcher");
                             event_dispatcher
-                                .__getitem__("client_command")
+                                .get_item(intern!(py, "client_command"))
                                 .and_then(|client_command_dispatcher| {
                                     client_command_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -961,7 +964,7 @@ mod handle_client_command_tests {
                                 .expect("could not add chat dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("chat")
+                                .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -990,7 +993,7 @@ mod handle_client_command_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         ("_", "test with 'quotation marks'", "_"),
                                     )
                                     .is_ok()
@@ -1160,7 +1163,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<ChatEventDispatcher>())
                                 .expect("could not add chat dispatcher");
                             event_dispatcher
-                                .__getitem__("chat")
+                                .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1260,7 +1263,7 @@ mod handle_client_command_tests {
                                 .expect("could not add chat dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("chat")
+                                .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1289,7 +1292,7 @@ mod handle_client_command_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         ("_", "test with 'quotation marks'", "_"),
                                     )
                                     .is_ok()
@@ -1491,7 +1494,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<ChatEventDispatcher>())
                                 .expect("could not add chat dispatcher");
                             event_dispatcher
-                                .__getitem__("chat")
+                                .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1571,7 +1574,7 @@ mod handle_client_command_tests {
                                 .expect("could not add vote_started dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("vote_called")
+                                .get_item(intern!(py, "vote_called"))
                                 .and_then(|vote_called_dispatcher| {
                                     vote_called_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1597,7 +1600,7 @@ mod handle_client_command_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         ("_", "map", "thunderstruck")
                                     )
                                     .is_ok()
@@ -1661,7 +1664,7 @@ mod handle_client_command_tests {
                                 .expect("could not add vote_started dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("vote_called")
+                                .get_item(intern!(py, "vote_called"))
                                 .and_then(|vote_called_dispatcher| {
                                     vote_called_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1686,7 +1689,10 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_", "_"))
+                                    .call_method1(
+                                        intern!(py, "assert_called_with"),
+                                        ("_", "_", "_")
+                                    )
                                     .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                             );
                         });
@@ -1849,7 +1855,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<VoteStartedDispatcher>())
                                 .expect("could not add vote_started dispatcher");
                             event_dispatcher
-                                .__getitem__("vote_called")
+                                .get_item(intern!(py, "vote_called"))
                                 .and_then(|vote_called_dispatcher| {
                                     vote_called_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1937,7 +1943,7 @@ mod handle_client_command_tests {
                                 .expect("could not add vote dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("vote")
+                                .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -1962,7 +1968,7 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", vote,))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", vote,))
                                     .is_ok()
                             );
                         });
@@ -2021,7 +2027,7 @@ mod handle_client_command_tests {
                                 .expect("could not add vote dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("vote")
+                                .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2045,7 +2051,7 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", "_",))
                                     .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                             );
                         });
@@ -2113,7 +2119,7 @@ mod handle_client_command_tests {
                                 .expect("could not add vote dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("vote")
+                                .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2138,7 +2144,7 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", "_",))
                                     .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                             );
                         });
@@ -2252,7 +2258,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<VoteDispatcher>())
                                 .expect("could not add vote dispatcher");
                             event_dispatcher
-                                .__getitem__("vote")
+                                .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2339,7 +2345,7 @@ mod handle_client_command_tests {
                                 .expect("could not add team_switch_attempt dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("team_switch_attempt")
+                                .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2372,7 +2378,7 @@ mod handle_client_command_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         ("_", current_team, team_str)
                                     )
                                     .is_ok()
@@ -2432,7 +2438,7 @@ mod handle_client_command_tests {
                                 .expect("could not add team_switch_attempt dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("team_switch_attempt")
+                                .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2456,7 +2462,7 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", "_",))
                                     .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                             );
                         });
@@ -2522,7 +2528,7 @@ mod handle_client_command_tests {
                                 .expect("could not add team_switch_attempt dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("team_switch_attempt")
+                                .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2547,7 +2553,10 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_", "_",))
+                                    .call_method1(
+                                        intern!(py, "assert_called_with"),
+                                        ("_", "_", "_",)
+                                    )
                                     .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                             );
                         });
@@ -2654,7 +2663,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
                                 .expect("could not add team_switch_attempt dispatcher");
                             event_dispatcher
-                                .__getitem__("team_switch_attempt")
+                                .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2731,7 +2740,7 @@ mod handle_client_command_tests {
                                 .expect("could not add userinfo dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("userinfo")
+                                .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2759,7 +2768,7 @@ mod handle_client_command_tests {
                             }),);
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", "_",))
                                     .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                             );
                         });
@@ -2817,7 +2826,7 @@ mod handle_client_command_tests {
                                 .expect("could not add userinfo dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("userinfo")
+                                .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -2846,7 +2855,7 @@ mod handle_client_command_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         (
                                             "_",
                                             [("sex", "female"),]
@@ -2957,7 +2966,7 @@ mod handle_client_command_tests {
                                 .add_dispatcher(&py.get_type::<UserinfoDispatcher>())
                                 .expect("could not add userinfo dispatcher");
                             event_dispatcher
-                                .__getitem__("userinfo")
+                                .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -3048,7 +3057,7 @@ def returning_other_userinfo_hook(*args, **kwargs):
                             )
                             .expect("could not create returning other userinfo module");
                             event_dispatcher
-                                .__getitem__("userinfo")
+                                .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -3271,7 +3280,7 @@ mod handle_server_command_tests {
                         .expect("could not add server_command dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("server_command")
+                        .get_item(intern!(py, "server_command"))
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -3295,7 +3304,10 @@ mod handle_server_command_tests {
                     }));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (py.None(), "cp \"asdf\"",))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (py.None(), "cp \"asdf\"",)
+                            )
                             .is_ok()
                     );
                 });
@@ -3349,7 +3361,7 @@ mod handle_server_command_tests {
                                 .expect("could not add server_command dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("server_command")
+                                .get_item(intern!(py, "server_command"))
                                 .and_then(|server_command_dispatcher| {
                                     server_command_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -3373,7 +3385,10 @@ mod handle_server_command_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "cp \"asdf\"",))
+                                    .call_method1(
+                                        intern!(py, "assert_called_with"),
+                                        ("_", "cp \"asdf\"",)
+                                    )
                                     .is_ok()
                             );
                         });
@@ -3417,7 +3432,7 @@ mod handle_server_command_tests {
                         .add_dispatcher(&py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     event_dispatcher
-                        .__getitem__("server_command")
+                        .get_item(intern!(py, "server_command"))
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -3465,7 +3480,7 @@ mod handle_server_command_tests {
                         .add_dispatcher(&py.get_type::<ServerCommandDispatcher>())
                         .expect("could not add server_command dispatcher");
                     event_dispatcher
-                        .__getitem__("server_command")
+                        .get_item(intern!(py, "server_command"))
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -3520,7 +3535,7 @@ mod handle_server_command_tests {
                         .expect("could not add vote_ended dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("vote_ended")
+                        .get_item(intern!(py, "vote_ended"))
                         .and_then(|vote_ended_dispatcher| {
                             vote_ended_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -3545,7 +3560,7 @@ mod handle_server_command_tests {
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 ((42, 1), "map", "thunderstruck", true,)
                             )
                             .is_ok()
@@ -3585,7 +3600,7 @@ mod handle_server_command_tests {
                         .expect("could not add vote_ended dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("vote_ended")
+                        .get_item(intern!(py, "vote_ended"))
                         .and_then(|vote_ended_dispatcher| {
                             vote_ended_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -3610,7 +3625,7 @@ mod handle_server_command_tests {
                     assert!(
                         capturing_hook
                             .call_method1(
-                                "assert_called_with",
+                                intern!(py, "assert_called_with"),
                                 ((1, 42), "map", "thunderstruck", false,)
                             )
                             .is_ok()
@@ -3701,7 +3716,7 @@ def next_frame_tasks_runner():
         c"",
     )
     .and_then(|next_frame_tasks_runner| {
-        next_frame_tasks_runner.call_method0("next_frame_tasks_runner")?;
+        next_frame_tasks_runner.call_method0(intern!(py, "next_frame_tasks_runner"))?;
         Ok(())
     })
     .unwrap_or_else(|e| log_exception(py, &e));
@@ -3862,7 +3877,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
             assert!(result.is_ok());
             assert!(
                 capturing_hook
-                    .call_method1("assert_called_with", ("asdf", 42,))
+                    .call_method1(intern!(py, "assert_called_with"), ("asdf", 42,))
                     .is_ok()
             );
         });
@@ -3893,7 +3908,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                         .expect("could not add frame dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("frame")
+                        .get_item(intern!(py, "frame"))
                         .and_then(|frame_dispatcher| {
                             frame_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -3913,7 +3928,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                     assert!(result.is_ok());
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ())
+                            .call_method1(intern!(py, "assert_called_with"), ())
                             .is_ok()
                     );
                 });
@@ -3974,18 +3989,26 @@ for event in frame_tasks.queue:
             .expect("this should not happend");
 
             transfer_next_frame_tasks(py);
-            assert!(frame_tasks.call_method0("empty").is_ok_and(|value| {
-                value
-                    .downcast::<PyBool>()
-                    .expect("this should not happen")
-                    .is_true()
-            }));
-            assert!(next_frame_tasks.call_method0("empty").is_ok_and(|value| {
-                value
-                    .downcast::<PyBool>()
-                    .expect("this should not happen")
-                    .is_true()
-            }));
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .expect("this should not happen")
+                            .is_true()
+                    })
+            );
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .expect("this should not happen")
+                            .is_true()
+                    })
+            );
             py.run(
                 cr#"
 for event in frame_tasks.queue:
@@ -4016,7 +4039,7 @@ for event in frame_tasks.queue:
                 .expect("this should not happen");
             next_frame_tasks
                 .call_method1(
-                    "put_nowait",
+                    intern!(py, "put_nowait"),
                     ((capturing_hook, PyTuple::empty(py), PyDict::new(py)),),
                 )
                 .expect("this should not happen");
@@ -4038,18 +4061,26 @@ for event in frame_tasks.queue:
             .expect("this should not happend");
 
             transfer_next_frame_tasks(py);
-            assert!(frame_tasks.call_method0("empty").is_ok_and(|value| {
-                !value
-                    .downcast::<PyBool>()
-                    .expect("this should not happen")
-                    .is_true()
-            }));
-            assert!(next_frame_tasks.call_method0("empty").is_ok_and(|value| {
-                value
-                    .downcast::<PyBool>()
-                    .expect("this should not happen")
-                    .is_true()
-            }));
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| {
+                        !value
+                            .downcast::<PyBool>()
+                            .expect("this should not happen")
+                            .is_true()
+                    })
+            );
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| {
+                        value
+                            .downcast::<PyBool>()
+                            .expect("this should not happen")
+                            .is_true()
+                    })
+            );
         });
     }
 
@@ -4103,7 +4134,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
                         .expect("could not add frame dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("frame")
+                        .get_item(intern!(py, "frame"))
                         .and_then(|frame_dispatcher| {
                             frame_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -4123,7 +4154,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
                     assert!(result.is_none());
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ())
+                            .call_method1(intern!(py, "assert_called_with"), ())
                             .is_ok()
                     );
                 });
@@ -4380,7 +4411,7 @@ mod handle_new_game_tests {
                         .expect("could not add new_game dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("new_game")
+                        .get_item(intern!(py, "new_game"))
                         .and_then(|new_game_dispatcher| {
                             new_game_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -4402,7 +4433,7 @@ mod handle_new_game_tests {
 
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ())
+                            .call_method1(intern!(py, "assert_called_with"), ())
                             .is_ok()
                     );
                 });
@@ -4502,7 +4533,7 @@ mod handle_new_game_tests {
                         .expect("could not add map dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("new_game")
+                        .get_item(intern!(py, "new_game"))
                         .and_then(|new_game_dispatcher| {
                             new_game_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -4517,7 +4548,7 @@ mod handle_new_game_tests {
                         })
                         .expect("could not add hook to new_game dispatcher");
                     event_dispatcher
-                        .__getitem__("map")
+                        .get_item(intern!(py, "map"))
                         .and_then(|map_dispatcher| {
                             map_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -4539,12 +4570,12 @@ mod handle_new_game_tests {
 
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ("campgrounds", "ffa"))
+                            .call_method1(intern!(py, "assert_called_with"), ("campgrounds", "ffa"))
                             .is_ok()
                     );
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ())
+                            .call_method1(intern!(py, "assert_called_with"), ())
                             .is_ok()
                     );
                 });
@@ -5261,7 +5292,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add set_configstring dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("set_configstring")
+                        .get_item(intern!(py, "set_configstring"))
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5285,7 +5316,7 @@ mod handle_set_configstring_tests {
                     }));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (CS_AUTHOR, "ShiN0"))
+                            .call_method1(intern!(py, "assert_called_with"), (CS_AUTHOR, "ShiN0"))
                             .is_ok()
                     );
                 });
@@ -5316,7 +5347,7 @@ mod handle_set_configstring_tests {
                         .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .__getitem__("set_configstring")
+                        .get_item(intern!(py, "set_configstring"))
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5382,7 +5413,7 @@ mod handle_set_configstring_tests {
                         .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
                         .expect("could not add set_configstring dispatcher");
                     event_dispatcher
-                        .__getitem__("set_configstring")
+                        .get_item(intern!(py, "set_configstring"))
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5434,7 +5465,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("vote_started")
+                        .get_item(intern!(py, "vote_started"))
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5454,7 +5485,10 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (py.None(), "restart", ""))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (py.None(), "restart", "")
+                            )
                             .is_ok()
                     );
                 });
@@ -5489,7 +5523,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("vote_started")
+                        .get_item(intern!(py, "vote_started"))
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5510,7 +5544,10 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (py.None(), "map", "thunderstruck"))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (py.None(), "map", "thunderstruck")
+                            )
                             .is_ok()
                     );
                 });
@@ -5545,7 +5582,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add vote_started dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("vote_started")
+                        .get_item(intern!(py, "vote_started"))
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5569,7 +5606,10 @@ mod handle_set_configstring_tests {
                     }));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (py.None(), "map", "thunderstruck"))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                (py.None(), "map", "thunderstruck")
+                            )
                             .is_err_and(|err| err.is_instance_of::<PyAssertionError>(py))
                     );
                 });
@@ -5690,7 +5730,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add game_countdown dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("game_countdown")
+                        .get_item(intern!(py, "game_countdown"))
                         .and_then(|game_countdown_dispatcher| {
                             game_countdown_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5716,7 +5756,7 @@ mod handle_set_configstring_tests {
                     }));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ())
+                            .call_method1(intern!(py, "assert_called_with"), ())
                             .is_ok()
                     );
                     assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 1);
@@ -5845,7 +5885,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add round_start dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("round_start")
+                        .get_item(intern!(py, "round_start"))
                         .and_then(|round_start_dispatcher| {
                             round_start_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5865,7 +5905,7 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (7,))
+                            .call_method1(intern!(py, "assert_called_with"), (7,))
                             .is_ok()
                     );
                 });
@@ -5902,7 +5942,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add round_start dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("round_start")
+                        .get_item(intern!(py, "round_start"))
                         .and_then(|round_start_dispatcher| {
                             round_start_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5926,7 +5966,7 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (18,))
+                            .call_method1(intern!(py, "assert_called_with"), (18,))
                             .is_ok()
                     );
                     assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 18);
@@ -5964,7 +6004,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add round_countdown dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("round_countdown")
+                        .get_item(intern!(py, "round_countdown"))
                         .and_then(|round_countdown_dispatcher| {
                             round_countdown_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -5985,7 +6025,7 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (7,))
+                            .call_method1(intern!(py, "assert_called_with"), (7,))
                             .is_ok()
                     );
                 });
@@ -6022,7 +6062,7 @@ mod handle_set_configstring_tests {
                         .expect("could not add round_countdown dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("round_countdown")
+                        .get_item(intern!(py, "round_countdown"))
                         .and_then(|round_countdown_dispatcher| {
                             round_countdown_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -6046,7 +6086,7 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| value.is_none(py)));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", (8,))
+                            .call_method1(intern!(py, "assert_called_with"), (8,))
                             .is_ok()
                     );
                     assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 8);
@@ -6416,7 +6456,7 @@ mod handle_player_connect_tests {
                                 .expect("could not add player_connect dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("player_connect")
+                                .get_item(intern!(py, "player_connect"))
                                 .and_then(|player_connect_dispatcher| {
                                     player_connect_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -6441,7 +6481,7 @@ mod handle_player_connect_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_",))
                                     .is_ok()
                             );
                         });
@@ -6512,7 +6552,7 @@ mod handle_player_connect_tests {
                                 .add_dispatcher(&py.get_type::<PlayerConnectDispatcher>())
                                 .expect("could not add player_connect dispatcher");
                             event_dispatcher
-                                .__getitem__("player_connect")
+                                .get_item(intern!(py, "player_connect"))
                                 .and_then(|player_connect_dispatcher| {
                                     player_connect_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -6675,7 +6715,7 @@ mod handle_player_loaded_tests {
                                 .expect("could not add client_loaded dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("player_loaded")
+                                .get_item(intern!(py, "player_loaded"))
                                 .and_then(|player_loaded_dispatcher| {
                                     player_loaded_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -6700,7 +6740,7 @@ mod handle_player_loaded_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_",))
                                     .is_ok()
                             );
                         });
@@ -6871,7 +6911,7 @@ mod handle_player_disconnect_tests {
                                 .expect("could not add player_disconnect dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("player_disconnect")
+                                .get_item(intern!(py, "player_disconnect"))
                                 .and_then(|player_disconnect_dispatcher| {
                                     player_disconnect_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -6896,7 +6936,7 @@ mod handle_player_disconnect_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", "_"))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", "_"))
                                     .is_ok()
                             );
                         });
@@ -7059,7 +7099,7 @@ mod handle_player_spawn_tests {
                                 .expect("could not add player_spawn dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("player_spawn")
+                                .get_item(intern!(py, "player_spawn"))
                                 .and_then(|player_spawn_dispatcher| {
                                     player_spawn_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7084,7 +7124,7 @@ mod handle_player_spawn_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_",))
                                     .is_ok()
                             );
                         });
@@ -7245,7 +7285,7 @@ mod handle_kamikaze_use_tests {
                                 .expect("could not add kamikaze_use dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("kamikaze_use")
+                                .get_item(intern!(py, "kamikaze_use"))
                                 .and_then(|kamikaze_use_dispatcher| {
                                     kamikaze_use_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7270,7 +7310,7 @@ mod handle_kamikaze_use_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_",))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_",))
                                     .is_ok()
                             );
                         });
@@ -7440,7 +7480,7 @@ mod handle_kamikaze_explode_tests {
                                 .expect("could not add kamikaze_explode dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("kamikaze_explode")
+                                .get_item(intern!(py, "kamikaze_explode"))
                                 .and_then(|kamikaze_explode_dispatcher| {
                                     kamikaze_explode_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7465,7 +7505,7 @@ mod handle_kamikaze_explode_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", false))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", false))
                                     .is_ok()
                             );
                         });
@@ -7520,7 +7560,7 @@ mod handle_kamikaze_explode_tests {
                                 .expect("could not add kamikaze_explode dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("kamikaze_explode")
+                                .get_item(intern!(py, "kamikaze_explode"))
                                 .and_then(|kamikaze_explode_dispatcher| {
                                     kamikaze_explode_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7545,7 +7585,7 @@ mod handle_kamikaze_explode_tests {
                             }));
                             assert!(
                                 capturing_hook
-                                    .call_method1("assert_called_with", ("_", true))
+                                    .call_method1(intern!(py, "assert_called_with"), ("_", true))
                                     .is_ok()
                             );
                         });
@@ -7788,7 +7828,7 @@ mod handle_damage_tests {
                                 .expect("could not add damage dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("damage")
+                                .get_item(intern!(py, "damage"))
                                 .and_then(|damage_dispatcher| {
                                     damage_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7816,7 +7856,7 @@ mod handle_damage_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         (
                                             "_",
                                             py.None(),
@@ -7879,7 +7919,7 @@ mod handle_damage_tests {
                                 .expect("could not add damage dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("damage")
+                                .get_item(intern!(py, "damage"))
                                 .and_then(|damage_dispatcher| {
                                     damage_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7907,7 +7947,7 @@ mod handle_damage_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         (420, "_", 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
                                     )
                                     .is_ok()
@@ -7964,7 +8004,7 @@ mod handle_damage_tests {
                                 .expect("could not add damage dispatcher");
                             let capturing_hook = capturing_hook(py);
                             event_dispatcher
-                                .__getitem__("damage")
+                                .get_item(intern!(py, "damage"))
                                 .and_then(|damage_dispatcher| {
                                     damage_dispatcher
                                         .downcast::<EventDispatcher>()
@@ -7992,7 +8032,7 @@ mod handle_damage_tests {
                             assert!(
                                 capturing_hook
                                     .call_method1(
-                                        "assert_called_with",
+                                        intern!(py, "assert_called_with"),
                                         ("_", 420, 42, DAMAGE_NO_PROTECTION, MOD_ROCKET as i32)
                                     )
                                     .is_ok()
@@ -8188,7 +8228,7 @@ mod handle_console_print_tests {
                         .expect("could not add console_print dispatcher");
                     let capturing_hook = capturing_hook(py);
                     event_dispatcher
-                        .__getitem__("console_print")
+                        .get_item(intern!(py, "console_print"))
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -8212,7 +8252,7 @@ mod handle_console_print_tests {
                     }));
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ("asdf",))
+                            .call_method1(intern!(py, "assert_called_with"), ("asdf",))
                             .is_ok()
                     );
                 });
@@ -8245,7 +8285,7 @@ mod handle_console_print_tests {
                         .add_dispatcher(&py.get_type::<ConsolePrintDispatcher>())
                         .expect("could not add console_print dispatcher");
                     event_dispatcher
-                        .__getitem__("console_print")
+                        .get_item(intern!(py, "console_print"))
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -8296,7 +8336,7 @@ mod handle_console_print_tests {
                         .add_dispatcher(&py.get_type::<ConsolePrintDispatcher>())
                         .expect("could not add console_print dispatcher");
                     event_dispatcher
-                        .__getitem__("console_print")
+                        .get_item(intern!(py, "console_print"))
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher
                                 .downcast::<EventDispatcher>()
@@ -8609,7 +8649,7 @@ def test_function():
                 c"print_redirector_sample",
             )
             .expect("this should not happen");
-            let result = sample_module.call_method0("test_function");
+            let result = sample_module.call_method0(intern!(py, "test_function"));
             assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
         });
     }

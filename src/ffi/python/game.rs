@@ -885,6 +885,7 @@ mod pyshinqlx_game_tests {
     use pretty_assertions::assert_eq;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
+        intern,
         types::{PyBool, PyInt, PyList, PyString},
     };
     use rstest::rstest;
@@ -1220,7 +1221,7 @@ mod pyshinqlx_game_tests {
         Python::with_gil(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
-            let result = game.get_item("asdf");
+            let result = game.get_item(intern!(py, "asdf"));
 
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)),);
         });
@@ -1236,7 +1237,7 @@ mod pyshinqlx_game_tests {
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_item("asdf");
+                    let result = game.get_item(intern!(py, "asdf"));
 
                     assert!(
                         result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
@@ -1255,7 +1256,7 @@ mod pyshinqlx_game_tests {
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_item("asdf");
+                    let result = game.get_item(intern!(py, "asdf"));
 
                     assert!(result.is_ok_and(|py_result| py_result.to_string() == "12"));
                 });
@@ -1272,7 +1273,7 @@ mod pyshinqlx_game_tests {
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_item("qwertz");
+                    let result = game.get_item(intern!(py, "qwertz"));
 
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
@@ -1289,7 +1290,7 @@ mod pyshinqlx_game_tests {
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_item("asdf");
+                    let result = game.get_item(intern!(py, "asdf"));
 
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
@@ -1306,7 +1307,7 @@ mod pyshinqlx_game_tests {
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.get_item("asdf");
+                    let result = game.get_item(intern!(py, "asdf"));
 
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
@@ -1355,16 +1356,13 @@ mod pyshinqlx_game_tests {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let cvars_result = game.get_cvars();
-                    assert!(
-                        cvars_result.is_ok_and(|cvars| cvars.get_item("asdf").is_ok_and(
-                            |opt_value| {
-                                opt_value.is_some_and(|value| {
-                                    value.extract::<String>().expect("this should not happen")
-                                        == "42"
-                                })
-                            }
-                        ))
-                    );
+                    assert!(cvars_result.is_ok_and(|cvars| {
+                        cvars.get_item(intern!(py, "asdf")).is_ok_and(|opt_value| {
+                            opt_value.is_some_and(|value| {
+                                value.extract::<String>().expect("this should not happen") == "42"
+                            })
+                        })
+                    }));
                 });
             });
     }

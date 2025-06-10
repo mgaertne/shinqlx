@@ -715,7 +715,7 @@ class mocked_db:
 
             let result = py
                 .import(intern!(py, "gc"))
-                .and_then(|gc| gc.call_method0("collect"));
+                .and_then(|gc| gc.call_method0(intern!(py, "collect")));
             assert!(result.is_ok());
         });
     }
@@ -756,7 +756,7 @@ class mocked_db:
             assert!(
                 capturing_hook
                     .call_method1(
-                        "assert_called_with",
+                        intern!(py, "assert_called_with"),
                         (default_test_player(), ["cmd"], py.None(),)
                     )
                     .is_ok()
@@ -2494,7 +2494,10 @@ mod command_invoker_tests {
                     );
                     assert!(
                         capturing_hook
-                            .call_method1("assert_called_with", ("_", ["cmd_name"], "_"))
+                            .call_method1(
+                                intern!(py, "assert_called_with"),
+                                ("_", ["cmd_name"], "_")
+                            )
                             .is_ok()
                     );
                 });
@@ -2523,10 +2526,10 @@ mod command_invoker_tests {
                         .add_dispatcher(&py.get_type::<CommandDispatcher>())
                         .expect("could not add command dispatcher");
                     event_dispatcher
-                        .__getitem__("command")
+                        .get_item(intern!(py, "command"))
                         .and_then(|command_dispatcher| {
                             command_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     returning_false_hook(py),
