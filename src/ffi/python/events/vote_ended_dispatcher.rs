@@ -95,8 +95,8 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
             self.py(),
             [
                 PyTuple::new(self.py(), [yes_votes, no_votes])?.into_any(),
-                PyString::new(self.py(), vote).into_any(),
-                PyString::new(self.py(), args).into_any(),
+                PyString::intern(self.py(), vote).into_any(),
+                PyString::intern(self.py(), args).into_any(),
                 PyBool::new(self.py(), passed).to_owned().into_any(),
             ],
         )?;
@@ -111,7 +111,7 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
 mod vote_ended_dispatcher_tests {
     use core::borrow::BorrowMut;
 
-    use pyo3::prelude::*;
+    use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
     use super::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
@@ -177,7 +177,7 @@ def throws_exception_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("throws_exception_hook")
+                    .getattr(intern!(py, "throws_exception_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -228,7 +228,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -281,7 +281,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -334,7 +334,7 @@ def returns_stop_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_hook")
+                    .getattr(intern!(py, "returns_stop_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -387,7 +387,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_event_hook")
+                    .getattr(intern!(py, "returns_stop_event_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -440,7 +440,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_all_hook")
+                    .getattr(intern!(py, "returns_stop_all_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -491,7 +491,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -540,7 +540,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -589,7 +589,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher

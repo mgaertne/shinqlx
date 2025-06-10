@@ -45,6 +45,7 @@ mod unload_dispatcher_tests {
     use core::borrow::BorrowMut;
 
     use pyo3::{
+        intern,
         prelude::*,
         types::{PyBool, PyString},
     };
@@ -68,7 +69,7 @@ mod unload_dispatcher_tests {
             let dispatcher =
                 Bound::new(py, UnloadDispatcher::py_new(py)).expect("this should not happen");
 
-            let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+            let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
             assert!(result.is_ok_and(|value| {
                 value
                     .downcast::<PyBool>()
@@ -107,7 +108,7 @@ def throws_exception_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("throws_exception_hook")
+                    .getattr(intern!(py, "throws_exception_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -119,7 +120,7 @@ def throws_exception_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()
@@ -159,7 +160,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -171,7 +172,7 @@ def returns_none_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()
@@ -213,7 +214,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -225,7 +226,7 @@ def returns_none_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()
@@ -267,7 +268,7 @@ def returns_stop_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_hook")
+                    .getattr(intern!(py, "returns_stop_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -279,7 +280,7 @@ def returns_stop_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()
@@ -321,7 +322,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_event_hook")
+                    .getattr(intern!(py, "returns_stop_event_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -333,7 +334,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()
@@ -375,7 +376,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_all_hook")
+                    .getattr(intern!(py, "returns_stop_all_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -387,7 +388,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()
@@ -427,7 +428,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -439,7 +440,7 @@ def returns_string_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.dispatch(PyString::new(py, "asdf").as_any());
+                    let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
                             .downcast::<PyBool>()

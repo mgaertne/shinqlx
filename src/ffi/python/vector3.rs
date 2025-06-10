@@ -90,7 +90,10 @@ impl Vector3 {
 #[cfg(test)]
 mod vector3_tests {
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::{PyTypeError, PyValueError};
+    use pyo3::{
+        exceptions::{PyTypeError, PyValueError},
+        intern,
+    };
     use rstest::rstest;
 
     use crate::ffi::python::prelude::*;
@@ -99,14 +102,16 @@ mod vector3_tests {
     #[cfg_attr(miri, ignore)]
     fn vector3_tuple_test(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let vector3 = shinqlx_module
-                .getattr("Vector3")
+                .getattr(intern!(py, "Vector3"))
                 .expect("this should not happen");
             let tuple = py
-                .import("builtins")
+                .import(intern!(py, "builtins"))
                 .expect("this should not happen")
-                .getattr("tuple")
+                .getattr(intern!(py, "tuple"))
                 .expect("this should not happen");
             assert!(
                 vector3

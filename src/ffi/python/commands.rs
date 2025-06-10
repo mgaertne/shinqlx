@@ -61,12 +61,20 @@ impl Command {
                 "'handler' must be a callable function.",
             ));
         }
-        if !channels.is_none() && channels.getattr("__iter__").is_err() {
+        if !channels.is_none()
+            && channels
+                .getattr(intern!(channels.py(), "__iter__"))
+                .is_err()
+        {
             return Err(PyValueError::new_err(
                 "'channels' must be a finite iterable or None.",
             ));
         }
-        if !exclude_channels.is_none() && exclude_channels.getattr("__iter__").is_err() {
+        if !exclude_channels.is_none()
+            && exclude_channels
+                .getattr(intern!(exclude_channels.py(), "__iter__"))
+                .is_err()
+        {
             return Err(PyValueError::new_err(
                 "'exclude_channels' must be a finite iterable or None.",
             ));
@@ -230,7 +238,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             .get_name()?;
         pyshinqlx_get_logger(
             self.py(),
-            Some(PyString::new(self.py(), &plugin_name).into_any()),
+            Some(PyString::intern(self.py(), &plugin_name).into_any()),
         )
         .and_then(|logger| {
             let debug_level = self
@@ -365,6 +373,7 @@ mod command_tests {
 
     use pyo3::{
         exceptions::{PyKeyError, PyValueError},
+        intern,
         prelude::*,
         types::{PyBool, PyList, PyString, PyTuple},
     };
@@ -390,9 +399,9 @@ class mocked_db:
             c"",
             c"",
         )
-        .and_then(|db_stub| db_stub.getattr("mocked_db"))
+        .and_then(|db_stub| db_stub.getattr(intern!(py, "mocked_db")))
         .and_then(|db_class| db_class.call0())
-        .and_then(|db_instance| test_plugin.setattr("db", db_instance))?;
+        .and_then(|db_instance| test_plugin.setattr(intern!(py, "db"), db_instance))?;
         Ok(test_plugin)
     }
 
@@ -432,7 +441,7 @@ class mocked_db:
                 &test_plugin(py).call0().expect("this should not happen"),
                 py.None().bind(py),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 chat_channel.as_any(),
@@ -462,7 +471,7 @@ class mocked_db:
                 &test_plugin(py).call0().expect("this should not happen"),
                 py.None().bind(py),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 py.None().bind(py),
@@ -493,7 +502,7 @@ class mocked_db:
                 &test_plugin(py).call0().expect("this should not happen"),
                 names_pylist.as_any(),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 py.None().bind(py),
@@ -524,7 +533,7 @@ class mocked_db:
                 &test_plugin(py).call0().expect("this should not happen"),
                 names_pytuple.as_any(),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 py.None().bind(py),
@@ -546,9 +555,9 @@ class mocked_db:
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
-                PyString::new(py, "cmd_name").as_any(),
+                PyString::intern(py, "cmd_name").as_any(),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 py.None().bind(py),
@@ -579,9 +588,9 @@ class mocked_db:
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
-                PyString::new(py, "cmd_name").as_any(),
+                PyString::intern(py, "cmd_name").as_any(),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 PyList::new(
@@ -632,9 +641,9 @@ class mocked_db:
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
-                PyString::new(py, "cmd_name").as_any(),
+                PyString::intern(py, "cmd_name").as_any(),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 py.None().bind(py),
@@ -685,9 +694,9 @@ class mocked_db:
 
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
-                PyString::new(py, "cmd_name").as_any(),
+                PyString::intern(py, "cmd_name").as_any(),
                 &capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook"),
                 0,
                 PyList::new(py, [chat_channel.into_any()])
@@ -704,7 +713,9 @@ class mocked_db:
             .expect("this should not happen");
             let _py_command = Bound::new(py, command).expect("this should not happen");
 
-            let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
+            let result = py
+                .import(intern!(py, "gc"))
+                .and_then(|gc| gc.call_method0("collect"));
             assert!(result.is_ok());
         });
     }
@@ -722,7 +733,7 @@ class mocked_db:
                     .unbind(),
                 name: vec!["cmd".to_string()],
                 handler: capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook")
                     .unbind(),
                 permission: 0,
@@ -765,7 +776,7 @@ class mocked_db:
                     .unbind(),
                 name: vec![],
                 handler: capturing_hook
-                    .getattr("hook")
+                    .getattr(intern!(py, "hook"))
                     .expect("could not get capturing hook")
                     .unbind(),
                 permission: 0,
@@ -802,7 +813,7 @@ class mocked_db:
                         .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
-                        .getattr("hook")
+                        .getattr(intern!(py, "hook"))
                         .expect("could not get capturing hook")
                         .unbind(),
                     permission: 0,
@@ -850,7 +861,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 0,
@@ -885,7 +896,7 @@ class mocked_db:
                         .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
-                        .getattr("hook")
+                        .getattr(intern!(py, "hook"))
                         .expect("could not get capturing hook")
                         .unbind(),
                     permission: 0,
@@ -943,7 +954,7 @@ class mocked_db:
                         .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
-                        .getattr("hook")
+                        .getattr(intern!(py, "hook"))
                         .expect("could not get capturing hook")
                         .unbind(),
                     permission: 0,
@@ -1021,7 +1032,7 @@ class mocked_db:
                         .unbind(),
                     name: vec!["cmd_name".into()],
                     handler: capturing_hook
-                        .getattr("hook")
+                        .getattr(intern!(py, "hook"))
                         .expect("could not get capturing hook")
                         .unbind(),
                     permission: 0,
@@ -1078,7 +1089,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 5,
@@ -1125,7 +1136,7 @@ class mocked_db:
                             plugin: test_plugin(py).unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 5,
@@ -1186,7 +1197,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 5,
@@ -1237,7 +1248,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 0,
@@ -1297,7 +1308,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 5,
@@ -1348,7 +1359,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 0,
@@ -1403,7 +1414,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 5,
@@ -1458,7 +1469,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 5,
@@ -1513,7 +1524,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 1,
@@ -1568,7 +1579,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 3,
@@ -1623,7 +1634,7 @@ class mocked_db:
                                 .unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 1,
@@ -1675,7 +1686,7 @@ class mocked_db:
                             plugin: test_plugin.unbind(),
                             name: vec!["cmd_name".into()],
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             permission: 3,
@@ -2089,6 +2100,7 @@ mod command_invoker_tests {
     use mockall::predicate;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyValueError},
+        intern,
         prelude::*,
     };
     use rstest::*;
@@ -2456,7 +2468,7 @@ mod command_invoker_tests {
                         py,
                         Command {
                             handler: capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook")
                                 .unbind(),
                             client_cmd_pass: pass_through,
@@ -2600,7 +2612,7 @@ def cmd_handler(*args, **kwargs):
                         c"",
                         c"",
                     )
-                    .and_then(|result| result.getattr("cmd_handler"))
+                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
                     .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),
@@ -2684,7 +2696,7 @@ def cmd_handler(*args, **kwargs):
                         c"",
                         c"",
                     )
-                    .and_then(|result| result.getattr("cmd_handler"))
+                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
                     .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),
@@ -2773,7 +2785,7 @@ def cmd_handler(*args, **kwargs):
                         c"",
                         c"",
                     )
-                    .and_then(|result| result.getattr("cmd_handler"))
+                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
                     .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),
@@ -2848,7 +2860,7 @@ def cmd_handler(*args, **kwargs):
                         c"",
                         c"",
                     )
-                    .and_then(|result| result.getattr("cmd_handler"))
+                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
                     .expect("this should not happen");
                     let command = Command {
                         handler: handler.unbind(),

@@ -53,7 +53,7 @@ impl<'py> VoteCalledDispatcherMethods<'py> for Bound<'py, VoteCalledDispatcher> 
             self.py(),
             [
                 player.as_any(),
-                PyString::new(self.py(), vote).as_any(),
+                PyString::intern(self.py(), vote).as_any(),
                 args,
             ],
         )?;
@@ -65,6 +65,7 @@ mod vote_called_dispatcher_tests {
     use core::borrow::BorrowMut;
 
     use pyo3::{
+        intern,
         prelude::*,
         types::{PyBool, PyString},
     };
@@ -92,7 +93,7 @@ mod vote_called_dispatcher_tests {
             let result = dispatcher.dispatch(
                 &Bound::new(py, default_test_player()).expect("this should not happen"),
                 "map",
-                PyString::new(py, "thunderstruck").as_any(),
+                PyString::intern(py, "thunderstruck").as_any(),
             );
             assert!(result.is_ok_and(|value| {
                 value
@@ -132,7 +133,7 @@ def throws_exception_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("throws_exception_hook")
+                    .getattr(intern!(py, "throws_exception_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -147,7 +148,7 @@ def throws_exception_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -188,7 +189,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -203,7 +204,7 @@ def returns_none_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -246,7 +247,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -261,7 +262,7 @@ def returns_none_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -304,7 +305,7 @@ def returns_stop_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_hook")
+                    .getattr(intern!(py, "returns_stop_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -319,7 +320,7 @@ def returns_stop_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -362,7 +363,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_event_hook")
+                    .getattr(intern!(py, "returns_stop_event_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -377,7 +378,7 @@ def returns_stop_event_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -420,7 +421,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_all_hook")
+                    .getattr(intern!(py, "returns_stop_all_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -435,7 +436,7 @@ def returns_stop_all_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -476,7 +477,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -491,7 +492,7 @@ def returns_string_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
                         "map",
-                        PyString::new(py, "thunderstruck").as_any(),
+                        PyString::intern(py, "thunderstruck").as_any(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value

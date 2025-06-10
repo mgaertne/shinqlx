@@ -47,7 +47,7 @@ impl<'py> PlayerLoadedDispatcherMethods<'py> for Bound<'py, PlayerLoadedDispatch
 mod player_loaded_dispatcher_tests {
     use core::borrow::BorrowMut;
 
-    use pyo3::{prelude::*, types::PyBool};
+    use pyo3::{intern, prelude::*, types::PyBool};
     use rstest::rstest;
 
     use super::{PlayerLoadedDispatcher, PlayerLoadedDispatcherMethods};
@@ -109,7 +109,7 @@ def throws_exception_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("throws_exception_hook")
+                    .getattr(intern!(py, "throws_exception_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -163,7 +163,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -217,7 +217,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -273,7 +273,7 @@ def returns_stop_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_hook")
+                    .getattr(intern!(py, "returns_stop_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -329,7 +329,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_event_hook")
+                    .getattr(intern!(py, "returns_stop_event_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -385,7 +385,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_all_hook")
+                    .getattr(intern!(py, "returns_stop_all_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -439,7 +439,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher

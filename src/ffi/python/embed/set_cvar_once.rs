@@ -56,8 +56,12 @@ mod set_cvar_once_tests {
     #[serial]
     fn set_cvar_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let result =
-                pyshinqlx_set_cvar_once(py, "sv_maxclients", PyString::new(py, "64").as_any(), 0);
+            let result = pyshinqlx_set_cvar_once(
+                py,
+                "sv_maxclients",
+                PyString::intern(py, "64").as_any(),
+                0,
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
     }
@@ -111,7 +115,7 @@ mod set_cvar_once_tests {
                     pyshinqlx_set_cvar_once(
                         py,
                         "sv_maxclients",
-                        PyString::new(py, "64").as_any(),
+                        PyString::intern(py, "64").as_any(),
                         cvar_flags::CVAR_ROM as i32,
                     )
                 })

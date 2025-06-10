@@ -616,7 +616,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
             c"",
         )
         .expect("this should not happen")
-        .getattr("CustomDispatcher")
+        .getattr(intern!(py, "CustomDispatcher"))
         .expect("this should not happen")
         .call0()
         .expect("this should not happen")
@@ -633,7 +633,7 @@ def custom_hook(*args, **kwargs):
             c"",
         )
         .expect("this should not happen")
-        .getattr("custom_hook")
+        .getattr(intern!(py, "custom_hook"))
         .expect("this should not happen")
     }
 
@@ -644,7 +644,7 @@ def custom_hook(*args, **kwargs):
         Python::with_gil(|py| {
             let dispatcher = custom_dispatcher(py);
 
-            let result = dispatcher.getattr("plugins");
+            let result = dispatcher.getattr(intern!(py, "plugins"));
             assert!(
                 result.is_ok_and(|value| value
                     .downcast::<PyDict>()
@@ -674,7 +674,7 @@ def custom_hook(*args, **kwargs):
                     let dispatcher = custom_dispatcher(py);
                     dispatcher
                         .call_method1(
-                            "add_hook",
+                            intern!(py, "add_hook"),
                             (
                                 "prio5_plugin",
                                 custom_hook(py),
@@ -684,7 +684,7 @@ def custom_hook(*args, **kwargs):
                         .expect("this should not happen");
                     dispatcher
                         .call_method1(
-                            "add_hook",
+                            intern!(py, "add_hook"),
                             (
                                 "prio4_plugin",
                                 custom_hook(py),
@@ -695,7 +695,7 @@ def custom_hook(*args, **kwargs):
 
                     dispatcher
                         .call_method1(
-                            "add_hook",
+                            intern!(py, "add_hook"),
                             (
                                 "prio3_plugin",
                                 custom_hook(py),
@@ -706,7 +706,7 @@ def custom_hook(*args, **kwargs):
 
                     dispatcher
                         .call_method1(
-                            "add_hook",
+                            intern!(py, "add_hook"),
                             (
                                 "prio2_plugin",
                                 custom_hook(py),
@@ -717,7 +717,7 @@ def custom_hook(*args, **kwargs):
 
                     dispatcher
                         .call_method1(
-                            "add_hook",
+                            intern!(py, "add_hook"),
                             (
                                 "prio1_plugin",
                                 custom_hook(py),
@@ -726,7 +726,7 @@ def custom_hook(*args, **kwargs):
                         )
                         .expect("this should not happen");
 
-                    let result = dispatcher.getattr("plugins");
+                    let result = dispatcher.getattr(intern!(py, "plugins"));
                     assert!(result.is_ok_and(|value| {
                         value.downcast::<PyDict>().is_ok_and(|dict| dict.len() == 5)
                     }));
@@ -779,7 +779,7 @@ def throws_exception_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("throws_exception_hook")
+                    .getattr(intern!(py, "throws_exception_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -834,7 +834,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -891,7 +891,7 @@ def returns_none_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_none_hook")
+                    .getattr(intern!(py, "returns_none_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -948,7 +948,7 @@ def returns_stop_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_hook")
+                    .getattr(intern!(py, "returns_stop_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1005,7 +1005,7 @@ def returns_stop_event_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_event_hook")
+                    .getattr(intern!(py, "returns_stop_event_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1062,7 +1062,7 @@ def returns_stop_all_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_stop_all_hook")
+                    .getattr(intern!(py, "returns_stop_all_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1117,7 +1117,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1173,10 +1173,10 @@ def handle_return(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("handle_return")
+                    .getattr(intern!(py, "handle_return"))
                     .expect("this should not happen");
                     dispatcher
-                        .setattr("handle_return", return_handler)
+                        .setattr(intern!(py, "handle_return"), return_handler)
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -1189,7 +1189,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1245,10 +1245,10 @@ def handle_return(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("handle_return")
+                    .getattr(intern!(py, "handle_return"))
                     .expect("this should not happen");
                     dispatcher
-                        .setattr("handle_return", return_handler)
+                        .setattr(intern!(py, "handle_return"), return_handler)
                         .expect("this should not happen");
 
                     let returns_string_hook = PyModule::from_code(
@@ -1261,7 +1261,7 @@ def returns_string_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("returns_string_hook")
+                    .getattr(intern!(py, "returns_string_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1305,7 +1305,7 @@ def default_hook(*args, **kwargs):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("default_hook")
+            .getattr(intern!(py, "default_hook"))
             .expect("this should not happen");
 
             let result = dispatcher.call_method1(
@@ -1337,7 +1337,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("NamelessDispatcher")
+            .getattr(intern!(py, "NamelessDispatcher"))
             .expect("this should not happen")
             .call0()
             .expect("this should not happen");
@@ -1352,7 +1352,7 @@ def default_hook(*args, **kwargs):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("default_hook")
+            .getattr(intern!(py, "default_hook"))
             .expect("this should not happen");
 
             let result = nameless_dispatcher.call_method1(
@@ -1388,7 +1388,7 @@ class ZmqLessDispatcher(shinqlx.EventDispatcher):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("ZmqLessDispatcher")
+            .getattr(intern!(py, "ZmqLessDispatcher"))
             .expect("this should not happen")
             .call0()
             .expect("this should not happen");
@@ -1403,7 +1403,7 @@ def default_hook(*args, **kwargs):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("default_hook")
+            .getattr(intern!(py, "default_hook"))
             .expect("this should not happen");
 
             let result = zmq_less_dispatcher.call_method1(
@@ -1453,7 +1453,7 @@ class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("ZmqEnabledDispatcher")
+                    .getattr(intern!(py, "ZmqEnabledDispatcher"))
                     .expect("this should not happen")
                     .call0()
                     .expect("this should not happen");
@@ -1468,7 +1468,7 @@ def default_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("default_hook")
+                    .getattr(intern!(py, "default_hook"))
                     .expect("this should not happen");
 
                     let result = zmq_dispatcher.call_method1(
@@ -1515,7 +1515,7 @@ def default_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("default_hook")
+                    .getattr(intern!(py, "default_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1563,7 +1563,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("NamelessDispatcher")
+            .getattr(intern!(py, "NamelessDispatcher"))
             .expect("this should not happen")
             .call0()
             .expect("this should not happen");
@@ -1578,7 +1578,7 @@ def default_hook(*args, **kwargs):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("default_hook")
+            .getattr(intern!(py, "default_hook"))
             .expect("this should not happen");
 
             let result = nameless_dispatcher.call_method1(
@@ -1611,7 +1611,7 @@ def default_hook(*args, **kwargs):
                 c"",
             )
             .expect("this should not happen")
-            .getattr("default_hook")
+            .getattr(intern!(py, "default_hook"))
             .expect("this should not happen");
 
             let result = dispatcher.call_method1(
@@ -1657,7 +1657,7 @@ def default_hook(*args, **kwargs):
                         c"",
                     )
                     .expect("this should not happen")
-                    .getattr("default_hook")
+                    .getattr(intern!(py, "default_hook"))
                     .expect("this should not happen");
 
                     dispatcher
@@ -1869,6 +1869,7 @@ def remove_dispatcher_by_name(dispatcher_name):
 mod event_dispatcher_manager_tests {
     use pyo3::{
         exceptions::{PyKeyError, PyValueError},
+        intern,
         prelude::*,
     };
     use rstest::*;
@@ -1895,7 +1896,9 @@ mod event_dispatcher_manager_tests {
                 .add_dispatcher(&py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
+            let result = py
+                .import(intern!(py, "gc"))
+                .and_then(|gc| gc.call_method0(intern!(py, "collect")));
             assert!(result.is_ok());
         });
     }
@@ -1907,7 +1910,7 @@ mod event_dispatcher_manager_tests {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
-            let result = EventDispatcherManager::get_dispatchers(&event_dispatchers);
+            let result = event_dispatchers.get_dispatchers();
             assert!(result.is_ok_and(|dict| dict.is_empty()));
         });
     }
@@ -1928,25 +1931,26 @@ mod event_dispatcher_manager_tests {
                 .add_dispatcher(&py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            let result = EventDispatcherManager::get_dispatchers(&event_dispatchers)
+            let result = event_dispatchers
+                .get_dispatchers()
                 .expect("this should not happen");
             assert!(
                 result
-                    .get_item("game_countdown")
+                    .get_item(intern!(py, "game_countdown"))
                     .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
                         dispatcher.is_instance_of::<GameCountdownDispatcher>()
                     }))
             );
             assert!(
                 result
-                    .get_item("game_start")
+                    .get_item(intern!(py, "game_start"))
                     .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
                         dispatcher.is_instance_of::<GameStartDispatcher>()
                     }))
             );
             assert!(
                 result
-                    .get_item("game_end")
+                    .get_item(intern!(py, "game_end"))
                     .is_ok_and(|opt_dispatcher| opt_dispatcher.is_some_and(|dispatcher| {
                         dispatcher.is_instance_of::<GameEndDispatcher>()
                     }))
@@ -1961,7 +1965,7 @@ mod event_dispatcher_manager_tests {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
-            let result = event_dispatchers.__getitem__("game_start");
+            let result = event_dispatchers.get_item(intern!(py, "game_start"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
         })
     }
@@ -1976,7 +1980,7 @@ mod event_dispatcher_manager_tests {
                 .add_dispatcher(&py.get_type::<GameStartDispatcher>())
                 .expect("could not add game_start dispatcher");
 
-            let result = event_dispatchers.__getitem__("game_start");
+            let result = event_dispatchers.get_item(intern!(py, "game_start"));
             assert!(
                 result.is_ok_and(|dispatcher| dispatcher.is_instance_of::<GameStartDispatcher>())
             );
@@ -1999,11 +2003,31 @@ mod event_dispatcher_manager_tests {
                 .add_dispatcher(&py.get_type::<GameEndDispatcher>())
                 .expect("could not add game_end dispatcher");
 
-            assert!(event_dispatchers.__contains__("game_countdown"));
-            assert!(event_dispatchers.__contains__("game_start"));
-            assert!(event_dispatchers.__contains__("game_end"));
-            assert!(!event_dispatchers.__contains__("map"));
-            assert!(!event_dispatchers.__contains__("damage"));
+            assert!(
+                event_dispatchers
+                    .contains(intern!(py, "game_countdown"))
+                    .is_ok_and(|contained| contained)
+            );
+            assert!(
+                event_dispatchers
+                    .contains(intern!(py, "game_start"))
+                    .is_ok_and(|contained| contained)
+            );
+            assert!(
+                event_dispatchers
+                    .contains(intern!(py, "game_end"))
+                    .is_ok_and(|contained| contained)
+            );
+            assert!(
+                !event_dispatchers
+                    .contains(intern!(py, "map"))
+                    .is_ok_and(|contained| contained)
+            );
+            assert!(
+                !event_dispatchers
+                    .contains(intern!(py, "damage"))
+                    .is_ok_and(|contained| contained)
+            );
         });
     }
 

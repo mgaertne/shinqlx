@@ -29,7 +29,10 @@ pub(crate) fn pyshinqlx_register_handler(
 
 #[cfg(test)]
 mod register_handler_tests {
-    use pyo3::exceptions::{PyTypeError, PyValueError};
+    use pyo3::{
+        exceptions::{PyTypeError, PyValueError},
+        intern,
+    };
     use rstest::*;
 
     use crate::{ffi::python::prelude::*, prelude::*};
@@ -49,7 +52,9 @@ def handler():
                 c"",
             )
             .expect("this should not happen");
-            let py_handler = pymodule.getattr("handler").expect("this should not happen");
+            let py_handler = pymodule
+                .getattr(intern!(py, "handler"))
+                .expect("this should not happen");
             CUSTOM_COMMAND_HANDLER.store(Some(py_handler.unbind().into()));
 
             let result =
@@ -76,7 +81,9 @@ def handler():
                 c"",
             )
             .expect("this should not happen");
-            let py_handler = pymodule.getattr("handler").expect("this should not happen");
+            let py_handler = pymodule
+                .getattr(intern!(py, "handler"))
+                .expect("this should not happen");
             CUSTOM_COMMAND_HANDLER.store(None);
 
             let result = Python::with_gil(|py| {
@@ -104,7 +111,9 @@ def handler():
                 c"",
             )
             .expect("this should not happen");
-            let py_handler = pymodule.getattr("handler").expect("this should not happen");
+            let py_handler = pymodule
+                .getattr(intern!(py, "handler"))
+                .expect("this should not happen");
 
             let result = pyshinqlx_register_handler(py, "unknown_event", Some(py_handler));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -125,7 +134,9 @@ handler = True
                 c"",
             )
             .expect("this should not happen");
-            let py_handler = pymodule.getattr("handler").expect("this should not happen");
+            let py_handler = pymodule
+                .getattr(intern!(py, "handler"))
+                .expect("this should not happen");
 
             let result = pyshinqlx_register_handler(py, "custom_command", Some(py_handler));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));

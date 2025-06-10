@@ -10,12 +10,16 @@ use pyo3::{
         PyAttributeError, PyEnvironmentError, PyException, PyKeyError, PyNotImplementedError,
         PyValueError,
     },
+    intern,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
 };
 use rayon::prelude::*;
 use tap::TapOptional;
 
-use super::{CONSOLE_CHANNEL, console_command, owner, prelude::*};
+use super::{
+    CONSOLE_CHANNEL, addadmin, addmod, addscore, ban, console_command, demote, mute, owner,
+    prelude::*, put, tempban, unmute,
+};
 use crate::{
     MAIN_ENGINE,
     ffi::c::prelude::*,
@@ -755,8 +759,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             ));
         }
 
-        let cvars = parse_variables(&self.get().user_info);
-        Ok(cvars.get(item).is_some())
+        Ok(parse_variables(&self.get().user_info).get(item).is_some())
     }
 
     fn __getitem__(&self, item: &str) -> PyResult<String> {
@@ -766,8 +769,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             ));
         }
 
-        let cvars = parse_variables(&self.get().user_info);
-        cvars
+        parse_variables(&self.get().user_info)
             .get(item)
             .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
     }
@@ -783,8 +785,9 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         }
 
         let name = if self.get().player_info.read().name.is_empty() {
-            let cvars = parse_variables(&self.get().player_info.read().userinfo);
-            cvars.get("name").unwrap_or_default()
+            parse_variables(&self.get().player_info.read().userinfo)
+                .get("name")
+                .unwrap_or_default()
         } else {
             self.get().player_info.read().name.to_owned()
         };
@@ -814,8 +817,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             .map(|(key, value)| format!(r"\{key}\{value}"))
             .join("");
         let client_command = format!(r#"userinfo "{new}""#);
-        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_steam_id(&self) -> i64 {
@@ -827,25 +829,26 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_ip(&self) -> String {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars
+        parse_variables(&self.get().user_info)
             .get("ip")
             .map(|value| value.split(':').next().unwrap_or("").to_string())
             .unwrap_or("".to_string())
     }
 
     fn get_clan(&self) -> String {
-        let Some(configstring) = MAIN_ENGINE.load().as_ref().map(|main_engine| {
-            main_engine.get_configstring(CS_PLAYERS as u16 + self.get().id as u16)
-        }) else {
-            return "".to_string();
-        };
-        let parsed_cs = parse_variables(&configstring);
-        parsed_cs.get("cn").unwrap_or("".to_string())
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .and_then(|main_engine| {
+                let configstring =
+                    main_engine.get_configstring(CS_PLAYERS as u16 + self.get().id as u16);
+                parse_variables(&configstring).get("cn")
+            })
+            .unwrap_or("".to_string())
     }
 
     fn set_clan(&self, tag: &str) {
-        let config_index = 529 + self.get().id as u16;
+        let config_index = CS_PLAYERS as u16 + self.get().id as u16;
 
         MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
             let configstring = main_engine.get_configstring(config_index);
@@ -872,8 +875,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let new: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new}\"");
-        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_clean_name(&self) -> String {
@@ -881,8 +883,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_qport(&self) -> i32 {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars
+        parse_variables(&self.get().user_info)
             .get("qport")
             .map(|value| value.parse::<i32>().unwrap_or(-1))
             .unwrap_or(-1)
@@ -911,11 +912,11 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let cvars = parse_variables(&self.get().user_info);
         let color1 = cvars
             .get("color1")
-            .map(|value| value.parse::<f32>().unwrap_or(0.0))
+            .and_then(|value| value.parse::<f32>().ok())
             .unwrap_or(0.0);
         let color2 = cvars
             .get("color2")
-            .map(|value| value.parse::<f32>().unwrap_or(0.0))
+            .and_then(|value| value.parse::<f32>().ok())
             .unwrap_or(0.0);
         (color1, color2)
     }
@@ -932,8 +933,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_model(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars
+        parse_variables(&self.get().user_info)
             .get("model")
             .map_or_else(|| Err(PyKeyError::new_err("'model'")), Ok)
     }
@@ -949,8 +949,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_headmodel(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars
+        parse_variables(&self.get().user_info)
             .get("headmodel")
             .map_or_else(|| Err(PyKeyError::new_err("'headmodel'")), Ok)
     }
@@ -961,13 +960,11 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_handicap(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars
+        parse_variables(&self.get().user_info)
             .get("handicap")
             .map_or_else(|| Err(PyKeyError::new_err("'handicap'")), Ok)
     }
@@ -988,16 +985,18 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_autohop(&self) -> PyResult<i32> {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars.get("autohop").map_or_else(
-            || Err(PyKeyError::new_err("'autohop'")),
-            |value| {
-                value.parse::<i32>().map_err(|_| {
-                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
-                    PyValueError::new_err(error_msg)
-                })
-            },
-        )
+        parse_variables(&self.get().user_info)
+            .get("autohop")
+            .map_or_else(
+                || Err(PyKeyError::new_err("'autohop'")),
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
+            )
     }
 
     fn set_autohop(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1016,16 +1015,18 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_autoaction(&self) -> PyResult<i32> {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars.get("autoaction").map_or_else(
-            || Err(PyKeyError::new_err("'autoaction'")),
-            |value| {
-                value.parse::<i32>().map_err(|_| {
-                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
-                    PyValueError::new_err(error_msg)
-                })
-            },
-        )
+        parse_variables(&self.get().user_info)
+            .get("autoaction")
+            .map_or_else(
+                || Err(PyKeyError::new_err("'autoaction'")),
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
+            )
     }
 
     fn set_autoaction(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1044,16 +1045,18 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_predictitems(&self) -> PyResult<i32> {
-        let cvars = parse_variables(&self.get().user_info);
-        cvars.get("cg_predictitems").map_or_else(
-            || Err(PyKeyError::new_err("'cg_predictitems'")),
-            |value| {
-                value.parse::<i32>().map_err(|_| {
-                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
-                    PyValueError::new_err(error_msg)
-                })
-            },
-        )
+        parse_variables(&self.get().user_info)
+            .get("cg_predictitems")
+            .map_or_else(
+                || Err(PyKeyError::new_err("'cg_predictitems'")),
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
+            )
     }
 
     fn set_predictitems(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1104,19 +1107,15 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         new_privileges.map_or(
             Err(PyValueError::new_err("Invalid privilege level.")),
             |new_privilege| {
-                pyshinqlx_set_privileges(self.py(), self.get().id, new_privilege as i32)?;
-                Ok(())
+                pyshinqlx_set_privileges(self.py(), self.get().id, new_privilege as i32).map(|_| ())
             },
         )
     }
 
     fn get_country(&self) -> PyResult<String> {
-        let cvars = parse_variables(&self.get().user_info);
-        self.py().allow_threads(|| {
-            cvars
-                .get("country")
-                .map_or_else(|| Err(PyKeyError::new_err("'country'")), Ok)
-        })
+        parse_variables(&self.get().user_info)
+            .get("country")
+            .map_or_else(|| Err(PyKeyError::new_err("'country'")), Ok)
     }
 
     fn set_country(&self, value: &str) -> PyResult<()> {
@@ -1125,8 +1124,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let new_cvars_string: String = new_cvars.into();
 
         let client_command = format!("userinfo \"{new_cvars_string}\"");
-        pyshinqlx_client_command(self.py(), self.get().id, &client_command)?;
-        Ok(())
+        pyshinqlx_client_command(self.py(), self.get().id, &client_command).map(|_| ())
     }
 
     fn get_valid(&self) -> bool {
@@ -1150,34 +1148,26 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let pos = if reset {
             Vector3(0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.get().id)? {
-                None => Vector3(0, 0, 0),
-                Some(state) => state.position,
-            }
+            pyshinqlx_player_state(self.py(), self.get().id)?
+                .map_or(Vector3(0, 0, 0), |state| state.position)
         };
 
-        match kwargs {
-            None => Ok(pos.into_bound_py_any(self.py())?),
-            Some(py_kwargs) => {
-                let x = match py_kwargs.get_item("x")? {
-                    None => pos.0,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let y = match py_kwargs.get_item("y")? {
-                    None => pos.1,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let z = match py_kwargs.get_item("z")? {
-                    None => pos.2,
-                    Some(value) => value.extract::<i32>()?,
-                };
+        kwargs.map_or(pos.into_bound_py_any(self.py()), |py_kwargs| {
+            let x = py_kwargs
+                .get_item(intern!(self.py(), "x"))?
+                .map_or(Ok(pos.0), |value| value.extract::<i32>())?;
+            let y = py_kwargs
+                .get_item(intern!(self.py(), "y"))?
+                .map_or(Ok(pos.1), |value| value.extract::<i32>())?;
+            let z = py_kwargs
+                .get_item(intern!(self.py(), "z"))?
+                .map_or(Ok(pos.2), |value| value.extract::<i32>())?;
 
-                let vector = Vector3(x, y, z);
+            let vector = Vector3(x, y, z);
 
-                pyshinqlx_set_position(self.py(), self.get().id, &vector)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            }
-        }
+            pyshinqlx_set_position(self.py(), self.get().id, &vector)
+                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+        })
     }
 
     fn velocity(
@@ -1188,34 +1178,26 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let vel = if reset {
             Vector3(0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.get().id)? {
-                None => Vector3(0, 0, 0),
-                Some(state) => state.velocity,
-            }
+            pyshinqlx_player_state(self.py(), self.get().id)?
+                .map_or(Vector3(0, 0, 0), |state| state.velocity)
         };
 
-        match kwargs {
-            None => Ok(vel.into_bound_py_any(self.py())?),
-            Some(py_kwargs) => {
-                let x = match py_kwargs.get_item("x")? {
-                    None => vel.0,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let y = match py_kwargs.get_item("y")? {
-                    None => vel.1,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let z = match py_kwargs.get_item("z")? {
-                    None => vel.2,
-                    Some(value) => value.extract::<i32>()?,
-                };
+        kwargs.map_or(Ok(vel.into_bound_py_any(self.py())?), |py_kwargs| {
+            let x = py_kwargs
+                .get_item(intern!(self.py(), "x"))?
+                .map_or(Ok(vel.0), |value| value.extract::<i32>())?;
+            let y = py_kwargs
+                .get_item(intern!(self.py(), "y"))?
+                .map_or(Ok(vel.1), |value| value.extract::<i32>())?;
+            let z = py_kwargs
+                .get_item(intern!(self.py(), "z"))?
+                .map_or(Ok(vel.2), |value| value.extract::<i32>())?;
 
-                let vector = Vector3(x, y, z);
+            let vector = Vector3(x, y, z);
 
-                pyshinqlx_set_velocity(self.py(), self.get().id, &vector)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            }
-        }
+            pyshinqlx_set_velocity(self.py(), self.get().id, &vector)
+                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+        })
     }
 
     fn weapons(
@@ -1226,108 +1208,95 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.get().id)? {
-                None => Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                Some(state) => state.weapons,
-            }
+            pyshinqlx_player_state(self.py(), self.get().id)?.map_or(
+                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                |state| state.weapons,
+            )
         };
 
-        match kwargs {
-            None => Ok(weaps.into_bound_py_any(self.py())?),
-            Some(py_kwargs) => {
-                let g = match py_kwargs.get_item("g")? {
-                    None => weaps.0,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let mg = match py_kwargs.get_item("mg")? {
-                    None => weaps.1,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let sg = match py_kwargs.get_item("sg")? {
-                    None => weaps.2,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let gl = match py_kwargs.get_item("gl")? {
-                    None => weaps.3,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let rl = match py_kwargs.get_item("rl")? {
-                    None => weaps.4,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let lg = match py_kwargs.get_item("lg")? {
-                    None => weaps.5,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let rg = match py_kwargs.get_item("rg")? {
-                    None => weaps.6,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let pg = match py_kwargs.get_item("pg")? {
-                    None => weaps.7,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let bfg = match py_kwargs.get_item("bfg")? {
-                    None => weaps.8,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let gh = match py_kwargs.get_item("gh")? {
-                    None => weaps.9,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let ng = match py_kwargs.get_item("ng")? {
-                    None => weaps.10,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let pl = match py_kwargs.get_item("pl")? {
-                    None => weaps.11,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let cg = match py_kwargs.get_item("cg")? {
-                    None => weaps.12,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let hmg = match py_kwargs.get_item("hmg")? {
-                    None => weaps.13,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let hands = match py_kwargs.get_item("hands")? {
-                    None => weaps.14,
-                    Some(value) => value.extract::<i32>()?,
-                };
+        kwargs.map_or(Ok(weaps.into_bound_py_any(self.py())?), |py_kwargs| {
+            let g = py_kwargs
+                .get_item(intern!(self.py(), "g"))?
+                .map_or(Ok(weaps.0), |value| value.extract::<i32>())?;
+            let mg = py_kwargs
+                .get_item(intern!(self.py(), "mg"))?
+                .map_or(Ok(weaps.1), |value| value.extract::<i32>())?;
+            let sg = py_kwargs
+                .get_item(intern!(self.py(), "sg"))?
+                .map_or(Ok(weaps.2), |value| value.extract::<i32>())?;
+            let gl = py_kwargs
+                .get_item(intern!(self.py(), "gl"))?
+                .map_or(Ok(weaps.3), |value| value.extract::<i32>())?;
+            let rl = py_kwargs
+                .get_item(intern!(self.py(), "rl"))?
+                .map_or(Ok(weaps.4), |value| value.extract::<i32>())?;
+            let lg = py_kwargs
+                .get_item(intern!(self.py(), "lg"))?
+                .map_or(Ok(weaps.5), |value| value.extract::<i32>())?;
+            let rg = py_kwargs
+                .get_item(intern!(self.py(), "rg"))?
+                .map_or(Ok(weaps.6), |value| value.extract::<i32>())?;
+            let pg = py_kwargs
+                .get_item(intern!(self.py(), "pg"))?
+                .map_or(Ok(weaps.7), |value| value.extract::<i32>())?;
+            let bfg = py_kwargs
+                .get_item(intern!(self.py(), "bfg"))?
+                .map_or(Ok(weaps.8), |value| value.extract::<i32>())?;
+            let gh = py_kwargs
+                .get_item(intern!(self.py(), "gh"))?
+                .map_or(Ok(weaps.9), |value| value.extract::<i32>())?;
+            let ng = py_kwargs
+                .get_item(intern!(self.py(), "ng"))?
+                .map_or(Ok(weaps.10), |value| value.extract::<i32>())?;
+            let pl = py_kwargs
+                .get_item(intern!(self.py(), "pl"))?
+                .map_or(Ok(weaps.11), |value| value.extract::<i32>())?;
+            let cg = py_kwargs
+                .get_item(intern!(self.py(), "cg"))?
+                .map_or(Ok(weaps.12), |value| value.extract::<i32>())?;
+            let hmg = py_kwargs
+                .get_item(intern!(self.py(), "hmg"))?
+                .map_or(Ok(weaps.13), |value| value.extract::<i32>())?;
+            let hands = py_kwargs
+                .get_item(intern!(self.py(), "hands"))?
+                .map_or(Ok(weaps.14), |value| value.extract::<i32>())?;
 
-                let weapons = Weapons(
-                    g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
-                );
+            let weapons = Weapons(
+                g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
+            );
 
-                pyshinqlx_set_weapons(self.py(), self.get().id, &weapons)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            }
-        }
+            pyshinqlx_set_weapons(self.py(), self.get().id, &weapons)
+                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+        })
     }
 
     fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<Bound<'py, PyAny>> {
-        let Some(weapon) = new_weapon else {
-            let weapon = match pyshinqlx_player_state(self.py(), self.get().id)? {
-                None => weapon_t::WP_HANDS as i32,
-                Some(state) => state.weapon,
-            };
+        new_weapon
+            .map(|weapon| {
+                weapon
+                    .extract::<i32>()
+                    .map_or(
+                        weapon
+                            .extract::<String>()
+                            .map_or(Err("invalid weapon".to_string()), |py_string| {
+                                weapon_t::try_from(py_string.as_str())
+                            }),
+                        weapon_t::try_from,
+                    )
+                    .map_or(
+                        Err(PyValueError::new_err("invalid new_weapon")),
+                        |converted_weapon| {
+                            pyshinqlx_set_weapon(self.py(), self.get().id, converted_weapon as i32)
+                                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+                        },
+                    )
+            })
+            .unwrap_or_else(|| {
+                let weapon = pyshinqlx_player_state(self.py(), self.get().id)?
+                    .map_or(weapon_t::WP_HANDS as i32, |state| state.weapon);
 
-            return Ok(PyInt::new(self.py(), weapon).into_any());
-        };
-
-        let Ok(converted_weapon) = (match weapon.extract::<i32>() {
-            Ok(value) => weapon_t::try_from(value),
-            Err(_) => match weapon.extract::<String>() {
-                Ok(value) => weapon_t::try_from(value.as_str()),
-                Err(_) => Err("invalid weapon".to_string()),
-            },
-        }) else {
-            return Err(PyValueError::new_err("invalid new_weapon"));
-        };
-
-        pyshinqlx_set_weapon(self.py(), self.get().id, converted_weapon as i32)
-            .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+                Ok(PyInt::new(self.py(), weapon).into_any())
+            })
     }
 
     fn ammo(
@@ -1338,84 +1307,66 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.get().id)? {
-                None => Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                Some(state) => state.ammo,
-            }
+            pyshinqlx_player_state(self.py(), self.get().id)?.map_or(
+                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                |state| state.ammo,
+            )
         };
 
-        match kwargs {
-            None => Ok(ammos.into_bound_py_any(self.py())?),
-            Some(py_kwargs) => {
-                let g = match py_kwargs.get_item("g")? {
-                    None => ammos.0,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let mg = match py_kwargs.get_item("mg")? {
-                    None => ammos.1,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let sg = match py_kwargs.get_item("sg")? {
-                    None => ammos.2,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let gl = match py_kwargs.get_item("gl")? {
-                    None => ammos.3,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let rl = match py_kwargs.get_item("rl")? {
-                    None => ammos.4,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let lg = match py_kwargs.get_item("lg")? {
-                    None => ammos.5,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let rg = match py_kwargs.get_item("rg")? {
-                    None => ammos.6,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let pg = match py_kwargs.get_item("pg")? {
-                    None => ammos.7,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let bfg = match py_kwargs.get_item("bfg")? {
-                    None => ammos.8,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let gh = match py_kwargs.get_item("gh")? {
-                    None => ammos.9,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let ng = match py_kwargs.get_item("ng")? {
-                    None => ammos.10,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let pl = match py_kwargs.get_item("pl")? {
-                    None => ammos.11,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let cg = match py_kwargs.get_item("cg")? {
-                    None => ammos.12,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let hmg = match py_kwargs.get_item("hmg")? {
-                    None => ammos.13,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let hands = match py_kwargs.get_item("hands")? {
-                    None => ammos.14,
-                    Some(value) => value.extract::<i32>()?,
-                };
+        kwargs.map_or(Ok(ammos.into_bound_py_any(self.py())?), |py_kwargs| {
+            let g = py_kwargs
+                .get_item(intern!(self.py(), "g"))?
+                .map_or(Ok(ammos.0), |value| value.extract::<i32>())?;
+            let mg = py_kwargs
+                .get_item(intern!(self.py(), "mg"))?
+                .map_or(Ok(ammos.1), |value| value.extract::<i32>())?;
+            let sg = py_kwargs
+                .get_item(intern!(self.py(), "sg"))?
+                .map_or(Ok(ammos.2), |value| value.extract::<i32>())?;
+            let gl = py_kwargs
+                .get_item(intern!(self.py(), "gl"))?
+                .map_or(Ok(ammos.3), |value| value.extract::<i32>())?;
+            let rl = py_kwargs
+                .get_item(intern!(self.py(), "rl"))?
+                .map_or(Ok(ammos.4), |value| value.extract::<i32>())?;
+            let lg = py_kwargs
+                .get_item(intern!(self.py(), "lg"))?
+                .map_or(Ok(ammos.5), |value| value.extract::<i32>())?;
+            let rg = py_kwargs
+                .get_item(intern!(self.py(), "rg"))?
+                .map_or(Ok(ammos.6), |value| value.extract::<i32>())?;
+            let pg = py_kwargs
+                .get_item(intern!(self.py(), "pg"))?
+                .map_or(Ok(ammos.7), |value| value.extract::<i32>())?;
+            let bfg = py_kwargs
+                .get_item(intern!(self.py(), "bfg"))?
+                .map_or(Ok(ammos.8), |value| value.extract::<i32>())?;
+            let gh = py_kwargs
+                .get_item(intern!(self.py(), "gh"))?
+                .map_or(Ok(ammos.9), |value| value.extract::<i32>())?;
+            let ng = py_kwargs
+                .get_item(intern!(self.py(), "ng"))?
+                .map_or(Ok(ammos.10), |value| value.extract::<i32>())?;
+            let pl = py_kwargs
+                .get_item(intern!(self.py(), "pl"))?
+                .map_or(Ok(ammos.11), |value| value.extract::<i32>())?;
+            let cg = py_kwargs
+                .get_item(intern!(self.py(), "cg"))?
+                .map_or(Ok(ammos.12), |value| value.extract::<i32>())?;
+            let hmg = py_kwargs
+                .get_item(intern!(self.py(), "hmg"))?
+                .map_or(Ok(ammos.13), |value| value.extract::<i32>())?;
+            let hands = py_kwargs
+                .get_item(intern!(self.py(), "hands"))?
+                .map_or(Ok(ammos.14), |value| value.extract::<i32>())?;
 
-                let weapons = Weapons(
-                    g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
-                );
+            let weapons = Weapons(
+                g, mg, sg, gl, rl, lg, rg, pg, bfg, gh, ng, pl, cg, hmg, hands,
+            );
 
-                pyshinqlx_set_ammo(self.py(), self.get().id, &weapons)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            }
-        }
+            pyshinqlx_set_ammo(self.py(), self.get().id, &weapons)
+                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+        })
     }
 
     fn powerups(
@@ -1426,46 +1377,61 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
         } else {
-            match pyshinqlx_player_state(self.py(), self.get().id)? {
-                None => Powerups(0, 0, 0, 0, 0, 0),
-                Some(state) => state.powerups,
-            }
+            pyshinqlx_player_state(self.py(), self.get().id)?
+                .map_or(Powerups(0, 0, 0, 0, 0, 0), |state| state.powerups)
         };
 
-        match kwargs {
-            None => Ok(powerups.into_bound_py_any(self.py())?),
-            Some(py_kwargs) => {
-                let quad = match py_kwargs.get_item("quad")? {
-                    None => powerups.0,
-                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
-                };
-                let bs = match py_kwargs.get_item("battlesuit")? {
-                    None => powerups.1,
-                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
-                };
-                let haste = match py_kwargs.get_item("haste")? {
-                    None => powerups.2,
-                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
-                };
-                let invis = match py_kwargs.get_item("invisibility")? {
-                    None => powerups.3,
-                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
-                };
-                let regen = match py_kwargs.get_item("regeneration")? {
-                    None => powerups.4,
-                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
-                };
-                let invul = match py_kwargs.get_item("invulnerability")? {
-                    None => powerups.5,
-                    Some(value) => (value.extract::<f32>()? * 1000.0).floor() as i32,
-                };
+        kwargs.map_or(Ok(powerups.into_bound_py_any(self.py())?), |py_kwargs| {
+            let quad = py_kwargs.get_item(intern!(self.py(), "quad"))?.map_or(
+                Ok(powerups.0),
+                |value| {
+                    value
+                        .extract::<f32>()
+                        .map(|float_value| (float_value * 1000.0).floor() as i32)
+                },
+            )?;
+            let bs = py_kwargs
+                .get_item(intern!(self.py(), "battlesuit"))?
+                .map_or(Ok(powerups.1), |value| {
+                    value
+                        .extract::<f32>()
+                        .map(|float_value| (float_value * 1000.0).floor() as i32)
+                })?;
+            let haste = py_kwargs.get_item(intern!(self.py(), "haste"))?.map_or(
+                Ok(powerups.2),
+                |value| {
+                    value
+                        .extract::<f32>()
+                        .map(|float_value| (float_value * 1000.0).floor() as i32)
+                },
+            )?;
+            let invis = py_kwargs
+                .get_item(intern!(self.py(), "invisibility"))?
+                .map_or(Ok(powerups.3), |value| {
+                    value
+                        .extract::<f32>()
+                        .map(|float_value| (float_value * 1000.0).floor() as i32)
+                })?;
+            let regen = py_kwargs
+                .get_item(intern!(self.py(), "regeneration"))?
+                .map_or(Ok(powerups.4), |value| {
+                    value
+                        .extract::<f32>()
+                        .map(|float_value| (float_value * 1000.0).floor() as i32)
+                })?;
+            let invul = py_kwargs
+                .get_item(intern!(self.py(), "invulnerability"))?
+                .map_or(Ok(powerups.5), |value| {
+                    value
+                        .extract::<f32>()
+                        .map(|float_value| (float_value * 1000.0).floor() as i32)
+                })?;
 
-                let powerups = Powerups(quad, bs, haste, invis, regen, invul);
+            let powerups = Powerups(quad, bs, haste, invis, regen, invul);
 
-                pyshinqlx_set_powerups(self.py(), self.get().id, &powerups)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            }
-        }
+            pyshinqlx_set_powerups(self.py(), self.get().id, &powerups)
+                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+        })
     }
 
     fn get_holdable(&self) -> PyResult<Option<String>> {
@@ -1479,20 +1445,17 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_holdable(&self, holdable: Option<&str>) -> PyResult<()> {
         match Holdable::from(holdable) {
             Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
-            value => {
-                pyshinqlx_set_holdable(self.py(), self.get().id, value.into())?;
-                if value == Holdable::Flight {
-                    let flight = Flight(16000, 16000, 1200, 0);
-                    pyshinqlx_set_flight(self.py(), self.get().id, &flight)?;
-                }
-                Ok(())
+            Holdable::Flight => {
+                pyshinqlx_set_holdable(self.py(), self.get().id, Holdable::Flight.into())?;
+                let flight = Flight(16000, 16000, 1200, 0);
+                pyshinqlx_set_flight(self.py(), self.get().id, &flight).map(|_| ())
             }
+            value => pyshinqlx_set_holdable(self.py(), self.get().id, value.into()).map(|_| ()),
         }
     }
 
     fn drop_holdable(&self) -> PyResult<()> {
-        pyshinqlx_drop_holdable(self.py(), self.get().id)?;
-        Ok(())
+        pyshinqlx_drop_holdable(self.py(), self.get().id).map(|_| ())
     }
 
     fn flight(
@@ -1514,38 +1477,28 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let flight = if init_flight {
             Flight(16_000, 16_000, 1_200, 0)
         } else {
-            match opt_state {
-                None => Flight(16_000, 16_000, 1_200, 0),
-                Some(state) => state.flight,
-            }
+            opt_state.map_or(Flight(16_000, 16_000, 1_200, 0), |state| state.flight)
         };
 
-        match kwargs {
-            None => Ok(flight.into_bound_py_any(self.py())?),
-            Some(py_kwargs) => {
-                let fuel = match py_kwargs.get_item("fuel")? {
-                    None => flight.0,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let max_fuel = match py_kwargs.get_item("max_fuel")? {
-                    None => flight.1,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let thrust = match py_kwargs.get_item("thrust")? {
-                    None => flight.2,
-                    Some(value) => value.extract::<i32>()?,
-                };
-                let refuel = match py_kwargs.get_item("refuel")? {
-                    None => flight.3,
-                    Some(value) => value.extract::<i32>()?,
-                };
+        kwargs.map_or(Ok(flight.into_bound_py_any(self.py())?), |py_kwargs| {
+            let fuel = py_kwargs
+                .get_item(intern!(self.py(), "fuel"))?
+                .map_or(Ok(flight.0), |value| value.extract::<i32>())?;
+            let max_fuel = py_kwargs
+                .get_item(intern!(self.py(), "max_fuel"))?
+                .map_or(Ok(flight.1), |value| value.extract::<i32>())?;
+            let thrust = py_kwargs
+                .get_item(intern!(self.py(), "thrust"))?
+                .map_or(Ok(flight.2), |value| value.extract::<i32>())?;
+            let refuel = py_kwargs
+                .get_item(intern!(self.py(), "refuel"))?
+                .map_or(Ok(flight.3), |value| value.extract::<i32>())?;
 
-                let flight = Flight(fuel, max_fuel, thrust, refuel);
+            let flight = Flight(fuel, max_fuel, thrust, refuel);
 
-                pyshinqlx_set_flight(self.py(), self.get().id, &flight)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            }
-        }
+            pyshinqlx_set_flight(self.py(), self.get().id, &flight)
+                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+        })
     }
 
     fn get_noclip(&self) -> PyResult<bool> {
@@ -1554,16 +1507,17 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_noclip(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let noclip_value = match value.extract::<bool>() {
-            Ok(value) => value,
-            Err(_) => match value.extract::<i64>() {
-                Ok(value) => value != 0,
-                Err(_) => match value.extract::<String>() {
-                    Ok(value) => !value.is_empty(),
-                    Err(_) => !value.is_none(),
-                },
-            },
-        };
+        let noclip_value = value.extract::<bool>().unwrap_or_else(|_| {
+            value
+                .extract::<i64>()
+                .map(|value| value != 0)
+                .unwrap_or_else(|_| {
+                    value
+                        .extract::<String>()
+                        .map(|value| !value.is_empty())
+                        .unwrap_or(!value.is_none())
+                })
+        });
         pyshinqlx_noclip(self.py(), self.get().id, noclip_value).map(|_| ())
     }
 
@@ -1573,8 +1527,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_health(&self, value: i32) -> PyResult<()> {
-        pyshinqlx_set_health(self.py(), self.get().id, value)?;
-        Ok(())
+        pyshinqlx_set_health(self.py(), self.get().id, value).map(|_| ())
     }
 
     fn get_armor(&self) -> PyResult<i32> {
@@ -1583,8 +1536,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_armor(&self, value: i32) -> PyResult<()> {
-        pyshinqlx_set_armor(self.py(), self.get().id, value)?;
-        Ok(())
+        pyshinqlx_set_armor(self.py(), self.get().id, value).map(|_| ())
     }
 
     fn get_is_alive(&self) -> PyResult<bool> {
@@ -1595,15 +1547,14 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_is_alive(&self, value: bool) -> PyResult<()> {
         let current = self.get_is_alive()?;
 
-        if !current && value {
-            pyshinqlx_player_spawn(self.py(), self.get().id)?;
+        match (current, value) {
+            (false, true) => pyshinqlx_player_spawn(self.py(), self.get().id).map(|_| ()),
+            (true, false) => {
+                // TODO: Proper death and not just setting health to 0.
+                self.set_health(0)
+            }
+            _ => Ok(()),
         }
-
-        if current && !value {
-            // TODO: Proper death and not just setting health to 0.
-            self.set_health(0)?;
-        }
-        Ok(())
     }
 
     fn get_is_frozen(&self) -> PyResult<bool> {
@@ -1622,8 +1573,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn set_score(&self, value: i32) -> PyResult<()> {
-        pyshinqlx_set_score(self.py(), self.get().id, value)?;
-        Ok(())
+        pyshinqlx_set_score(self.py(), self.get().id, value).map(|_| ())
     }
 
     fn get_channel(&self) -> Option<Bound<'py, TellChannel>> {
@@ -1651,7 +1601,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 let limit = kwargs
                     .and_then(|pydict| {
                         pydict
-                            .get_item("limit")
+                            .get_item(intern!(self.py(), "limit"))
                             .ok()
                             .flatten()
                             .and_then(|value| value.extract::<i32>().ok())
@@ -1661,7 +1611,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 let delimiter = kwargs
                     .and_then(|pydict| {
                         pydict
-                            .get_item("delimiter")
+                            .get_item(intern!(self.py(), "delimiter"))
                             .ok()
                             .flatten()
                             .and_then(|value| value.extract::<String>().ok())
@@ -1678,52 +1628,39 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn ban(&self) -> PyResult<()> {
-        let ban_cmd = format!("ban {}", self.get().id);
-        console_command(&ban_cmd)
+        ban(self.py(), self.as_any())
     }
 
     fn tempban(&self) -> PyResult<()> {
-        let tempban_cmd = format!("tempban {}", self.get().id);
-        console_command(&tempban_cmd)
+        tempban(self.py(), self.as_any())
     }
 
     fn addadmin(&self) -> PyResult<()> {
-        let addadmin_cmd = format!("addadmin {}", self.get().id);
-        console_command(&addadmin_cmd)
+        addadmin(self.py(), self.as_any())
     }
 
     fn addmod(&self) -> PyResult<()> {
-        let addmod_cmd = format!("addmod {}", self.get().id);
-        console_command(&addmod_cmd)
+        addmod(self.py(), self.as_any())
     }
 
     fn demote(&self) -> PyResult<()> {
-        let demote_cmd = format!("demote {}", self.get().id);
-        console_command(&demote_cmd)
+        demote(self.py(), self.as_any())
     }
 
     fn mute(&self) -> PyResult<()> {
-        let mute_cmd = format!("mute {}", self.get().id);
-        console_command(&mute_cmd)
+        mute(self.py(), self.as_any())
     }
 
     fn unmute(&self) -> PyResult<()> {
-        let unmute_cmd = format!("unmute {}", self.get().id);
-        console_command(&unmute_cmd)
+        unmute(self.py(), self.as_any())
     }
 
     fn put(&self, team: &str) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-            return Err(PyValueError::new_err("Invalid team."));
-        }
-
-        let team_change_cmd = format!("put {} {}", self.get().id, team.to_lowercase());
-        console_command(&team_change_cmd)
+        put(self.py(), self.as_any(), team)
     }
 
     fn addscore(&self, score: i32) -> PyResult<()> {
-        let addscore_cmd = format!("addscore {} {}", self.get().id, score);
-        console_command(&addscore_cmd)
+        addscore(self.py(), self.as_any(), score)
     }
 
     fn switch(&self, other_player: &Bound<'_, Player>) -> PyResult<()> {
@@ -3323,7 +3260,7 @@ assert(player._valid)
                 )
                 .expect("this should not happen");
 
-                let result = player.set_handicap(PyString::new(py, "50").as_any());
+                let result = player.set_handicap(PyString::intern(py, "50").as_any());
                 assert!(result.is_ok());
             });
         });
@@ -3348,7 +3285,7 @@ assert(player._valid)
             )
             .expect("this should not happen");
 
-            let result = player.set_handicap(PyString::new(py, "asdf").as_any());
+            let result = player.set_handicap(PyString::intern(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3509,7 +3446,7 @@ assert(player._valid)
             )
             .expect("this should not happen");
 
-            let result = player.set_autohop(PyString::new(py, "asdf").as_any());
+            let result = player.set_autohop(PyString::intern(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3670,7 +3607,7 @@ assert(player._valid)
             )
             .expect("this should not happen");
 
-            let result = player.set_autoaction(PyString::new(py, "asdf").as_any());
+            let result = player.set_autoaction(PyString::intern(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -3832,7 +3769,7 @@ assert(player._valid)
             )
             .expect("this should not happen");
 
-            let result = player.set_predictitems(PyString::new(py, "asdf").as_any());
+            let result = player.set_predictitems(PyString::intern(py, "asdf").as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -5108,7 +5045,8 @@ assert(player._valid)
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
-                        let result = player.weapon(Some(PyString::new(py, weapon_str).into_any()));
+                        let result =
+                            player.weapon(Some(PyString::intern(py, weapon_str).into_any()));
                         assert_eq!(
                             result
                                 .expect("result was not Ok")
@@ -5127,7 +5065,7 @@ assert(player._valid)
         Python::with_gil(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
-            let result = player.weapon(Some(PyString::new(py, "invalid weapon").into_any()));
+            let result = player.weapon(Some(PyString::intern(py, "invalid weapon").into_any()));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -6388,7 +6326,7 @@ assert(player._valid)
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
-                        let result = player.set_noclip(PyString::new(py, noclip_value).as_any());
+                        let result = player.set_noclip(PyString::intern(py, noclip_value).as_any());
 
                         assert!(result.is_ok());
                     });
@@ -7406,7 +7344,7 @@ assert(player._valid)
                     Some(
                         &[
                             ("limit", PyInt::new(py, 5i32).into_any()),
-                            ("delimiter", PyString::new(py, "_").into_any()),
+                            ("delimiter", PyString::intern(py, "_").into_any()),
                         ]
                         .into_py_dict(py)
                         .expect("this should not happen"),
