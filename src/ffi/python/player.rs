@@ -1699,6 +1699,7 @@ mod pyshinqlx_player_tests {
     use pyo3::{
         IntoPyObjectExt,
         exceptions::{PyEnvironmentError, PyKeyError, PyTypeError, PyValueError},
+        intern,
         types::{IntoPyDict, PyBool, PyInt, PyString},
     };
     use rstest::rstest;
@@ -1945,7 +1946,7 @@ mod pyshinqlx_player_tests {
             )
             .expect("this should not happen");
 
-            let result = player.__getitem__("asdf");
+            let result = player.get_item(intern!(py, "asdf"));
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
@@ -1968,8 +1969,8 @@ mod pyshinqlx_player_tests {
             )
             .expect("this should not happen");
 
-            let result = player.__getitem__("asdf");
-            assert_eq!(result.expect("result was not OK"), "some value");
+            let result = player.get_item(intern!(py, "asdf"));
+            assert_eq!(result.expect("result was not OK").to_string(), "some value");
         });
     }
 
@@ -1991,7 +1992,7 @@ mod pyshinqlx_player_tests {
             )
             .expect("this should not happen");
 
-            let result = player.__getitem__("asdf");
+            let result = player.get_item(intern!(py, "asdf"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)))
         });
     }
@@ -2036,7 +2037,7 @@ mod pyshinqlx_player_tests {
             assert!(
                 result
                     .expect("result was not OK")
-                    .get_item("asdf")
+                    .get_item(intern!(py, "asdf"))
                     .is_ok_and(|opt_value| opt_value.is_some_and(|value| value
                         .extract::<String>()
                         .expect("this should not happen")
