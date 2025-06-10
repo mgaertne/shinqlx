@@ -14,7 +14,7 @@ use super::{EVENT_DISPATCHERS, log_exception, prelude::*};
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
-    py.import("json")
+    py.import(intern!(py, "json"))
         .and_then(|json_module| json_module.call_method1(intern!(py, "loads"), (json_str,)))
 }
 
@@ -781,6 +781,7 @@ mod handle_zmq_msg_tests {
     use mockall::predicate;
     use pyo3::{
         exceptions::{PyAssertionError, PyEnvironmentError, PyIOError},
+        intern,
         prelude::*,
     };
     use rstest::*;
@@ -862,7 +863,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -938,7 +939,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -953,7 +954,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1045,7 +1046,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1060,7 +1061,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1151,7 +1152,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1166,7 +1167,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1241,7 +1242,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1256,7 +1257,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1349,7 +1350,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1474,7 +1475,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1489,7 +1490,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1628,7 +1629,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1643,7 +1644,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1751,7 +1752,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -1997,7 +1998,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2012,7 +2013,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2027,7 +2028,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2213,7 +2214,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2228,7 +2229,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2243,7 +2244,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2515,7 +2516,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2530,7 +2531,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2660,7 +2661,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2675,7 +2676,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2804,7 +2805,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -2926,7 +2927,7 @@ mod handle_zmq_msg_tests {
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -3044,11 +3045,11 @@ mod handle_zmq_msg_tests {
                         .__getitem__("stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -3166,11 +3167,11 @@ mod handle_zmq_msg_tests {
                         .__getitem__("stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
@@ -3258,11 +3259,11 @@ mod handle_zmq_msg_tests {
                         .__getitem__("stats")
                         .and_then(|stats_dispatcher| {
                             stats_dispatcher.call_method1(
-                                "add_hook",
+                                intern!(py, "add_hook"),
                                 (
                                     "asdf",
                                     capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),

@@ -371,7 +371,7 @@ db = AbstractDatabase(test_plugin())
             c"",
         )
         .expect("this should not happen")
-        .getattr("db")
+        .getattr(intern!(py, "db"))
         .expect("this should not happen")
     }
 
@@ -851,14 +851,17 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                                     &[
                                         (
                                             "unix_socket_path",
-                                            PyString::new(self.py(), &cvar_host.get_string())
+                                            PyString::intern(self.py(), &cvar_host.get_string())
                                                 .into_any(),
                                         ),
                                         ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
                                         (
                                             "password",
-                                            PyString::new(self.py(), &password_cvar.get_string())
-                                                .into_any(),
+                                            PyString::intern(
+                                                self.py(),
+                                                &password_cvar.get_string(),
+                                            )
+                                            .into_any(),
                                         ),
                                         (
                                             "decode_responses",
@@ -883,14 +886,20 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                                     &[
                                         (
                                             "host",
-                                            PyString::new(self.py(), redis_hostname).into_any(),
+                                            PyString::intern(self.py(), redis_hostname).into_any(),
                                         ),
-                                        ("port", PyString::new(self.py(), redis_port).into_any()),
+                                        (
+                                            "port",
+                                            PyString::intern(self.py(), redis_port).into_any(),
+                                        ),
                                         ("db", PyInt::new(self.py(), redis_db_cvar).into_any()),
                                         (
                                             "password",
-                                            PyString::new(self.py(), &password_cvar.get_string())
-                                                .into_any(),
+                                            PyString::intern(
+                                                self.py(),
+                                                &password_cvar.get_string(),
+                                            )
+                                            .into_any(),
                                         ),
                                         (
                                             "decode_responses",
@@ -1042,7 +1051,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                                     &[
                                         (
                                             "unix_socket_path",
-                                            PyString::new(self.py(), host).into_any(),
+                                            PyString::intern(self.py(), host).into_any(),
                                         ),
                                         ("db", PyInt::new(self.py(), database).into_any()),
                                         ("password", password.into_bound_py_any(self.py())?),
@@ -1067,9 +1076,12 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                                     &[
                                         (
                                             "host",
-                                            PyString::new(self.py(), redis_hostname).into_any(),
+                                            PyString::intern(self.py(), redis_hostname).into_any(),
                                         ),
-                                        ("port", PyString::new(self.py(), redis_port).into_any()),
+                                        (
+                                            "port",
+                                            PyString::intern(self.py(), redis_port).into_any(),
+                                        ),
                                         ("db", PyInt::new(self.py(), database).into_any()),
                                         ("password", password.into_bound_py_any(self.py())?),
                                         (

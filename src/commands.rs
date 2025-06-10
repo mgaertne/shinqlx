@@ -272,6 +272,7 @@ pub extern "C" fn cmd_restart_python() {
 #[cfg(test)]
 mod commands_tests {
     use mockall::predicate;
+    use pyo3::intern;
     use rstest::rstest;
 
     use super::{
@@ -904,8 +905,9 @@ def handler(params):
                         c"",
                     )
                     .expect("this should not happen");
-                    let custom_command_handler =
-                        pymodule.getattr("handler").expect("this should not happen");
+                    let custom_command_handler = pymodule
+                        .getattr(intern!(py, "handler"))
+                        .expect("this should not happen");
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();
@@ -932,8 +934,9 @@ def handler():
                         c"",
                     )
                     .expect("this should not happen");
-                    let custom_command_handler =
-                        pymodule.getattr("handler").expect("this should not happen");
+                    let custom_command_handler = pymodule
+                        .getattr(intern!(py, "handler"))
+                        .expect("this should not happen");
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();
@@ -963,8 +966,9 @@ def handler():
                         c"",
                     )
                     .expect("this should not happen");
-                    let custom_command_handler =
-                        pymodule.getattr("handler").expect("this should not happen");
+                    let custom_command_handler = pymodule
+                        .getattr(intern!(py, "handler"))
+                        .expect("this should not happen");
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();
@@ -994,8 +998,9 @@ def handler():
                         c"",
                     )
                     .expect("this should not happen");
-                    let custom_command_handler =
-                        pymodule.getattr("handler").expect("this should not happen");
+                    let custom_command_handler = pymodule
+                        .getattr(intern!(py, "handler"))
+                        .expect("this should not happen");
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();

@@ -238,7 +238,7 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                PyString::new(py, "not existing classname").as_ref(),
+                PyString::intern(py, "not existing classname").as_ref(),
                 PyInt::new(py, 1i32).as_any(),
             )
         });
@@ -265,7 +265,7 @@ mod replace_items_tests {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
-                PyString::new(py, "not existing classname").as_ref(),
+                PyString::intern(py, "not existing classname").as_ref(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -412,7 +412,7 @@ mod replace_items_tests {
             pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
-                PyString::new(py, "weapon_bfg").as_ref(),
+                PyString::intern(py, "weapon_bfg").as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), true);
@@ -529,8 +529,8 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                PyString::new(py, "weapon_railgun").as_ref(),
-                PyString::new(py, "weapon_bfg").as_ref(),
+                PyString::intern(py, "weapon_railgun").as_ref(),
+                PyString::intern(py, "weapon_bfg").as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), true);
@@ -618,8 +618,8 @@ mod replace_items_tests {
         let result = Python::with_gil(|py| {
             pyshinqlx_replace_items(
                 py,
-                PyString::new(py, "weapon_railgun").as_ref(),
-                PyString::new(py, "weapon_bfg").as_ref(),
+                PyString::intern(py, "weapon_railgun").as_ref(),
+                PyString::intern(py, "weapon_bfg").as_ref(),
             )
         });
         assert_eq!(result.expect("result was not OK"), true);

@@ -60,7 +60,7 @@ pub(crate) fn handle_rcon(py: Python<'_>, cmd: &str) -> Option<bool> {
 
 #[cfg(test)]
 mod handle_rcon_tests {
-    use pyo3::{prelude::*, types::PyString};
+    use pyo3::{intern, prelude::*, types::PyString};
     use rstest::*;
 
     use super::{handle_rcon, try_handle_rcon};
@@ -93,11 +93,11 @@ mod handle_rcon_tests {
             let plugin = test_plugin(py).call0().expect("this should not happen");
             let capturing_hook = capturing_hook(py);
             let cmd_handler = capturing_hook
-                .getattr("hook")
+                .getattr(intern!(py, "hook"))
                 .expect("could not get handler from test module");
             let command = Command::py_new(
                 &plugin,
-                PyString::new(py, "asdf").as_any(),
+                PyString::intern(py, "asdf").as_any(),
                 &cmd_handler,
                 0,
                 py.None().bind(py),
@@ -153,12 +153,12 @@ def raising_exception_hook(*args, **kwargs):
             )
             .expect("could not create raising exception module");
             let cmd_handler = raising_exception_handler
-                .getattr("raising_exception_hook")
+                .getattr(intern!(py, "raising_exception_hook"))
                 .expect("could not get raising_exception_hook function");
 
             let command = Command::py_new(
                 &plugin,
-                PyString::new(py, "asdf").as_any(),
+                PyString::intern(py, "asdf").as_any(),
                 &cmd_handler,
                 0,
                 py.None().bind(py),
@@ -604,6 +604,7 @@ mod handle_client_command_tests {
     use mockall::predicate;
     use pyo3::{
         exceptions::{PyAssertionError, PyEnvironmentError},
+        intern,
         prelude::*,
         types::{IntoPyDict, PyBool},
     };
@@ -689,7 +690,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -968,7 +969,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -1267,7 +1268,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -1578,7 +1579,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -1668,7 +1669,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -1944,7 +1945,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2028,7 +2029,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2120,7 +2121,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2346,7 +2347,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2439,7 +2440,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2529,7 +2530,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2738,7 +2739,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -2824,7 +2825,7 @@ mod handle_client_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -3055,7 +3056,10 @@ def returning_other_userinfo_hook(*args, **kwargs):
                                         .add_hook(
                                             "asdf",
                                             &returning_other_userinfo_module
-                                                .getattr("returning_other_userinfo_hook")
+                                                .getattr(intern!(
+                                                    py,
+                                                    "returning_other_userinfo_hook"
+                                                ))
                                                 .expect("could not get hook from capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -3215,7 +3219,7 @@ mod handle_server_command_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_server_command, try_handle_server_command};
@@ -3275,7 +3279,7 @@ mod handle_server_command_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -3353,7 +3357,7 @@ mod handle_server_command_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -3524,7 +3528,7 @@ mod handle_server_command_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -3589,7 +3593,7 @@ mod handle_server_command_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -3734,6 +3738,7 @@ mod handle_frame_tests {
 
     use pyo3::{
         exceptions::{PyEnvironmentError, PyValueError},
+        intern,
         prelude::*,
         types::{IntoPyDict, PyBool, PyDict, PyTuple},
     };
@@ -3757,9 +3762,11 @@ mod handle_frame_tests {
     #[serial]
     fn try_run_frame_tasks_with_no_pending_tasks(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let frame_tasks = shinqlx_module
-                .getattr("frame_tasks")
+                .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -3785,9 +3792,11 @@ for event in frame_tasks.queue:
     #[serial]
     fn try_run_frame_tasks_pending_task_throws_exception(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let frame_tasks = shinqlx_module
-                .getattr("frame_tasks")
+                .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -3819,9 +3828,11 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
     fn try_run_frame_tasks_pending_task_succeeds(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let frame_tasks = shinqlx_module
-                .getattr("frame_tasks")
+                .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -3837,7 +3848,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                         (
                             "capturing_hook",
                             capturing_hook
-                                .getattr("hook")
+                                .getattr(intern!(py, "hook"))
                                 .expect("could not get capturing hook"),
                         ),
                     ]
@@ -3890,7 +3901,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -3926,9 +3937,11 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
     #[serial]
     fn transfer_next_frame_tasks_with_none_pending(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let next_frame_tasks = shinqlx_module
-                .getattr("next_frame_tasks")
+                .getattr(intern!(py, "next_frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -3944,7 +3957,7 @@ while not next_frame_tasks.empty():
             )
             .expect("this should not happen");
             let frame_tasks = shinqlx_module
-                .getattr("frame_tasks")
+                .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -3995,9 +4008,11 @@ for event in frame_tasks.queue:
     fn transfer_next_frame_tasks_with_pending_tasks_for_next_frame(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             let capturing_hook = capturing_hook(py);
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let next_frame_tasks = shinqlx_module
-                .getattr("next_frame_tasks")
+                .getattr(intern!(py, "next_frame_tasks"))
                 .expect("this should not happen");
             next_frame_tasks
                 .call_method1(
@@ -4006,7 +4021,7 @@ for event in frame_tasks.queue:
                 )
                 .expect("this should not happen");
             let frame_tasks = shinqlx_module
-                .getattr("frame_tasks")
+                .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -4056,9 +4071,11 @@ for event in frame_tasks.queue:
             )
             .run(|| {
                 Python::with_gil(|py| {
-                    let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+                    let shinqlx_module = py
+                        .import(intern!(py, "shinqlx"))
+                        .expect("this should not happen");
                     let frame_tasks = shinqlx_module
-                        .getattr("frame_tasks")
+                        .getattr(intern!(py, "frame_tasks"))
                         .expect("this should not happen");
                     py.run(
                         cr#"
@@ -4094,7 +4111,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -4118,9 +4135,11 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
     #[serial]
     fn handle_frame_when_frame_handler_throws_exception(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let shinqlx_module = py.import("shinqlx").expect("this should not happen");
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
             let frame_tasks = shinqlx_module
-                .getattr("frame_tasks")
+                .getattr(intern!(py, "frame_tasks"))
                 .expect("this should not happen");
             py.run(
                 cr#"
@@ -4248,7 +4267,7 @@ mod handle_new_game_tests {
     use alloc::ffi::CString;
     use core::{borrow::BorrowMut, sync::atomic::Ordering};
 
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*};
     use rstest::*;
 
     use super::{IS_FIRST_GAME, ZMQ_WARNING_ISSUED, handle_new_game, try_handle_new_game};
@@ -4312,10 +4331,12 @@ mod handle_new_game_tests {
                     let result = try_handle_new_game(py, true);
                     assert!(result.is_ok());
 
-                    let pyshinqlx_module = py.import("shinqlx").expect("this should not happen");
+                    let pyshinqlx_module = py
+                        .import(intern!(py, "shinqlx"))
+                        .expect("this should not happen");
                     assert!(
                         pyshinqlx_module
-                            .getattr("_map_title")
+                            .getattr(intern!(py, "_map_title"))
                             .and_then(|value| value.extract::<String>())
                             .is_ok_and(|str_value| str_value == "thunderstruck")
                     );
@@ -4367,7 +4388,7 @@ mod handle_new_game_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -4489,7 +4510,7 @@ mod handle_new_game_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -4504,7 +4525,7 @@ mod handle_new_game_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -4673,8 +4694,8 @@ mod handle_new_game_tests {
 
                     let result = try_handle_new_game(py, true);
                     let _ = py
-                        .import("shinqlx")
-                        .and_then(|module| module.setattr("_stats", py.None()));
+                        .import(intern!(py, "shinqlx"))
+                        .and_then(|module| module.setattr(intern!(py, "_stats"), py.None()));
                     assert!(result.is_ok());
 
                     assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
@@ -4768,8 +4789,8 @@ mod handle_new_game_tests {
 
                     let result = try_handle_new_game(py, true);
                     let _ = py
-                        .import("shinqlx")
-                        .and_then(|module| module.setattr("_stats", py.None()));
+                        .import(intern!(py, "shinqlx"))
+                        .and_then(|module| module.setattr(intern!(py, "_stats"), py.None()));
                     assert!(result.is_ok());
 
                     assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
@@ -4866,8 +4887,8 @@ mod handle_new_game_tests {
 
                     let result = try_handle_new_game(py, true);
                     let _ = py
-                        .import("shinqlx")
-                        .and_then(|module| module.setattr("_stats", py.None()));
+                        .import(intern!(py, "shinqlx"))
+                        .and_then(|module| module.setattr(intern!(py, "_stats"), py.None()));
                     assert!(result.is_ok());
 
                     assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
@@ -5070,7 +5091,9 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         CS_ROUND_STATUS => {
             let cvars = parse_variables(&configstring_value);
             if cvars.is_empty() {
-                return Ok(PyString::new(py, &configstring_value).into_any().unbind());
+                return Ok(PyString::intern(py, &configstring_value)
+                    .into_any()
+                    .unbind());
             }
 
             let cs_round_number =
@@ -5185,6 +5208,7 @@ mod handle_set_configstring_tests {
     use pretty_assertions::assert_eq;
     use pyo3::{
         exceptions::{PyAssertionError, PyEnvironmentError, PyKeyError, PyValueError},
+        intern,
         prelude::*,
         types::PyBool,
     };
@@ -5245,7 +5269,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5418,7 +5442,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5473,7 +5497,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5529,7 +5553,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5674,7 +5698,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5829,7 +5853,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5886,7 +5910,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -5948,7 +5972,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -6006,7 +6030,7 @@ mod handle_set_configstring_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -6321,7 +6345,7 @@ mod handle_player_connect_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_player_connect, try_handle_player_connect};
@@ -6400,7 +6424,7 @@ mod handle_player_connect_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -6580,7 +6604,7 @@ mod handle_player_loaded_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_player_loaded, try_handle_player_loaded};
@@ -6659,7 +6683,7 @@ mod handle_player_loaded_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -6776,7 +6800,7 @@ mod handle_player_disconnect_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_player_disconnect, try_handle_player_disconnect};
@@ -6855,7 +6879,7 @@ mod handle_player_disconnect_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -6964,7 +6988,7 @@ mod handle_player_spawn_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_player_spawn, try_handle_player_spawn};
@@ -7043,7 +7067,7 @@ mod handle_player_spawn_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -7150,7 +7174,7 @@ mod handle_kamikaze_use_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_kamikaze_use, try_handle_kamikaze_use};
@@ -7229,7 +7253,7 @@ mod handle_kamikaze_use_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -7345,7 +7369,7 @@ mod handle_kamikaze_explode_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
 
     use super::{handle_kamikaze_explode, try_handle_kamikaze_explode};
@@ -7424,7 +7448,7 @@ mod handle_kamikaze_explode_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -7504,7 +7528,7 @@ mod handle_kamikaze_explode_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -7691,7 +7715,7 @@ mod handle_damage_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*};
     use rstest::*;
 
     use super::{handle_damage, try_handle_damage};
@@ -7772,7 +7796,7 @@ mod handle_damage_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -7863,7 +7887,7 @@ mod handle_damage_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -7948,7 +7972,7 @@ mod handle_damage_tests {
                                         .add_hook(
                                             "asdf",
                                             &capturing_hook
-                                                .getattr("hook")
+                                                .getattr(intern!(py, "hook"))
                                                 .expect("could not get capturing hook"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
@@ -8110,7 +8134,7 @@ mod handle_console_print_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
     use rstest::*;
     use tap::TapOptional;
 
@@ -8172,7 +8196,7 @@ mod handle_console_print_tests {
                                 .add_hook(
                                     "asdf",
                                     &capturing_hook
-                                        .getattr("hook")
+                                        .getattr(intern!(py, "hook"))
                                         .expect("could not get capturing hook"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
@@ -8502,7 +8526,7 @@ impl PrintRedirectorMethods for Bound<'_, PrintRedirector> {
 
 #[cfg(test)]
 mod print_redirector_tests {
-    use pyo3::{exceptions::PyValueError, prelude::*};
+    use pyo3::{exceptions::PyValueError, intern, prelude::*};
     use rstest::*;
 
     use super::PrintRedirector;
@@ -8544,7 +8568,9 @@ mod print_redirector_tests {
                 PrintRedirector::py_new(py, channel.into_any()).expect("this should not happen");
             let _py_command = Py::new(py, print_redirector).expect("this should not happen");
 
-            let result = py.import("gc").and_then(|gc| gc.call_method0("collect"));
+            let result = py
+                .import(intern!(py, "gc"))
+                .and_then(|gc| gc.call_method0(intern!(py, "collect")));
             assert!(result.is_ok());
         });
     }

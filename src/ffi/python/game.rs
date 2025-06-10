@@ -1945,7 +1945,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_instagib(PyString::new(py, "asdf").as_any());
+                    let result = game.set_instagib(PyString::intern(py, "asdf").as_any());
 
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -2051,7 +2051,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    let result = game.set_loadout(PyString::new(py, "asdf").as_any());
+                    let result = game.set_loadout(PyString::intern(py, "asdf").as_any());
 
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -2419,7 +2419,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 Python::with_gil(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
-                    game.set_tags(PyString::new(py, "tag1,tag2,tag3").as_any())
+                    game.set_tags(PyString::intern(py, "tag1,tag2,tag3").as_any())
                         .expect("this should not happen");
                 });
             });

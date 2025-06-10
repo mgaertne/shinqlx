@@ -319,7 +319,7 @@ mod python_return_codes_tests {
     fn extract_from_str(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(&PyString::new(py, "asdf"))
+                PythonReturnCodes::extract_bound(&PyString::intern(py, "asdf"))
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
             );
         });
@@ -989,7 +989,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                         "%H:%M:%S",
                     ),
                 )?;
-                py.import("logging.handlers").and_then(|handlers_submodule| {
+                py.import(intern!(py, "logging.handlers")).and_then(|handlers_submodule| {
                     let py_max_logssize = PyInt::new(py, max_logssize).into_any();
                     let py_num_max_logs = PyInt::new(py, num_max_logs).into_any();
                     handlers_submodule
@@ -998,7 +998,7 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                             (format!("{homepath}/shinqlx.log"),),
                             Some(
                                 &[
-                                    ("encoding", PyString::new(py, "utf-8").into_any()),
+                                    ("encoding", PyString::intern(py, "utf-8").into_any()),
                                     ("maxBytes", py_max_logssize),
                                     ("backupCount", py_num_max_logs),
                                 ]
@@ -1012,9 +1012,9 @@ fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
                         })
                 })?;
 
-                let datetime_now = py.import("datetime").and_then(|datetime_module| {
+                let datetime_now = py.import(intern!(py, "datetime")).and_then(|datetime_module| {
                     datetime_module
-                        .getattr("datetime")
+                        .getattr(intern!(py, "datetime"))
                         .and_then(|datetime_object| datetime_object.call_method0("now"))
                 })?;
                 shinqlx_logger
@@ -1715,7 +1715,7 @@ test_func()
                         .is_ok_and(|bool_value| !bool_value.is_true()))
             );
             let scheduler_queue = frame_tasks
-                .getattr("queue")
+                .getattr(intern!(py, "queue"))
                 .expect("this should not happen");
             assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
             let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
@@ -1764,7 +1764,7 @@ test_func()
                         .is_ok_and(|bool_value| !bool_value.is_true()))
             );
             let scheduler_queue = frame_tasks
-                .getattr("queue")
+                .getattr(intern!(py, "queue"))
                 .expect("this should not happen");
             assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
             let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
@@ -1894,11 +1894,15 @@ def threaded_func():
             let result = py_test_module.call_method0(intern!(py, "threaded_func"));
             assert!(result.is_ok());
 
-            assert!(py_test_module.getattr("called").is_ok_and(|called| {
-                called
-                    .downcast::<PyBool>()
-                    .is_ok_and(|pybool| pybool.is_true())
-            }));
+            assert!(
+                py_test_module
+                    .getattr(intern!(py, "called"))
+                    .is_ok_and(|called| {
+                        called
+                            .downcast::<PyBool>()
+                            .is_ok_and(|pybool| pybool.is_true())
+                    })
+            );
         });
     }
 
@@ -1931,11 +1935,15 @@ def threaded_func():
             let result = py_test_module.call_method0(intern!(py, "threaded_func"));
             assert!(result.is_ok());
 
-            assert!(py_test_module.getattr("called").is_ok_and(|called| {
-                called
-                    .downcast::<PyBool>()
-                    .is_ok_and(|pybool| pybool.is_true())
-            }));
+            assert!(
+                py_test_module
+                    .getattr(intern!(py, "called"))
+                    .is_ok_and(|called| {
+                        called
+                            .downcast::<PyBool>()
+                            .is_ok_and(|pybool| pybool.is_true())
+                    })
+            );
         });
     }
 }
@@ -2353,7 +2361,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
             importlib_module.call_method1(intern!(py, "import_module"), (plugin_import_path,))
         })?;
 
-    let plugin_pystring = PyString::new(py, plugin);
+    let plugin_pystring = PyString::intern(py, plugin);
     if let Some(modules) = MODULES.load().as_ref() {
         modules.bind(py).set_item(&plugin_pystring, &module)?;
     }
@@ -2452,7 +2460,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             |unload_dispatcher| {
                 UnloadDispatcherMethods::dispatch(
                     unload_dispatcher.downcast()?,
-                    PyString::new(py, plugin).as_any(),
+                    PyString::intern(py, plugin).as_any(),
                 )
             },
         )?;
@@ -3447,47 +3455,76 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
 #[pyfunction(name = "initialize_cvars")]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
-    pyshinqlx_set_cvar_once(py, "qlx_owner", PyString::new(py, "-1").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(py, "qlx_owner", PyString::intern(py, "-1").as_any(), 0)?;
     pyshinqlx_set_cvar_once(
         py,
         "qlx_plugins",
-        PyString::new(py, &DEFAULT_PLUGINS.join(", ")).as_any(),
+        PyString::intern(py, &DEFAULT_PLUGINS.join(", ")).as_any(),
         0,
     )?;
     pyshinqlx_set_cvar_once(
         py,
         "qlx_pluginsPath",
-        PyString::new(py, "shinqlx-plugins").as_any(),
+        PyString::intern(py, "shinqlx-plugins").as_any(),
         0,
     )?;
-    pyshinqlx_set_cvar_once(py, "qlx_database", PyString::new(py, "Redis").as_any(), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_commandPrefix", PyString::new(py, "!").as_any(), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_logs", PyString::new(py, "2").as_any(), 0)?;
-    pyshinqlx_set_cvar_once(py, "qlx_logsSize", PyString::new(py, "3000000").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_database",
+        PyString::intern(py, "Redis").as_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_commandPrefix",
+        PyString::intern(py, "!").as_any(),
+        0,
+    )?;
+    pyshinqlx_set_cvar_once(py, "qlx_logs", PyString::intern(py, "2").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_logsSize",
+        PyString::intern(py, "3000000").as_any(),
+        0,
+    )?;
 
     pyshinqlx_set_cvar_once(
         py,
         "qlx_redisAddress",
-        PyString::new(py, "127.0.0.1").as_any(),
+        PyString::intern(py, "127.0.0.1").as_any(),
         0,
     )?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisDatabase", PyString::new(py, "0").as_any(), 0)?;
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_redisDatabase",
+        PyString::intern(py, "0").as_any(),
+        0,
+    )?;
     pyshinqlx_set_cvar_once(
         py,
         "qlx_redisUnixSocket",
-        PyString::new(py, "0").as_any(),
+        PyString::intern(py, "0").as_any(),
         0,
     )?;
-    pyshinqlx_set_cvar_once(py, "qlx_redisPassword", PyString::new(py, "").as_any(), 0).map(|_| ())
+    pyshinqlx_set_cvar_once(
+        py,
+        "qlx_redisPassword",
+        PyString::intern(py, "").as_any(),
+        0,
+    )
+    .map(|_| ())
 }
 
 fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let sched_module = m.py().import("sched")?;
-    m.add("frame_tasks", sched_module.call_method0("scheduler")?)?;
-    let queue_module = m.py().import("queue")?;
+    let sched_module = m.py().import(intern!(m.py(), "sched"))?;
     m.add(
-        "next_frame_tasks",
-        queue_module.call_method0("SimpleQueue")?,
+        intern!(m.py(), "frame_tasks"),
+        sched_module.call_method0(intern!(m.py(), "scheduler"))?,
+    )?;
+    let queue_module = m.py().import(intern!(m.py(), "queue"))?;
+    m.add(
+        intern!(m.py(), "next_frame_tasks"),
+        queue_module.call_method0(intern!(m.py(), "SimpleQueue"))?,
     )?;
 
     m.add_function(wrap_pyfunction!(handlers::handle_rcon, m)?)?;
@@ -4176,10 +4213,10 @@ fn register_player_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("MAX_MSG_LENGTH", MAX_MSG_LENGTH)?;
-    let regex_module = m.py().import("re")?;
+    let regex_module = m.py().import(intern!(m.py(), "re"))?;
     m.add(
-        "re_color_tag",
-        regex_module.call_method1("compile", (r"\^[0-7]",))?,
+        intern!(m.py(), "re_color_tag"),
+        regex_module.call_method1(intern!(m.py(), "compile"), (r"\^[0-7]",))?,
     )?;
     m.add_class::<AbstractChannel>()?;
     m.add_class::<ChatChannel>()?;
@@ -4312,10 +4349,13 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let regex_module = m.py().import("re")?;
+    let regex_module = m.py().import(intern!(m.py(), "re"))?;
     m.add(
-        "_re_vote",
-        regex_module.call_method1("compile", (r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#,))?,
+        intern!(m.py(), "_re_vote"),
+        regex_module.call_method1(
+            intern!(m.py(), "compile"),
+            (r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#,),
+        )?,
     )?;
     m.add_class::<EventDispatcher>()?;
     m.add_class::<ConsolePrintDispatcher>()?;
@@ -4565,7 +4605,7 @@ def initialize():
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_test_support {
-    use pyo3::prelude::*;
+    use pyo3::{intern, prelude::*};
 
     use super::{
         Command, Flight, Holdable, Player, PlayerInfo, PlayerState, Powerups, Vector3, Weapons,
@@ -4638,7 +4678,7 @@ while not shinqlx.next_frame_tasks.empty():
                 .unbind(),
             name: vec!["cmd_name".into()],
             handler: capturing_hook
-                .getattr("hook")
+                .getattr(intern!(py, "hook"))
                 .expect("could not get capturing hook")
                 .unbind(),
             permission: 0,
@@ -4664,7 +4704,7 @@ class test_plugin(shinqlx.Plugin):
             c"",
         )
         .expect("coult not create test plugin")
-        .getattr("test_plugin")
+        .getattr(intern!(py, "test_plugin"))
         .expect("could not get test plugin")
     }
 
@@ -4709,7 +4749,7 @@ def returning_false_hook(*args, **kwargs):
         )
         .expect("could not create returning false module");
         returning_false_module
-            .getattr("returning_false_hook")
+            .getattr(intern!(py, "returning_false_hook"))
             .expect("could not get returning_false_hook function")
     }
 
@@ -4725,7 +4765,7 @@ def returning_other_string(*args, **kwargs):
         )
         .expect("could not create returning false module");
         returning_other_string_module
-            .getattr("returning_other_string")
+            .getattr(intern!(py, "returning_other_string"))
             .expect("could not get returning_false_hook function")
     }
 }

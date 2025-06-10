@@ -307,7 +307,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_client_command_ctx = handle_client_command_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, cmd| PyString::new(py, cmd).into_any().unbind());
+            .returning(|py, _, cmd| PyString::intern(py, cmd).into_any().unbind());
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -323,7 +323,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_client_command_ctx = handle_client_command_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
+            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -403,7 +403,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_server_command_ctx = handle_server_command_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, cmd| PyString::new(py, cmd).into_any().unbind());
+            .returning(|py, _, cmd| PyString::intern(py, cmd).into_any().unbind());
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -419,7 +419,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_server_command_ctx = handle_server_command_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
+            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -524,7 +524,7 @@ mod pyshinqlx_dispatcher_tests {
         let player_connect_handler_ctx = handle_player_connect_context();
         player_connect_handler_ctx
             .expect()
-            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
+            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
 
         let result = client_connect_dispatcher(42, false);
         assert_eq!(result, Some("qwertz".to_string()));
@@ -735,7 +735,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_set_configstring_ctx = handle_set_configstring_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, value| PyString::new(py, value).into_any().unbind());
+            .returning(|py, _, value| PyString::intern(py, value).into_any().unbind());
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -751,7 +751,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_set_configstring_ctx = handle_set_configstring_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| PyString::new(py, "qwertz").into_any().unbind());
+            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, Some("qwertz".to_string()));
@@ -856,7 +856,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_console_print_ctx = handle_console_print_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, text| PyString::new(py, text).into_any().unbind());
+            .returning(|py, text| PyString::intern(py, text).into_any().unbind());
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("asdf".to_string()));
@@ -872,7 +872,7 @@ mod pyshinqlx_dispatcher_tests {
         let handle_console_print_ctx = handle_console_print_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| PyString::new(py, "qwertz").into_any().unbind());
+            .returning(|py, _| PyString::intern(py, "qwertz").into_any().unbind());
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, Some("qwertz".to_string()));
