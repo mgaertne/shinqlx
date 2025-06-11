@@ -594,7 +594,12 @@ mod event_dispatcher_tests {
     use crate::{
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
-            python::{commands::CommandPriorities, pyshinqlx_setup_fixture::*},
+            python::{
+                PythonReturnCodes,
+                commands::CommandPriorities,
+                pyshinqlx_setup_fixture::*,
+                pyshinqlx_test_support::{python_function_returning, throws_exception_hook},
+            },
         },
         prelude::*,
     };
@@ -619,21 +624,6 @@ class CustomDispatcher(shinqlx.EventDispatcher):
         .getattr(intern!(py, "CustomDispatcher"))
         .expect("this should not happen")
         .call0()
-        .expect("this should not happen")
-    }
-
-    fn custom_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        PyModule::from_code(
-            py,
-            cr#"
-def custom_hook(*args, **kwargs):
-    pass
-        "#,
-            c"",
-            c"",
-        )
-        .expect("this should not happen")
-        .getattr(intern!(py, "custom_hook"))
         .expect("this should not happen")
     }
 
@@ -677,7 +667,7 @@ def custom_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "prio5_plugin",
-                                custom_hook(py),
+                                python_function_returning(py, &py.None().into_bound(py)),
                                 CommandPriorities::PRI_LOWEST as i32,
                             ),
                         )
@@ -687,7 +677,7 @@ def custom_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "prio4_plugin",
-                                custom_hook(py),
+                                python_function_returning(py, &py.None().into_bound(py)),
                                 CommandPriorities::PRI_LOW as i32,
                             ),
                         )
@@ -698,7 +688,7 @@ def custom_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "prio3_plugin",
-                                custom_hook(py),
+                                python_function_returning(py, &py.None().into_bound(py)),
                                 CommandPriorities::PRI_NORMAL as i32,
                             ),
                         )
@@ -709,7 +699,7 @@ def custom_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "prio2_plugin",
-                                custom_hook(py),
+                                python_function_returning(py, &py.None().into_bound(py)),
                                 CommandPriorities::PRI_HIGH as i32,
                             ),
                         )
@@ -720,7 +710,7 @@ def custom_hook(*args, **kwargs):
                             intern!(py, "add_hook"),
                             (
                                 "prio1_plugin",
-                                custom_hook(py),
+                                python_function_returning(py, &py.None().into_bound(py)),
                                 CommandPriorities::PRI_HIGHEST as i32,
                             ),
                         )
@@ -769,19 +759,7 @@ def custom_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let throws_exception_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def throws_exception_hook(*args, **kwargs):
-    raise ValueError("asdf")
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "throws_exception_hook"))
-                    .expect("this should not happen");
-
+                    let throws_exception_hook = throws_exception_hook(py);
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -824,19 +802,8 @@ def throws_exception_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_none_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def returns_none_hook(*args, **kwargs):
-    return None
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_none_hook"))
-                    .expect("this should not happen");
-
+                    let returns_none_hook =
+                        python_function_returning(py, &py.None().into_bound(py));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -879,21 +846,8 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_none_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_none_hook(*args, **kwargs):
-    return shinqlx.RET_NONE
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_none_hook"))
-                    .expect("this should not happen");
-
+                    let returns_none_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_NONE as i32));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -936,21 +890,8 @@ def returns_none_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_stop_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_stop_hook(*args, **kwargs):
-    return shinqlx.RET_STOP
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_stop_hook"))
-                    .expect("this should not happen");
-
+                    let returns_stop_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_STOP as i32));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -993,21 +934,8 @@ def returns_stop_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_stop_event_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_stop_event_hook(*args, **kwargs):
-    return shinqlx.RET_STOP_EVENT
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_stop_event_hook"))
-                    .expect("this should not happen");
-
+                    let returns_stop_event_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_STOP_EVENT as i32));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1050,21 +978,8 @@ def returns_stop_event_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_stop_all_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_stop_all_hook(*args, **kwargs):
-    return shinqlx.RET_STOP_ALL
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_stop_all_hook"))
-                    .expect("this should not happen");
-
+                    let returns_stop_all_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_STOP_ALL as i32));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1107,19 +1022,7 @@ def returns_stop_all_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let returns_string_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def returns_string_hook(*args, **kwargs):
-    return "return string"
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_string_hook"))
-                    .expect("this should not happen");
-
+                    let returns_string_hook = python_function_returning(py, &"return string");
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1163,35 +1066,12 @@ def returns_string_hook(*args, **kwargs):
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
-                    let return_handler = PyModule::from_code(
-                        py,
-                        cr#"
-def handle_return(*args, **kwargs):
-    raise ValueError("return_handler default exception")
-                "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "handle_return"))
-                    .expect("this should not happen");
+                    let return_handler = throws_exception_hook(py);
                     dispatcher
                         .setattr(intern!(py, "handle_return"), return_handler)
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def returns_string_hook(*args, **kwargs):
-    return "return string"
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_string_hook"))
-                    .expect("this should not happen");
-
+                    let returns_string_hook = python_function_returning(py, &"return string");
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1235,35 +1115,13 @@ def returns_string_hook(*args, **kwargs):
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
-                    let return_handler = PyModule::from_code(
-                        py,
-                        cr#"
-def handle_return(*args, **kwargs):
-    return "return_handler string return"
-                "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "handle_return"))
-                    .expect("this should not happen");
+                    let return_handler =
+                        python_function_returning(py, &"return_handler string return");
                     dispatcher
                         .setattr(intern!(py, "handle_return"), return_handler)
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def returns_string_hook(*args, **kwargs):
-    return "return string"
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_string_hook"))
-                    .expect("this should not happen");
-
+                    let returns_string_hook = python_function_returning(py, &"return string");
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1295,19 +1153,7 @@ def returns_string_hook(*args, **kwargs):
         Python::with_gil(|py| {
             let dispatcher = custom_dispatcher(py);
 
-            let default_hook = PyModule::from_code(
-                py,
-                cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("this should not happen")
-            .getattr(intern!(py, "default_hook"))
-            .expect("this should not happen");
-
+            let default_hook = python_function_returning(py, &py.None().into_bound(py));
             let result = dispatcher.call_method1(
                 intern!(py, "add_hook"),
                 ("test_plugin", default_hook.unbind(), priority),
@@ -1342,19 +1188,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
             .call0()
             .expect("this should not happen");
 
-            let default_hook = PyModule::from_code(
-                py,
-                cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("this should not happen")
-            .getattr(intern!(py, "default_hook"))
-            .expect("this should not happen");
-
+            let default_hook = python_function_returning(py, &py.None().into_bound(py));
             let result = nameless_dispatcher.call_method1(
                 intern!(py, "add_hook"),
                 (
@@ -1393,19 +1227,7 @@ class ZmqLessDispatcher(shinqlx.EventDispatcher):
             .call0()
             .expect("this should not happen");
 
-            let default_hook = PyModule::from_code(
-                py,
-                cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("this should not happen")
-            .getattr(intern!(py, "default_hook"))
-            .expect("this should not happen");
-
+            let default_hook = python_function_returning(py, &py.None().into_bound(py));
             let result = zmq_less_dispatcher.call_method1(
                 intern!(py, "add_hook"),
                 (
@@ -1458,19 +1280,7 @@ class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
                     .call0()
                     .expect("this should not happen");
 
-                    let default_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "default_hook"))
-                    .expect("this should not happen");
-
+                    let default_hook = python_function_returning(py, &py.None().into_bound(py));
                     let result = zmq_dispatcher.call_method1(
                         intern!(py, "add_hook"),
                         (
@@ -1505,19 +1315,7 @@ def default_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let default_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "default_hook"))
-                    .expect("this should not happen");
-
+                    let default_hook = python_function_returning(py, &py.None().into_bound(py));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1568,19 +1366,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
             .call0()
             .expect("this should not happen");
 
-            let default_hook = PyModule::from_code(
-                py,
-                cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("this should not happen")
-            .getattr(intern!(py, "default_hook"))
-            .expect("this should not happen");
-
+            let default_hook = python_function_returning(py, &py.None().into_bound(py));
             let result = nameless_dispatcher.call_method1(
                 intern!(py, "remove_hook"),
                 (
@@ -1601,19 +1387,7 @@ def default_hook(*args, **kwargs):
         Python::with_gil(|py| {
             let dispatcher = custom_dispatcher(py);
 
-            let default_hook = PyModule::from_code(
-                py,
-                cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("this should not happen")
-            .getattr(intern!(py, "default_hook"))
-            .expect("this should not happen");
-
+            let default_hook = python_function_returning(py, &py.None().into_bound(py));
             let result = dispatcher.call_method1(
                 intern!(py, "remove_hook"),
                 (
@@ -1647,19 +1421,7 @@ def default_hook(*args, **kwargs):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let default_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def default_hook(*args, **kwargs):
-    pass
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "default_hook"))
-                    .expect("this should not happen");
-
+                    let default_hook = python_function_returning(py, &py.None().into_bound(py));
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),

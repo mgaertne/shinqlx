@@ -795,6 +795,7 @@ mod handle_zmq_msg_tests {
             },
             python::{
                 EVENT_DISPATCHERS,
+                PythonReturnCodes::RET_STOP_EVENT,
                 commands::CommandPriorities,
                 events::{
                     DeathDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -3503,7 +3504,7 @@ mod handle_zmq_msg_tests {
                                 intern!(py, "add_hook"),
                                 (
                                     "asdf",
-                                    returning_false_hook(py),
+                                    python_function_returning(py, &(RET_STOP_EVENT as i32)),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
                             )

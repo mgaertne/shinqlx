@@ -4605,6 +4605,9 @@ def initialize():
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_test_support {
+    use alloc::ffi::CString;
+    use core::fmt::Debug;
+
     use pyo3::{intern, prelude::*};
 
     use super::{
@@ -4735,38 +4738,40 @@ def assert_called_with(*args):
             .expect("could create test handler module")
     }
 
-    pub(crate) fn returning_false_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        let returning_false_module = PyModule::from_code(
-            py,
-            cr#"
-import shinqlx
-
-def returning_false_hook(*args, **kwargs):
-    return shinqlx.RET_STOP_EVENT
+    pub(super) fn python_function_returning<'py, T: Debug>(
+        py: Python<'py>,
+        returned: &T,
+    ) -> Bound<'py, PyAny> {
+        let module_definition = format!(
+            r#"
+def custom_return(*args, **kwargs):
+    return {returned:?}
             "#,
+        );
+        PyModule::from_code(
+            py,
+            &CString::new(module_definition).expect("this should not happen"),
             c"",
             c"",
         )
-        .expect("could not create returning false module");
-        returning_false_module
-            .getattr(intern!(py, "returning_false_hook"))
-            .expect("could not get returning_false_hook function")
+        .expect("could not create returning string module")
+        .getattr(intern!(py, "custom_return"))
+        .expect("could not get returning_string function")
     }
 
-    pub(super) fn returning_other_string_hook(py: Python<'_>) -> Bound<'_, PyAny> {
-        let returning_other_string_module = PyModule::from_code(
+    pub(super) fn throws_exception_hook(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code(
             py,
             cr#"
-def returning_other_string(*args, **kwargs):
-    return "quit"
+def throws_exception_hook(*args, **kwargs):
+    raise ValueError("asdf")
             "#,
             c"",
             c"",
         )
-        .expect("could not create returning false module");
-        returning_other_string_module
-            .getattr(intern!(py, "returning_other_string"))
-            .expect("could not get returning_false_hook function")
+        .expect("this should not happen")
+        .getattr(intern!(py, "throws_exception_hook"))
+        .expect("this should not happen")
     }
 }
 
