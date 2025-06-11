@@ -4,7 +4,7 @@ use pyo3::{
     basic::CompareOp,
     exceptions::PyNotImplementedError,
     intern,
-    types::{IntoPyDict, PyBool, PyNotImplemented, PyType},
+    types::{IntoPyDict, PyBool, PyDict, PyNotImplemented, PyType},
 };
 use rayon::prelude::*;
 use regex::Regex;
@@ -610,28 +610,30 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
                 )?
                 .extract::<String>()?;
 
-            let next_frame_reply = PyModule::from_code(
-                self.py(),
-                cr#"
-import shinqlx
-
-
-@shinqlx.next_frame
-def reply(targets, msg):
-    shinqlx.send_server_command(targets, msg)
-        "#,
-                c"",
-                c"",
-            )?
-            .getattr(intern!(self.py(), "reply"))?;
-
+            let next_frame_tasks = self
+                .py()
+                .import(intern!(self.py(), "shinqlx"))?
+                .getattr(intern!(self.py(), "next_frame_tasks"))?;
+            let called_func = wrap_pyfunction!(pyshinqlx_send_server_command, self.py())?;
             match targets {
                 None => {
-                    next_frame_reply.call1((self.py().None(), &server_command))?;
+                    next_frame_tasks.call_method1(
+                        intern!(self.py(), "put_nowait"),
+                        ((
+                            &called_func,
+                            (self.py().None(), &server_command),
+                            PyDict::new(self.py()),
+                        ),),
+                    )?;
                 }
                 Some(ref cids) => {
                     cids.iter()
-                        .map(|&cid| next_frame_reply.call1((cid, &server_command)))
+                        .map(|&cid| {
+                            next_frame_tasks.call_method1(
+                                intern!(self.py(), "put_nowait"),
+                                ((&called_func, (cid, &server_command), PyDict::new(self.py())),),
+                            )
+                        })
                         .collect::<PyResult<Vec<_>>>()?;
                 }
             }
@@ -1531,10 +1533,7 @@ impl AbstractChannelMethods for Bound<'_, ClientCommandChannel> {
             }),
         )?;
 
-        tell_channel
-            .as_super()
-            .reply(msg, limit, delimiter)
-            .map(|_| ())
+        tell_channel.as_super().reply(msg, limit, delimiter)
     }
 }
 

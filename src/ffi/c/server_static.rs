@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use super::prelude::*;
 use crate::{MAIN_ENGINE, prelude::*};
 
@@ -64,9 +66,10 @@ impl ServerStatic<'_> {
             ));
         }
 
-        offset
-            .try_into()
-            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".to_string()))
+        offset.try_into().map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::ClientNotFound("client not found".to_string())
+        })
     }
 }
 

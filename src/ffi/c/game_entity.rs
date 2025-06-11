@@ -3,6 +3,7 @@ use core::{
     borrow::BorrowMut,
     f32::consts::PI,
     ffi::{CStr, c_char, c_float, c_int},
+    hint::cold_path,
 };
 
 use arrayvec::ArrayVec;
@@ -48,16 +49,19 @@ impl TryFrom<i32> for GameEntity {
     fn try_from(entity_id: i32) -> Result<Self, Self::Error> {
         match MAX_GENTITIES.try_conv::<i32>() {
             Ok(max_gentities) if !(0..max_gentities).contains(&entity_id) => {
+                cold_path();
                 Err(QuakeLiveEngineError::InvalidId(entity_id))
             }
             _ => {
                 let g_entities = GameEntity::get_entities_list();
                 if g_entities.is_null() {
+                    cold_path();
                     Err(QuakeLiveEngineError::EntityNotFound(
                         "g_entities not initialized".to_string(),
                     ))
                 } else {
                     Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
+                        cold_path();
                         QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
                     })
                 }
@@ -75,13 +79,16 @@ impl TryFrom<u32> for GameEntity {
         }
         let g_entities = GameEntity::get_entities_list();
         if g_entities.is_null() {
+            cold_path();
             return Err(QuakeLiveEngineError::EntityNotFound(
                 "g_entities not initialized".to_string(),
             ));
         }
 
-        Self::try_from(unsafe { g_entities.offset(entity_id as isize) })
-            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".to_string()))
+        Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
+        })
     }
 }
 

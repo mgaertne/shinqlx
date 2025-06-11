@@ -815,7 +815,7 @@ impl Plugin {
             Some(reason)
         };
 
-        pyshinqlx_kick(cls.py(), client_id, forwarded_reason).map(|_| ())
+        pyshinqlx_kick(cls.py(), client_id, forwarded_reason)
     }
 
     #[classmethod]
@@ -908,7 +908,7 @@ impl Plugin {
             |client_id| {
                 cls.py().allow_threads(|| {
                     let slap_cmd = format!("slap {client_id} {damage}");
-                    console_command(&slap_cmd).map(|_| ())
+                    console_command(&slap_cmd)
                 })
             },
         )
@@ -921,7 +921,7 @@ impl Plugin {
             |client_id| {
                 cls.py().allow_threads(|| {
                     let slay_cmd = format!("slay {client_id}");
-                    console_command(&slay_cmd).map(|_| ())
+                    console_command(&slay_cmd)
                 })
             },
         )

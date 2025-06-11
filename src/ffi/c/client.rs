@@ -1,5 +1,8 @@
 use alloc::{borrow::Cow, ffi::CString};
-use core::ffi::{CStr, c_char};
+use core::{
+    ffi::{CStr, c_char},
+    hint::cold_path,
+};
 
 use tap::{TapFallible, TapOptional};
 
@@ -38,8 +41,10 @@ impl TryFrom<i32> for Client<'_> {
     fn try_from(client_id: i32) -> Result<Self, Self::Error> {
         let server_static = ServerStatic::try_get()?;
         let client = server_static.try_get_client_by_id(client_id)?;
-        Self::try_from(client)
-            .map_err(|_| QuakeLiveEngineError::ClientNotFound("client not found".to_string()))
+        Self::try_from(client).map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::ClientNotFound("client not found".to_string())
+        })
     }
 }
 
