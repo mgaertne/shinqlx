@@ -2096,7 +2096,6 @@ def remove_command(cmd):
 mod command_invoker_tests {
     use core::borrow::BorrowMut;
 
-    use git2::IntoCString;
     use mockall::predicate;
     use pyo3::{
         exceptions::{PyEnvironmentError, PyValueError},
@@ -2113,8 +2112,8 @@ mod command_invoker_tests {
                 EVENT_DISPATCHERS, PythonReturnCodes,
                 prelude::*,
                 pyshinqlx_test_support::{
-                    capturing_hook, default_command, default_test_player, returning_false_hook,
-                    run_all_frame_tasks,
+                    capturing_hook, default_command, default_test_player,
+                    python_function_returning, run_all_frame_tasks,
                 },
             },
         },
@@ -2532,7 +2531,10 @@ mod command_invoker_tests {
                                 intern!(py, "add_hook"),
                                 (
                                     "asdf",
-                                    returning_false_hook(py),
+                                    python_function_returning(
+                                        py,
+                                        &(PythonReturnCodes::RET_STOP_EVENT as i32),
+                                    ),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 ),
                             )
@@ -2600,23 +2602,7 @@ mod command_invoker_tests {
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let module_definition = format!(
-                        r#"
-def cmd_handler(*args, **kwargs):
-    return {}
-            "#,
-                        return_code as i32
-                    );
-                    let handler = PyModule::from_code(
-                        py,
-                        &module_definition
-                            .into_c_string()
-                            .expect("this should not happen"),
-                        c"",
-                        c"",
-                    )
-                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
-                    .expect("this should not happen");
+                    let handler = python_function_returning(py, &(return_code as i32));
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,
@@ -2684,23 +2670,8 @@ def cmd_handler(*args, **kwargs):
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let module_definition = format!(
-                        r#"
-def cmd_handler(*args, **kwargs):
-    return {}
-            "#,
-                        PythonReturnCodes::RET_USAGE as i32
-                    );
-                    let handler = PyModule::from_code(
-                        py,
-                        &module_definition
-                            .into_c_string()
-                            .expect("this should not happen"),
-                        c"",
-                        c"",
-                    )
-                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
-                    .expect("this should not happen");
+                    let handler =
+                        python_function_returning(py, &(PythonReturnCodes::RET_USAGE as i32));
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,
@@ -2773,23 +2744,8 @@ def cmd_handler(*args, **kwargs):
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let module_definition = format!(
-                        r#"
-def cmd_handler(*args, **kwargs):
-    return {}
-            "#,
-                        PythonReturnCodes::RET_USAGE as i32
-                    );
-                    let handler = PyModule::from_code(
-                        py,
-                        &module_definition
-                            .into_c_string()
-                            .expect("this should not happen"),
-                        c"",
-                        c"",
-                    )
-                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
-                    .expect("this should not happen");
+                    let handler =
+                        python_function_returning(py, &(PythonReturnCodes::RET_USAGE as i32));
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,

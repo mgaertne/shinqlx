@@ -619,6 +619,7 @@ mod handle_client_command_tests {
             },
             python::{
                 BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
+                PythonReturnCodes::RET_STOP_EVENT,
                 RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
                 channels::TeamChatChannel,
                 commands::CommandPriorities,
@@ -808,7 +809,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -882,7 +886,7 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_other_string_hook(py),
+                                            &python_function_returning(py, &"quit"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -1170,7 +1174,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -1501,7 +1508,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -1862,7 +1872,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -2265,7 +2278,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -2670,7 +2686,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -2973,7 +2992,10 @@ mod handle_client_command_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_false_hook(py),
+                                            &python_function_returning(
+                                                py,
+                                                &(RET_STOP_EVENT as i32),
+                                            ),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -3243,6 +3265,7 @@ mod handle_server_command_tests {
             },
             python::{
                 EVENT_DISPATCHERS,
+                PythonReturnCodes::RET_STOP_EVENT,
                 commands::CommandPriorities,
                 events::{
                     EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -3439,7 +3462,7 @@ mod handle_server_command_tests {
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
-                                    &returning_false_hook(py),
+                                    &python_function_returning(py, &(RET_STOP_EVENT as i32)),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
                         })
@@ -3487,7 +3510,7 @@ mod handle_server_command_tests {
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
-                                    &returning_other_string_hook(py),
+                                    &python_function_returning(py, &"quit"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
                         })
@@ -5254,6 +5277,7 @@ mod handle_set_configstring_tests {
             },
             python::{
                 EVENT_DISPATCHERS,
+                PythonReturnCodes::RET_STOP_EVENT,
                 commands::CommandPriorities,
                 events::{
                     EventDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
@@ -5354,7 +5378,7 @@ mod handle_set_configstring_tests {
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
-                                    &returning_false_hook(py),
+                                    &python_function_returning(py, &(RET_STOP_EVENT as i32)),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
                         })
@@ -5420,7 +5444,7 @@ mod handle_set_configstring_tests {
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
-                                    &returning_other_string_hook(py),
+                                    &python_function_returning(py, &"quit"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
                         })
@@ -6559,7 +6583,7 @@ mod handle_player_connect_tests {
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
-                                            &returning_other_string_hook(py),
+                                            &python_function_returning(py, &"quit"),
                                             CommandPriorities::PRI_NORMAL as i32,
                                         )
                                 })
@@ -8187,6 +8211,7 @@ mod handle_console_print_tests {
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
                 EVENT_DISPATCHERS,
+                PythonReturnCodes::RET_STOP_EVENT,
                 commands::CommandPriorities,
                 events::{
                     ConsolePrintDispatcher, EventDispatcher, EventDispatcherManager,
@@ -8292,7 +8317,7 @@ mod handle_console_print_tests {
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
-                                    &returning_false_hook(py),
+                                    &python_function_returning(py, &(RET_STOP_EVENT as i32)),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
                         })
@@ -8343,7 +8368,7 @@ mod handle_console_print_tests {
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
-                                    &returning_other_string_hook(py),
+                                    &python_function_returning(py, &"quit"),
                                     CommandPriorities::PRI_NORMAL as i32,
                                 )
                         })

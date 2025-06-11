@@ -43,7 +43,6 @@ mod game_end_dispatcher_tests {
     use core::borrow::BorrowMut;
 
     use pyo3::{
-        intern,
         prelude::*,
         types::{PyBool, PyString},
     };
@@ -54,7 +53,11 @@ mod game_end_dispatcher_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                commands::CommandPriorities, events::EventDispatcherMethods, pyshinqlx_setup,
+                PythonReturnCodes,
+                commands::CommandPriorities,
+                events::EventDispatcherMethods,
+                pyshinqlx_setup,
+                pyshinqlx_test_support::{python_function_returning, throws_exception_hook},
             },
         },
         prelude::*,
@@ -96,19 +99,7 @@ mod game_end_dispatcher_tests {
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def throws_exception_hook(*args, **kwargs):
-    raise ValueError("asdf")
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "throws_exception_hook"))
-                    .expect("this should not happen");
-
+                    let throws_exception_hook = throws_exception_hook(py);
                     dispatcher
                         .as_super()
                         .add_hook(
@@ -148,19 +139,8 @@ def throws_exception_hook(*args, **kwargs):
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def returns_none_hook(*args, **kwargs):
-    return None
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_none_hook"))
-                    .expect("this should not happen");
-
+                    let returns_none_hook =
+                        python_function_returning(py, &py.None().into_bound(py));
                     dispatcher
                         .as_super()
                         .add_hook(
@@ -200,21 +180,8 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_none_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_none_hook(*args, **kwargs):
-    return shinqlx.RET_NONE
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_none_hook"))
-                    .expect("this should not happen");
-
+                    let returns_none_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_NONE as i32));
                     dispatcher
                         .as_super()
                         .add_hook(
@@ -254,21 +221,8 @@ def returns_none_hook(*args, **kwargs):
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_stop_hook(*args, **kwargs):
-    return shinqlx.RET_STOP
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_stop_hook"))
-                    .expect("this should not happen");
-
+                    let returns_stop_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_STOP as i32));
                     dispatcher
                         .as_super()
                         .add_hook(
@@ -308,21 +262,8 @@ def returns_stop_hook(*args, **kwargs):
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_event_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_stop_event_hook(*args, **kwargs):
-    return shinqlx.RET_STOP_EVENT
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_stop_event_hook"))
-                    .expect("this should not happen");
-
+                    let returns_stop_event_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_STOP_EVENT as i32));
                     dispatcher
                         .as_super()
                         .add_hook(
@@ -362,21 +303,8 @@ def returns_stop_event_hook(*args, **kwargs):
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_stop_all_hook = PyModule::from_code(
-                        py,
-                        cr#"
-import shinqlx
-
-def returns_stop_all_hook(*args, **kwargs):
-    return shinqlx.RET_STOP_ALL
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_stop_all_hook"))
-                    .expect("this should not happen");
-
+                    let returns_stop_all_hook =
+                        python_function_returning(py, &(PythonReturnCodes::RET_STOP_ALL as i32));
                     dispatcher
                         .as_super()
                         .add_hook(
@@ -416,19 +344,7 @@ def returns_stop_all_hook(*args, **kwargs):
                     let dispatcher = Bound::new(py, GameEndDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let returns_string_hook = PyModule::from_code(
-                        py,
-                        cr#"
-def returns_string_hook(*args, **kwargs):
-    return "return string"
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen")
-                    .getattr(intern!(py, "returns_string_hook"))
-                    .expect("this should not happen");
-
+                    let returns_string_hook = python_function_returning(py, &"return string");
                     dispatcher
                         .as_super()
                         .add_hook(
