@@ -2101,6 +2101,7 @@ mod command_invoker_tests {
         exceptions::{PyEnvironmentError, PyValueError},
         intern,
         prelude::*,
+        types::PyDict,
     };
     use rstest::*;
 
@@ -2810,17 +2811,7 @@ mod command_invoker_tests {
                         .expect("could not add command dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
 
-                    let handler = PyModule::from_code(
-                        py,
-                        cr#"
-def cmd_handler(*args, **kwargs):
-    return dict()
-            "#,
-                        c"",
-                        c"",
-                    )
-                    .and_then(|result| result.getattr(intern!(py, "cmd_handler")))
-                    .expect("this should not happen");
+                    let handler = python_function_returning(py, &PyDict::new(py));
                     let command = Command {
                         handler: handler.unbind(),
                         prefix: false,

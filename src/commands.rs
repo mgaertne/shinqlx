@@ -272,7 +272,7 @@ pub extern "C" fn cmd_restart_python() {
 #[cfg(test)]
 mod commands_tests {
     use mockall::predicate;
-    use pyo3::intern;
+    use pyo3::{intern, types::PyBool};
     use rstest::rstest;
 
     use super::{
@@ -280,7 +280,15 @@ mod commands_tests {
         cmd_send_server_command, cmd_slap, cmd_slay,
     };
     use crate::{
-        ffi::{c::prelude::*, python::prelude::*},
+        ffi::{
+            c::prelude::*,
+            python::{
+                prelude::*,
+                pyshinqlx_test_support::{
+                    python_function_raising_exception, python_function_returning,
+                },
+            },
+        },
         prelude::*,
     };
 
@@ -924,19 +932,8 @@ def handler(params):
             .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code(
-                        py,
-                        cr#"
-def handler():
-    return True
-"#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen");
-                    let custom_command_handler = pymodule
-                        .getattr(intern!(py, "handler"))
-                        .expect("this should not happen");
+                    let custom_command_handler =
+                        python_function_returning(py, &PyBool::new(py, true));
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();
@@ -956,19 +953,7 @@ def handler():
             .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code(
-                        py,
-                        cr#"
-def handler():
-    raise Exception
-"#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen");
-                    let custom_command_handler = pymodule
-                        .getattr(intern!(py, "handler"))
-                        .expect("this should not happen");
+                    let custom_command_handler = python_function_raising_exception(py);
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();
@@ -988,19 +973,8 @@ def handler():
             .with_args(None, 1)
             .run(|| {
                 Python::with_gil(|py| {
-                    let pymodule = PyModule::from_code(
-                        py,
-                        cr#"
-def handler():
-    return False
-"#,
-                        c"",
-                        c"",
-                    )
-                    .expect("this should not happen");
-                    let custom_command_handler = pymodule
-                        .getattr(intern!(py, "handler"))
-                        .expect("this should not happen");
+                    let custom_command_handler =
+                        python_function_returning(py, &PyBool::new(py, false));
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
                     cmd_py_command();

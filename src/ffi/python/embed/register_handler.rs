@@ -31,7 +31,7 @@ pub(crate) fn pyshinqlx_register_handler(
 mod register_handler_tests {
     use pyo3::{
         exceptions::{PyTypeError, PyValueError},
-        intern,
+        types::PyBool,
     };
     use rstest::*;
 
@@ -92,20 +92,11 @@ mod register_handler_tests {
     #[serial]
     fn register_handler_for_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let pymodule = PyModule::from_code(
+            let result = pyshinqlx_register_handler(
                 py,
-                cr#"
-handler = True
-"#,
-                c"",
-                c"",
-            )
-            .expect("this should not happen");
-            let py_handler = pymodule
-                .getattr(intern!(py, "handler"))
-                .expect("this should not happen");
-
-            let result = pyshinqlx_register_handler(py, "custom_command", Some(py_handler));
+                "custom_command",
+                Some(PyBool::new(py, true).to_owned().into_any()),
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
         });
     }

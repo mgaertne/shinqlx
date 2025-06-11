@@ -4738,7 +4738,7 @@ def assert_called_with(*args):
             .expect("could create test handler module")
     }
 
-    pub(super) fn python_function_returning<'py, T: Debug>(
+    pub(crate) fn python_function_returning<'py, T: Debug>(
         py: Python<'py>,
         returned: &T,
     ) -> Bound<'py, PyAny> {
@@ -4759,7 +4759,7 @@ def custom_return(*args, **kwargs):
         .expect("could not get returning_string function")
     }
 
-    pub(super) fn python_function_raising_exception(py: Python<'_>) -> Bound<'_, PyAny> {
+    pub(crate) fn python_function_raising_exception(py: Python<'_>) -> Bound<'_, PyAny> {
         PyModule::from_code(
             py,
             cr#"
