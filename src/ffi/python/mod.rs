@@ -4759,18 +4759,18 @@ def custom_return(*args, **kwargs):
         .expect("could not get returning_string function")
     }
 
-    pub(super) fn throws_exception_hook(py: Python<'_>) -> Bound<'_, PyAny> {
+    pub(super) fn python_function_raising_exception(py: Python<'_>) -> Bound<'_, PyAny> {
         PyModule::from_code(
             py,
             cr#"
-def throws_exception_hook(*args, **kwargs):
+def raises_exception(*args, **kwargs):
     raise ValueError("asdf")
             "#,
             c"",
             c"",
         )
         .expect("this should not happen")
-        .getattr(intern!(py, "throws_exception_hook"))
+        .getattr(intern!(py, "raises_exception"))
         .expect("this should not happen")
     }
 }

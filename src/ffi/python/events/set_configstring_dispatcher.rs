@@ -103,7 +103,9 @@ mod set_configstring_dispatcher_tests {
                 commands::CommandPriorities,
                 events::EventDispatcherMethods,
                 pyshinqlx_setup,
-                pyshinqlx_test_support::{python_function_returning, throws_exception_hook},
+                pyshinqlx_test_support::{
+                    python_function_raising_exception, python_function_returning,
+                },
             },
         },
         prelude::*,
@@ -145,7 +147,7 @@ mod set_configstring_dispatcher_tests {
                     let dispatcher = Bound::new(py, SetConfigstringDispatcher::py_new(py))
                         .expect("this should not happen");
 
-                    let throws_exception_hook = throws_exception_hook(py);
+                    let throws_exception_hook = python_function_raising_exception(py);
                     dispatcher
                         .as_super()
                         .add_hook(

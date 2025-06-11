@@ -598,7 +598,9 @@ mod event_dispatcher_tests {
                 PythonReturnCodes,
                 commands::CommandPriorities,
                 pyshinqlx_setup_fixture::*,
-                pyshinqlx_test_support::{python_function_returning, throws_exception_hook},
+                pyshinqlx_test_support::{
+                    python_function_raising_exception, python_function_returning,
+                },
             },
         },
         prelude::*,
@@ -759,7 +761,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
 
-                    let throws_exception_hook = throws_exception_hook(py);
+                    let throws_exception_hook = python_function_raising_exception(py);
                     dispatcher
                         .call_method1(
                             intern!(py, "add_hook"),
@@ -1066,7 +1068,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
             .run(|| {
                 Python::with_gil(|py| {
                     let dispatcher = custom_dispatcher(py);
-                    let return_handler = throws_exception_hook(py);
+                    let return_handler = python_function_raising_exception(py);
                     dispatcher
                         .setattr(intern!(py, "handle_return"), return_handler)
                         .expect("this should not happen");

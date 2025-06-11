@@ -142,19 +142,7 @@ mod handle_rcon_tests {
 
         Python::with_gil(|py| {
             let plugin = test_plugin(py).call0().expect("this should not happen");
-            let raising_exception_handler = PyModule::from_code(
-                py,
-                cr#"
-def raising_exception_hook(*args, **kwargs):
-    raise NotImplementedError
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not create raising exception module");
-            let cmd_handler = raising_exception_handler
-                .getattr(intern!(py, "raising_exception_hook"))
-                .expect("could not get raising_exception_hook function");
+            let cmd_handler = python_function_raising_exception(py);
 
             let command = Command::py_new(
                 &plugin,
