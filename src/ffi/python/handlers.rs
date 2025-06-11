@@ -8502,7 +8502,7 @@ impl PrintRedirector {
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        visit.call(&self.channel).map(|_| ())
+        visit.call(&self.channel)
     }
 
     #[pyo3(name = "__enter__")]

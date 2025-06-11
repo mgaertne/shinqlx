@@ -1,5 +1,6 @@
 #[cfg(target_os = "linux")]
 use core::borrow::Borrow;
+use core::hint::cold_path;
 
 use derive_more::Display;
 #[cfg(target_os = "linux")]
@@ -96,12 +97,14 @@ impl QuakeLiveFunction {
         D: Function,
     {
         let Ok(detour) = (unsafe { GenericDetour::new(function, replacement) }) else {
+            cold_path();
             return Err(QuakeLiveEngineError::DetourCouldNotBeCreated(*self));
         };
         unsafe {
-            detour
-                .enable()
-                .map_err(|_| QuakeLiveEngineError::DetourCouldNotBeEnabled(*self))?
+            detour.enable().map_err(|_| {
+                cold_path();
+                QuakeLiveEngineError::DetourCouldNotBeEnabled(*self)
+            })?
         };
 
         Ok(detour)

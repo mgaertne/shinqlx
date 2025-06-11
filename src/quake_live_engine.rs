@@ -1,6 +1,7 @@
 use alloc::ffi::CString;
 use core::{
     ffi::{CStr, c_char, c_int},
+    hint::cold_path,
     sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering},
 };
 use std::sync::OnceLock;
@@ -167,9 +168,11 @@ impl VmFunctions {
         #[cfg(target_os = "linux")]
         {
             let myself_process = Process::myself().map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::ProcessNotFound("could not find my own process".to_string())
             })?;
             let myself_maps = myself_process.maps().map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::NoMemoryMappingInformationFound(
                     "no memory mapping information found".to_string(),
                 )
@@ -221,6 +224,7 @@ impl VmFunctions {
             .collect();
 
             if !failed_functions.is_empty() {
+                cold_path();
                 return Err(QuakeLiveEngineError::VmFunctionNotFound(
                     failed_functions[0],
                 ));
@@ -302,9 +306,11 @@ impl VmFunctions {
         let client_connect_detour =
             unsafe { ClientConnectDetourType::new(client_connect_func, shinqlx_client_connect) }
                 .map_err(|_| {
+                    cold_path();
                     QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientConnect)
                 })?;
         unsafe { client_connect_detour.enable() }.map_err(|_| {
+            cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
         })?;
 
@@ -313,6 +319,7 @@ impl VmFunctions {
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
                     error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
                 });
             });
@@ -325,9 +332,11 @@ impl VmFunctions {
             GStartKamikazeDetourType::new(g_start_kamikaze_func, shinqlx_g_startkamikaze)
         }
         .map_err(|_| {
+            cold_path();
             QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StartKamikaze)
         })?;
         unsafe { g_start_kamikaze_detour.enable() }.map_err(|_| {
+            cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
         })?;
 
@@ -336,6 +345,7 @@ impl VmFunctions {
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
                     error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
                 });
             });
@@ -345,9 +355,13 @@ impl VmFunctions {
             unsafe { mem::transmute::<usize, extern "C" fn(*mut gentity_s)>(client_spawn_orig) };
         let client_spawn_detour =
             unsafe { ClientSpawnDetourType::new(client_spawn_func, shinqlx_clientspawn) }.map_err(
-                |_| QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn),
+                |_| {
+                    cold_path();
+                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn)
+                },
             )?;
         unsafe { client_spawn_detour.enable() }.map_err(|_| {
+            cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
         })?;
 
@@ -356,6 +370,7 @@ impl VmFunctions {
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
                     error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
                 });
             });
@@ -378,9 +393,11 @@ impl VmFunctions {
         };
         let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, shinqlx_g_damage) }
             .map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_Damage)
             })?;
         unsafe { g_damage_detour.enable() }.map_err(|_| {
+            cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
         })?;
 
@@ -389,6 +406,7 @@ impl VmFunctions {
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
                     error!(target: "shinqlx", "error when disabling damage detour: {e}");
                 });
             });
@@ -744,6 +762,7 @@ fn try_find_static_function<FuncType>(
 ) -> Result<FuncType, QuakeLiveEngineError> {
     pattern_search_module(maps, func).map_or_else(
         || {
+            cold_path();
             error!(target: "shinqlx", "Function {} not found", &func);
             Err(QuakeLiveEngineError::StaticFunctionNotFound(func))
         },
@@ -785,9 +804,11 @@ impl QuakeLiveEngine {
         #[cfg(target_os = "linux")]
         {
             let myself_process = Process::myself().map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::ProcessNotFound("could not find my own process".to_string())
             })?;
             let myself_maps = myself_process.maps().map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::NoMemoryMappingInformationFound(
                     "no memory mapping information found".to_string(),
                 )
@@ -804,6 +825,7 @@ impl QuakeLiveEngine {
                 .collect();
 
             if qzeroded_maps.is_empty() {
+                cold_path();
                 error!(target: "shinqlx", "no memory mapping information for {QZERODED} found");
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
                     "no memory mapping information found".to_string(),
@@ -1006,6 +1028,7 @@ impl QuakeLiveEngine {
                 ShiNQlx_SV_SendServerCommand as *const (),
             )
             .map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::DetourCouldNotBeCreated(
                     QuakeLiveFunction::SV_SendServerCommand,
                 )
@@ -1013,6 +1036,7 @@ impl QuakeLiveEngine {
         };
         unsafe {
             sv_sendservercommand_detour.enable().map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::DetourCouldNotBeEnabled(
                     QuakeLiveFunction::SV_SendServerCommand,
                 )
@@ -1034,11 +1058,13 @@ impl QuakeLiveEngine {
                 ShiNQlx_Com_Printf as *const (),
             )
             .map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::Com_Printf)
             })?
         };
         unsafe {
             com_printf_detour.enable().map_err(|_| {
+                cold_path();
                 QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::Com_Printf)
             })?
         };
@@ -1114,6 +1140,7 @@ impl QuakeLiveEngine {
         self.add_command("pyrestart", cmd_restart_python);
 
         pyshinqlx_initialize().map_err(|err| {
+            cold_path();
             error!(target: "shinqlx", "Python initialization failed.");
             QuakeLiveEngineError::PythonInitializationFailed(err)
         })?;
@@ -1510,9 +1537,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError> {
         match self.vm_functions.g_init_game_orig.load(Ordering::Acquire) {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::G_InitGame,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::G_InitGame,
+                ))
+            }
             g_init_game_orig => {
                 let g_init_game_func = unsafe {
                     mem::transmute::<usize, extern "C" fn(c_int, c_int, c_int)>(g_init_game_orig)
@@ -1528,9 +1558,12 @@ impl QuakeLiveEngine {
             .g_shutdown_game_orig
             .load(Ordering::Acquire)
         {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::G_ShutdownGame,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::G_ShutdownGame,
+                ))
+            }
             g_shutdown_game_orig => {
                 let g_shutdown_game_func =
                     unsafe { mem::transmute::<usize, extern "C" fn(c_int)>(g_shutdown_game_orig) };
@@ -1541,9 +1574,12 @@ impl QuakeLiveEngine {
 
     pub(crate) fn g_run_frame_orig(&self) -> Result<extern "C" fn(c_int), QuakeLiveEngineError> {
         match self.vm_functions.g_run_frame_orig.load(Ordering::Acquire) {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::G_RunFrame,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::G_RunFrame,
+                ))
+            }
             g_run_frame_orig => {
                 let g_run_frame_func =
                     unsafe { mem::transmute::<usize, extern "C" fn(c_int)>(g_run_frame_orig) };
@@ -1556,9 +1592,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, entity_event_t, c_int), QuakeLiveEngineError> {
         match self.vm_functions.g_addevent_orig.load(Ordering::Acquire) {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::G_AddEvent,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::G_AddEvent,
+                ))
+            }
             g_addevent_orig => {
                 let g_addevent_func = unsafe {
                     mem::transmute::<usize, extern "C" fn(*mut gentity_t, entity_event_t, c_int)>(
@@ -1574,9 +1613,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t), QuakeLiveEngineError> {
         match self.vm_functions.g_free_entity_orig.load(Ordering::Acquire) {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::G_FreeEntity,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::G_FreeEntity,
+                ))
+            }
             g_free_entity_orig => {
                 let g_free_entity_func = unsafe {
                     mem::transmute::<usize, extern "C" fn(*mut gentity_t)>(g_free_entity_orig)
@@ -1594,9 +1636,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         match self.vm_functions.launch_item_orig.load(Ordering::Acquire) {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::LaunchItem,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::LaunchItem,
+                ))
+            }
             launch_item_orig => {
                 let launch_item_func = unsafe {
                     mem::transmute::<
@@ -1615,9 +1660,12 @@ impl QuakeLiveEngine {
     ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
     {
         match self.vm_functions.touch_item_orig.load(Ordering::Acquire) {
-            0 => Err(QuakeLiveEngineError::VmFunctionNotFound(
-                QuakeLiveFunction::Touch_Item,
-            )),
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::Touch_Item,
+                ))
+            }
             touch_item_orig => {
                 let touch_item_func = unsafe {
                     mem::transmute::<

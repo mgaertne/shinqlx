@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::{
     PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
@@ -1866,6 +1868,7 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
             ));
         }
         let Some(mut commands) = self.get().commands.try_write() else {
+            cold_path();
             return PyModule::from_code(
                 self.py(),
                 cr#"
@@ -1897,6 +1900,7 @@ def add_command(cmd, priority):
         }
 
         let Some(mut commands) = self.get().commands.try_write() else {
+            cold_path();
             return PyModule::from_code(
                 self.py(),
                 cr#"

@@ -41,6 +41,8 @@ mod prelude {
     };
 }
 
+use core::hint::cold_path;
+
 pub(crate) use chat_event_dispatcher::{ChatEventDispatcher, ChatEventDispatcherMethods};
 pub(crate) use client_command_dispatcher::{
     ClientCommandDispatcher, ClientCommandDispatcherMethods,
@@ -475,6 +477,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
 
         match self.get().plugins.try_write() {
             None => {
+                cold_path();
                 let add_hook_func = PyModule::from_code(
                     self.py(),
                     cr#"
@@ -536,6 +539,7 @@ def add_hook(event, plugin, handler, priority):
             })?;
         match self.get().plugins.try_write() {
             None => {
+                cold_path();
                 let remove_hook_func = PyModule::from_code(
                     self.py(),
                     cr#"
@@ -1603,6 +1607,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
 
         match self.get().dispatchers.try_write() {
             None => {
+                cold_path();
                 let remove_dispatcher_by_name_func = PyModule::from_code(
                     self.py(),
                     cr#"

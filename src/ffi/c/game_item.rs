@@ -2,6 +2,7 @@ use alloc::borrow::Cow;
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, c_float},
+    hint::cold_path,
 };
 
 use tap::{TapFallible, TapOptional};
@@ -51,8 +52,12 @@ impl TryFrom<i32> for GameItem {
             return Err(QuakeLiveEngineError::InvalidId(item_id));
         }
         let bg_itemlist = GameItem::get_item_list();
-        Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) as *mut gitem_t })
-            .map_err(|_| QuakeLiveEngineError::EntityNotFound("entity not found".to_string()))
+        Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) as *mut gitem_t }).map_err(
+            |_| {
+                cold_path();
+                QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
+            },
+        )
     }
 }
 
