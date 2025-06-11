@@ -2050,18 +2050,7 @@ mod plugin_tests {
     #[serial]
     fn add_command_adds_a_new_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code(
-                py,
-                cr#"
-def handler():
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not get module from code")
-            .getattr(intern!(py, "handler"))
-            .expect("could not get handler");
+            let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -2116,18 +2105,7 @@ def handler():
     #[serial]
     fn add_command_stores_command_in_plugin(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code(
-                py,
-                cr#"
-def handler():
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not get module from code")
-            .getattr(intern!(py, "handler"))
-            .expect("could not get handler");
+            let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -2173,18 +2151,7 @@ def handler():
     #[serial]
     fn remove_command_removes_command(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code(
-                py,
-                cr#"
-def handler():
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not get module from code")
-            .getattr(intern!(py, "handler"))
-            .expect("could not get handler");
+            let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -2238,18 +2205,7 @@ def handler():
     #[serial]
     fn remove_command_removes_command_with_other_cmd_left_in_place(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code(
-                py,
-                cr#"
-def handler():
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not get module from code")
-            .getattr(intern!(py, "handler"))
-            .expect("could not get handler");
+            let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -2329,18 +2285,7 @@ def handler():
     #[serial]
     fn remove_command_for_list_of_command_names(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code(
-                py,
-                cr#"
-def handler():
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not get module from code")
-            .getattr(intern!(py, "handler"))
-            .expect("could not get handler");
+            let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)
@@ -2402,18 +2347,7 @@ def handler():
     #[serial]
     fn remove_command_removes_command_in_plugin_instance(_pyshinqlx_setup: ()) {
         Python::with_gil(|py| {
-            let command_handler = PyModule::from_code(
-                py,
-                cr#"
-def handler():
-    pass
-            "#,
-                c"",
-                c"",
-            )
-            .expect("could not get module from code")
-            .getattr(intern!(py, "handler"))
-            .expect("could not get handler");
+            let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
                 Py::new(py, command_invoker)

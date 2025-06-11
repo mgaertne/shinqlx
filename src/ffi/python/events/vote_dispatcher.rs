@@ -61,7 +61,8 @@ mod vote_dispatcher_tests {
                 events::EventDispatcherMethods,
                 pyshinqlx_setup,
                 pyshinqlx_test_support::{
-                    default_test_player, python_function_returning, throws_exception_hook,
+                    default_test_player, python_function_raising_exception,
+                    python_function_returning,
                 },
             },
         },
@@ -107,7 +108,7 @@ mod vote_dispatcher_tests {
                     let dispatcher =
                         Bound::new(py, VoteDispatcher::py_new(py)).expect("this should not happen");
 
-                    let throws_exception_hook = throws_exception_hook(py);
+                    let throws_exception_hook = python_function_raising_exception(py);
                     dispatcher
                         .as_super()
                         .add_hook(
