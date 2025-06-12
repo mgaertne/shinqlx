@@ -1,6 +1,7 @@
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
+    hint::cold_path,
 };
 
 use tap::{Conv, TapFallible, TapOptional, TryConv};
@@ -201,6 +202,7 @@ where
 pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(mut safe_client) = Client::try_from(client).ok() else {
+            cold_path();
             return;
         };
 
@@ -225,6 +227,7 @@ pub(crate) extern "C" fn shinqlx_sv_setconfigstring(index: c_int, value: *const 
     };
 
     let Ok(ql_index) = u32::try_from(index) else {
+        cold_path();
         return;
     };
 
@@ -393,6 +396,7 @@ pub(crate) fn shinqlx_client_spawn(game_entity: &mut GameEntity) {
 
 pub(crate) extern "C" fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
     let Some(mut game_entity): Option<GameEntity> = GameEntity::try_from(ent).ok() else {
+        cold_path();
         return;
     };
 

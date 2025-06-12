@@ -1,4 +1,4 @@
-use core::borrow::BorrowMut;
+use core::{borrow::BorrowMut, hint::cold_path};
 
 use pyo3::types::PyBool;
 use rand::Rng;
@@ -47,6 +47,7 @@ pub extern "C" fn cmd_slap() {
 
         if argc < 2 {
             let Some(command_name) = main_engine.cmd_argv(0) else {
+                cold_path();
                 return;
             };
 
@@ -55,6 +56,7 @@ pub extern "C" fn cmd_slap() {
         }
 
         let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
+            cold_path();
             return;
         };
 
@@ -85,6 +87,7 @@ pub extern "C" fn cmd_slap() {
 
         #[cfg_attr(test, allow(irrefutable_let_patterns))]
         let Ok(mut client_entity) = client_id.try_conv::<GameEntity>() else {
+            cold_path();
             return;
         };
         if !client_entity.in_use() || client_entity.get_health() <= 0 {
@@ -96,6 +99,7 @@ pub extern "C" fn cmd_slap() {
 
         #[cfg_attr(test, allow(irrefutable_let_patterns))]
         let Ok(client) = client_id.try_conv::<Client>() else {
+            cold_path();
             return;
         };
         let message = if dmg != 0 {
@@ -112,6 +116,7 @@ pub extern "C" fn cmd_slap() {
 
         let mut rng = rand::rng();
         let Ok(mut game_client) = client_entity.get_game_client() else {
+            cold_path();
             return;
         };
         game_client.set_velocity((
@@ -145,6 +150,7 @@ pub extern "C" fn cmd_slay() {
 
         if argc < 2 {
             let Some(command_name) = main_engine.cmd_argv(0) else {
+                cold_path();
                 return;
             };
 
@@ -153,6 +159,7 @@ pub extern "C" fn cmd_slay() {
         }
 
         let Some(passed_client_id_str) = main_engine.cmd_argv(1) else {
+            cold_path();
             return;
         };
 
@@ -174,6 +181,7 @@ pub extern "C" fn cmd_slay() {
 
         #[cfg_attr(test, allow(irrefutable_let_patterns))]
         let Ok(mut client_entity) = client_id.try_conv::<GameEntity>() else {
+            cold_path();
             return;
         };
         if !client_entity.in_use() || client_entity.get_health() <= 0 {
@@ -185,6 +193,7 @@ pub extern "C" fn cmd_slay() {
 
         #[cfg_attr(test, allow(irrefutable_let_patterns))]
         let Ok(client) = client_id.try_conv::<Client>() else {
+            cold_path();
             return;
         };
 
@@ -209,6 +218,7 @@ pub extern "C" fn cmd_slay() {
 pub extern "C" fn cmd_py_rcon() {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(commands) = main_engine.cmd_args() else {
+            cold_path();
             return;
         };
 

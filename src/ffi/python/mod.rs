@@ -4479,7 +4479,7 @@ pub(crate) fn pyshinqlx_is_initialized() -> bool {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
-pub(crate) enum PythonInitializationError {
+pub enum PythonInitializationError {
     MainScriptError,
     AlreadyInitialized,
     NotInitializedError,

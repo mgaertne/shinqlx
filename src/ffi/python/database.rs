@@ -1,4 +1,4 @@
-use core::cmp::max;
+use core::{cmp::max, hint::cold_path};
 
 use itertools::Itertools;
 use pyo3::{
@@ -810,12 +810,14 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                         let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
 
                         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                            cold_path();
                             return Err(PyEnvironmentError::new_err(
                                 "could not get access to main engine.",
                             ));
                         };
 
                         let Some(cvar_host) = main_engine.find_cvar("qlx_redisAddress") else {
+                            cold_path();
                             return Err(PyValueError::new_err(
                                 "cvar qlx_redisAddress misconfigured",
                             ));
@@ -824,6 +826,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                             .find_cvar("qlx_redisDatabase")
                             .and_then(|cvar| cvar.get_string().parse::<i64>().ok())
                         else {
+                            cold_path();
                             return Err(PyValueError::new_err(
                                 "cvar qlx_redisDatabase misconfigured.",
                             ));
@@ -834,11 +837,13 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                                 !cvar_string.is_empty() && cvar_string != "0"
                             })
                         else {
+                            cold_path();
                             return Err(PyValueError::new_err(
                                 "cvar qlx_redisUnixSocket misconfigured.",
                             ));
                         };
                         let Some(password_cvar) = main_engine.find_cvar("qlx_redisPassword") else {
+                            cold_path();
                             return Err(PyValueError::new_err(
                                 "cvar qlx_redisPassword misconfigured.",
                             ));

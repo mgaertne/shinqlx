@@ -32,7 +32,8 @@ mod hooks;
 #[cfg(feature = "patches")]
 mod patches;
 mod quake_live_engine;
-mod quake_live_functions;
+#[allow(missing_docs)]
+pub mod quake_live_functions;
 
 pub(crate) mod prelude {
     pub(crate) use alloc::format;

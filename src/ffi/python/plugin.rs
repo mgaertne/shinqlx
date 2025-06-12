@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::{
     BoundObject, PyTraverseError,
     exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
@@ -734,6 +736,7 @@ impl Plugin {
     #[classmethod]
     fn current_vote_count<'py>(cls: &Bound<'py, PyType>) -> PyResult<Bound<'py, PyAny>> {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+            cold_path();
             return Ok(cls.py().None().into_bound(cls.py()));
         };
 
@@ -745,10 +748,12 @@ impl Plugin {
         }
 
         let Ok(parsed_yes_votes) = yes_votes.parse::<i32>() else {
+            cold_path();
             let error_msg = format!("invalid literal for int() with base 10: '{yes_votes}'");
             return Err(PyValueError::new_err(error_msg));
         };
         let Ok(parsed_no_votes) = no_votes.parse::<i32>() else {
+            cold_path();
             let error_msg = format!("invalid literal for int() with base 10: '{no_votes}'");
             return Err(PyValueError::new_err(error_msg));
         };

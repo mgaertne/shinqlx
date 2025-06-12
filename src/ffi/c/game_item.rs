@@ -67,15 +67,14 @@ impl GameItem {
     pub(crate) fn get_num_items() -> i32 {
         let bg_itemlist = Self::get_item_list();
         if bg_itemlist.is_null() {
+            cold_path();
             return 0;
         }
 
         (1..=4096)
             .filter(|index| {
-                let Some(item) = (unsafe { bg_itemlist.offset((*index) as isize).as_ref() }) else {
-                    return false;
-                };
-                !item.classname.is_null()
+                (unsafe { bg_itemlist.offset((*index) as isize).as_ref() })
+                    .is_some_and(|item| !item.classname.is_null())
             })
             .max()
             .unwrap_or(0)

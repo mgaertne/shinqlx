@@ -1,3 +1,4 @@
+use core::hint::cold_path;
 use std::sync::LazyLock;
 
 use pyo3::{
@@ -61,6 +62,7 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
         }
 
         let Some(captures) = RE_VOTE.captures(&configstring) else {
+            cold_path();
             let warning_str = format!("invalid vote called: {}", &configstring);
             dispatcher_debug_log(self.py(), &warning_str);
             return Ok(());

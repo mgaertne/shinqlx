@@ -63,6 +63,7 @@ impl AsRef<client_t> for Client<'_> {
 impl<'a> Client<'a> {
     pub(crate) fn get_client_id(&self) -> i32 {
         let Ok(server_static) = ServerStatic::try_get() else {
+            cold_path();
             return -1;
         };
         server_static

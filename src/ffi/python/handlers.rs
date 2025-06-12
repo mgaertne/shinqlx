@@ -1,5 +1,8 @@
 use alloc::sync::Arc;
-use core::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use core::{
+    hint::cold_path,
+    sync::atomic::{AtomicBool, AtomicI32, Ordering},
+};
 use std::sync::LazyLock;
 
 use arc_swap::ArcSwapOption;
@@ -276,6 +279,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 )),
                 |chat_dispatcher| {
                     let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
+                        cold_path();
                         return Err(PyEnvironmentError::new_err(
                             "could not get access to main chat channel",
                         ));
@@ -335,6 +339,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         _ => &SPECTATOR_CHAT_CHANNEL,
                     };
                     let Some(ref chat_channel) = *channel.load() else {
+                        cold_path();
                         return Err(PyEnvironmentError::new_err(
                             "could not get access to team chat channel",
                         ));
@@ -3159,6 +3164,7 @@ fn try_handle_server_command<'py>(
             Player::py_new(id, None).and_then(|player| Ok(Bound::new(py, player)?.into_any()))
         })
     else {
+        cold_path();
         return Ok(PyBool::new(py, true).to_owned().into_any());
     };
 
@@ -5050,6 +5056,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         }
         CS_SERVERINFO => {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                cold_path();
                 return Ok(py.None());
             };
             let old_configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
@@ -7390,6 +7397,7 @@ fn try_handle_kamikaze_explode(
                     .ok()
             })
     else {
+        cold_path();
         return Err(PyEnvironmentError::new_err(
             "could not get access to kamikaze explode dispatcher",
         ));

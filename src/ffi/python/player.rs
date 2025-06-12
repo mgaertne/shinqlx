@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    hint::cold_path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use derive_more::Display;
 use itertools::Itertools;
@@ -140,6 +143,7 @@ impl Player {
 
     fn __repr__(slf: &Bound<'_, Self>) -> String {
         let Ok(classname) = slf.get_type().qualname() else {
+            cold_path();
             return "NonexistentPlayer".to_string();
         };
         let id = slf.get_id();
@@ -195,12 +199,12 @@ impl Player {
         }
     }
 
-    ///Update the player information with the latest data. If the player
-    ///         disconnected it will raise an exception and invalidates a player.
-    ///         The player's name and Steam ID can still be accessed after being
-    ///         invalidated, but anything else will make it throw an exception too.
+    /// Update the player information with the latest data. If the player
+    /// disconnected it will raise an exception and invalidates a player.
+    /// The player's name and Steam ID can still be accessed after being
+    /// invalidated, but anything else will make it throw an exception too.
     ///
-    ///         :raises: shinqlx.NonexistentPlayerError
+    /// :raises: shinqlx.NonexistentPlayerError
     fn update(slf: &Bound<'_, Self>) -> PyResult<()> {
         slf.update()
     }
