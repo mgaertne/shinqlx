@@ -23,7 +23,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/", None),
-    "redis": ("https://redis-py.readthedocs.io/en/stable/" , None),
+    "redis": ("https://redis.readthedocs.io/en/stable/" , None),
 }
 
 # -- Options for HTML output -------------------------------------------------
