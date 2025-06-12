@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    hint::cold_path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use itertools::Itertools;
 use log::*;
@@ -77,9 +80,11 @@ impl Game {
 
     fn __str__(slf: &Bound<'_, Self>) -> String {
         let Ok(factory_type) = slf.get_gametype() else {
+            cold_path();
             return "Invalid game".to_string();
         };
         let Ok(mapname) = slf.get_map() else {
+            cold_path();
             return "Invalid game".to_string();
         };
         format!("{factory_type} on {mapname}")

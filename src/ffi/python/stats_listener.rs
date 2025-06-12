@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    hint::cold_path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use std::sync::LazyLock;
 
 use pyo3::{
@@ -403,6 +406,7 @@ impl StatsListener {
     #[new]
     pub(crate) fn py_new() -> PyResult<Self> {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+            cold_path();
             return Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
             ));

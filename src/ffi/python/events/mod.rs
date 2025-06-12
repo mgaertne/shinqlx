@@ -375,6 +375,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
             .getattr(intern!(self.py(), "name"))
             .and_then(|py_dispatcher_name| py_dispatcher_name.extract::<String>())
         else {
+            cold_path();
             return self.py().None().into_bound(self.py());
         };
         if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
@@ -561,6 +562,7 @@ def remove_hook(event, plugin, handler, priority):
                     .iter_mut()
                     .find(|(added_plugin, _)| added_plugin == plugin)
                 else {
+                    cold_path();
                     return Err(PyValueError::new_err(
                         "The event has not been hooked with the handler provided",
                     ));

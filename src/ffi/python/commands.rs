@@ -230,6 +230,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         channel: &Bound<'py, PyAny>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let Some(command_name) = self.get().name.first() else {
+            cold_path();
             return Err(PyKeyError::new_err("command has no 'name'"));
         };
 
@@ -1950,12 +1951,14 @@ def remove_command(cmd):
             .next()
             .map(|value| value.to_lowercase())
         else {
+            cold_path();
             return Ok(false);
         };
         let Ok(channel_name) = channel
             .str()
             .map(|channel_name_str| channel_name_str.to_string())
         else {
+            cold_path();
             return Ok(false);
         };
         let is_client_cmd = channel_name == "client_command";
@@ -1972,6 +1975,7 @@ def remove_command(cmd):
                         .ok()
                 })
         else {
+            cold_path();
             return Err(PyEnvironmentError::new_err(
                 "could not get access to command dispatcher",
             ));

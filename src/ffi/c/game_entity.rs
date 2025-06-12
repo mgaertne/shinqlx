@@ -305,11 +305,13 @@ impl GameEntity {
             .unwrap_or_default();
 
         let Ok(mut game_client) = self.get_game_client() else {
+            cold_path();
             return;
         };
         let Ok(mut gitem) =
             crate::ffi::c::game_item::GameItem::try_from(game_client.get_holdable())
         else {
+            cold_path();
             return;
         };
 
@@ -350,6 +352,7 @@ impl GameEntity {
             if item_id != 0 {
                 #[cfg_attr(test, allow(irrefutable_let_patterns))]
                 let Ok(gitem) = item_id.try_conv::<GameItem>() else {
+                    cold_path();
                     return;
                 };
                 self.gentity_t.s.modelindex = item_id;

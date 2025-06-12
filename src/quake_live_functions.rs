@@ -43,7 +43,7 @@ where
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Display)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, missing_docs)]
 pub enum QuakeLiveFunction {
     Com_Printf,
     Cmd_AddCommand,
@@ -87,7 +87,9 @@ pub enum QuakeLiveFunction {
 }
 
 impl QuakeLiveFunction {
-    pub(crate) fn create_and_enable_generic_detour<T, D>(
+    #[inline]
+    #[allow(missing_docs)]
+    pub fn create_and_enable_generic_detour<T, D>(
         &self,
         function: T,
         replacement: D,

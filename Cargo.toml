@@ -17,11 +17,15 @@ publish = false
 name = "shinqlx"
 path = "src/lib.rs"
 test = true
-bench = false
+bench = true
 doc = true
+doctest = false
 proc-macro = false
 harness = true
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+
+[[bench]]
+name = "shinqlx_benchmark"
 
 [profile.dev]
 panic = "abort"
@@ -84,6 +88,10 @@ rstest = { version = ">=0.25", default-features = false }
 mockall = { version = ">=0.13", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=3.2", default-features = false }
 tempfile = { version = ">=3.20", default-features = false }
+
+# for benchmark tests
+criterion = { version = ">=0.6", default-features = false, features = ["cargo_bench_support", "rayon"] }
+criterion-macro = { version = ">=0.4", default-features = false }
 
 [features]
 default = ["alloc"]

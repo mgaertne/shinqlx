@@ -43,7 +43,7 @@ use crate::{
 const QAGAME: &str = "qagamex64.so";
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum QuakeLiveEngineError {
+pub enum QuakeLiveEngineError {
     NullPointerPassed(String),
     EntityNotFound(String),
     InvalidId(i32),
