@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::types::{PyBool, PyString};
 
 use super::prelude::*;
@@ -49,6 +51,7 @@ impl<'py> ServerCommandDispatcherMethods<'py> for Bound<'py, ServerCommandDispat
         }) {
             match handler.call1(self.py(), (&player, &forwarded_cmd)) {
                 Err(e) => {
+                    cold_path();
                     log_exception(self.py(), &e);
                 }
                 Ok(res) => match res.extract::<PythonReturnCodes>(self.py()) {
@@ -64,6 +67,7 @@ impl<'py> ServerCommandDispatcherMethods<'py> for Bound<'py, ServerCommandDispat
                     }
                     _ => match res.extract::<String>(self.py()) {
                         Err(_) => {
+                            cold_path();
                             log_unexpected_return_value(
                                 self.py(),
                                 ServerCommandDispatcher::name,

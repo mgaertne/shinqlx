@@ -395,6 +395,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
         }) {
             match handler.call1(self.py(), args) {
                 Err(e) => {
+                    cold_path();
                     log_exception(self.py(), &e);
                 }
                 Ok(res) => match res.extract::<PythonReturnCodes>(self.py()) {
@@ -414,6 +415,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                             (handler.bind(self.py()), res),
                         ) {
                             Err(e) => {
+                                cold_path();
                                 log_exception(self.py(), &e);
                             }
                             Ok(return_handler) if !return_handler.is_none() => {
@@ -445,6 +447,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
 
     fn add_hook(&self, plugin: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
         if !(0i32..5i32).contains(&priority) {
+            cold_path();
             let error_description = format!("'{priority}' is an invalid priority level.");
             return Err(PyValueError::new_err(error_description));
         }
@@ -470,6 +473,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
         let zmq_enabled_cvar = get_cvar("zmq_stats_enable")?;
         let zmq_enabled = zmq_enabled_cvar.is_some_and(|value| value != "0");
         if need_zmq_stats_enabled && !zmq_enabled {
+            cold_path();
             let error_description = format!(
                 "{dispatcher_name} hook requires zmq_stats_enabled cvar to have nonzero value"
             );
@@ -517,6 +521,7 @@ def add_hook(event, plugin, handler, priority):
                             .unwrap_or(false)
                     })
                 {
+                    cold_path();
                     return Err(PyValueError::new_err(
                         "The event has already been hooked with the same handler and priority.",
                     ));
@@ -572,6 +577,7 @@ def remove_hook(event, plugin, handler, priority):
                     .iter()
                     .any(|item| item.bind(self.py()).eq(handler).unwrap_or(true))
                 {
+                    cold_path();
                     return Err(PyValueError::new_err(
                         "The event has not been hooked with the handler provided",
                     ));
@@ -1543,6 +1549,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             .find(|(event_name, _)| key == event_name)
             .map_or_else(
                 || {
+                    cold_path();
                     let key_error = format!("'{key}'");
                     Err(PyKeyError::new_err(key_error))
                 },
@@ -1570,6 +1577,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             .is_subclass_of::<EventDispatcher>()
             .unwrap_or(false)
         {
+            cold_path();
             return Err(PyValueError::new_err(
                 "Cannot add an event dispatcher not based on EventDispatcher.",
             ));
@@ -1580,6 +1588,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
             .and_then(|dispatcher_name_attr| dispatcher_name_attr.extract::<String>())
             .map_err(|_| PyValueError::new_err("Cannot add an event dispatcher with no name."))?;
         if self.__contains__(&dispatcher_name_str) {
+            cold_path();
             return Err(PyValueError::new_err("Event name already taken."));
         }
 
@@ -1604,6 +1613,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
 
     fn remove_dispatcher_by_name(&self, dispatcher_name: &str) -> PyResult<()> {
         if !self.__contains__(dispatcher_name) {
+            cold_path();
             return Err(PyValueError::new_err("Event name not found."));
         }
 

@@ -1,4 +1,4 @@
-use core::array;
+use core::{array, hint::cold_path};
 
 use arrayvec::ArrayVec;
 use derive_more::Display;
@@ -51,12 +51,14 @@ impl Vector3 {
     #[new]
     fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 3 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all three dimensions",
             ));
         }
 
         if values.len() > 3 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "tuple did provide values for more than three dimensions",
             ));
@@ -68,6 +70,7 @@ impl Vector3 {
             .collect::<ArrayVec<i32, 3>>();
 
         if results.len() != 3 {
+            cold_path();
             return Err(PyValueError::new_err("Vector3 values need to be integer"));
         }
 

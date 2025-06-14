@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::{PyTypeError, PyValueError};
 
 use crate::ffi::python::prelude::*;
@@ -15,12 +17,16 @@ pub(crate) fn pyshinqlx_register_handler(
         .as_ref()
         .is_some_and(|handler_function| !handler_function.is_callable())
     {
+        cold_path();
         return Err(PyTypeError::new_err("The handler must be callable."));
     }
 
     let handler_lock = match event {
         "custom_command" => &CUSTOM_COMMAND_HANDLER,
-        _ => return Err(PyValueError::new_err("Unsupported event.")),
+        _ => {
+            cold_path();
+            return Err(PyValueError::new_err("Unsupported event."));
+        }
     };
 
     handler_lock.store(handler.map(|handler_func| handler_func.unbind().into()));

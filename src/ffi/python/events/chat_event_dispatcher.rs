@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::{
     exceptions::PyEnvironmentError,
     types::{PyBool, PyString, PyTuple},
@@ -55,6 +57,7 @@ impl<'py> ChatEventDispatcherMethods<'py> for Bound<'py, ChatEventDispatcher> {
     ) -> PyResult<Bound<'py, PyAny>> {
         match try_handle_input(self.py(), player, msg, channel) {
             Err(e) => {
+                cold_path();
                 log_exception(self.py(), &e);
             }
             Ok(false) => {

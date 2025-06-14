@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::types::{IntoPyDict, PyBool, PyDict};
 
 use super::prelude::*;
@@ -65,6 +67,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
         }) {
             match handler.call1(self.py(), (&player, forwarded_userinfo.to_owned())) {
                 Err(e) => {
+                    cold_path();
                     log_exception(self.py(), &e);
                 }
                 Ok(res) => match res.extract::<PythonReturnCodes>(self.py()) {
@@ -80,6 +83,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
                     }
                     _ => match res.bind(self.py()).downcast::<PyDict>() {
                         Err(_) => {
+                            cold_path();
                             log_unexpected_return_value(
                                 self.py(),
                                 UserinfoDispatcher::name,

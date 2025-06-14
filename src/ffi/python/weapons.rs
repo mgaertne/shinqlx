@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use arrayvec::ArrayVec;
 use derive_more::Display;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
@@ -60,12 +62,14 @@ impl Weapons {
     #[new]
     fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 15 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all 15 weapons",
             ));
         }
 
         if values.len() > 15 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "tuple did provide values for more than 15 weapons",
             ));
@@ -77,6 +81,7 @@ impl Weapons {
             .collect::<ArrayVec<Option<i32>, 15>>();
 
         if results.par_iter().any(|item| item.is_none()) {
+            cold_path();
             return Err(PyValueError::new_err("Weapons values need to be boolean"));
         }
 

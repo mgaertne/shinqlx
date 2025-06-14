@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyValueError;
 use tap::{TapFallible, TryConv};
 
@@ -16,6 +18,7 @@ pub(crate) fn pyshinqlx_spawn_item(
     py.allow_threads(|| {
         let max_items: i32 = GameItem::get_num_items();
         if !(1..max_items).contains(&item_id) {
+            cold_path();
             return Err(PyValueError::new_err(format!(
                 "item_id needs to be a number from 1 to {}.",
                 max_items - 1

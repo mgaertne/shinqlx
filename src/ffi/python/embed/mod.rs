@@ -45,6 +45,8 @@ mod set_weapons;
 mod slay_with_mod;
 mod spawn_item;
 
+use core::hint::cold_path;
+
 pub(crate) use add_console_command::pyshinqlx_add_console_command;
 pub(crate) use allow_single_player::pyshinqlx_allow_single_player;
 pub(crate) use callvote::pyshinqlx_callvote;
@@ -106,6 +108,7 @@ fn validate_client_id(client_id: i32) -> PyResult<()> {
         |main_engine| Ok(main_engine.get_max_clients()),
     )?;
     if !(0..maxclients).contains(&client_id) {
+        cold_path();
         return Err(PyValueError::new_err(format!(
             "client_id needs to be a number from 0 to {}, or None.",
             maxclients - 1

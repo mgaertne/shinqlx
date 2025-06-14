@@ -20,8 +20,8 @@ use rayon::prelude::*;
 use tap::TapOptional;
 
 use super::{
-    CONSOLE_CHANNEL, addadmin, addmod, addscore, ban, console_command, demote, mute, owner,
-    prelude::*, put, tempban, unmute,
+    CONSOLE_CHANNEL, ConnectionStates, Teams, addadmin, addmod, addscore, ban, console_command,
+    demote, mute, owner, prelude::*, put, tempban, unmute,
 };
 use crate::{
     MAIN_ENGINE,
@@ -39,7 +39,10 @@ impl TryFrom<&str> for privileges_t {
             "none" => Ok(privileges_t::PRIV_NONE),
             "mod" => Ok(privileges_t::PRIV_MOD),
             "admin" => Ok(privileges_t::PRIV_ADMIN),
-            _ => Err("Invalid privilege level."),
+            _ => {
+                cold_path();
+                Err("Invalid privilege level.")
+            }
         }
     }
 }
@@ -64,7 +67,10 @@ impl TryFrom<&str> for weapon_t {
             "cg" => Ok(weapon_t::WP_CHAINGUN),
             "hmg" => Ok(weapon_t::WP_HMG),
             "hands" => Ok(weapon_t::WP_HANDS),
-            _ => Err("invalid weapon".to_string()),
+            _ => {
+                cold_path();
+                Err("invalid weapon".to_string())
+            }
         }
     }
 }
@@ -279,12 +285,12 @@ impl Player {
 
     #[getter(team)]
     pub(crate) fn get_team(&self, py: Python<'_>) -> PyResult<String> {
-        py.allow_threads(|| match team_t::try_from(self.player_info.read().team) {
-            Ok(team_t::TEAM_FREE) => Ok("free".to_string()),
-            Ok(team_t::TEAM_RED) => Ok("red".to_string()),
-            Ok(team_t::TEAM_BLUE) => Ok("blue".to_string()),
-            Ok(team_t::TEAM_SPECTATOR) => Ok("spectator".to_string()),
-            _ => Err(PyValueError::new_err("invalid team")),
+        py.allow_threads(|| match Teams::from(self.player_info.read().team) {
+            Teams::Invalid => {
+                cold_path();
+                Err(PyValueError::new_err("invalid team"))
+            }
+            team => Ok(team.to_string()),
         })
     }
 
@@ -758,6 +764,7 @@ pub(crate) trait PlayerMethods<'py> {
 impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn __contains__(&self, item: &str) -> PyResult<bool> {
         if !self.get().valid.load(Ordering::Acquire) {
+            cold_path();
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -768,6 +775,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn __getitem__(&self, item: &str) -> PyResult<String> {
         if !self.get().valid.load(Ordering::Acquire) {
+            cold_path();
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -775,13 +783,14 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
         parse_variables(&self.get().user_info)
             .get(item)
-            .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+            .ok_or(PyKeyError::new_err(format!("'{item}'")))
     }
 
     fn update(&self) -> PyResult<()> {
         *self.get().player_info.write() = PlayerInfo::from(self.get().id);
 
         if self.get().player_info.read().steam_id != self.get().steam_id {
+            cold_path();
             self.get().valid.store(false, Ordering::Release);
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
@@ -807,6 +816,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>> {
         if !self.get().valid.load(Ordering::Acquire) {
+            cold_path();
             return Err(NonexistentPlayerError::new_err(
                 "The player does not exist anymore. Did the player disconnect?",
             ));
@@ -894,22 +904,21 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_team(&self) -> PyResult<String> {
-        match team_t::try_from(self.get().player_info.read().team) {
-            Ok(team_t::TEAM_FREE) => Ok("free".to_string()),
-            Ok(team_t::TEAM_RED) => Ok("red".to_string()),
-            Ok(team_t::TEAM_BLUE) => Ok("blue".to_string()),
-            Ok(team_t::TEAM_SPECTATOR) => Ok("spectator".to_string()),
-            _ => Err(PyValueError::new_err("invalid team")),
-        }
+        self.get().get_team(self.py())
     }
 
     fn set_team(&self, new_team: &str) -> PyResult<()> {
-        if !["free", "red", "blue", "spectator"].contains(&&*new_team.to_lowercase()) {
-            return Err(PyValueError::new_err("Invalid team."));
+        let new_team_lower = new_team.to_lowercase();
+        match Teams::from(new_team_lower.as_str()) {
+            Teams::Invalid => {
+                cold_path();
+                Err(PyValueError::new_err("Invalid team."))
+            }
+            team => {
+                let team_change_cmd = format!("put {} {team}", self.get().id);
+                console_command(&team_change_cmd)
+            }
         }
-
-        let team_change_cmd = format!("put {} {}", self.get().id, new_team.to_lowercase());
-        console_command(&team_change_cmd)
     }
 
     fn get_colors(&self) -> (f32, f32) {
@@ -939,7 +948,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_model(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("model")
-            .map_or_else(|| Err(PyKeyError::new_err("'model'")), Ok)
+            .ok_or(PyKeyError::new_err("'model'"))
     }
 
     fn set_model(&self, value: &str) -> PyResult<()> {
@@ -955,7 +964,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_headmodel(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("headmodel")
-            .map_or_else(|| Err(PyKeyError::new_err("'headmodel'")), Ok)
+            .ok_or(PyKeyError::new_err("'headmodel'"))
     }
 
     fn set_headmodel(&self, value: &str) -> PyResult<()> {
@@ -970,12 +979,13 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_handicap(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("handicap")
-            .map_or_else(|| Err(PyKeyError::new_err("'handicap'")), Ok)
+            .ok_or(PyKeyError::new_err("'handicap'"))
     }
 
     fn set_handicap(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_handicap = value.str()?.to_string();
         if new_handicap.parse::<i32>().is_err() {
+            cold_path();
             let error_msg = format!("invalid literal for int() with base 10: '{new_handicap}'");
             return Err(PyValueError::new_err(error_msg));
         }
@@ -991,21 +1001,18 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_autohop(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("autohop")
-            .map_or_else(
-                || Err(PyKeyError::new_err("'autohop'")),
-                |value| {
-                    value.parse::<i32>().map_err(|_| {
-                        let error_msg =
-                            format!("invalid literal for int() with base 10: '{value}'");
-                        PyValueError::new_err(error_msg)
-                    })
-                },
-            )
+            .map_or(Err(PyKeyError::new_err("'autohop'")), |value| {
+                value.parse::<i32>().map_err(|_| {
+                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
+                    PyValueError::new_err(error_msg)
+                })
+            })
     }
 
     fn set_autohop(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_autohop = value.str()?.to_string();
         if new_autohop.parse::<i32>().is_err() {
+            cold_path();
             let error_msg = format!("invalid literal for int() with base 10: '{new_autohop}'");
             return Err(PyValueError::new_err(error_msg));
         }
@@ -1021,21 +1028,18 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_autoaction(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("autoaction")
-            .map_or_else(
-                || Err(PyKeyError::new_err("'autoaction'")),
-                |value| {
-                    value.parse::<i32>().map_err(|_| {
-                        let error_msg =
-                            format!("invalid literal for int() with base 10: '{value}'");
-                        PyValueError::new_err(error_msg)
-                    })
-                },
-            )
+            .map_or(Err(PyKeyError::new_err("'autoaction'")), |value| {
+                value.parse::<i32>().map_err(|_| {
+                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
+                    PyValueError::new_err(error_msg)
+                })
+            })
     }
 
     fn set_autoaction(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_autoaction = value.str()?.to_string();
         if new_autoaction.parse::<i32>().is_err() {
+            cold_path();
             let error_msg = format!("invalid literal for int() with base 10: '{new_autoaction}'");
             return Err(PyValueError::new_err(error_msg));
         }
@@ -1051,21 +1055,18 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_predictitems(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("cg_predictitems")
-            .map_or_else(
-                || Err(PyKeyError::new_err("'cg_predictitems'")),
-                |value| {
-                    value.parse::<i32>().map_err(|_| {
-                        let error_msg =
-                            format!("invalid literal for int() with base 10: '{value}'");
-                        PyValueError::new_err(error_msg)
-                    })
-                },
-            )
+            .map_or(Err(PyKeyError::new_err("'cg_predictitems'")), |value| {
+                value.parse::<i32>().map_err(|_| {
+                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
+                    PyValueError::new_err(error_msg)
+                })
+            })
     }
 
     fn set_predictitems(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
         let new_predictitems = value.str()?.to_string();
         if new_predictitems.parse::<i32>().is_err() {
+            cold_path();
             let error_msg = format!("invalid literal for int() with base 10: '{new_predictitems}'");
             return Err(PyValueError::new_err(error_msg));
         }
@@ -1079,13 +1080,14 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_connection_state(&self) -> PyResult<String> {
-        match clientState_t::try_from(self.get().player_info.read().connection_state) {
-            Ok(clientState_t::CS_FREE) => Ok("free".to_string()),
-            Ok(clientState_t::CS_ZOMBIE) => Ok("zombie".to_string()),
-            Ok(clientState_t::CS_CONNECTED) => Ok("connected".to_string()),
-            Ok(clientState_t::CS_PRIMED) => Ok("primed".to_string()),
-            Ok(clientState_t::CS_ACTIVE) => Ok("active".to_string()),
-            _ => Err(PyValueError::new_err("invalid clientState")),
+        match clientState_t::try_from(self.get().player_info.read().connection_state)
+            .map(ConnectionStates::from)
+        {
+            Err(_) => {
+                cold_path();
+                Err(PyValueError::new_err("invalid clientState"))
+            }
+            Ok(state) => Ok(state.to_string()),
         }
     }
 
@@ -1119,7 +1121,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_country(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("country")
-            .map_or_else(|| Err(PyKeyError::new_err("'country'")), Ok)
+            .ok_or(PyKeyError::new_err("'country'"))
     }
 
     fn set_country(&self, value: &str) -> PyResult<()> {
@@ -1448,7 +1450,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn set_holdable(&self, holdable: Option<&str>) -> PyResult<()> {
         match Holdable::from(holdable) {
-            Holdable::Unknown => Err(PyValueError::new_err("Invalid holdable item.")),
+            Holdable::Unknown => {
+                cold_path();
+                Err(PyValueError::new_err("Invalid holdable item."))
+            }
             Holdable::Flight => {
                 pyshinqlx_set_holdable(self.py(), self.get().id, Holdable::Flight.into())?;
                 let flight = Flight(16000, 16000, 1200, 0);

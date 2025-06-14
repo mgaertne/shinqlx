@@ -1358,7 +1358,7 @@ pub struct playerState_s {
 pub type playerState_t = playerState_s;
 
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct pmove_t {
     pub ps: *mut playerState_t,
     pub cmd: usercmd_t,
@@ -2103,6 +2103,7 @@ pub enum entityType_t {
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "GEntityBuilder", no_std)]
+#[allow(unpredictable_function_pointer_comparisons)]
 pub struct gentity_s {
     #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
     pub s: entityState_t,
@@ -2684,7 +2685,7 @@ pub struct level_locals_t {
 // get when you type ? in the console. The array has a sentinel struct, so
 // check "cmd" == NULL.
 #[repr(C)]
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct adminCmd_t {
     pub needed_privileges: privileges_t,
     pub unknown1: c_int,

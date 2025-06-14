@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyValueError;
 use tap::{TapOptional, TryConv};
 
@@ -12,6 +14,7 @@ pub(crate) fn pyshinqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) 
         validate_client_id(client_id)?;
 
         if !(0..16).contains(&weapon) {
+            cold_path();
             return Err(PyValueError::new_err(
                 "Weapon must be a number from 0 to 15.",
             ));

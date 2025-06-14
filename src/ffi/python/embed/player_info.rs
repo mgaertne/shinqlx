@@ -1,4 +1,4 @@
-use core::sync::atomic::Ordering;
+use core::{hint::cold_path, sync::atomic::Ordering};
 
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
@@ -16,6 +16,7 @@ pub(crate) fn pyshinqlx_player_info(
 ) -> PyResult<Option<PlayerInfo>> {
     py.allow_threads(|| {
         if !(0..MAX_CLIENTS as i32).contains(&client_id) {
+            cold_path();
             return Err(PyValueError::new_err(format!(
                 "client_id needs to be a number from 0 to {}, or None.",
                 MAX_CLIENTS - 1

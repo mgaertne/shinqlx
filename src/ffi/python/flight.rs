@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use arrayvec::ArrayVec;
 use derive_more::Display;
 use pyo3::{exceptions::PyValueError, types::PyTuple};
@@ -34,12 +36,14 @@ impl Flight {
     #[new]
     fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
         if values.len() < 4 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "tuple did not provide values for all 4 flight parameters",
             ));
         }
 
         if values.len() > 4 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "tuple did provide values for more than 4 flight parameters",
             ));
@@ -51,6 +55,7 @@ impl Flight {
             .collect::<ArrayVec<i32, 4>>();
 
         if results.len() != 4 {
+            cold_path();
             return Err(PyValueError::new_err("Flight values need to be integer"));
         }
 
