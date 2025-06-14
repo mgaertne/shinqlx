@@ -1891,7 +1891,7 @@ mod pyshinqlx_player_tests {
             )
             .expect("this should not happen");
 
-            let result = player.__contains__("asdf");
+            let result = player.contains("asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<NonexistentPlayerError>(py)));
         });
     }
@@ -1914,7 +1914,7 @@ mod pyshinqlx_player_tests {
             )
             .expect("this should not happen");
 
-            let result = player.__contains__("asdf");
+            let result = player.contains("asdf");
             assert_eq!(result.expect("result was not OK"), true);
         });
     }
@@ -1937,7 +1937,7 @@ mod pyshinqlx_player_tests {
             )
             .expect("this should not happen");
 
-            let result = player.__contains__("asdf");
+            let result = player.contains("asdf");
             assert_eq!(result.expect("result was not OK"), false);
         });
     }
