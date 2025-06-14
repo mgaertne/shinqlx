@@ -54,6 +54,7 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
         )?;
 
         if configstring.is_empty() {
+            cold_path();
             dispatcher_debug_log(
                 self.py(),
                 "vote_ended went off without configstring CS_VOTE_STRING.",
