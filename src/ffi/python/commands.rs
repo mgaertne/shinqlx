@@ -59,6 +59,7 @@ impl Command {
         usage: &str,
     ) -> PyResult<Self> {
         if !handler.is_callable() {
+            cold_path();
             return Err(PyValueError::new_err(
                 "'handler' must be a callable function.",
             ));
@@ -68,6 +69,7 @@ impl Command {
                 .getattr(intern!(channels.py(), "__iter__"))
                 .is_err()
         {
+            cold_path();
             return Err(PyValueError::new_err(
                 "'channels' must be a finite iterable or None.",
             ));
@@ -77,6 +79,7 @@ impl Command {
                 .getattr(intern!(exclude_channels.py(), "__iter__"))
                 .is_err()
         {
+            cold_path();
             return Err(PyValueError::new_err(
                 "'exclude_channels' must be a finite iterable or None.",
             ));
@@ -1864,6 +1867,7 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
 
     fn add_command(&self, command: &Bound<'_, Command>, priority: usize) -> PyResult<()> {
         if self.is_registered(command) {
+            cold_path();
             return Err(PyValueError::new_err(
                 "Attempted to add an already registered command.",
             ));
@@ -1895,6 +1899,7 @@ def add_command(cmd, priority):
 
     fn remove_command(&self, command: &Bound<'_, Command>) -> PyResult<()> {
         if !self.is_registered(command) {
+            cold_path();
             return Err(PyValueError::new_err(
                 "Attempted to remove a command that was never added.",
             ));

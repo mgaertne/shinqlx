@@ -13,8 +13,8 @@ use tap::TapOptional;
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
-    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, addadmin, addmod, addscore,
-    addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
+    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, Teams, addadmin, addmod,
+    addscore, addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
     is_vote_active, lock, mute, opsay, prelude::*, put, pyshinqlx_get_logger, set_teamsize,
     tempban, unban, unlock, unmute,
 };
@@ -238,6 +238,7 @@ impl Plugin {
                 None => Ok(cls.py().None().into_bound(cls.py())),
                 Some(value) => value.parse::<i64>().map_or_else(
                     |_| {
+                        cold_path();
                         let error_description =
                             format!("invalid literal for int() with base 10: '{value}'");
                         Err(PyValueError::new_err(error_description))
@@ -249,6 +250,7 @@ impl Plugin {
                 None => Ok(cls.py().None().into_bound(cls.py())),
                 Some(value) => value.parse::<f64>().map_or_else(
                     |_| {
+                        cold_path();
                         let error_description =
                             format!("could not convert string to float: '{value}'");
                         Err(PyValueError::new_err(error_description))
@@ -260,6 +262,7 @@ impl Plugin {
                 None => Ok(PyBool::new(cls.py(), false).into_any().to_owned()),
                 Some(value) => value.parse::<i64>().map_or_else(
                     |_| {
+                        cold_path();
                         let error_description =
                             format!("invalid literal for int() with base 10: '{value}'");
                         Err(PyValueError::new_err(error_description))
@@ -291,6 +294,7 @@ impl Plugin {
                 }
             },
             value => {
+                cold_path();
                 let error_description = format!("Invalid return type: {value}");
                 Err(PyValueError::new_err(error_description))
             }
@@ -664,27 +668,22 @@ impl Plugin {
     ) -> PyResult<Bound<'py, PyDict>> {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        [
-            intern!(cls.py(), "free"),
-            intern!(cls.py(), "red"),
-            intern!(cls.py(), "blue"),
-            intern!(cls.py(), "spectator"),
-        ]
-        .iter()
-        .try_fold(PyDict::new(cls.py()), |result, team_str| {
-            let filtered_players: Vec<Player> = players
-                .iter()
-                .filter(|player| {
-                    player
-                        .get_team(cls.py())
-                        .is_ok_and(|team| team == team_str.to_string())
-                })
-                .cloned()
-                .collect();
-            result.set_item(team_str, filtered_players)?;
+        [Teams::Free, Teams::Red, Teams::Blue, Teams::Spectator]
+            .iter()
+            .try_fold(PyDict::new(cls.py()), |result, team| {
+                let team_str = team.to_string();
+                let filtered_players: Vec<Player> = players
+                    .iter()
+                    .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == team_str))
+                    .cloned()
+                    .collect();
+                result.set_item(
+                    PyString::intern(cls.py(), team_str.as_str()),
+                    filtered_players,
+                )?;
 
-            Ok(result)
-        })
+                Ok(result)
+            })
     }
 
     #[classmethod]
@@ -710,6 +709,7 @@ impl Plugin {
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
         let Some(recipient_client_id) = client_id(cls.py(), recipient, None) else {
+            cold_path();
             return Err(PyValueError::new_err("could not find recipient"));
         };
         let recipient_player = Player::py_new(recipient_client_id, None)?;
@@ -811,6 +811,7 @@ impl Plugin {
     #[pyo3(signature = (player, reason = ""), text_signature = "(player, reason = \"\")")]
     fn kick(cls: &Bound<'_, PyType>, player: &Bound<'_, PyAny>, reason: &str) -> PyResult<()> {
         let Some(client_id) = client_id(cls.py(), player, None) else {
+            cold_path();
             return Err(PyValueError::new_err("Invalid player."));
         };
 
@@ -850,9 +851,11 @@ impl Plugin {
         other_player: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         let Some(player1) = Self::player(cls, player, None)? else {
+            cold_path();
             return Err(PyValueError::new_err("The first player is invalid."));
         };
         let Some(player2) = Self::player(cls, other_player, None)? else {
+            cold_path();
             return Err(PyValueError::new_err("The second player is invalid."));
         };
 
@@ -1079,11 +1082,13 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .get_type::<Plugin>()
             .getattr(intern!(self.py(), "database"))
         else {
+            cold_path();
             let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         };
 
         if db_class.is_none() {
+            cold_path();
             let error_msg = format!("Plugin '{plugin_name}' does not have a database driver.");
             return Err(PyRuntimeError::new_err(error_msg));
         }

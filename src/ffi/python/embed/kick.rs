@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyValueError;
 use tap::{TapOptional, TryConv};
 
@@ -30,6 +32,7 @@ pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str
         {
             Ok(())
         } else {
+            cold_path();
             Err(PyValueError::new_err(
                 "client_id must be the ID of an active player.",
             ))

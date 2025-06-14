@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
 
@@ -13,6 +15,7 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
 ) -> PyResult<bool> {
     py.allow_threads(|| {
         if respawn_time < 0 {
+            cold_path();
             return Err(PyValueError::new_err(
                 "respawn time needs to be an integer 0 or greater",
             ));

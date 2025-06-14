@@ -613,7 +613,7 @@ mod handle_client_command_tests {
             python::{
                 BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL,
                 PythonReturnCodes::RET_STOP_EVENT,
-                RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+                RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, Teams,
                 channels::TeamChatChannel,
                 commands::CommandPriorities,
                 events::{
@@ -2377,13 +2377,7 @@ mod handle_client_command_tests {
                                     .extract::<String>(py)
                                     .is_ok_and(|str_value| str_value == client_command)
                             }),);
-                            let current_team = match player_team {
-                                team_t::TEAM_SPECTATOR => "spectator",
-                                team_t::TEAM_RED => "red",
-                                team_t::TEAM_BLUE => "blue",
-                                team_t::TEAM_FREE => "free",
-                                _ => "invalid team",
-                            };
+                            let current_team = Teams::from(player_team).to_string();
                             assert!(
                                 capturing_hook
                                     .call_method1(
@@ -4303,6 +4297,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
 #[pyfunction]
 pub(crate) fn handle_new_game(py: Python<'_>, is_restart: bool) -> Option<bool> {
     match try_handle_new_game(py, is_restart).tap_err(|e| {
+        cold_path();
         log_exception(py, e);
     }) {
         Err(_) => Some(true),
@@ -8498,6 +8493,7 @@ impl PrintRedirector {
     #[new]
     fn py_new(_py: Python<'_>, channel: Bound<'_, PyAny>) -> PyResult<PrintRedirector> {
         if !channel.is_instance_of::<AbstractChannel>() {
+            cold_path();
             return Err(PyValueError::new_err(
                 "The redirection channel must be an instance of shinqlx.AbstractChannel.",
             ));

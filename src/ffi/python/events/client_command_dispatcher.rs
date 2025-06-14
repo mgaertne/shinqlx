@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::{
     exceptions::PyEnvironmentError,
     types::{PyBool, PyString},
@@ -64,6 +66,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
         }) {
             match handler.call1(self.py(), (player, &forwarded_cmd)) {
                 Err(e) => {
+                    cold_path();
                     log_exception(self.py(), &e);
                 }
                 Ok(res) => match res.extract::<PythonReturnCodes>(self.py()) {
@@ -79,6 +82,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
                     }
                     _ => match res.extract::<String>(self.py()) {
                         Err(_) => {
+                            cold_path();
                             log_unexpected_return_value(
                                 self.py(),
                                 ClientCommandDispatcher::name,
@@ -105,6 +109,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
 
         match try_handle_input(self.py(), player, cmd) {
             Err(e) => {
+                cold_path();
                 log_exception(self.py(), &e);
             }
             Ok(false) => {

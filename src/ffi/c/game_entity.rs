@@ -1819,7 +1819,10 @@ mod game_entity_tests {
             .expect("this should not happen");
         game_entity.set_think(None);
 
-        assert_eq!(gentity.think, None);
+        assert!(
+            #[allow(unpredictable_function_pointer_comparisons)]
+            gentity.think.is_none()
+        );
     }
 
     #[test]
@@ -1852,7 +1855,10 @@ mod game_entity_tests {
             .expect("this should not happen");
         game_entity.set_touch(None);
 
-        assert_eq!(gentity.touch, None);
+        assert!(
+            #[allow(unpredictable_function_pointer_comparisons)]
+            gentity.touch.is_none()
+        );
     }
 
     #[test]

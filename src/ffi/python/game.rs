@@ -13,8 +13,8 @@ use pyo3::{
 };
 
 use super::{
-    addadmin, addmod, addscore, addteamscore, ban, console_command, demote, lock, mute, opsay,
-    prelude::*, put, set_teamsize, tempban, unban, unlock, unmute,
+    GameTypes, addadmin, addmod, addscore, addteamscore, ban, console_command, demote, lock, mute,
+    opsay, prelude::*, put, set_teamsize, tempban, unban, unlock, unmute,
 };
 use crate::{
     MAIN_ENGINE,
@@ -55,6 +55,7 @@ impl Game {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                     if configstring.is_empty() {
+                        cold_path();
                         return Err(NonexistentGameError::new_err(
                             "Tried to instantiate a game while no game is active.",
                         ));
@@ -99,6 +100,7 @@ impl Game {
                 let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                 if configstring.is_empty() {
+                    cold_path();
                     slf.get().valid.store(false, Ordering::Release);
                     return Err(NonexistentGameError::new_err(
                         "Invalid game. Is the server loading a new map?",
@@ -119,6 +121,7 @@ impl Game {
                 let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
                 if configstring.is_empty() {
+                    cold_path();
                     slf.get().valid.store(false, Ordering::Release);
                     return Err(NonexistentGameError::new_err(
                         "Invalid game. Is the server loading a new map?",
@@ -127,7 +130,7 @@ impl Game {
 
                 parse_variables(&configstring)
                     .get(item)
-                    .map_or_else(|| Err(PyKeyError::new_err(format!("'{item}'"))), Ok)
+                    .ok_or(PyKeyError::new_err(format!("'{item}'")))
             },
         )
     }
@@ -528,6 +531,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
                     if configstring.is_empty() {
+                        cold_path();
                         self.get().valid.store(false, Ordering::Release);
                         return Err(NonexistentGameError::new_err(
                             "Invalid game. Is the server loading a new map?",
@@ -540,47 +544,21 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_gametype(&self) -> PyResult<String> {
-        match self
-            .get_item(intern!(self.py(), "g_gametype"))?
+        self.get_item(intern!(self.py(), "g_gametype"))?
             .extract::<String>()?
             .parse::<i32>()
-        {
-            Ok(0) => Ok("Free for All".to_string()),
-            Ok(1) => Ok("Duel".to_string()),
-            Ok(2) => Ok("Race".to_string()),
-            Ok(3) => Ok("Team Deathmatch".to_string()),
-            Ok(4) => Ok("Clan Arena".to_string()),
-            Ok(5) => Ok("Capture the Flag".to_string()),
-            Ok(6) => Ok("One Flag".to_string()),
-            Ok(8) => Ok("Harvester".to_string()),
-            Ok(9) => Ok("Freeze Tag".to_string()),
-            Ok(10) => Ok("Domination".to_string()),
-            Ok(11) => Ok("Attack and Defend".to_string()),
-            Ok(12) => Ok("Red Rover".to_string()),
-            _ => Ok("unknown".to_string()),
-        }
+            .map_or(Ok(GameTypes::Unknown.type_long().to_string()), |value| {
+                Ok(GameTypes::from(value).type_long().to_string())
+            })
     }
 
     fn get_gametype_short(&self) -> PyResult<String> {
-        match self
-            .get_item(intern!(self.py(), "g_gametype"))?
+        self.get_item(intern!(self.py(), "g_gametype"))?
             .extract::<String>()?
             .parse::<i32>()
-        {
-            Ok(0) => Ok("ffa".to_string()),
-            Ok(1) => Ok("duel".to_string()),
-            Ok(2) => Ok("race".to_string()),
-            Ok(3) => Ok("tdm".to_string()),
-            Ok(4) => Ok("ca".to_string()),
-            Ok(5) => Ok("ctf".to_string()),
-            Ok(6) => Ok("1f".to_string()),
-            Ok(8) => Ok("har".to_string()),
-            Ok(9) => Ok("ft".to_string()),
-            Ok(10) => Ok("dom".to_string()),
-            Ok(11) => Ok("ad".to_string()),
-            Ok(12) => Ok("rr".to_string()),
-            _ => Ok("N/A".to_string()),
-        }
+            .map_or(Ok(GameTypes::Unknown.type_short().to_string()), |value| {
+                Ok(GameTypes::from(value).type_short().to_string())
+            })
     }
 
     fn get_map(&self) -> PyResult<String> {
@@ -699,6 +677,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                 Ok(1) => "1",
                 Ok(0) => "0",
                 _ => {
+                    cold_path();
                     return Err(PyValueError::new_err(
                         "instagib needs to be 0, 1, or a bool.",
                     ));
@@ -722,6 +701,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                 Ok(1) => "1",
                 Ok(0) => "0",
                 _ => {
+                    cold_path();
                     return Err(PyValueError::new_err(
                         "loadout needs to be 0, 1, or a bool.",
                     ));
@@ -833,6 +813,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                     .map(|value| value.to_string())
                     .join(","),
                 Err(_e) => {
+                    cold_path();
                     return Err(PyValueError::new_err(
                         "tags need to be a string or an iterable returning strings.",
                     ));
@@ -866,6 +847,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                 .map(|value| value.to_string())
                 .join(" "),
             Err(_) => {
+                cold_path();
                 return Err(PyValueError::new_err("The value needs to be an iterable."));
             }
         };

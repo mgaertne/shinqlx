@@ -75,7 +75,7 @@ mod team_switch_dispatcher_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                PythonReturnCodes,
+                PythonReturnCodes, Teams,
                 commands::CommandPriorities,
                 events::EventDispatcherMethods,
                 pyshinqlx_setup,
@@ -97,8 +97,8 @@ mod team_switch_dispatcher_tests {
 
             let result = dispatcher.dispatch(
                 &Bound::new(py, default_test_player()).expect("this should not happen"),
-                "red",
-                "spectator",
+                &Teams::Red.to_string(),
+                &Teams::Spectator.to_string(),
             );
             assert!(result.is_ok_and(|value| {
                 value
@@ -140,8 +140,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -185,8 +185,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -230,8 +230,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -275,8 +275,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -320,8 +320,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -365,8 +365,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value
@@ -409,8 +409,8 @@ mod team_switch_dispatcher_tests {
 
                     let result = dispatcher.dispatch(
                         &Bound::new(py, default_test_player()).expect("this should not happen"),
-                        "red",
-                        "spectator",
+                        &Teams::Red.to_string(),
+                        &Teams::Spectator.to_string(),
                     );
                     assert!(result.is_ok_and(|value| {
                         value

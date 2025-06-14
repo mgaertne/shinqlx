@@ -10,8 +10,7 @@ use rayon::prelude::*;
 use regex::Regex;
 use tap::TapOptional;
 
-use super::prelude::*;
-use crate::ffi::c::prelude::*;
+use super::{Teams, prelude::*};
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
 ///
@@ -1266,14 +1265,7 @@ impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
             return Ok(None);
         }
 
-        let filtered_team: i32 = match self.get().team.read().as_str() {
-            "red" => team_t::TEAM_RED as i32,
-            "blue" => team_t::TEAM_BLUE as i32,
-            "free" => team_t::TEAM_FREE as i32,
-            "spectator" => team_t::TEAM_SPECTATOR as i32,
-            _ => -1,
-        };
-
+        let filtered_team = Teams::from(self.get().team.read().as_str()) as i32;
         let players_info = pyshinqlx_players_info(self.py())?;
         Ok(Some(
             players_info

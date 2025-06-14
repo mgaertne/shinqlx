@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
 
@@ -9,6 +11,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 pub(crate) fn pyshinqlx_get_entity_targets(py: Python<'_>, entity_id: i32) -> PyResult<Vec<u32>> {
     py.allow_threads(|| {
         if !(0..MAX_GENTITIES as i32).contains(&entity_id) {
+            cold_path();
             return Err(PyValueError::new_err(format!(
                 "entity_id need to be between 0 and {}.",
                 MAX_GENTITIES - 1

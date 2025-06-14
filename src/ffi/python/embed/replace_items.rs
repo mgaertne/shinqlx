@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use arrayvec::ArrayVec;
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
@@ -7,10 +9,13 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
     match item.extract::<i32>() {
         Ok(item_id) if (0..GameItem::get_num_items()).contains(&item_id) => Ok(item_id),
-        Ok(_) => Err(PyValueError::new_err(format!(
-            "item2 needs to be between 0 and {}.",
-            GameItem::get_num_items() - 1
-        ))),
+        Ok(_) => {
+            cold_path();
+            Err(PyValueError::new_err(format!(
+                "item2 needs to be between 0 and {}.",
+                GameItem::get_num_items() - 1
+            )))
+        }
         Err(_) => match item.extract::<String>() {
             Ok(item_classname) => item.py().allow_threads(|| {
                 (1..GameItem::get_num_items())
@@ -24,9 +29,12 @@ fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
                         "invalid item classname: {item_classname}"
                     )))
             }),
-            Err(_) => Err(PyValueError::new_err(
-                "item2 needs to be of type int or string.",
-            )),
+            Err(_) => {
+                cold_path();
+                Err(PyValueError::new_err(
+                    "item2 needs to be of type int or string.",
+                ))
+            }
         },
     }
 }
@@ -62,10 +70,13 @@ pub(crate) fn pyshinqlx_replace_items(
                     )
             })
         }
-        Ok(_) => Err(PyValueError::new_err(format!(
-            "item1 needs to be between 0 and {}.",
-            GameItem::get_num_items() - 1
-        ))),
+        Ok(_) => {
+            cold_path();
+            Err(PyValueError::new_err(format!(
+                "item1 needs to be between 0 and {}.",
+                GameItem::get_num_items() - 1
+            )))
+        }
         Err(_) => match item1.extract::<String>() {
             Ok(item1_classname) => py.allow_threads(|| {
                 let mut matching_item1_entities: ArrayVec<
@@ -86,9 +97,12 @@ pub(crate) fn pyshinqlx_replace_items(
 
                 Ok(!matching_item1_entities.is_empty())
             }),
-            Err(_) => Err(PyValueError::new_err(
-                "item1 needs to be of type int or string.",
-            )),
+            Err(_) => {
+                cold_path();
+                Err(PyValueError::new_err(
+                    "item1 needs to be of type int or string.",
+                ))
+            }
         },
     }
 }

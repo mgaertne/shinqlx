@@ -122,6 +122,7 @@ pub(crate) mod prelude {
 }
 
 use core::{
+    hint::cold_path,
     ops::Deref,
     str::FromStr,
     sync::atomic::{AtomicBool, AtomicU64, Ordering},
@@ -134,6 +135,7 @@ use std::{
 use arc_swap::ArcSwapOption;
 use chrono::Utc;
 use commands::CommandPriorities;
+use derive_more::Display;
 use itertools::Itertools;
 use log::*;
 use prelude::*;
@@ -323,6 +325,217 @@ mod python_return_codes_tests {
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
             );
         });
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(i32)]
+enum GameTypes {
+    FreeForAll = 0,
+    Duel = 1,
+    Race = 2,
+    TeamDeathmatch = 3,
+    ClanArena = 4,
+    CaptureTheFlag = 5,
+    OneFlag = 6,
+    Harvester = 8,
+    FreezeTag = 9,
+    Domination = 10,
+    AttackAndDefend = 11,
+    RedRover = 12,
+    Unknown,
+}
+
+impl GameTypes {
+    pub(crate) fn type_long(&self) -> &str {
+        match self {
+            GameTypes::FreeForAll => "Free for All",
+            GameTypes::Duel => "Duel",
+            GameTypes::Race => "Race",
+            GameTypes::TeamDeathmatch => "Team Deathmatch",
+            GameTypes::ClanArena => "Clan Arena",
+            GameTypes::CaptureTheFlag => "Capture the Flag",
+            GameTypes::OneFlag => "One Flag",
+            GameTypes::Harvester => "Harvester",
+            GameTypes::FreezeTag => "Freeze Tag",
+            GameTypes::Domination => "Domination",
+            GameTypes::AttackAndDefend => "Attack and Defend",
+            GameTypes::RedRover => "Red Rover",
+            _ => "unknown",
+        }
+    }
+
+    pub(crate) fn type_short(&self) -> &str {
+        match self {
+            GameTypes::FreeForAll => "ffa",
+            GameTypes::Duel => "duel",
+            GameTypes::Race => "race",
+            GameTypes::TeamDeathmatch => "tdm",
+            GameTypes::ClanArena => "ca",
+            GameTypes::CaptureTheFlag => "ctf",
+            GameTypes::OneFlag => "1f",
+            GameTypes::Harvester => "har",
+            GameTypes::FreezeTag => "ft",
+            GameTypes::Domination => "dom",
+            GameTypes::AttackAndDefend => "ad",
+            GameTypes::RedRover => "rr",
+            _ => "N/A",
+        }
+    }
+}
+
+impl From<i32> for GameTypes {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => GameTypes::FreeForAll,
+            1 => GameTypes::Duel,
+            2 => GameTypes::Race,
+            3 => GameTypes::TeamDeathmatch,
+            4 => GameTypes::ClanArena,
+            5 => GameTypes::CaptureTheFlag,
+            6 => GameTypes::OneFlag,
+            8 => GameTypes::Harvester,
+            9 => GameTypes::FreezeTag,
+            10 => GameTypes::Domination,
+            11 => GameTypes::AttackAndDefend,
+            12 => GameTypes::RedRover,
+            _ => GameTypes::Unknown,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Display)]
+#[repr(i32)]
+enum Teams {
+    #[display("free")]
+    Free = team_t::TEAM_FREE as i32,
+    #[display("red")]
+    Red = team_t::TEAM_RED as i32,
+    #[display("blue")]
+    Blue = team_t::TEAM_BLUE as i32,
+    #[display("spectator")]
+    Spectator = team_t::TEAM_SPECTATOR as i32,
+    #[display("invalid team")]
+    Invalid = -1,
+}
+
+impl From<team_t> for Teams {
+    fn from(value: team_t) -> Self {
+        match value {
+            team_t::TEAM_FREE => Teams::Free,
+            team_t::TEAM_RED => Teams::Red,
+            team_t::TEAM_BLUE => Teams::Blue,
+            team_t::TEAM_SPECTATOR => Teams::Spectator,
+            _ => Teams::Invalid,
+        }
+    }
+}
+
+impl From<i32> for Teams {
+    fn from(value: i32) -> Self {
+        match value {
+            0 => Teams::Free,
+            1 => Teams::Red,
+            2 => Teams::Blue,
+            3 => Teams::Spectator,
+            _ => Teams::Invalid,
+        }
+    }
+}
+
+impl<'a> From<&'a str> for Teams {
+    fn from(value: &'a str) -> Self {
+        match value {
+            "free" => Teams::Free,
+            "red" => Teams::Red,
+            "blue" => Teams::Blue,
+            "spectator" => Teams::Spectator,
+            _ => Teams::Invalid,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Display)]
+#[repr(i32)]
+enum ConnectionStates {
+    #[display("free")]
+    Free = clientState_t::CS_FREE as i32,
+    #[display("zombie")]
+    Zombie = clientState_t::CS_ZOMBIE as i32,
+    #[display("connected")]
+    Connected = clientState_t::CS_CONNECTED as i32,
+    #[display("primed")]
+    Primed = clientState_t::CS_PRIMED as i32,
+    #[display("active")]
+    Active = clientState_t::CS_ACTIVE as i32,
+}
+
+impl From<clientState_t> for ConnectionStates {
+    fn from(value: clientState_t) -> Self {
+        match value {
+            clientState_t::CS_FREE => ConnectionStates::Free,
+            clientState_t::CS_ZOMBIE => ConnectionStates::Zombie,
+            clientState_t::CS_CONNECTED => ConnectionStates::Connected,
+            clientState_t::CS_PRIMED => ConnectionStates::Primed,
+            clientState_t::CS_ACTIVE => ConnectionStates::Active,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Display)]
+#[repr(i32)]
+enum Weapon {
+    #[display("g")]
+    Gauntlet = weapon_t::WP_GAUNTLET as i32,
+    #[display("mg")]
+    Machinegun = weapon_t::WP_MACHINEGUN as i32,
+    #[display("sg")]
+    Shotgun = weapon_t::WP_SHOTGUN as i32,
+    #[display("gl")]
+    GrenadeLauncher = weapon_t::WP_GRENADE_LAUNCHER as i32,
+    #[display("rl")]
+    RocketLauncher = weapon_t::WP_ROCKET_LAUNCHER as i32,
+    #[display("lg")]
+    Lightning = weapon_t::WP_LIGHTNING as i32,
+    #[display("rg")]
+    Railgun = weapon_t::WP_RAILGUN as i32,
+    #[display("pg")]
+    PlasmaGun = weapon_t::WP_PLASMAGUN as i32,
+    #[display("bfg")]
+    Bfg = weapon_t::WP_BFG as i32,
+    #[display("gh")]
+    GrapplingHook = weapon_t::WP_GRAPPLING_HOOK as i32,
+    #[display("ng")]
+    NailGun = weapon_t::WP_NAILGUN as i32,
+    #[display("pl")]
+    ProximityMainLauncher = weapon_t::WP_PROX_LAUNCHER as i32,
+    #[display("cg")]
+    ChainGun = weapon_t::WP_CHAINGUN as i32,
+    #[display("hmg")]
+    HeavyMachinegun = weapon_t::WP_HMG as i32,
+    #[display("hands")]
+    Hands = weapon_t::WP_HANDS as i32,
+}
+
+impl From<weapon_t> for Weapon {
+    fn from(value: weapon_t) -> Self {
+        match value {
+            weapon_t::WP_GAUNTLET => Weapon::Gauntlet,
+            weapon_t::WP_MACHINEGUN => Weapon::Machinegun,
+            weapon_t::WP_SHOTGUN => Weapon::Shotgun,
+            weapon_t::WP_GRENADE_LAUNCHER => Weapon::GrenadeLauncher,
+            weapon_t::WP_ROCKET_LAUNCHER => Weapon::RocketLauncher,
+            weapon_t::WP_LIGHTNING => Weapon::Lightning,
+            weapon_t::WP_RAILGUN => Weapon::Railgun,
+            weapon_t::WP_PLASMAGUN => Weapon::PlasmaGun,
+            weapon_t::WP_BFG => Weapon::Bfg,
+            weapon_t::WP_GRAPPLING_HOOK => Weapon::GrapplingHook,
+            weapon_t::WP_NAILGUN => Weapon::NailGun,
+            weapon_t::WP_PROX_LAUNCHER => Weapon::ProximityMainLauncher,
+            weapon_t::WP_CHAINGUN => Weapon::ChainGun,
+            weapon_t::WP_HMG => Weapon::HeavyMachinegun,
+            _ => Weapon::Hands,
+        }
     }
 }
 
@@ -541,6 +754,7 @@ fn console_command(cmd: &str) -> PyResult<()> {
 
 fn get_configstring(index: u16) -> PyResult<String> {
     if !(0..MAX_CONFIGSTRINGS as u16).contains(&index) {
+        cold_path();
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
             MAX_CONFIGSTRINGS - 1
@@ -557,6 +771,7 @@ fn get_configstring(index: u16) -> PyResult<String> {
 
 fn set_configstring(index: u16, value: &str) -> PyResult<()> {
     if !(0..MAX_CONFIGSTRINGS as u16).contains(&index) {
+        cold_path();
         return Err(PyValueError::new_err(format!(
             "index needs to be a number from 0 to {}.",
             MAX_CONFIGSTRINGS - 1
@@ -577,11 +792,16 @@ fn lock(team: Option<&str>) -> PyResult<()> {
     team.map_or_else(
         || console_command("lock"),
         |team_name| {
-            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                Err(PyValueError::new_err("Invalid team."))
-            } else {
-                let lock_cmd = format!("lock {}", team_name.to_lowercase());
-                console_command(&lock_cmd)
+            let team_name_lower = team_name.to_lowercase();
+            match Teams::from(team_name_lower.as_str()) {
+                Teams::Invalid => {
+                    cold_path();
+                    Err(PyValueError::new_err("Invalid team."))
+                }
+                team => {
+                    let lock_cmd = format!("lock {team}");
+                    console_command(&lock_cmd)
+                }
             }
         },
     )
@@ -591,11 +811,16 @@ fn unlock(team: Option<&str>) -> PyResult<()> {
     team.map_or_else(
         || console_command("unlock"),
         |team_name| {
-            if !["free", "red", "blue", "spectator"].contains(&&*team_name.to_lowercase()) {
-                Err(PyValueError::new_err("Invalid team."))
-            } else {
-                let unlock_cmd = format!("unlock {}", team_name.to_lowercase());
-                console_command(&unlock_cmd)
+            let team_name_lower = team_name.to_lowercase();
+            match Teams::from(team_name_lower.as_str()) {
+                Teams::Invalid => {
+                    cold_path();
+                    Err(PyValueError::new_err("Invalid team."))
+                }
+                team => {
+                    let unlock_cmd = format!("unlock {team}");
+                    console_command(&unlock_cmd)
+                }
             }
         },
     )
@@ -604,12 +829,17 @@ fn unlock(team: Option<&str>) -> PyResult<()> {
 fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
     client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
         py.allow_threads(|| {
-            if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-                return Err(PyValueError::new_err("Invalid team."));
+            let team_lower = team.to_lowercase();
+            match Teams::from(team_lower.as_str()) {
+                Teams::Invalid => {
+                    cold_path();
+                    Err(PyValueError::new_err("Invalid team."))
+                }
+                team => {
+                    let team_change_cmd = format!("put {player_id} {team}");
+                    console_command(&team_change_cmd)
+                }
             }
-
-            let team_change_cmd = format!("put {} {}", player_id, team.to_lowercase());
-            console_command(&team_change_cmd)
         })
     })
 }
@@ -701,12 +931,17 @@ fn addscore(py: Python<'_>, player: &Bound<'_, PyAny>, score: i32) -> PyResult<(
 }
 
 fn addteamscore(team: &str, score: i32) -> PyResult<()> {
-    if !["free", "red", "blue", "spectator"].contains(&&*team.to_lowercase()) {
-        return Err(PyValueError::new_err("Invalid team."));
+    let team_lower = team.to_lowercase();
+    match Teams::from(team_lower.as_str()) {
+        Teams::Invalid => {
+            cold_path();
+            Err(PyValueError::new_err("Invalid team."))
+        }
+        team => {
+            let addteamscore_cmd = format!("addteamscore {team} {score}");
+            console_command(&addteamscore_cmd)
+        }
     }
-
-    let addteamscore_cmd = format!("addteamscore {} {}", team.to_lowercase(), score);
-    console_command(&addteamscore_cmd)
 }
 
 fn is_vote_active() -> bool {
@@ -1513,6 +1748,7 @@ fn try_log_messages(
 #[pyfunction]
 fn next_frame<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     if !func.is_callable() {
+        cold_path();
         return Err(PyValueError::new_err(
             "func has to be a callable Python function",
         ));
@@ -1823,6 +2059,7 @@ TestClass().test_func()
 #[pyfunction]
 fn thread<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     if !func.is_callable() {
+        cold_path();
         return Err(PyValueError::new_err(
             "func has to be a callable Python function",
         ));
@@ -2349,6 +2586,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
         .file_name()
         .map(|plugins_dir| plugins_dir.to_string_lossy())
     else {
+        cold_path();
         return Err(PluginLoadError::new_err(
             "qlx_pluginsPath is not pointing to an existing directory",
         ));
@@ -2367,6 +2605,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
     }
 
     if !module.hasattr(&plugin_pystring)? {
+        cold_path();
         return Err(PluginLoadError::new_err(
             "The plugin needs to have a class with the exact name as the file, minus the .py.",
         ));
@@ -2379,6 +2618,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
         .is_subclass(&plugin_type)
         .unwrap_or(false)
     {
+        cold_path();
         return Err(PluginLoadError::new_err(
             "Attempted to load a plugin that is not a subclass of 'shinqlx.Plugin'.",
         ));
@@ -2425,6 +2665,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             joined_path.set_extension("py");
 
             if !joined_path.as_path().is_file() {
+                cold_path();
                 return Err(PluginLoadError::new_err("No such plugin exists."));
             }
 
@@ -2474,6 +2715,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         .get_item(plugin)?
         .map_or_else(
             || {
+                cold_path();
                 let error_msg =
                     format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
                 Err(PluginUnloadError::new_err(error_msg))
@@ -2569,6 +2811,7 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         .get_type::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?;
     if !loaded_plugins.downcast::<PyDict>()?.contains(plugin)? {
+        cold_path();
         let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
         return Err(PluginUnloadError::new_err(error_msg));
     }
@@ -3621,6 +3864,7 @@ fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
 
                     let plugins_path = Path::new(&plugins_path_str);
                     if !plugins_path.is_dir() {
+                        cold_path();
                         return Err("qlx_pluginsPath is not pointing to an existing directory");
                     }
 
@@ -3872,7 +4116,10 @@ fn pyshinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", shinqlx_version)?;
 
     let version_info = match semver::Version::parse(shinqlx_version) {
-        Err(_) => (999, 999, 999),
+        Err(_) => {
+            cold_path();
+            (999, 999, 999)
+        }
         Ok(version) => (version.major, version.minor, version.patch),
     };
     m.add("__version_info__", version_info)?;
@@ -4069,82 +4316,82 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add(
         "TEAMS",
-        [
-            (team_t::TEAM_FREE as i32, "free"),
-            (team_t::TEAM_RED as i32, "red"),
-            (team_t::TEAM_BLUE as i32, "blue"),
-            (team_t::TEAM_SPECTATOR as i32, "spectator"),
-        ]
-        .into_py_dict(m.py())?,
+        [&Teams::Free, &Teams::Red, &Teams::Blue, &Teams::Spectator]
+            .map(|team| (*team as i32, team.to_string()))
+            .into_py_dict(m.py())?,
     )?;
     // Game types
     m.add(
         "GAMETYPES",
         [
-            (0, "Free for All"),
-            (1, "Duel"),
-            (2, "Race"),
-            (3, "Team Deathmatch"),
-            (4, "Clan Arena"),
-            (5, "Capture the Flag"),
-            (6, "One Flag"),
-            (8, "Harvester"),
-            (9, "Freeze Tag"),
-            (10, "Domination"),
-            (11, "Attack and Defend"),
-            (12, "Red Rover"),
+            &GameTypes::FreeForAll,
+            &GameTypes::Duel,
+            &GameTypes::Race,
+            &GameTypes::TeamDeathmatch,
+            &GameTypes::ClanArena,
+            &GameTypes::CaptureTheFlag,
+            &GameTypes::OneFlag,
+            &GameTypes::Harvester,
+            &GameTypes::FreezeTag,
+            &GameTypes::Domination,
+            &GameTypes::AttackAndDefend,
+            &GameTypes::RedRover,
         ]
+        .map(|gametype| (*gametype as i32, gametype.type_long()))
         .into_py_dict(m.py())?,
     )?;
     m.add(
         "GAMETYPES_SHORT",
         [
-            (0, "ffa"),
-            (1, "duel"),
-            (2, "race"),
-            (3, "tdm"),
-            (4, "ca"),
-            (5, "ctf"),
-            (6, "1f"),
-            (8, "har"),
-            (9, "ft"),
-            (10, "dom"),
-            (11, "ad"),
-            (12, "rr"),
+            &GameTypes::FreeForAll,
+            &GameTypes::Duel,
+            &GameTypes::Race,
+            &GameTypes::TeamDeathmatch,
+            &GameTypes::ClanArena,
+            &GameTypes::CaptureTheFlag,
+            &GameTypes::OneFlag,
+            &GameTypes::Harvester,
+            &GameTypes::FreezeTag,
+            &GameTypes::Domination,
+            &GameTypes::AttackAndDefend,
+            &GameTypes::RedRover,
         ]
+        .map(|gametype| (*gametype as i32, gametype.type_short()))
         .into_py_dict(m.py())?,
     )?;
     m.add(
         "CONNECTION_STATES",
         [
-            (clientState_t::CS_FREE as i32, "free"),
-            (clientState_t::CS_ZOMBIE as i32, "zombie"),
-            (clientState_t::CS_CONNECTED as i32, "connected"),
-            (clientState_t::CS_PRIMED as i32, "primed"),
-            (clientState_t::CS_ACTIVE as i32, "active"),
+            &ConnectionStates::Free,
+            &ConnectionStates::Zombie,
+            &ConnectionStates::Connected,
+            &ConnectionStates::Primed,
+            &ConnectionStates::Active,
         ]
+        .map(|connection_state| (*connection_state as i32, connection_state.to_string()))
         .into_py_dict(m.py())?,
     )?;
     // Weapons
     m.add(
         "WEAPONS",
         [
-            (weapon_t::WP_GAUNTLET as i32, "g"),
-            (weapon_t::WP_MACHINEGUN as i32, "mg"),
-            (weapon_t::WP_SHOTGUN as i32, "sg"),
-            (weapon_t::WP_GRENADE_LAUNCHER as i32, "gl"),
-            (weapon_t::WP_ROCKET_LAUNCHER as i32, "rl"),
-            (weapon_t::WP_LIGHTNING as i32, "lg"),
-            (weapon_t::WP_RAILGUN as i32, "rg"),
-            (weapon_t::WP_PLASMAGUN as i32, "pg"),
-            (weapon_t::WP_BFG as i32, "bfg"),
-            (weapon_t::WP_GRAPPLING_HOOK as i32, "gh"),
-            (weapon_t::WP_NAILGUN as i32, "ng"),
-            (weapon_t::WP_PROX_LAUNCHER as i32, "pl"),
-            (weapon_t::WP_CHAINGUN as i32, "cg"),
-            (weapon_t::WP_HMG as i32, "hmg"),
-            (weapon_t::WP_HANDS as i32, "hands"),
+            &Weapon::Gauntlet,
+            &Weapon::Machinegun,
+            &Weapon::Shotgun,
+            &Weapon::GrenadeLauncher,
+            &Weapon::RocketLauncher,
+            &Weapon::Lightning,
+            &Weapon::Railgun,
+            &Weapon::PlasmaGun,
+            &Weapon::Bfg,
+            &Weapon::GrapplingHook,
+            &Weapon::NailGun,
+            &Weapon::ProximityMainLauncher,
+            &Weapon::ChainGun,
+            &Weapon::HeavyMachinegun,
+            &Weapon::Hands,
         ]
+        .map(|weapon| (*weapon as i32, weapon.to_string()))
         .into_py_dict(m.py())?,
     )?;
     m.add("DEFAULT_PLUGINS", PyTuple::new(m.py(), DEFAULT_PLUGINS)?)?;
@@ -4487,6 +4734,7 @@ pub enum PythonInitializationError {
 
 pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyshinqlx_is_initialized() {
+        cold_path();
         error!(target: "shinqlx", "pyshinqlx_initialize was called while already initialized");
         return Err(PythonInitializationError::AlreadyInitialized);
     }
@@ -4500,6 +4748,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
         py.import(intern!(py, "shinqlx")).and_then(|shinqlx_module| {
             shinqlx_module.call_method0(intern!(py, "initialize"))
         }).map_or_else(|err| {
+            cold_path();
             error!(target: "shinqlx", "{err:?}");
             error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
             Err(PythonInitializationError::MainScriptError)
@@ -4514,6 +4763,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
 #[cfg_attr(test, allow(dead_code))]
 pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         error!(target: "shinqlx", "pyshinqlx_finalize was called before being initialized");
         return Err(PythonInitializationError::NotInitializedError);
     }
@@ -4530,6 +4780,7 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
             })
             .map_or_else(
                 |_| {
+                    cold_path();
                     PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
                     Err(PythonInitializationError::MainScriptError)
                 },
@@ -4604,6 +4855,7 @@ def initialize():
 }
 
 #[cfg(test)]
+#[cfg(not(tarpaulin_include))]
 pub(crate) mod pyshinqlx_test_support {
     use alloc::ffi::CString;
     use core::fmt::Debug;
