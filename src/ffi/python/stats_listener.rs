@@ -50,9 +50,12 @@ fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to stats dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to stats dispatcher",
+                ))
+            },
             |stats_dispatcher| {
                 dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
                     thread_safe_dispatcher.call1((stats_dispatcher, json_data))
@@ -74,9 +77,12 @@ fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to game_start dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to game_start dispatcher",
+                ))
+            },
             |game_start_dispatcher| {
                 dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
                     thread_safe_dispatcher.call1((game_start_dispatcher, json_data))
@@ -98,9 +104,12 @@ fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to round_end dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to round_end dispatcher",
+                ))
+            },
             |rount_end_dispatcher| {
                 dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
                     thread_safe_dispatcher.call1((rount_end_dispatcher, json_data))
@@ -122,9 +131,12 @@ fn dispatch_game_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to game_end dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to game_end dispatcher",
+                ))
+            },
             |game_end_dispatcher| {
                 dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
                     thread_safe_dispatcher.call1((game_end_dispatcher, json_data))
@@ -249,9 +261,12 @@ fn dispatch_player_death_events(
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to death dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to death dispatcher",
+                ))
+            },
             |death_dispatcher| {
                 thread_safe_dispatcher.call1((
                     death_dispatcher,
@@ -274,9 +289,12 @@ fn dispatch_player_death_events(
                     .ok()
             })
             .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to kill dispatcher",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to kill dispatcher",
+                    ))
+                },
                 |kill_dispatcher| {
                     thread_safe_dispatcher.call1((
                         kill_dispatcher,
@@ -362,9 +380,12 @@ def thread_safe_team_switch_dispatch(dispatcher, player, old_team, new_team):
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to team_switch dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to team_switch dispatcher",
+                ))
+            },
             |team_switch_dispatcher| {
                 thread_safe_team_switch_dispatcher.call1((
                     team_switch_dispatcher,

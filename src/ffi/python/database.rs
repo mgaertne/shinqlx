@@ -549,6 +549,7 @@ impl Redis {
             .and_then(|value| value.extract::<bool>())?;
 
         if !returned {
+            cold_path();
             return Err(PyRuntimeError::new_err("The database assignment failed."));
         }
 
@@ -1131,6 +1132,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
         let mapping = PyDict::new(self.py());
 
         if args.len() > 1 {
+            cold_path();
             let error = redis_error.call1((intern!(
                 self.py(),
                 "MSET requires **kwargs or a single dict arg"
@@ -1140,6 +1142,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
 
         if args.len() == 1 {
             let Ok(dict_arg) = args.get_item(0) else {
+                cold_path();
                 let error = redis_error.call1((intern!(
                     self.py(),
                     "MSET requires **kwargs or a single dict arg"
@@ -1168,6 +1171,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
         let mapping = PyDict::new(self.py());
 
         if args.len() > 1 {
+            cold_path();
             let error = redis_error.call1((intern!(
                 self.py(),
                 "MSENXT requires **kwargs or a single dict arg"
@@ -1177,6 +1181,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
 
         if args.len() == 1 {
             let Ok(dict_arg) = args.get_item(0) else {
+                cold_path();
                 let error = redis_error.call1((intern!(
                     self.py(),
                     "MSETNX requires **kwargs or a single dict arg"
@@ -1214,6 +1219,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
         let redis_error = redis_module.getattr(intern!(self.py(), "RedisError"))?;
 
         if args.len() % 2 != 0 {
+            cold_path();
             let error = redis_error.call1((intern!(
                 self.py(),
                 "ZADD requires an equal number of values and scores"

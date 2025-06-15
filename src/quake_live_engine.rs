@@ -1127,6 +1127,7 @@ impl QuakeLiveEngine {
     // point, since functions like Cmd_AddCommand need initialization first.
     pub(crate) fn initialize_static(&self) -> Result<(), QuakeLiveEngineError> {
         if self.common_initialized.load(Ordering::Acquire) {
+            cold_path();
             return Err(QuakeLiveEngineError::MainEngineNotInitialized);
         }
         debug!(target: "shinqlx", "Initializing...");
@@ -1173,9 +1174,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<unsafe extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Com_Printf,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Com_Printf,
+                ))
+            },
             |static_functions| Ok(static_functions.com_printf_orig),
         )
     }
@@ -1184,27 +1188,36 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_AddCommand,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_AddCommand,
+                ))
+            },
             |static_functions| Ok(static_functions.cmd_addcommand_orig),
         )
     }
 
     fn cmd_args_orig(&self) -> Result<extern "C" fn() -> *const c_char, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Args,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Args,
+                ))
+            },
             |static_functions| Ok(static_functions.cmd_args_orig),
         )
     }
 
     fn cmd_argv_orig(&self) -> Result<extern "C" fn(c_int) -> *const c_char, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Argv,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Argv,
+                ))
+            },
             |static_functions| Ok(static_functions.cmd_argv_orig),
         )
     }
@@ -1214,9 +1227,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Tokenizestring,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Tokenizestring,
+                ))
+            },
             |static_functions| Ok(static_functions.cmd_tokenizestring_orig),
         )
     }
@@ -1226,9 +1242,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cbuf_ExecuteText,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cbuf_ExecuteText,
+                ))
+            },
             |static_functions| Ok(static_functions.cbuf_executetext_orig),
         )
     }
@@ -1237,9 +1256,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *mut cvar_t, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_FindVar,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_FindVar,
+                ))
+            },
             |static_functions| Ok(static_functions.cvar_findvar_orig),
         )
     }
@@ -1252,9 +1274,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_Get,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_Get,
+                ))
+            },
             |static_functions| Ok(static_functions.cvar_get_orig),
         )
     }
@@ -1273,9 +1298,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_GetLimit,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_GetLimit,
+                ))
+            },
             |static_functions| Ok(static_functions.cvar_getlimit_orig),
         )
     }
@@ -1288,9 +1316,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cvar_Set2,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cvar_Set2,
+                ))
+            },
             |static_functions| Ok(static_functions.cvar_set2_orig),
         )
     }
@@ -1299,9 +1330,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<unsafe extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SendServerCommand,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_SendServerCommand,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_sendservercommand_orig),
         )
     }
@@ -1310,9 +1344,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char, qboolean), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_ExecuteClientCommand,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_ExecuteClientCommand,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_executeclientcommand_orig),
         )
     }
@@ -1321,9 +1358,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_Shutdown,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_Shutdown,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_shutdown_orig),
         )
     }
@@ -1331,9 +1371,12 @@ impl QuakeLiveEngine {
     #[cfg_attr(not(test), allow(dead_code))]
     fn sv_map_f_orig(&self) -> Result<extern "C" fn(), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_Map_f,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_Map_f,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_map_f_orig),
         )
     }
@@ -1342,9 +1385,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_ClientEnterWorld,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_ClientEnterWorld,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_cliententerworld_orig),
         )
     }
@@ -1353,9 +1399,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(c_int, *const c_char), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SetConfigstring,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_SetConfigstring,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_setconfigstring_orig),
         )
     }
@@ -1364,9 +1413,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(c_int, *mut c_char, c_int), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_GetConfigstring,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_GetConfigstring,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_getconfigstring_orig),
         )
     }
@@ -1375,9 +1427,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_DropClient,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_DropClient,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_dropclient_orig),
         )
     }
@@ -1386,9 +1441,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Sys_SetModuleOffset,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Sys_SetModuleOffset,
+                ))
+            },
             |static_functions| Ok(static_functions.sys_setmoduleoffset_orig),
         )
     }
@@ -1397,27 +1455,36 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<extern "C" fn(*mut c_char, qboolean), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::SV_SpawnServer,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_SpawnServer,
+                ))
+            },
             |static_functions| Ok(static_functions.sv_spawnserver_orig),
         )
     }
 
     fn cmd_executestring_orig(&self) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_ExecuteString,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_ExecuteString,
+                ))
+            },
             |static_functions| Ok(static_functions.cmd_executestring_orig),
         )
     }
 
     fn cmd_argc_orig(&self) -> Result<extern "C" fn() -> c_int, QuakeLiveEngineError> {
         self.static_functions.get().map_or(
-            Err(QuakeLiveEngineError::StaticFunctionNotFound(
-                QuakeLiveFunction::Cmd_Argc,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::Cmd_Argc,
+                ))
+            },
             |static_functions| Ok(static_functions.cmd_argc_orig),
         )
     }
@@ -1429,9 +1496,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::Cmd_AddCommand,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::Cmd_AddCommand,
+                ))
+            },
             |static_detours| Ok(&static_detours.cmd_addcommand_detour),
         )
     }
@@ -1443,9 +1513,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::Sys_SetModuleOffset,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::Sys_SetModuleOffset,
+                ))
+            },
             |static_detours| Ok(&static_detours.sys_setmoduleoffset_detour),
         )
     }
@@ -1458,9 +1531,12 @@ impl QuakeLiveEngine {
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::SV_ExecuteClientCommand,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_ExecuteClientCommand,
+                ))
+            },
             |static_detours| Ok(&static_detours.sv_executeclientcommand_detour),
         )
     }
@@ -1471,9 +1547,12 @@ impl QuakeLiveEngine {
     ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError>
     {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::SV_ClientEnterWorld,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_ClientEnterWorld,
+                ))
+            },
             |static_detours| Ok(&static_detours.sv_cliententerworld_detour),
         )
     }
@@ -1483,9 +1562,12 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(c_int, *const c_char)>, QuakeLiveEngineError> {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::SV_SetConfigstring,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_SetConfigstring,
+                ))
+            },
             |static_detours| Ok(&static_detours.sv_setconfgistring_detour),
         )
     }
@@ -1496,9 +1578,12 @@ impl QuakeLiveEngine {
     ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>
     {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::SV_DropClient,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_DropClient,
+                ))
+            },
             |static_detours| Ok(&static_detours.sv_dropclient_detour),
         )
     }
@@ -1508,27 +1593,36 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::SV_SpawnServer,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_SpawnServer,
+                ))
+            },
             |static_detours| Ok(&static_detours.sv_spawnserver_detour),
         )
     }
 
     fn sv_sendservercommand_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::SV_SendServerCommand,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::SV_SendServerCommand,
+                ))
+            },
             |static_detours| Ok(&static_detours.sv_sendservercommand_detour),
         )
     }
 
     fn com_printf_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
         self.static_detours.get().map_or(
-            Err(QuakeLiveEngineError::StaticDetourNotFound(
-                QuakeLiveFunction::Com_Printf,
-            )),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::StaticDetourNotFound(
+                    QuakeLiveFunction::Com_Printf,
+                ))
+            },
             |static_detours| Ok(&static_detours.com_printf_detour),
         )
     }
@@ -4231,6 +4325,7 @@ pub(crate) trait CmdArgv<T: Into<c_int>> {
 impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
     fn cmd_argv(&self, argno: T) -> Option<String> {
         if argno < 0 {
+            cold_path();
             return None;
         }
         self.cmd_argv_orig()

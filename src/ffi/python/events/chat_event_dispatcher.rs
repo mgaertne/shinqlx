@@ -86,9 +86,12 @@ fn try_handle_input(
     channel: &Bound<'_, PyAny>,
 ) -> PyResult<bool> {
     COMMANDS.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "could not get access to COMMANDS",
-        )),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "could not get access to COMMANDS",
+            ))
+        },
         |commands| {
             commands
                 .bind(py)

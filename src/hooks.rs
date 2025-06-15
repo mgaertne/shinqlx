@@ -21,6 +21,7 @@ pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if !main_engine.is_common_initialized() {
             let _ = main_engine.initialize_static().tap_err(|err| {
+                cold_path();
                 error!(target: "shinqlx", "{err:?}");
                 error!(target: "shinqlx", "Static initialization failed. Exiting.");
                 panic!("Static initialization failed. Exiting.");
@@ -43,6 +44,7 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
 
         // We should be getting qagame, but check just in case.
         if converted_module_name.as_ref() != "qagame" {
+            cold_path();
             error!(target: "shinqlx", "Unknown module: {converted_module_name}");
         }
 
@@ -91,6 +93,7 @@ where
     U: Into<qboolean> + Into<bool> + Copy,
 {
     if MAIN_ENGINE.load().is_none() {
+        cold_path();
         return;
     }
     if cmd.as_ref().is_empty() {
@@ -145,6 +148,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         )
     };
     if result < 0 {
+        cold_path();
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
 
@@ -154,10 +158,9 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     if client.is_null() {
         shinqlx_send_server_command(None, cmd);
     } else {
-        let safe_client: Result<Client, _> = client.try_into();
-        if safe_client.is_ok() {
-            shinqlx_send_server_command(safe_client.ok(), cmd);
-        }
+        let _ = client.try_conv::<Client>().map(|safe_client| {
+            shinqlx_send_server_command(Some(safe_client), cmd);
+        });
     }
 }
 
@@ -166,6 +169,7 @@ where
     T: AsRef<str> + Into<String>,
 {
     if MAIN_ENGINE.load().is_none() {
+        cold_path();
         return;
     }
 
@@ -201,21 +205,21 @@ where
 
 pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd: *mut usercmd_t) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
-        let Some(mut safe_client) = Client::try_from(client).ok() else {
-            cold_path();
-            return;
-        };
+        client
+            .try_conv::<Client>()
+            .ok()
+            .tap_some_mut(|safe_client| {
+                let state = safe_client.get_state();
 
-        let state = safe_client.get_state();
+                main_engine.client_enter_world(safe_client.borrow_mut(), cmd);
 
-        main_engine.client_enter_world(safe_client.borrow_mut(), cmd);
-
-        // gentity is NULL if map changed.
-        // state is CS_PRIMED only if it's the first time they connect to the server,
-        // otherwise the dispatcher would also go off when a game starts and such.
-        if safe_client.has_gentity() && state == clientState_t::CS_PRIMED {
-            client_loaded_dispatcher(safe_client.get_client_id());
-        }
+                // gentity is NULL if map changed.
+                // state is CS_PRIMED only if it's the first time they connect to the server,
+                // otherwise the dispatcher would also go off when a game starts and such.
+                if safe_client.has_gentity() && state == clientState_t::CS_PRIMED {
+                    client_loaded_dispatcher(safe_client.get_client_id());
+                }
+            });
     });
 }
 
@@ -292,6 +296,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
         )
     };
     if result < 0 {
+        cold_path();
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
 

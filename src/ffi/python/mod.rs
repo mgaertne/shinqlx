@@ -208,6 +208,7 @@ impl FromPyObject<'_> for PythonReturnCodes {
             return Ok(PythonReturnCodes::RET_NONE);
         }
         if item.is_instance_of::<PyBool>() {
+            cold_path();
             return Err(PyValueError::new_err("unsupported PythonReturnCode"));
         }
         match item.extract::<i32>() {
@@ -226,7 +227,10 @@ impl FromPyObject<'_> for PythonReturnCodes {
             Ok(ret_usage) if ret_usage == PythonReturnCodes::RET_USAGE as i32 => {
                 Ok(PythonReturnCodes::RET_USAGE)
             }
-            _ => Err(PyValueError::new_err("unsupported PythonReturnCode")),
+            _ => {
+                cold_path();
+                Err(PyValueError::new_err("unsupported PythonReturnCode"))
+            }
         }
     }
 }
@@ -705,9 +709,12 @@ pub(crate) fn client_id(
 
 fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
     MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "main quake live engine not set",
-        )),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ))
+        },
         |main_engine| {
             Ok(main_engine
                 .find_cvar(cvar)
@@ -718,9 +725,12 @@ fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
 
 fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
     MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "main quake live engine not set",
-        )),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ))
+        },
         |main_engine| {
             main_engine.find_cvar(cvar).as_ref().map_or_else(
                 || {
@@ -742,9 +752,12 @@ fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
 
 fn console_command(cmd: &str) -> PyResult<()> {
     MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "main quake live engine not set",
-        )),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ))
+        },
         |main_engine| {
             main_engine.execute_console_command(cmd);
             Ok(())
@@ -762,9 +775,12 @@ fn get_configstring(index: u16) -> PyResult<String> {
     }
 
     MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "main quake live engine not set",
-        )),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ))
+        },
         |main_engine| Ok(main_engine.get_configstring(index)),
     )
 }
@@ -827,66 +843,102 @@ fn unlock(team: Option<&str>) -> PyResult<()> {
 }
 
 fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let team_lower = team.to_lowercase();
-            match Teams::from(team_lower.as_str()) {
-                Teams::Invalid => {
-                    cold_path();
-                    Err(PyValueError::new_err("Invalid team."))
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let team_lower = team.to_lowercase();
+                match Teams::from(team_lower.as_str()) {
+                    Teams::Invalid => {
+                        cold_path();
+                        Err(PyValueError::new_err("Invalid team."))
+                    }
+                    team => {
+                        let team_change_cmd = format!("put {player_id} {team}");
+                        console_command(&team_change_cmd)
+                    }
                 }
-                team => {
-                    let team_change_cmd = format!("put {player_id} {team}");
-                    console_command(&team_change_cmd)
-                }
-            }
-        })
-    })
+            })
+        },
+    )
 }
 
 fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let mute_cmd = format!("mute {player_id}");
-            console_command(&mute_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let mute_cmd = format!("mute {player_id}");
+                console_command(&mute_cmd)
+            })
+        },
+    )
 }
 
 fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let unmute_cmd = format!("unmute {player_id}");
-            console_command(&unmute_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let unmute_cmd = format!("unmute {player_id}");
+                console_command(&unmute_cmd)
+            })
+        },
+    )
 }
 
 fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let tempban_cmd = format!("tempban {player_id}");
-            console_command(&tempban_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let tempban_cmd = format!("tempban {player_id}");
+                console_command(&tempban_cmd)
+            })
+        },
+    )
 }
 
 fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let ban_cmd = format!("ban {player_id}");
-            console_command(&ban_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let ban_cmd = format!("ban {player_id}");
+                console_command(&ban_cmd)
+            })
+        },
+    )
 }
 
 fn unban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let unban_cmd = format!("unban {player_id}");
-            console_command(&unban_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let unban_cmd = format!("unban {player_id}");
+                console_command(&unban_cmd)
+            })
+        },
+    )
 }
 
 fn opsay(msg: &str) -> PyResult<()> {
@@ -895,39 +947,63 @@ fn opsay(msg: &str) -> PyResult<()> {
 }
 
 fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let addadmin_cmd = format!("addadmin {player_id}");
-            console_command(&addadmin_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let addadmin_cmd = format!("addadmin {player_id}");
+                console_command(&addadmin_cmd)
+            })
+        },
+    )
 }
 
 fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let addmod_cmd = format!("addmod {player_id}");
-            console_command(&addmod_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let addmod_cmd = format!("addmod {player_id}");
+                console_command(&addmod_cmd)
+            })
+        },
+    )
 }
 
 fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let demote_cmd = format!("demote {player_id}");
-            console_command(&demote_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let demote_cmd = format!("demote {player_id}");
+                console_command(&demote_cmd)
+            })
+        },
+    )
 }
 
 fn addscore(py: Python<'_>, player: &Bound<'_, PyAny>, score: i32) -> PyResult<()> {
-    client_id(py, player, None).map_or(Err(PyValueError::new_err("Invalid player.")), |player_id| {
-        py.allow_threads(|| {
-            let addscore_cmd = format!("addscore {player_id} {score}");
-            console_command(&addscore_cmd)
-        })
-    })
+    client_id(py, player, None).map_or(
+        {
+            cold_path();
+            Err(PyValueError::new_err("Invalid player."))
+        },
+        |player_id| {
+            py.allow_threads(|| {
+                let addscore_cmd = format!("addscore {player_id} {score}");
+                console_command(&addscore_cmd)
+            })
+        },
+    )
 }
 
 fn addteamscore(team: &str, score: i32) -> PyResult<()> {
@@ -1176,7 +1252,10 @@ pub(crate) fn pyshinqlx_get_logger<'py>(
 #[pyo3(name = "_configure_logger")]
 fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     let (homepath, num_max_logs, max_logssize) = MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err("no main engine found")),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err("no main engine found"))
+        },
         |main_engine| {
             let homepath = main_engine
                 .find_cvar("fs_homepath")
@@ -2239,12 +2318,10 @@ fn pyshinqlx_owner(py: Python<'_>) -> PyResult<Option<i64>> {
 
 fn owner() -> PyResult<Option<i64>> {
     get_cvar("qlx_owner").map(|opt_value| {
-        let result = opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0);
-        if result.is_none() {
+        opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0).tap_none(|| {
+            cold_path();
             error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
-            return None;
-        }
-        result
+        })
     })
 }
 
@@ -2559,7 +2636,10 @@ fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
     try_get_plugins_path().map_err(PluginLoadError::new_err)?;
 
     MAIN_ENGINE.load().as_ref().map_or(
-        Err(PluginLoadError::new_err("no main engine found")),
+        {
+            cold_path();
+            Err(PluginLoadError::new_err("no main engine found"))
+        },
         |main_engine| {
             main_engine
                 .find_cvar("qlx_plugins")
@@ -2658,7 +2738,10 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     })?;
 
     try_get_plugins_path().map_or_else(
-        |err| Err(PluginLoadError::new_err(err)),
+        |err| {
+            cold_path();
+            Err(PluginLoadError::new_err(err))
+        },
         |plugins_path| {
             let mut joined_path = plugins_path.to_owned();
             joined_path.push(plugin);
@@ -2695,9 +2778,12 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 .ok()
         })
         .map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to unload dispatcher",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to unload dispatcher",
+                ))
+            },
             |unload_dispatcher| {
                 UnloadDispatcherMethods::dispatch(
                     unload_dispatcher.downcast()?,
@@ -2740,7 +2826,10 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                                         event_dispatchers.bind(py).get_item(&event_name).ok()
                                     })
                                     .map_or(
-                                        Err(PyAttributeError::new_err(event_name.to_string())),
+                                        {
+                                            cold_path();
+                                            Err(PyAttributeError::new_err(event_name.to_string()))
+                                        },
                                         |event_dispatcher| {
                                             let plugin_name =
                                                 loaded_plugin.getattr(intern!(py, "name"))?;
@@ -2768,9 +2857,12 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                             .load()
                             .as_ref()
                             .map_or(
-                                Err(PyEnvironmentError::new_err(
-                                    "could not get access to commands",
-                                )),
+                                {
+                                    cold_path();
+                                    Err(PyEnvironmentError::new_err(
+                                        "could not get access to commands",
+                                    ))
+                                },
                                 |commands| commands.bind(py).remove_command(cmd.downcast()?),
                             )
                             .tap_err(|err| {
@@ -3853,12 +3945,17 @@ fn initialize(py: Python<'_>) {
 }
 
 fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
-    MAIN_ENGINE
-        .load()
-        .as_ref()
-        .map_or(Err("no main engine found"), |main_engine| {
+    MAIN_ENGINE.load().as_ref().map_or(
+        {
+            cold_path();
+            Err("no main engine found")
+        },
+        |main_engine| {
             main_engine.find_cvar("qlx_pluginsPath").map_or(
-                Err("qlx_pluginsPath cvar not found"),
+                {
+                    cold_path();
+                    Err("qlx_pluginsPath cvar not found")
+                },
                 |plugins_path_cvar| {
                     let plugins_path_str = plugins_path_cvar.get_string();
 
@@ -3873,7 +3970,8 @@ fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
                         .map_err(|_| "canonicalize returned an error")
                 },
             )
-        })
+        },
+    )
 }
 
 #[cfg(test)]
@@ -3973,7 +4071,10 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize_cvars(module.py())?;
 
     MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err("no main engine found")),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err("no main engine found"))
+        },
         |main_engine| {
             let database_cvar = main_engine.find_cvar("qlx_database");
             if database_cvar.is_some_and(|value| value.get_string().to_lowercase() == "redis") {
@@ -3993,9 +4094,12 @@ fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                     .parent()
                     .map(|value| value.to_string_lossy())
                     .map_or(
-                        Err(PyEnvironmentError::new_err(
-                            "could not determine directory name of qlx_pluginsPath",
-                        )),
+                        {
+                            cold_path();
+                            Err(PyEnvironmentError::new_err(
+                                "could not determine directory name of qlx_pluginsPath",
+                            ))
+                        },
                         |plugins_path_dirname| {
                             let sys_path_module =
                                 sys_module.getattr(intern!(module.py(), "path"))?;

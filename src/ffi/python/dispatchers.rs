@@ -1,4 +1,4 @@
-use core::sync::atomic::Ordering;
+use core::{hint::cold_path, sync::atomic::Ordering};
 
 use pyo3::types::{PyBool, PyString};
 
@@ -9,25 +9,21 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return Some(cmd.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
         let result = handle_client_command(py, client_id, cmd.as_ref());
 
-        if result
-            .bind(py)
-            .downcast::<PyBool>()
-            .is_ok_and(|bool_value| !bool_value.is_true())
-        {
-            None
-        } else {
-            result
+        match result.bind(py).downcast::<PyBool>() {
+            Ok(bool_value) if !bool_value.is_true() => None,
+            _ => result
                 .bind(py)
                 .downcast::<PyString>()
                 .map_or(Some(cmd.as_ref().to_string()), |py_string| {
                     Some(py_string.to_string())
-                })
+                }),
         }
     })
 }
@@ -37,6 +33,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return Some(cmd.as_ref().to_string());
     }
 
@@ -44,24 +41,21 @@ where
         let result =
             handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref()).into_bound(py);
 
-        if result
-            .downcast::<PyBool>()
-            .is_ok_and(|py_bool| !py_bool.is_true())
-        {
-            None
-        } else {
-            Some(
+        match result.downcast::<PyBool>() {
+            Ok(py_bool) if !py_bool.is_true() => None,
+            _ => Some(
                 result
                     .downcast::<PyString>()
                     .ok()
                     .map_or(cmd.as_ref().to_string(), |py_string| py_string.to_string()),
-            )
+            ),
         }
     })
 }
 
 pub(crate) fn frame_dispatcher() {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -70,6 +64,7 @@ pub(crate) fn frame_dispatcher() {
 
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return None;
     }
 
@@ -81,16 +76,14 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     let returned: Option<String> = Python::with_gil(|py| {
         let result = handle_player_connect(py, client_id, is_bot).into_bound(py);
 
-        if result
-            .downcast::<PyBool>()
-            .is_ok_and(|py_bool| !py_bool.is_true())
-        {
-            Some("You are banned from this server.".to_string())
-        } else {
-            result
+        match result.downcast::<PyBool>() {
+            Ok(py_bool) if !py_bool.is_true() => {
+                Some("You are banned from this server.".to_string())
+            }
+            _ => result
                 .downcast::<PyString>()
                 .ok()
-                .map(|py_string| py_string.to_string())
+                .map(|py_string| py_string.to_string()),
         }
     });
 
@@ -110,6 +103,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -133,6 +127,7 @@ where
 
 pub(crate) fn client_loaded_dispatcher(client_id: i32) {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -141,6 +136,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
 
 pub(crate) fn new_game_dispatcher(restart: bool) {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -153,26 +149,23 @@ where
     U: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return Some(value.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
         let result = handle_set_configstring(py, index.into(), value.as_ref()).into_bound(py);
 
-        if result
-            .downcast::<PyBool>()
-            .is_ok_and(|py_bool| !py_bool.is_true())
-        {
-            None
-        } else {
-            Some(
+        match result.downcast::<PyBool>() {
+            Ok(py_bool) if !py_bool.is_true() => None,
+            _ => Some(
                 result
                     .downcast::<PyString>()
                     .ok()
                     .map_or(value.as_ref().to_string(), |py_string| {
                         py_string.to_string()
                     }),
-            )
+            ),
         }
     })
 }
@@ -182,6 +175,7 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -193,30 +187,28 @@ where
     T: AsRef<str>,
 {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return Some(text.as_ref().to_string());
     }
 
     Python::with_gil(|py| {
         let result = handle_console_print(py, text.as_ref()).into_bound(py);
 
-        if result
-            .downcast::<PyBool>()
-            .is_ok_and(|py_bool| !py_bool.is_true())
-        {
-            None
-        } else {
-            Some(
+        match result.downcast::<PyBool>() {
+            Ok(py_bool) if !py_bool.is_true() => None,
+            _ => Some(
                 result
                     .downcast::<PyString>()
                     .ok()
                     .map_or(text.as_ref().to_string(), |py_string| py_string.to_string()),
-            )
+            ),
         }
     })
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -225,6 +217,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
 
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -233,6 +226,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
 
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 
@@ -247,6 +241,7 @@ pub(crate) fn damage_dispatcher(
     means_of_death: i32,
 ) {
     if !pyshinqlx_is_initialized() {
+        cold_path();
         return;
     }
 

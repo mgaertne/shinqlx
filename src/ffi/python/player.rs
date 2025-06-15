@@ -1,4 +1,5 @@
 use core::{
+    borrow::BorrowMut,
     hint::cold_path,
     sync::atomic::{AtomicBool, Ordering},
 };
@@ -17,7 +18,7 @@ use pyo3::{
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
 };
 use rayon::prelude::*;
-use tap::TapOptional;
+use tap::{TapOptional, TryConv};
 
 use super::{
     CONSOLE_CHANNEL, ConnectionStates, Teams, addadmin, addmod, addscore, ban, console_command,
@@ -26,7 +27,7 @@ use super::{
 use crate::{
     MAIN_ENGINE,
     ffi::c::prelude::*,
-    quake_live_engine::{GetConfigstring, SetConfigstring},
+    quake_live_engine::{GameAddEvent, GetConfigstring, SetConfigstring},
 };
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
@@ -876,11 +877,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn get_name(&self) -> String {
-        if self.get().name.read().ends_with("^7") {
-            self.get().name.read().to_owned()
-        } else {
-            format!("{}^7", self.get().name.read())
-        }
+        format!("{}^7", self.get().name.read().trim_end_matches("^7"))
     }
 
     fn set_name(&self, value: &str) -> PyResult<()> {
@@ -1001,12 +998,19 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_autohop(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("autohop")
-            .map_or(Err(PyKeyError::new_err("'autohop'")), |value| {
-                value.parse::<i32>().map_err(|_| {
-                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
-                    PyValueError::new_err(error_msg)
-                })
-            })
+            .map_or(
+                {
+                    cold_path();
+                    Err(PyKeyError::new_err("'autohop'"))
+                },
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
+            )
     }
 
     fn set_autohop(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1028,12 +1032,19 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_autoaction(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("autoaction")
-            .map_or(Err(PyKeyError::new_err("'autoaction'")), |value| {
-                value.parse::<i32>().map_err(|_| {
-                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
-                    PyValueError::new_err(error_msg)
-                })
-            })
+            .map_or(
+                {
+                    cold_path();
+                    Err(PyKeyError::new_err("'autoaction'"))
+                },
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
+            )
     }
 
     fn set_autoaction(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1055,12 +1066,19 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_predictitems(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("cg_predictitems")
-            .map_or(Err(PyKeyError::new_err("'cg_predictitems'")), |value| {
-                value.parse::<i32>().map_err(|_| {
-                    let error_msg = format!("invalid literal for int() with base 10: '{value}'");
-                    PyValueError::new_err(error_msg)
-                })
-            })
+            .map_or(
+                {
+                    cold_path();
+                    Err(PyKeyError::new_err("'cg_predictitems'"))
+                },
+                |value| {
+                    value.parse::<i32>().map_err(|_| {
+                        let error_msg =
+                            format!("invalid literal for int() with base 10: '{value}'");
+                        PyValueError::new_err(error_msg)
+                    })
+                },
+            )
     }
 
     fn set_predictitems(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1111,7 +1129,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             .allow_threads(|| privileges_t::try_from(value.unwrap_or("none")));
 
         new_privileges.map_or(
-            Err(PyValueError::new_err("Invalid privilege level.")),
+            {
+                cold_path();
+                Err(PyValueError::new_err("Invalid privilege level."))
+            },
             |new_privilege| {
                 pyshinqlx_set_privileges(self.py(), self.get().id, new_privilege as i32).map(|_| ())
             },
@@ -1282,15 +1303,20 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 weapon
                     .extract::<i32>()
                     .map_or(
-                        weapon
-                            .extract::<String>()
-                            .map_or(Err("invalid weapon".to_string()), |py_string| {
-                                weapon_t::try_from(py_string.as_str())
-                            }),
+                        weapon.extract::<String>().map_or(
+                            {
+                                cold_path();
+                                Err("invalid weapon".to_string())
+                            },
+                            |py_string| weapon_t::try_from(py_string.as_str()),
+                        ),
                         weapon_t::try_from,
                     )
                     .map_or(
-                        Err(PyValueError::new_err("invalid new_weapon")),
+                        {
+                            cold_path();
+                            Err(PyValueError::new_err("invalid new_weapon"))
+                        },
                         |converted_weapon| {
                             pyshinqlx_set_weapon(self.py(), self.get().id, converted_weapon as i32)
                                 .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
@@ -1559,8 +1585,19 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         match (current, value) {
             (false, true) => pyshinqlx_player_spawn(self.py(), self.get().id).map(|_| ()),
             (true, false) => {
-                // TODO: Proper death and not just setting health to 0.
-                self.set_health(0)
+                self.set_health(0)?;
+                #[allow(irrefutable_let_patterns)]
+                if let Ok(mut client_entity) = self.get().id.try_conv::<GameEntity>() {
+                    let client_number = client_entity.get_client_number();
+                    MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+                        main_engine.game_add_event(
+                            client_entity.borrow_mut(),
+                            entity_event_t::EV_DEATH1,
+                            client_number,
+                        );
+                    });
+                }
+                Ok(())
             }
             _ => Ok(()),
         }
@@ -1605,7 +1642,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
     fn tell(&self, msg: &str, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<()> {
         self.get_channel().map_or(
-            Err(PyNotImplementedError::new_err("Player TellChannel")),
+            {
+                cold_path();
+                Err(PyNotImplementedError::new_err("Player TellChannel"))
+            },
             |tell_channel| {
                 let limit = kwargs
                     .and_then(|pydict| {
@@ -6736,15 +6776,38 @@ assert(player._valid)
                     .times(1);
                 mock_game_entity
             });
-
-        MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
-                let player = Bound::new(py, default_test_player()).expect("this should not happen");
-
-                let result = player.set_is_alive(false);
-                assert!(result.is_ok());
+        game_entity_from_ctx
+            .expect()
+            .times(1)
+            .in_sequence(&mut seq)
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity
+                    .expect_get_client_number()
+                    .return_const(42)
+                    .times(1);
+                mock_game_entity
             });
-        });
+
+        MockEngineBuilder::default()
+            .with_max_clients(16)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_game_add_event()
+                    .withf(|_entity, &entity_event, &event_param| {
+                        entity_event == entity_event_t::EV_DEATH1 && event_param == 42
+                    })
+                    .times(1);
+            })
+            .run(|| {
+                Python::with_gil(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = player.set_is_alive(false);
+                    assert!(result.is_ok());
+                });
+            });
     }
 
     #[rstest]
@@ -8122,9 +8185,12 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
 
     fn get_channel(&self) -> PyResult<Bound<'py, ConsoleChannel>> {
         CONSOLE_CHANNEL.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to CONSOLE_CHANNEL",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to CONSOLE_CHANNEL",
+                ))
+            },
             |console_channel| Ok(console_channel.bind(self.py()).to_owned()),
         )
     }
@@ -8135,9 +8201,12 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
         #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
         CONSOLE_CHANNEL.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "could not get access to CONSOLE_CHANNEL",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "could not get access to CONSOLE_CHANNEL",
+                ))
+            },
             |console_channel| console_channel.bind(self.py()).reply(msg, 100, " "),
         )
     }

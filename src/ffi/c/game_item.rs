@@ -49,6 +49,7 @@ impl TryFrom<i32> for GameItem {
 
     fn try_from(item_id: i32) -> Result<Self, Self::Error> {
         if item_id < 0 || item_id >= GameItem::get_num_items() {
+            cold_path();
             return Err(QuakeLiveEngineError::InvalidId(item_id));
         }
         let bg_itemlist = GameItem::get_item_list();
@@ -84,6 +85,7 @@ impl GameItem {
     fn get_item_list() -> *mut gitem_t {
         #[cfg(test)]
         if cfg!(test) {
+            cold_path();
             return MockGameItem::get_mocked_item_list();
         }
 
