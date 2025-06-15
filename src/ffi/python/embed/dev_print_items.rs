@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use arrayvec::ArrayVec;
 use pyo3::exceptions::PyEnvironmentError;
 use rayon::prelude::*;
@@ -38,9 +40,12 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             .collect();
 
         MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ))
+            },
             |main_engine| {
                 if printed_items.is_empty() {
                     main_engine.send_server_command(

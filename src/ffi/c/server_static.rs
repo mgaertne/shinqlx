@@ -27,7 +27,10 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic<'_> {
 impl ServerStatic<'_> {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         MAIN_ENGINE.load().as_ref().map_or(
-            Err(QuakeLiveEngineError::MainEngineNotInitialized),
+            {
+                cold_path();
+                Err(QuakeLiveEngineError::MainEngineNotInitialized)
+            },
             |main_engine| {
                 let func_pointer = main_engine.sv_shutdown_orig()?;
 
@@ -46,6 +49,7 @@ impl ServerStatic<'_> {
         let max_clients = i32::try_from(MAX_CLIENTS).unwrap();
 
         if !(0..max_clients).contains(&client_id) {
+            cold_path();
             return Err(QuakeLiveEngineError::InvalidId(client_id));
         }
 
@@ -61,6 +65,7 @@ impl ServerStatic<'_> {
             unsafe { (client_t as *const client_t).offset_from(self.serverStatic_t.clients) };
 
         if !(0..MAX_CLIENTS as isize).contains(&offset) {
+            cold_path();
             return Err(QuakeLiveEngineError::ClientNotFound(
                 "client not found".to_string(),
             ));

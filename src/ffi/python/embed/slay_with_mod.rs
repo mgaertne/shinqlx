@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyValueError;
 use tap::{TapOptional, TryConv};
 
@@ -16,9 +18,12 @@ pub(crate) fn pyshinqlx_slay_with_mod(
         validate_client_id(client_id)?;
 
         mean_of_death.try_conv::<meansOfDeath_t>().map_or(
-            Err(PyValueError::new_err(
-                "means of death needs to be a valid enum value.",
-            )),
+            {
+                cold_path();
+                Err(PyValueError::new_err(
+                    "means of death needs to be a valid enum value.",
+                ))
+            },
             |means_of_death| {
                 Ok(client_id
                     .try_conv::<GameEntity>()

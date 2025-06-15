@@ -315,7 +315,10 @@ impl Plugin {
 
         cls.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err("could not get main_engine"))
+                },
                 |main_engine| match main_engine.find_cvar(name) {
                     None => {
                         main_engine.get_cvar(name, value_str.as_str(), Some(flags));
@@ -349,7 +352,10 @@ impl Plugin {
 
         cls.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err("could not get main_engine"))
+                },
                 |main_engine| {
                     let cvar = main_engine.find_cvar(name);
 
@@ -380,14 +386,17 @@ impl Plugin {
 
         cls.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err("could not get main_engine"))
+                },
                 |main_engine| {
-                    let cvar = main_engine.find_cvar(name);
-
-                    if cvar.is_none() {
-                        main_engine.get_cvar(name, value_str.as_str(), Some(flags));
-                    }
-                    Ok(cvar.is_none())
+                    Ok(main_engine
+                        .find_cvar(name)
+                        .tap_none(|| {
+                            main_engine.get_cvar(name, value_str.as_str(), Some(flags));
+                        })
+                        .is_none())
                 },
             )
         })
@@ -410,21 +419,23 @@ impl Plugin {
 
         cls.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err("could not get main_engine")),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err("could not get main_engine"))
+                },
                 |main_engine| {
-                    let cvar = main_engine.find_cvar(name);
-
-                    if cvar.is_none() {
-                        main_engine.set_cvar_limit(
-                            name,
-                            value_str.as_str(),
-                            minimum_str.as_str(),
-                            maximum_str.as_str(),
-                            Some(flags),
-                        );
-                    }
-
-                    Ok(cvar.is_none())
+                    Ok(main_engine
+                        .find_cvar(name)
+                        .tap_none(|| {
+                            main_engine.set_cvar_limit(
+                                name,
+                                value_str.as_str(),
+                                minimum_str.as_str(),
+                                maximum_str.as_str(),
+                                Some(flags),
+                            );
+                        })
+                        .is_none())
                 },
             )
         })
@@ -568,6 +579,7 @@ impl Plugin {
                 }
             }
         }
+        cold_path();
         Err(PyValueError::new_err("Invalid channel."))
     }
 
@@ -778,9 +790,12 @@ impl Plugin {
                     .ok()
             })
             .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to vote started dispatcher",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to vote started dispatcher",
+                    ))
+                },
                 |vote_started_dispatcher| {
                     vote_started_dispatcher
                         .downcast::<VoteStartedDispatcher>()?
@@ -1162,9 +1177,12 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .as_ref()
             .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
             .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to event dispatcher",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to event dispatcher",
+                    ))
+                },
                 |event_dispatcher| {
                     let plugin_type = self.get_type();
                     let plugin_name = plugin_type.name()?;
@@ -1189,9 +1207,12 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .as_ref()
             .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
             .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to event dispatchers",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "could not get access to event dispatchers",
+                    ))
+                },
                 |event_dispatcher| {
                     let plugin_type = self.get_type();
                     let plugin_name = plugin_type.name()?;
@@ -1310,9 +1331,12 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             })
             .map_or(Ok(()), |command| {
                 COMMANDS.load().as_ref().map_or(
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to commands",
-                    )),
+                    {
+                        cold_path();
+                        Err(PyEnvironmentError::new_err(
+                            "could not get access to commands",
+                        ))
+                    },
                     |commands| {
                         commands
                             .bind(self.py())

@@ -47,9 +47,12 @@ pub(crate) trait VoteEndedDispatcherMethods<'py> {
 impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
     fn dispatch(&self, passed: bool) -> PyResult<()> {
         let configstring = MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ))
+            },
             |main_engine| Ok(main_engine.get_configstring(CS_VOTE_STRING as u16)),
         )?;
 
@@ -77,9 +80,12 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
             .map(|value| value.as_str())
             .unwrap_or("");
         let (yes_votes, no_votes) = MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ))
+            },
             |main_engine| {
                 Ok((
                     main_engine

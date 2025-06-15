@@ -60,9 +60,12 @@ pub(crate) fn pyshinqlx_replace_items(
                         game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
                     })
                     .map_or(
-                        Err(PyValueError::new_err(format!(
-                            "entity #{item1_id} is not a valid game item"
-                        ))),
+                        {
+                            cold_path();
+                            Err(PyValueError::new_err(format!(
+                                "entity #{item1_id} is not a valid game item"
+                            )))
+                        },
                         |mut game_entity| {
                             game_entity.replace_item(item2_id);
                             Ok(true)

@@ -68,7 +68,7 @@ pub extern "C" fn cmd_slap() {
             return;
         };
 
-        if client_id < 0 || client_id >= maxclients {
+        if !(0..maxclients).contains(&client_id) {
             main_engine.com_printf(&format!(
                 "client_id must be a number between 0 and {}.\n",
                 maxclients - 1
@@ -127,7 +127,7 @@ pub extern "C" fn cmd_slap() {
         if dmg > 0 {
             let old_health = client_entity.get_health();
             client_entity.set_health(old_health - dmg);
-            if old_health - dmg <= 0 {
+            if old_health <= dmg {
                 let client_number = client_entity.get_client_number();
                 main_engine.game_add_event(
                     client_entity.borrow_mut(),
@@ -171,7 +171,7 @@ pub extern "C" fn cmd_slay() {
             return;
         };
 
-        if client_id < 0 || client_id >= maxclients {
+        if !(0..maxclients).contains(&client_id) {
             main_engine.com_printf(&format!(
                 "client_id must be a number between 0 and {}.\n",
                 maxclients - 1

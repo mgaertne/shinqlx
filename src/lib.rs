@@ -52,6 +52,7 @@ pub(crate) mod prelude {
     };
 }
 
+use core::hint::cold_path;
 use std::{env, path::Path, sync::LazyLock};
 
 use arc_swap::ArcSwapOption;
@@ -107,6 +108,7 @@ fn initialize() {
         .filter(|progname| progname.ends_with(QZERODED))
         .is_none()
     {
+        cold_path();
         return;
     }
 

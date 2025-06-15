@@ -102,9 +102,12 @@ use crate::MAIN_ENGINE;
 
 fn validate_client_id(client_id: i32) -> PyResult<()> {
     let maxclients = MAIN_ENGINE.load().as_ref().map_or(
-        Err(PyEnvironmentError::new_err(
-            "main quake live engine not set",
-        )),
+        {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ))
+        },
         |main_engine| Ok(main_engine.get_max_clients()),
     )?;
     if !(0..maxclients).contains(&client_id) {

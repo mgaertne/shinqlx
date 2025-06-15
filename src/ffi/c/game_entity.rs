@@ -137,6 +137,7 @@ impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
         #[cfg(test)]
         if cfg!(test) {
+            cold_path();
             return MockGameEntity::get_entities_list();
         }
 

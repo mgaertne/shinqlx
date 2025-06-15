@@ -1,3 +1,5 @@
+use core::hint::cold_path;
+
 use pyo3::exceptions::PyEnvironmentError;
 
 use crate::{MAIN_ENGINE, ffi::python::prelude::*, quake_live_engine::SetCVarLimit};
@@ -16,9 +18,12 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
 ) -> PyResult<()> {
     py.allow_threads(|| {
         MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ))
+            },
             |main_engine| {
                 main_engine.set_cvar_limit(cvar, value, min, max, flags);
 

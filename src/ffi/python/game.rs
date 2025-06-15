@@ -48,9 +48,12 @@ impl Game {
     pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "main quake live engine not set",
+                    ))
+                },
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
@@ -93,9 +96,12 @@ impl Game {
 
     fn __contains__(slf: &Bound<'_, Self>, item: &str) -> PyResult<bool> {
         MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ))
+            },
             |main_engine| {
                 let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
@@ -114,9 +120,12 @@ impl Game {
 
     fn __getitem__(slf: &Bound<'_, Self>, item: &str) -> PyResult<String> {
         MAIN_ENGINE.load().as_ref().map_or(
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            )),
+            {
+                cold_path();
+                Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ))
+            },
             |main_engine| {
                 let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
 
@@ -525,9 +534,12 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
             .load()
             .as_ref()
             .map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "main quake live engine not set",
+                    ))
+                },
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
                     if configstring.is_empty() {
@@ -597,9 +609,12 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     fn get_red_score(&self) -> PyResult<i32> {
         self.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "main quake live engine not set",
+                    ))
+                },
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
                     Ok(configstring.parse::<i32>().unwrap_or_default())
@@ -611,9 +626,12 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     fn get_blue_score(&self) -> PyResult<i32> {
         self.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "main quake live engine not set",
+                    ))
+                },
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
                     Ok(configstring.parse::<i32>().unwrap_or_default())
@@ -826,9 +844,12 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     fn get_workshop_items(&self) -> PyResult<Vec<u64>> {
         self.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "main quake live engine not set",
+                    ))
+                },
                 |main_engine| {
                     let configstring = main_engine.get_configstring(CS_STEAM_WORKSHOP_IDS as u16);
                     Ok(configstring
@@ -854,9 +875,12 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
         self.py().allow_threads(|| {
             MAIN_ENGINE.load().as_ref().map_or(
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                )),
+                {
+                    cold_path();
+                    Err(PyEnvironmentError::new_err(
+                        "main quake live engine not set",
+                    ))
+                },
                 |main_engine| {
                     main_engine.set_configstring(CS_STEAM_WORKSHOP_IDS as i32, &workshop_items_str);
                     Ok(())
