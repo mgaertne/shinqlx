@@ -626,8 +626,8 @@ import shinqlx
 
 class CustomDispatcher(shinqlx.EventDispatcher):
     name = "custom_event"
-    need_zmq_stats_enabled = False 
-    
+    need_zmq_stats_enabled = False
+
     def __init__(self):
         super().__init__()
         "#,
