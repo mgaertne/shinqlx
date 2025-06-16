@@ -255,7 +255,7 @@ assert not (shinqlx.AbstractChannel("abstract1") == shinqlx.AbstractChannel("abs
 class NoReprClass():
     def __repr__(self):
         raise NotImplementedError()
-        
+
 assert not (shinqlx.AbstractChannel("abstract") == NoReprClass())
             "#,
                 None,
@@ -280,7 +280,7 @@ assert not (shinqlx.AbstractChannel("abstract") != shinqlx.AbstractChannel("abst
 class NoReprClass():
     def __repr__(self):
         raise NotImplementedError()
-        
+
 assert shinqlx.AbstractChannel("abstract") != NoReprClass()
             "#,
                 None,

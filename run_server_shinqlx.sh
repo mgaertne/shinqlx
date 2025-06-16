@@ -2,7 +2,7 @@
 MACHINE_TYPE=$(uname -m)
 if [ "${MACHINE_TYPE}" == 'x86_64' ]; then
     qlds_executable="qzeroded.x64"
-else 
+else
     qlds_executable="qzeroded.x86"
 fi
 
