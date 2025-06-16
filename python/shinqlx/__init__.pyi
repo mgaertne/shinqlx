@@ -377,12 +377,8 @@ RoundEndData = TypedDict(
     },
 )
 Vector = TypedDict("Vector", {"x": float, "y": float, "z": float})
-PowerUps = Literal[
-    "QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"
-]
-Holdable = Literal[
-    "TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"
-]
+PowerUps = Literal["QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"]
+Holdable = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
 Weapon = Literal[
     "GAUNTLET",
     "MACHINEGUN",
@@ -516,12 +512,8 @@ UserinfoEventInput = TypedDict(
     },
     total=False,
 )
-PlayerKillStats = TypedDict(
-    "PlayerKillStats", {"DATA": KillData, "TYPE": Literal["PLAYER_KILL"]}
-)
-PlayerDeathStats = TypedDict(
-    "PlayerDeathStats", {"DATA": DeathData, "TYPE": Literal["PLAYER_DEATH"]}
-)
+PlayerKillStats = TypedDict("PlayerKillStats", {"DATA": KillData, "TYPE": Literal["PLAYER_KILL"]})
+PlayerDeathStats = TypedDict("PlayerDeathStats", {"DATA": DeathData, "TYPE": Literal["PLAYER_DEATH"]})
 MedalData = TypedDict(
     "MedalData",
     {
@@ -551,26 +543,18 @@ MedalData = TypedDict(
         "WARMUP": bool,
     },
 )
-PlayerMedalStats = TypedDict(
-    "PlayerMedalStats", {"DATA": MedalData, "TYPE": Literal["PLAYER_MEDAL"]}
-)
-RoundOverStats = TypedDict(
-    "RoundOverStats", {"DATA": RoundEndData, "TYPE": Literal["ROUND_OVER"]}
-)
+PlayerMedalStats = TypedDict("PlayerMedalStats", {"DATA": MedalData, "TYPE": Literal["PLAYER_MEDAL"]})
+RoundOverStats = TypedDict("RoundOverStats", {"DATA": RoundEndData, "TYPE": Literal["ROUND_OVER"]})
 PlayerGameData = TypedDict(
     "PlayerGameData",
     {"MATCH_GUID": str, "NAME": str, "STEAM_ID": str, "TIME": int, "WARMUP": bool},
 )
-PlayerConnectStats = TypedDict(
-    "PlayerConnectStats", {"DATA": PlayerGameData, "TYPE": Literal["PLAYER_CONNECT"]}
-)
+PlayerConnectStats = TypedDict("PlayerConnectStats", {"DATA": PlayerGameData, "TYPE": Literal["PLAYER_CONNECT"]})
 PlayerDisconnectStats = TypedDict(
     "PlayerDisconnectStats",
     {"DATA": PlayerGameData, "TYPE": Literal["PLAYER_DICCONNECT"]},
 )
-TeamSwitchEvent = TypedDict(
-    "TeamSwitchEvent", {"NAME": str, "OLD_TEAM": str, "STEAM_ID": str, "TEAM": str}
-)
+TeamSwitchEvent = TypedDict("TeamSwitchEvent", {"NAME": str, "OLD_TEAM": str, "STEAM_ID": str, "TEAM": str})
 TeamSwitchGameData = TypedDict(
     "TeamSwitchGameData",
     {"KILLER": TeamSwitchEvent, "MATCH_GUID": str, "TIME": int, "WARMUP": bool},
@@ -579,12 +563,8 @@ PlayerSwitchTeamStats = TypedDict(
     "PlayerSwitchTeamStats",
     {"DATA": TeamSwitchGameData, "TYPE": Literal["PLAYER_SWITCHTEAM"]},
 )
-MatchStartedStats = TypedDict(
-    "MatchStartedStats", {"DATA": GameStartData, "TYPE": Literal["MATCH_STARTED"]}
-)
-MatchReportStats = TypedDict(
-    "MatchReportStats", {"DATA": GameEndData, "TYPE": Literal["MATCH_REPORT"]}
-)
+MatchStartedStats = TypedDict("MatchStartedStats", {"DATA": GameStartData, "TYPE": Literal["MATCH_STARTED"]})
+MatchReportStats = TypedDict("MatchReportStats", {"DATA": GameEndData, "TYPE": Literal["MATCH_REPORT"]})
 DamageEntry = TypedDict("DamageEntry", {"DEALT": int, "TAKEN": int})
 MedalsEntry = TypedDict(
     "MedalsEntry",
@@ -692,9 +672,7 @@ PlayerStatsEntry = TypedDict(
         "WIN": int,
     },
 )
-PlayerStatsStats = TypedDict(
-    "PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]}
-)
+PlayerStatsStats = TypedDict("PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]})
 StatsData = (
     PlayerKillStats
     | PlayerDeathStats

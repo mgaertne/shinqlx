@@ -23,7 +23,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/", None),
-    "redis": ("https://redis.readthedocs.io/en/stable/" , None),
+    "redis": ("https://redis.readthedocs.io/en/stable/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -34,7 +34,10 @@ html_theme_options = {
     "fixed_sidebar": True,
 }
 html_sidebars = {
-    "**": ["about.html", "localtoc.html", ]
+    "**": [
+        "about.html",
+        "localtoc.html",
+    ]
 }
 html_static_path = ["_static"]
 

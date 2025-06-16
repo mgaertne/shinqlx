@@ -47,9 +47,7 @@ class Plugin:
     def get_cvar(cls, name: str, return_type: Type[set]) -> set[str] | None: ...
     @classmethod
     @overload
-    def get_cvar(
-        cls, name: str, return_type: Type[tuple]
-    ) -> tuple[str, ...] | None: ...
+    def get_cvar(cls, name: str, return_type: Type[tuple]) -> tuple[str, ...] | None: ...
     @classmethod
     def set_cvar(
         cls,
@@ -85,9 +83,7 @@ class Plugin:
     @classmethod
     def players(cls) -> list[Player]: ...
     @classmethod
-    def player(
-        cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
-    ) -> Player | None: ...
+    def player(cls, name: str | int | Player, player_list: Iterable[Player] | None = ...) -> Player | None: ...
     @classmethod
     def msg(cls, msg: str, chat_channel: str = ..., **kwargs: str) -> None: ...
     @classmethod
@@ -95,25 +91,15 @@ class Plugin:
     @classmethod
     def clean_text(cls, text: str) -> str: ...
     @classmethod
-    def colored_name(
-        cls, name: str | Player, player_list: Iterable[Player] | None = ...
-    ) -> str | None: ...
+    def colored_name(cls, name: str | Player, player_list: Iterable[Player] | None = ...) -> str | None: ...
     @classmethod
-    def client_id(
-        cls, name: str | int | Player, player_list: Iterable[Player] | None = ...
-    ) -> int | None: ...
+    def client_id(cls, name: str | int | Player, player_list: Iterable[Player] | None = ...) -> int | None: ...
     @classmethod
-    def find_player(
-        cls, name: str, player_list: Iterable[Player] | None = ...
-    ) -> list[Player]: ...
+    def find_player(cls, name: str, player_list: Iterable[Player] | None = ...) -> list[Player]: ...
     @classmethod
-    def teams(
-        cls, player_list: Iterable[Player] | None = ...
-    ) -> Mapping[str, list[Player]]: ...
+    def teams(cls, player_list: Iterable[Player] | None = ...) -> Mapping[str, list[Player]]: ...
     @classmethod
-    def center_print(
-        cls, msg: str, recipient: str | int | Player | None = ...
-    ) -> None: ...
+    def center_print(cls, msg: str, recipient: str | int | Player | None = ...) -> None: ...
     @classmethod
     def tell(cls, msg: str, recipient: str | int | Player, **kwargs: str) -> None: ...
     @classmethod
@@ -326,9 +312,7 @@ class Plugin:
     def add_hook(
         self,
         event: Literal["vote_ended"],
-        handler: Callable[
-            [tuple[int, int], str, str | None, bool], CancellableEventReturn
-        ],
+        handler: Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn],
         priority: int = ...,
     ) -> None: ...
     @overload
@@ -426,9 +410,7 @@ class Plugin:
     def add_hook(
         self,
         event: Literal["userinfo"],
-        handler: Callable[
-            [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
-        ],
+        handler: Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn],
         priority: int = ...,
     ) -> None: ...
     @overload
@@ -570,9 +552,7 @@ class Plugin:
     def remove_hook(
         self,
         event: Literal["vote_ended"],
-        handler: Callable[
-            [tuple[int, int], str, str | None, bool], CancellableEventReturn
-        ],
+        handler: Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn],
         priority: int = ...,
     ) -> None: ...
     @overload
@@ -670,9 +650,7 @@ class Plugin:
     def remove_hook(
         self,
         event: Literal["userinfo"],
-        handler: Callable[
-            [Player, UserinfoEventInput], UserInfo | CancellableEventReturn
-        ],
+        handler: Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn],
         priority: int = ...,
     ) -> None: ...
     @overload
@@ -702,9 +680,7 @@ class Plugin:
     def add_command(
         self,
         name: str | Iterable[str],
-        handler: Callable[
-            [Player, str | list[str], AbstractChannel], CancellableEventReturn
-        ],
+        handler: Callable[[Player, str | list[str], AbstractChannel], CancellableEventReturn],
         permission: int = ...,
         channels: Iterable[AbstractChannel] | None = ...,
         exclude_channels: Iterable[AbstractChannel] = ...,
