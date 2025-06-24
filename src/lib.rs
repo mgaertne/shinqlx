@@ -1,6 +1,22 @@
-//! ShiN0's Quake Live eXtension, implemented in Rust. Most functionality from
-//! [minqlx](https://raw.githubusercontent.com/MinoMino/minqlx) should work.
-//! Support for Python 3.8 and above should work out of the box.
+//! # ShiNQLX
+//!
+//! A Rust implementation of the [minqlx](https://github.com/MinoMino/minqlx)
+//! Quake Live server modification.
+//!
+//! This library provides hooks into the Quake Live dedicated server,
+//! allowing for extensive modification and extension of the game.
+//!
+//! ## Features
+//!
+//! * Python scripting interface for game extensions
+//! * Event-based plugin system
+//! * Game state manipulation
+//! * Player management and permissions
+//!
+//! ## Usage
+//!
+//! This library is loaded by the Quake Live dedicated server at startup
+//! and provides a Python API for interacting with the game.
 
 #![cfg_attr(not(test), no_main)]
 #![feature(
