@@ -535,7 +535,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         let new_info = parse_variables(vars.as_str());
         let old_info = parse_variables(&player.user_info);
 
-        let changed: Vec<&(String, String)> = new_info
+        let changed = new_info
             .items
             .par_iter()
             .filter(|(key, new_value)| {
@@ -543,7 +543,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 opt_old_value.is_none()
                     || opt_old_value.is_some_and(|old_value| old_value != *new_value)
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         if changed.is_empty() {
             return Ok(PyString::new(py, updated_cmd).into_any().unbind());

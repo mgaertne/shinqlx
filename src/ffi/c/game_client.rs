@@ -148,7 +148,7 @@ impl GameClient {
         self.game_client.ps.ammo[1..16]
             .par_iter()
             .copied()
-            .collect::<Vec<i32>>()
+            .collect::<Vec<_>>()
             .try_into()
             .unwrap()
     }

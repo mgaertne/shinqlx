@@ -30,14 +30,14 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             })
             .collect();
         let mut str_length = 0;
-        let printed_items: Vec<String> = formatted_items
+        let printed_items = formatted_items
             .iter()
             .take_while(|&item| {
                 str_length += item.len();
                 str_length < 1024
             })
             .map(|item| item.to_string())
-            .collect();
+            .collect::<Vec<_>>();
 
         MAIN_ENGINE.load().as_ref().map_or(
             {
@@ -59,11 +59,11 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                     &format!("print \"{}\n\"", printed_items.join("\n")),
                 );
 
-                let remaining_items: Vec<String> = formatted_items
+                let remaining_items = formatted_items
                     .par_iter()
                     .skip(printed_items.len())
                     .map(|item| item.to_string())
-                    .collect();
+                    .collect::<Vec<_>>();
 
                 if !remaining_items.is_empty() {
                     main_engine.send_server_command(

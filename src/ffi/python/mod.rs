@@ -574,10 +574,10 @@ impl FromStr for ParsedVariables {
 
         let stripped_varstr = varstr.strip_prefix('\\').unwrap_or(varstr).to_string();
 
-        let varstr_vec: Vec<String> = stripped_varstr
+        let varstr_vec = stripped_varstr
             .split('\\')
             .map(|value| value.to_string())
-            .collect();
+            .collect::<Vec<_>>();
 
         if varstr_vec.len() % 2 == 1 {
             warn!(target: "shinqlx", "Uneven number of keys and values: {varstr}");
@@ -594,7 +594,7 @@ impl From<ParsedVariables> for String {
             .items
             .par_iter()
             .map(|(key, value)| format!(r"\{key}\{value}"))
-            .collect::<Vec<String>>()
+            .collect::<Vec<_>>()
             .join("")
     }
 }
@@ -635,12 +635,12 @@ impl ParsedVariables {
     }
 
     pub fn set(&mut self, item: &str, value: &str) {
-        let mut new_items: Vec<(String, String)> = self
+        let mut new_items = self
             .items
             .par_iter()
             .filter(|(key, _value)| key != item)
             .cloned()
-            .collect();
+            .collect::<Vec<_>>();
         new_items.push((item.into(), value.into()));
         self.items = new_items;
     }
@@ -2645,8 +2645,10 @@ fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                 .find_cvar("qlx_plugins")
                 .tap_some(|plugins_cvar| {
                     let plugins_str = plugins_cvar.get_string();
-                    let mut plugins: Vec<&str> =
-                        plugins_str.split(',').map(|value| value.trim()).collect();
+                    let mut plugins = plugins_str
+                        .split(',')
+                        .map(|value| value.trim())
+                        .collect::<Vec<_>>();
                     if plugins.contains(&"DEFAULT") {
                         plugins.extend_from_slice(&DEFAULT_PLUGINS);
                         plugins.retain(|&value| value != "DEFAULT");
