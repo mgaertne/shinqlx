@@ -115,7 +115,7 @@ impl Command {
                 .try_iter()?
                 .try_iter()?
                 .filter_map(|iter_value| iter_value.ok().map(|value| value.unbind()))
-                .collect::<Vec<PyObject>>()
+                .collect::<Vec<_>>()
         };
         let exclude_channels_vec = if exclude_channels.is_none() {
             vec![]
@@ -124,7 +124,7 @@ impl Command {
                 .try_iter()?
                 .try_iter()?
                 .filter_map(|iter_value| iter_value.ok().map(|value| value.unbind()))
-                .collect::<Vec<PyObject>>()
+                .collect::<Vec<_>>()
         };
 
         Ok(Self {
@@ -273,7 +273,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
                 })
         })?;
 
-        let msg_vec: Vec<&str> = msg.split(' ').collect();
+        let msg_vec = msg.split(' ').collect::<Vec<_>>();
         self.get()
             .handler
             .bind(self.py())
@@ -1827,14 +1827,14 @@ impl CommandInvokerMethods for Bound<'_, CommandInvoker> {
                             .read()
                             .iter()
                             .map(|channel| channel.clone_ref(self.py()))
-                            .collect::<Vec<Py<PyAny>>>()
+                            .collect::<Vec<_>>()
                             .into(),
                         exclude_channels: bound_cmd
                             .exclude_channels
                             .read()
                             .iter()
                             .map(|channel| channel.clone_ref(self.py()))
-                            .collect::<Vec<Py<PyAny>>>()
+                            .collect::<Vec<_>>()
                             .into(),
                         client_cmd_pass: bound_cmd.client_cmd_pass,
                         client_cmd_perm: bound_cmd.client_cmd_perm,
@@ -2014,7 +2014,7 @@ def remove_command(cmd):
                     .read()
                     .iter()
                     .map(|channel| channel.clone_ref(self.py()))
-                    .collect::<Vec<Py<PyAny>>>()
+                    .collect::<Vec<_>>()
                     .into(),
                 exclude_channels: bound_cmd
                     .get()
@@ -2022,7 +2022,7 @@ def remove_command(cmd):
                     .read()
                     .iter()
                     .map(|channel| channel.clone_ref(self.py()))
-                    .collect::<Vec<Py<PyAny>>>()
+                    .collect::<Vec<_>>()
                     .into(),
                 client_cmd_pass: bound_cmd.get().client_cmd_pass,
                 client_cmd_perm: bound_cmd.get().client_cmd_perm,

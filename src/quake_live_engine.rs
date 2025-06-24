@@ -178,7 +178,7 @@ impl VmFunctions {
                 )
             })?;
 
-            let qagame_maps: Vec<&MemoryMap> = myself_maps
+            let qagame_maps = myself_maps
                 .iter()
                 .filter(|mmap| {
                     let MMapPath::Path(path) = &mmap.pathname else {
@@ -187,10 +187,10 @@ impl VmFunctions {
                     path.file_name()
                         .is_some_and(|file_name| file_name.to_string_lossy() == QAGAME)
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
             debug!(target: "shinqlx", "Searching for necessary VM functions...");
-            let failed_functions: Vec<QuakeLiveFunction> = [
+            let failed_functions = [
                 (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
                 (
                     QuakeLiveFunction::CheckPrivileges,
@@ -221,7 +221,7 @@ impl VmFunctions {
                     }
                 },
             )
-            .collect();
+            .collect::<Vec<_>>();
 
             if !failed_functions.is_empty() {
                 cold_path();
@@ -813,7 +813,7 @@ impl QuakeLiveEngine {
                     "no memory mapping information found".to_string(),
                 )
             })?;
-            let qzeroded_maps: Vec<&MemoryMap> = myself_maps
+            let qzeroded_maps = myself_maps
                 .iter()
                 .filter(|mmap| {
                     let MMapPath::Path(path) = &mmap.pathname else {
@@ -822,7 +822,7 @@ impl QuakeLiveEngine {
                     path.file_name()
                         .is_some_and(|file_name| file_name.to_string_lossy() == QZERODED)
                 })
-                .collect();
+                .collect::<Vec<_>>();
 
             if qzeroded_maps.is_empty() {
                 cold_path();

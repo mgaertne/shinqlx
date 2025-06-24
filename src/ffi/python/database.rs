@@ -1226,12 +1226,12 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
             ),))?;
             return Err(PyErr::from_value(error));
         }
-        let pieces: Vec<(String, String)> = args
+        let pieces = args
             .iter()
             .map(|item| item.to_string())
             .tuples()
             .map(|(a, b)| (b, a))
-            .collect();
+            .collect::<Vec<_>>();
 
         redis_connection.call_method(
             intern!(self.py(), "zadd"),

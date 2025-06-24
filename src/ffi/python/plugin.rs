@@ -273,7 +273,7 @@ impl Plugin {
             "list" => match cvar_string {
                 None => Ok(PyList::empty(cls.py()).into_any()),
                 Some(value) => {
-                    let items: Vec<&str> = value.split(',').collect();
+                    let items = value.split(',').collect::<Vec<_>>();
                     let returned = PyList::new(cls.py(), items)?;
                     Ok(PyList::new(cls.py(), returned)?.into_any())
                 }
@@ -281,15 +281,17 @@ impl Plugin {
             "set" => match cvar_string {
                 None => PySet::empty(cls.py()).map(|set| set.into_any()),
                 Some(value) => {
-                    let items: Vec<String> =
-                        value.split(',').map(|item| item.to_string()).collect();
+                    let items = value
+                        .split(',')
+                        .map(|item| item.to_string())
+                        .collect::<Vec<_>>();
                     Ok(PySet::new::<String>(cls.py(), items)?.into_any())
                 }
             },
             "tuple" => match cvar_string {
                 None => Ok(PyTuple::empty(cls.py()).into_any()),
                 Some(value) => {
-                    let items: Vec<&str> = value.split(',').collect();
+                    let items = value.split(',').collect::<Vec<_>>();
                     Ok(PyTuple::new(cls.py(), items)?.into_any())
                 }
             },
@@ -684,11 +686,11 @@ impl Plugin {
             .iter()
             .try_fold(PyDict::new(cls.py()), |result, team| {
                 let team_str = team.to_string();
-                let filtered_players: Vec<Player> = players
+                let filtered_players = players
                     .iter()
                     .filter(|player| player.get_team(cls.py()).is_ok_and(|team| team == team_str))
                     .cloned()
-                    .collect();
+                    .collect::<Vec<_>>();
                 result.set_item(
                     PyString::intern(cls.py(), team_str.as_str()),
                     filtered_players,
