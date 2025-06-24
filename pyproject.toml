@@ -1,11 +1,13 @@
 [build-system]
-requires = ["maturin>=1.0,<2.0", "tox>=4.21", "tox-uv>=1.0"]
+requires = ["maturin>=1.0,<1.9", "tox>=4.21", "tox-uv>=1.0"]
 build-backend = "maturin"
 
 [project]
 dynamic = ["version"]
 name = "shinqlx"
 requires-python = ">=3.8"
+license = { text = "BSD-3-Clause" }
+readme = { file = "README.md", content-type = "text/markdown" }
 classifiers = [
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
@@ -20,16 +22,8 @@ ruff = [ "ruff>=0.2" ]
 mypy = [ "mypy>=0.990", "types-redis>=4.3" ]
 docs = [ "sphinx>=7" ]
 
-[project.readme]
-file = "README.md"
-content-type = "text/markdown"
-
 [project.urls]
 Homepage = "https://github.com/mgaertne/shinqlx"
-
-[tool.setuptools]
-license-files = ["LICENSE"]
-include-package-data = false
 
 [tool.maturin]
 unstable-flags = ["build-std=std,core,alloc,panic_abort", "build-std-features=panic-unwind,panic_immediate_abort"]
@@ -98,7 +92,7 @@ disallow_incomplete_defs = true
 env_list = ["ruff", "mypy", "docs"]
 
 [tool.tox.env_run_base]
-use_develop = true
+package = "editable"
 
 [tool.tox.env.ruff]
 extras = [ "ruff" ]
