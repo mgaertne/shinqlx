@@ -3,7 +3,7 @@ requires = ["maturin>=1.0,<1.9", "tox>=4.21", "tox-uv>=1.0"]
 build-backend = "maturin"
 
 [project]
-dynamic = ["version"]
+dynamic = ["version", "summary", "description", "home_page", "author", "project_url"]
 name = "shinqlx"
 requires-python = ">=3.8"
 license = { text = "BSD-3-Clause" }
