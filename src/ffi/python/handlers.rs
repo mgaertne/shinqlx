@@ -1024,6 +1024,109 @@ mod handle_client_command_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn try_handle_client_command_for_msg_that_caused_panic(_pyshinqlx_setup: ()) {
+        let client_try_from_ctx = MockClient::from_context();
+        client_try_from_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .returning(|_client_id| {
+                let mut mock_client = MockClient::new();
+                mock_client
+                    .expect_get_state()
+                    .returning(|| clientState_t::CS_ACTIVE);
+                mock_client
+                    .expect_get_user_info()
+                    .returning(|| "asdf".into());
+                mock_client.expect_get_steam_id().returning(|| 1234);
+                mock_client
+            });
+
+        let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockGameEntityBuilder::default()
+            .with_player_name(|| "Mocked Player".to_string(), 1..)
+            .with_team(|| team_t::TEAM_RED, 1..)
+            .with_privileges(|| privileges_t::PRIV_NONE, 1..)
+            .run(predicate::eq(42), || {
+                MockEngineBuilder::default()
+                    .with_find_cvar(
+                        |cmd| cmd == "zmq_stats_enable",
+                        move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                        1..,
+                    )
+                    .run(|| {
+                        Python::with_gil(|py| {
+                            let channel = Bound::new(
+                                py,
+                                TeamChatChannel::py_new(
+                                    py,
+                                    "all",
+                                    "chat",
+                                    "print \"{}\n\"\n",
+                                    py.None().bind(py),
+                                    None,
+                                ),
+                            )
+                            .expect("could not create TeamChatchannel in python");
+                            CHAT_CHANNEL.store(Some(channel.unbind().into()));
+
+                            let event_dispatcher =
+                                Bound::new(py, EventDispatcherManager::default())
+                                    .expect("this should not happen");
+                            event_dispatcher
+                                .add_dispatcher(&py.get_type::<ClientCommandDispatcher>())
+                                .expect("could not add client_command dispatcher");
+                            event_dispatcher
+                                .add_dispatcher(&py.get_type::<ChatEventDispatcher>())
+                                .expect("could not add chat dispatcher");
+                            let capturing_hook = capturing_hook(py);
+                            event_dispatcher
+                                .get_item(intern!(py, "chat"))
+                                .and_then(|chat_dispatcher| {
+                                    chat_dispatcher
+                                        .downcast::<EventDispatcher>()
+                                        .expect("this should not happen")
+                                        .add_hook(
+                                            "asdf",
+                                            &capturing_hook
+                                                .getattr(intern!(py, "hook"))
+                                                .expect("could not get hook from capturing hook"),
+                                            CommandPriorities::PRI_NORMAL as i32,
+                                        )
+                                })
+                                .expect("could not add hook to chat dispatcher");
+                            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+
+                            let result = try_handle_client_command(
+                                py,
+                                42,
+                                "say \"bob: долбоеб ты оказывается)\"\n",
+                            );
+                            assert!(result.is_ok_and(|value| {
+                                value.extract::<String>(py).is_ok_and(|str_value| {
+                                    str_value == "say \"bob: долбоеб ты оказывается)\""
+                                })
+                            }),);
+                            assert!(
+                                capturing_hook
+                                    .call_method1(
+                                        intern!(py, "assert_called_with"),
+                                        ("_", "bob: долбоеб ты оказывается)", "_"),
+                                    )
+                                    .is_ok()
+                            );
+                        });
+                    });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn try_handle_client_command_for_msg_with_no_chat_dispatcher(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx

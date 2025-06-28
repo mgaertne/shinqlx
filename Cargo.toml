@@ -65,6 +65,7 @@ serde_json = { version = ">=1.0.140", default-features = false, features = ["all
 parking_lot = { version = ">=0.12", default-features = false, features = ["nightly"] }
 git2 = { version = ">=0.20.1", default-features = false }
 semver = { version = ">=1.0.26", default-features = false }
+unicode-segmentation = { version = ">0.1", default-features = false, features = ["no_std"] }
 
 region = { version = ">=3.0", default-features = false, optional = true }
 
