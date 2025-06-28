@@ -32,7 +32,12 @@ locked = false
 
 include = [
     { path = "src/**/*", format = "sdist" },
+    { path = "benches/**/*", format = "sdist" },
+    { path = "docs/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },
+    { path = "rustfmt.toml", format = "sdist" },
+    { path = "tarpaulin.toml", format = "sdist" },
+    { path = ".readthedocs.yaml", format = "sdist" },
     { path = ".cargo/**/*", format = "sdist" },
     { path = "run_server_shinqlx.sh", format = "sdist" },
     { path = "shinqlx_log.yml", format = "sdist" },
