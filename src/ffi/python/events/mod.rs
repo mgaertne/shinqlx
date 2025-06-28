@@ -103,6 +103,7 @@ pub(crate) use team_switch_attempt_dispatcher::{
 };
 #[allow(unused_imports)]
 pub(crate) use team_switch_dispatcher::{TeamSwitchDispatcher, TeamSwitchDispatcherMethods};
+use unicode_segmentation::UnicodeSegmentation;
 pub(crate) use unload_dispatcher::{UnloadDispatcher, UnloadDispatcherMethods};
 pub(crate) use userinfo_dispatcher::{UserinfoDispatcher, UserinfoDispatcherMethods};
 pub(crate) use vote_called_dispatcher::{VoteCalledDispatcher, VoteCalledDispatcherMethods};
@@ -120,8 +121,7 @@ fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
 
         let mut dbgstr = debug_str.to_string();
         if dbgstr.len() > 100 {
-            dbgstr.truncate(99);
-            dbgstr.push(')');
+            dbgstr = format!("{})", dbgstr.graphemes(true).take(99).collect::<String>());
         }
         logger
             .call_method(
