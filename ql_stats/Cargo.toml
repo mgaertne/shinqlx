@@ -1,0 +1,22 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "ql_stats"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+
+[dependencies]
+arzmq = { workspace = true }
+tokio = { version = ">=1.46", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
+anyhow = { version = ">=1.0", default-features = false }
+clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
+
+serde_json = { workspace = true }
+
+[lints.rust]
+non_local_definitions = "allow"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"

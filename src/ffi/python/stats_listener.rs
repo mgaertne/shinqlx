@@ -4,14 +4,19 @@ use core::{
 };
 use std::sync::LazyLock;
 
+use arzmq::{
+    ZmqError, ZmqResult,
+    context::ContextBuilder,
+    security::SecurityMechanism,
+    socket::{PollEvents, Receiver, RecvFlags, SocketBuilder, SubscribeBuilder, SubscribeSocket},
+};
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
 };
 use rayon::prelude::*;
 use serde_json::{Value, from_str};
-use tap::{TapFallible, TapOptional};
-use zmq::{Context, DONTWAIT, POLLIN, Socket, SocketType};
+use tap::TapFallible;
 
 use super::{EVENT_DISPATCHERS, log_exception, prelude::*};
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
@@ -528,7 +533,7 @@ def run_zmq_thread(poller):
 
     fn _poll_zmq(&self) -> PyResult<()> {
         let socket = get_zmq_socket(&self.get().address, &self.get().password).map_err(
-            |err: zmq::Error| {
+            |err: ZmqError| {
                 let error_msg = format!("zmq error: {err:?}");
                 PyIOError::new_err(error_msg)
             },
@@ -537,7 +542,7 @@ def run_zmq_thread(poller):
         loop {
             if !self
                 .py()
-                .allow_threads(|| socket.poll(POLLIN, 250))
+                .allow_threads(|| socket.poll(PollEvents::POLL_IN, 250))
                 .is_ok_and(|value| value == 1)
             {
                 continue;
@@ -545,27 +550,39 @@ def run_zmq_thread(poller):
 
             let _ = self
                 .py()
-                .allow_threads(|| socket.recv_msg(DONTWAIT))
+                .allow_threads(|| socket.recv_msg(RecvFlags::DONT_WAIT))
                 .tap_ok(|zmq_msg| {
-                    zmq_msg.as_str().tap_some(|zmq_str| {
-                        handle_zmq_msg(self.py(), zmq_str);
-                    });
+                    handle_zmq_msg(self.py(), &zmq_msg.to_string());
                 });
         }
     }
 }
 
-fn get_zmq_socket(address: &str, password: &str) -> zmq::Result<Socket> {
-    let zmq_context = Context::new();
+fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
+    let context = ContextBuilder::default()
+        .blocky(false)
+        .max_sockets(10)
+        .io_threads(1)
+        .build()?;
 
-    let socket = zmq_context.socket(SocketType::SUB)?;
-    socket.set_plain_username(Some("stats"))?;
-    socket.set_plain_password(Some(password))?;
+    let socket_config = SocketBuilder::default()
+        .security_mechanism(SecurityMechanism::PlainClient {
+            username: "stats".into(),
+            password: password.into(),
+        })
+        .receive_timeout(0)
+        .receive_highwater_mark(0)
+        .send_timeout(0)
+        .receive_highwater_mark(0)
+        .zap_domain("stats");
 
-    socket.set_zap_domain("stats")?;
+    let config = SubscribeBuilder::default()
+        .socket_config(socket_config)
+        .subscribe("");
+
+    let socket = config.build_from_context(&context)?;
 
     socket.connect(address)?;
-    socket.set_subscribe("".as_bytes())?;
 
     Ok(socket)
 }
