@@ -40,9 +40,6 @@ crate-type = ["cdylib", "rlib"]
 [[bench]]
 name = "shinqlx_benchmark"
 
-[profile.dev]
-panic = "abort"
-
 [profile.release]
 strip = "symbols"
 opt-level = "z"
@@ -51,6 +48,10 @@ codegen-units = 1
 
 [profile.release.build-override]
 rustflags = ["-Zlocation-detail=none"]
+
+[profile.shinqlx]
+inherits = "release"
+panic = "abort"
 
 [dependencies]
 serde_json = { workspace = true }
