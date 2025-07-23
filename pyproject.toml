@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.0,<1.9", "tox>=4.21", "tox-uv>=1.0"]
+requires = ["maturin>=1.9", "tox>=4.21", "tox-uv>=1.0"]
 build-backend = "maturin"
 
 [project]
@@ -60,6 +60,8 @@ exclude = [
     "build",
     "dist",
     "venv",
+    "ql_rcon",
+    "ql_stats",
 ]
 line-length = 120
 target-version = "py39"
