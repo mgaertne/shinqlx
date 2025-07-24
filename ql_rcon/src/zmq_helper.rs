@@ -2,13 +2,11 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use arzmq::{
-    context::ContextBuilder,
-    message::Message,
-    security::SecurityMechanism,
-    socket::{
-        DealerBuilder, DealerSocket, MonitorFlags, MonitorReceiver, MonitorSocket,
-        MonitorSocketEvent, Receiver, SendFlags, Sender, Socket, SocketBuilder,
+    prelude::{
+        ContextBuilder, DealerBuilder, DealerSocket, Message, MonitorFlags, MonitorReceiver,
+        MonitorSocket, MonitorSocketEvent, Receiver, SendFlags, Sender, Socket, SocketBuilder,
     },
+    security::SecurityMechanism,
 };
 use tokio::{
     select,
@@ -63,7 +61,7 @@ impl MonitoredDealer {
             identity.to_string()
         };
 
-        let socket_config = SocketBuilder::default()
+        let socket_builder = SocketBuilder::default()
             .security_mechanism(SecurityMechanism::PlainClient {
                 username: "rcon".into(),
                 password: password.into(),
@@ -78,7 +76,7 @@ impl MonitoredDealer {
             .zap_domain("rcon");
 
         let dealer_config = DealerBuilder::default()
-            .socket_config(socket_config)
+            .socket_builder(socket_builder)
             .routing_id(identity_str)
             .hello_message("register");
 
