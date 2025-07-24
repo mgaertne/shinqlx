@@ -8,7 +8,7 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
-arzmq = { workspace = true }
+arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
 tokio = { version = ">=1.46", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync"] }
 anyhow = { version = ">=1.0", default-features = false }
 clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
@@ -17,7 +17,7 @@ uuid = { version = ">=1.17", default-features = false, features = ["v4"] }
 directories = { version = ">=6.0", default-features = false }
 linefeed = { version = ">=0.6", default-features = false }
 termcolor = { version = ">=1.4", default-features = false }
-regex = { workspace = true }
+regex = { workspace = true, default-features = false, features = ["perf", "unicode"] }
 
 [lints.rust]
 non_local_definitions = "allow"

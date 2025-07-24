@@ -49,10 +49,6 @@ codegen-units = 1
 [profile.release.build-override]
 rustflags = ["-Zlocation-detail=none"]
 
-[profile.shinqlx]
-inherits = "release"
-panic = "abort"
-
 [dependencies]
 serde_json = { workspace = true }
 regex = { workspace = true }
