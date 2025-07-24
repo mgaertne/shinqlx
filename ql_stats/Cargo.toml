@@ -8,12 +8,12 @@ rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
-arzmq = { workspace = true }
+arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
 tokio = { version = ">=1.46", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 anyhow = { version = ">=1.0", default-features = false }
 clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 
-serde_json = { workspace = true }
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 
 [lints.rust]
 non_local_definitions = "allow"
