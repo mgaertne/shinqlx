@@ -2,13 +2,11 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
 use arzmq::{
-    context::ContextBuilder,
-    message::Message,
-    security::SecurityMechanism,
-    socket::{
-        MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent, Receiver, Socket,
-        SocketBuilder, SubscribeBuilder, SubscribeSocket,
+    prelude::{
+        ContextBuilder, Message, MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent,
+        Receiver, Socket, SocketBuilder, SubscribeBuilder, SubscribeSocket,
     },
+    security::SecurityMechanism,
 };
 use serde_json::Value;
 use tokio::{
@@ -52,7 +50,7 @@ impl MonitoredSubscriber {
     }
 
     async fn configure(&self, password: &str) -> Result<()> {
-        let socket_config = SocketBuilder::default()
+        let socket_builder = SocketBuilder::default()
             .security_mechanism(SecurityMechanism::PlainClient {
                 username: "stats".into(),
                 password: password.into(),
@@ -64,7 +62,7 @@ impl MonitoredSubscriber {
             .zap_domain("stats");
 
         let config = SubscribeBuilder::default()
-            .socket_config(socket_config)
+            .socket_builder(socket_builder)
             .subscribe("");
 
         let subscriber = self.subscriber.read().await;

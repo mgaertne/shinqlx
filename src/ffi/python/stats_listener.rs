@@ -5,10 +5,12 @@ use core::{
 use std::sync::LazyLock;
 
 use arzmq::{
-    ZmqError, ZmqResult,
-    context::ContextBuilder,
+    prelude::{
+        ContextBuilder, Receiver, RecvFlags, SocketBuilder, SubscribeBuilder, SubscribeSocket,
+        ZmqError, ZmqResult,
+    },
     security::SecurityMechanism,
-    socket::{PollEvents, Receiver, RecvFlags, SocketBuilder, SubscribeBuilder, SubscribeSocket},
+    socket::PollEvents,
 };
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
@@ -540,11 +542,11 @@ def run_zmq_thread(poller):
         )?;
 
         loop {
-            if !self
-                .py()
-                .allow_threads(|| socket.poll(PollEvents::POLL_IN, 250))
-                .is_ok_and(|value| value == 1)
-            {
+            if !self.py().allow_threads(|| {
+                socket
+                    .poll(PollEvents::POLL_IN, 125)
+                    .is_ok_and(|value| value == 1)
+            }) {
                 continue;
             }
 
@@ -565,7 +567,7 @@ fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
         .io_threads(1)
         .build()?;
 
-    let socket_config = SocketBuilder::default()
+    let socket_builder = SocketBuilder::default()
         .security_mechanism(SecurityMechanism::PlainClient {
             username: "stats".into(),
             password: password.into(),
@@ -577,7 +579,7 @@ fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
         .zap_domain("stats");
 
     let config = SubscribeBuilder::default()
-        .socket_config(socket_config)
+        .socket_builder(socket_builder)
         .subscribe("");
 
     let socket = config.build_from_context(&context)?;
