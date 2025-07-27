@@ -95,13 +95,13 @@ git2 = { version = ">=0.20.1", default-features = false }
 
 [dev-dependencies]
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
-rstest = { version = ">=0.25", default-features = false }
+rstest = { version = ">=0.26", default-features = false }
 mockall = { version = ">=0.13", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=3.2", default-features = false }
 tempfile = { version = ">=3.20", default-features = false }
 
 # for benchmark tests
-criterion = { version = ">=0.6", default-features = false, features = ["cargo_bench_support", "rayon"] }
+criterion = { version = ">=0.7", default-features = false, features = ["cargo_bench_support", "rayon"] }
 criterion-macro = { version = ">=0.4", default-features = false }
 
 [features]
