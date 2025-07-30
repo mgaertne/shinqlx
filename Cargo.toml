@@ -101,7 +101,7 @@ serial_test = { version = ">=3.2", default-features = false }
 tempfile = { version = ">=3.20", default-features = false }
 
 # for benchmark tests
-criterion = { version = ">=0.6", default-features = false, features = ["cargo_bench_support", "rayon"] }
+criterion = { version = ">=0.7", default-features = false, features = ["cargo_bench_support", "rayon"] }
 criterion-macro = { version = ">=0.4", default-features = false }
 
 [features]
