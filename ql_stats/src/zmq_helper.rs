@@ -51,7 +51,7 @@ impl MonitoredSubscriber {
 
     async fn configure(&self, password: &str) -> Result<()> {
         let socket_builder = SocketBuilder::default()
-            .security_mechanism(SecurityMechanism::PlainClient {
+            .security_mechanism(SecurityMechanism::Plain {
                 username: "stats".into(),
                 password: password.into(),
             })
