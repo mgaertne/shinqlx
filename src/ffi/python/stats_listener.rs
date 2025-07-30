@@ -545,7 +545,7 @@ def run_zmq_thread(poller):
             if !self.py().allow_threads(|| {
                 socket
                     .poll(PollEvents::POLL_IN, 125)
-                    .is_ok_and(|value| value == 1)
+                    .is_ok_and(|value| value == PollEvents::POLL_IN)
             }) {
                 continue;
             }
@@ -568,7 +568,7 @@ fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
         .build()?;
 
     let socket_builder = SocketBuilder::default()
-        .security_mechanism(SecurityMechanism::PlainClient {
+        .security_mechanism(SecurityMechanism::Plain {
             username: "stats".into(),
             password: password.into(),
         })

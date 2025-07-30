@@ -62,7 +62,7 @@ impl MonitoredDealer {
         };
 
         let socket_builder = SocketBuilder::default()
-            .security_mechanism(SecurityMechanism::PlainClient {
+            .security_mechanism(SecurityMechanism::Plain {
                 username: "rcon".into(),
                 password: password.into(),
             })
