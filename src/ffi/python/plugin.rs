@@ -49,9 +49,9 @@ use crate::{
 ///     like :func:`shinqlx.thread` can be useful.
 #[pyclass(name = "Plugin", module = "_plugin", subclass, frozen)]
 pub(crate) struct Plugin {
-    hooks: parking_lot::RwLock<Vec<(String, PyObject, i32)>>,
+    hooks: parking_lot::RwLock<Vec<(String, Py<PyAny>, i32)>>,
     commands: parking_lot::RwLock<Vec<Py<Command>>>,
-    db_instance: parking_lot::RwLock<PyObject>,
+    db_instance: parking_lot::RwLock<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -209,7 +209,7 @@ impl Plugin {
         name: &str,
         return_type: Option<Py<PyType>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let cvar_string = cls.py().allow_threads(|| {
+        let cvar_string = cls.py().detach(|| {
             MAIN_ENGINE
                 .load()
                 .as_ref()?
@@ -315,7 +315,7 @@ impl Plugin {
     ) -> PyResult<bool> {
         let value_str = value.str()?.to_string();
 
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -352,7 +352,7 @@ impl Plugin {
         let minimum_str = minimum.str()?.to_string();
         let maximum_str = maximum.str()?.to_string();
 
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -386,7 +386,7 @@ impl Plugin {
     ) -> PyResult<bool> {
         let value_str = value.str()?.to_string();
 
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -419,7 +419,7 @@ impl Plugin {
         let minimum_str = minimum.str()?.to_string();
         let maximum_str = maximum.str()?.to_string();
 
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -590,7 +590,7 @@ impl Plugin {
     fn console(cls: &Bound<'_, PyType>, text: &Bound<'_, PyAny>) -> PyResult<()> {
         let extracted_text = text.str()?.to_string();
         let printed_text = format!("{extracted_text}\n");
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             shinqlx_com_printf(&printed_text);
             Ok(())
         })
@@ -599,7 +599,7 @@ impl Plugin {
     /// Removes color tags from text.
     #[classmethod]
     fn clean_text(cls: &Bound<'_, PyType>, text: &str) -> String {
-        cls.py().allow_threads(|| clean_text(&text))
+        cls.py().detach(|| clean_text(&text))
     }
 
     /// Get the colored name of a decolored name.
@@ -654,7 +654,7 @@ impl Plugin {
     ) -> Vec<Player> {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             if name.is_empty() {
                 return players;
             }
@@ -744,7 +744,7 @@ impl Plugin {
 
     #[classmethod]
     fn is_vote_active(cls: &Bound<'_, PyType>) -> bool {
-        cls.py().allow_threads(is_vote_active)
+        cls.py().detach(is_vote_active)
     }
 
     #[classmethod]
@@ -821,7 +821,7 @@ impl Plugin {
 
     #[classmethod]
     fn teamsize(cls: &Bound<'_, PyType>, size: i32) -> PyResult<()> {
-        cls.py().allow_threads(|| set_teamsize(size))
+        cls.py().detach(|| set_teamsize(size))
     }
 
     #[classmethod]
@@ -843,7 +843,7 @@ impl Plugin {
 
     #[classmethod]
     fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("forceshuffle"))
+        cls.py().detach(|| console_command("forceshuffle"))
     }
 
     #[classmethod]
@@ -852,7 +852,7 @@ impl Plugin {
     #[classmethod]
     #[pyo3(signature = (new_map, factory = None), text_signature = "(new_map, factory = None)")]
     fn change_map(cls: &Bound<'_, PyType>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             let mapchange_command = match factory {
                 None => format!("map {new_map}"),
                 Some(game_factory) => format!("map {new_map} {game_factory}"),
@@ -931,7 +931,7 @@ impl Plugin {
         client_id(cls.py(), player, None).map_or(
             Err(PyValueError::new_err("Invalid player.")),
             |client_id| {
-                cls.py().allow_threads(|| {
+                cls.py().detach(|| {
                     let slap_cmd = format!("slap {client_id} {damage}");
                     console_command(&slap_cmd)
                 })
@@ -944,7 +944,7 @@ impl Plugin {
         client_id(cls.py(), player, None).map_or(
             Err(PyValueError::new_err("Invalid player.")),
             |client_id| {
-                cls.py().allow_threads(|| {
+                cls.py().detach(|| {
                     let slay_cmd = format!("slay {client_id}");
                     console_command(&slay_cmd)
                 })
@@ -954,39 +954,39 @@ impl Plugin {
 
     #[classmethod]
     fn timeout(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("timeout"))
+        cls.py().detach(|| console_command("timeout"))
     }
 
     #[classmethod]
     fn timein(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("timein"))
+        cls.py().detach(|| console_command("timein"))
     }
 
     #[classmethod]
     fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("allready"))
+        cls.py().detach(|| console_command("allready"))
     }
 
     #[classmethod]
     fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("pause"))
+        cls.py().detach(|| console_command("pause"))
     }
 
     #[classmethod]
     fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("unpause"))
+        cls.py().detach(|| console_command("unpause"))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
-        cls.py().allow_threads(|| lock(team))
+        cls.py().detach(|| lock(team))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
-        cls.py().allow_threads(|| unlock(team))
+        cls.py().detach(|| unlock(team))
     }
 
     #[classmethod]
@@ -1021,7 +1021,7 @@ impl Plugin {
 
     #[classmethod]
     fn opsay(cls: &Bound<'_, PyType>, msg: &str) -> PyResult<()> {
-        cls.py().allow_threads(|| opsay(msg))
+        cls.py().detach(|| opsay(msg))
     }
 
     #[classmethod]
@@ -1041,7 +1041,7 @@ impl Plugin {
 
     #[classmethod]
     fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("map_restart"))
+        cls.py().detach(|| console_command("map_restart"))
     }
 
     #[classmethod]
@@ -1051,12 +1051,12 @@ impl Plugin {
 
     #[classmethod]
     fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
-        cls.py().allow_threads(|| addteamscore(team, score))
+        cls.py().detach(|| addteamscore(team, score))
     }
 
     #[classmethod]
     fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             let setmatchtime_cmd = format!("setmatchtime {time}");
             console_command(&setmatchtime_cmd)
         })
@@ -1403,7 +1403,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn plugin_can_be_subclassed_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let extended_plugin = test_plugin(py);
 
             let result = extended_plugin.call0();
@@ -1429,7 +1429,7 @@ mod plugin_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1462,7 +1462,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let plugin_str = plugin_instance.str();
@@ -1474,7 +1474,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let extended_plugin = test_plugin(py);
             py.get_type::<Plugin>()
                 .delattr("database")
@@ -1493,7 +1493,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let extended_plugin = test_plugin(py);
             py.get_type::<Plugin>()
                 .setattr("database", py.None())
@@ -1512,7 +1512,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let extended_plugin = test_plugin(py);
             let redis_type = py.get_type::<Redis>();
             py.get_type::<Plugin>()
@@ -1532,7 +1532,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn name_property_returns_plugin_typename(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let plugin_str = plugin_instance
@@ -1547,7 +1547,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let extended_plugin = test_plugin(py);
 
             let loaded_plugins = PyDict::new(py);
@@ -1578,7 +1578,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn hooks_property_returns_plugin_hooks(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin = Bound::new(
                 py,
                 Plugin {
@@ -1609,7 +1609,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn commands_property_when_no_commands_exist(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin = Bound::new(
                 py,
                 Plugin {
@@ -1628,7 +1628,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn game_property_when_no_game_running(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin = Bound::new(
                 py,
                 Plugin {
@@ -1650,7 +1650,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let plugin = Bound::new(
                         py,
                         Plugin {
@@ -1669,7 +1669,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_logger(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let logger_type = py
                 .import(intern!(py, "logging"))
                 .expect("this should not happen")
@@ -1701,7 +1701,7 @@ mod plugin_tests {
     fn add_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin_instance = test_plugin(py)
                 .call0()
                 .expect("could not create plugin instance");
@@ -1735,7 +1735,7 @@ mod plugin_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1786,7 +1786,7 @@ mod plugin_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1845,7 +1845,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             EVENT_DISPATCHERS.store(None);
             let plugin_instance = test_plugin(py)
                 .call0()
@@ -1881,7 +1881,7 @@ mod plugin_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1963,7 +1963,7 @@ mod plugin_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2026,7 +2026,7 @@ mod plugin_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2085,7 +2085,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_command_adds_a_new_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
@@ -2140,7 +2140,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_command_stores_command_in_plugin(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
@@ -2186,7 +2186,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_command_removes_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
@@ -2240,7 +2240,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_command_removes_command_with_other_cmd_left_in_place(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
@@ -2320,7 +2320,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_command_for_list_of_command_names(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
@@ -2382,7 +2382,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_command_removes_command_in_plugin_instance(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_handler = python_function_returning(py, &py.None());
             let command_invoker = CommandInvoker::py_new();
             COMMANDS.store(Some(
@@ -2433,7 +2433,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "sv_maxclients", None);
             assert!(result.is_ok_and(|value| value.is_none()));
         });
@@ -2446,7 +2446,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "asdf", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "asdf", None);
                     assert!(result.expect("result was not OK").is_none());
                 });
@@ -2470,7 +2470,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::get_cvar(&py.get_type::<Plugin>(), "sv_maxclients", None);
                     assert!(
                         result
@@ -2499,7 +2499,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyString>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2523,7 +2523,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyString>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2552,7 +2552,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyInt>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2586,7 +2586,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyInt>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2605,7 +2605,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyInt>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2634,7 +2634,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyFloat>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2668,7 +2668,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyFloat>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2687,7 +2687,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyFloat>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2716,7 +2716,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyBool>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2739,7 +2739,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyBool>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2773,7 +2773,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyBool>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2803,7 +2803,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyList>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2828,7 +2828,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyList>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2864,7 +2864,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PySet>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2889,7 +2889,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PySet>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2925,7 +2925,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyTuple>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2950,7 +2950,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyTuple>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -2986,7 +2986,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_str_type = py.get_type::<PyDate>();
                     let result = Plugin::get_cvar(
                         &py.get_type::<Plugin>(),
@@ -3003,7 +3003,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::set_cvar(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
@@ -3031,7 +3031,7 @@ mod plugin_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3059,7 +3059,7 @@ mod plugin_tests {
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3075,7 +3075,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::set_cvar_limit(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
@@ -3107,7 +3107,7 @@ mod plugin_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar_limit(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3125,7 +3125,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::set_cvar_once(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
@@ -3153,7 +3153,7 @@ mod plugin_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3182,7 +3182,7 @@ mod plugin_tests {
                 mock_engine.expect_get_cvar().times(0);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3199,7 +3199,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::set_cvar_limit_once(
                 &py.get_type::<Plugin>(),
                 "sv_maxclients",
@@ -3231,7 +3231,7 @@ mod plugin_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar_limit_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3261,7 +3261,7 @@ mod plugin_tests {
                 mock_engine.expect_set_cvar_limit().times(0);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::set_cvar_limit_once(
                         &py.get_type::<Plugin>(),
                         "sv_maxclients",
@@ -3343,7 +3343,7 @@ mod plugin_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
-            let all_players = Python::with_gil(|py| Plugin::players(&py.get_type::<Plugin>()));
+            let all_players = Python::attach(|py| Plugin::players(&py.get_type::<Plugin>()));
             assert_eq!(
                 all_players.expect("result was not ok"),
                 vec![
@@ -3389,7 +3389,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
                 Bound::new(py, default_test_player())
@@ -3430,7 +3430,7 @@ mod plugin_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::player(
                         &py.get_type::<Plugin>(),
                         PyInt::new(py, 42i32).as_any(),
@@ -3463,7 +3463,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_steam_id_from_player_list(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Player {
                 steam_id: 1234,
                 player_info: PlayerInfo {
@@ -3489,7 +3489,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_steam_id_not_in_provided_player_list(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 4321i32).as_any(),
@@ -3502,7 +3502,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_name_from_player_list(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Player {
                 name: "Mocked Player".to_string().into(),
                 player_info: PlayerInfo {
@@ -3528,7 +3528,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn player_for_provided_name_not_in_provided_player_list(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::player(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "disconnected").as_any(),
@@ -3541,7 +3541,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn msg_for_invalid_channel(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
                 "asdf",
@@ -3562,7 +3562,7 @@ mod plugin_tests {
             .withf(|client, cmd| client.is_none() && cmd == "print \"asdf\n\"\n")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let channel = Bound::new(
                 py,
                 TeamChatChannel::py_new(
@@ -3593,7 +3593,7 @@ mod plugin_tests {
             .withf(|client, cmd| client.is_none() && cmd == "print \"asdf qwertz\n\"\n")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let channel = Bound::new(
                 py,
                 TeamChatChannel::py_new(
@@ -3676,7 +3676,7 @@ mod plugin_tests {
             .times(2);
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let channel = Bound::new(
                     py,
                     TeamChatChannel::py_new(
@@ -3753,7 +3753,7 @@ mod plugin_tests {
             .times(2);
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let channel = Bound::new(
                     py,
                     TeamChatChannel::py_new(
@@ -3790,7 +3790,7 @@ mod plugin_tests {
             .withf(|msg| msg == "asdf\n")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                     .expect("creating new console channel failed.");
@@ -3834,7 +3834,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let channel = Bound::new(
                     py,
                     TellChannel::py_new(py, &default_test_player(), py.None().bind(py), None),
@@ -3863,7 +3863,7 @@ mod plugin_tests {
             .with(predicate::eq("asdf\n"))
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::console(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "asdf").as_any(),
@@ -3875,7 +3875,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn clean_text_cleans_text_from_color_tags(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result =
                 Plugin::clean_text(&py.get_type::<Plugin>(), "^0a^1b^2c^3d^4e^5f^6g^7h^8i^9j");
             assert_eq!(result, "abcdefgh^8i^9j");
@@ -3885,7 +3885,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_provided_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Player {
                 name: "Mocked Player".to_string().into(),
                 ..default_test_player()
@@ -3904,7 +3904,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn colored_name_for_player_in_provided_playerlist(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Player {
                 name: "Mocked Player".to_string().into(),
                 ..default_test_player()
@@ -3931,7 +3931,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::colored_name(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "Mocked Player").as_any(),
@@ -3954,7 +3954,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::colored_name(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "disconnected Player").as_any(),
@@ -3967,7 +3967,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn client_id_for_integer_in_client_id_range(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 42i32).as_any(),
@@ -3990,7 +3990,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 Bound::new(py, player)
@@ -4017,7 +4017,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 1234i64).as_any(),
@@ -4040,7 +4040,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 4321i64).as_any(),
@@ -4065,7 +4065,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "Mocked Player").as_any(),
@@ -4088,7 +4088,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "UnknownPlayer").as_any(),
@@ -4101,7 +4101,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn client_id_for_unsupported_search_criteria(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::client_id(
                 &py.get_type::<Plugin>(),
                 PyFloat::new(py, 3.42f64).as_any(),
@@ -4136,7 +4136,7 @@ mod plugin_tests {
             .into(),
             ..default_test_player()
         };
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::find_player(
                 &py.get_type::<Plugin>(),
                 "",
@@ -4188,7 +4188,7 @@ mod plugin_tests {
             .into(),
             ..default_test_player()
         };
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::find_player(
                 &py.get_type::<Plugin>(),
                 "foU^3nd",
@@ -4244,7 +4244,7 @@ mod plugin_tests {
             .into(),
             ..default_test_player()
         };
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::find_player(
                 &py.get_type::<Plugin>(),
                 "no-such-player",
@@ -4257,7 +4257,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn teams_when_no_player_in_player_list(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::teams(&py.get_type::<Plugin>(), Some(vec![]));
             assert!(
                 result
@@ -4329,7 +4329,7 @@ mod plugin_tests {
             .into(),
             ..default_test_player()
         };
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::teams(
                 &py.get_type::<Plugin>(),
                 Some(vec![
@@ -4387,7 +4387,7 @@ mod plugin_tests {
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
             let result =
-                Python::with_gil(|py| Plugin::center_print(&py.get_type::<Plugin>(), "asdf", None));
+                Python::attach(|py| Plugin::center_print(&py.get_type::<Plugin>(), "asdf", None));
             assert!(result.is_ok());
         });
     }
@@ -4414,7 +4414,7 @@ mod plugin_tests {
         let player = default_test_player();
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 Plugin::center_print(
                     &py.get_type::<Plugin>(),
                     "asdf",
@@ -4456,7 +4456,7 @@ mod plugin_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(2), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let result = Plugin::tell(
                             &py.get_type::<Plugin>(),
                             "asdf",
@@ -4479,7 +4479,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_VOTE_STRING as u16, "vote is active", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     assert_eq!(Plugin::is_vote_active(&py.get_type::<Plugin>()), true);
                 });
             });
@@ -4492,7 +4492,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     assert_eq!(Plugin::is_vote_active(&py.get_type::<Plugin>()), false);
                 });
             });
@@ -4502,7 +4502,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn is_vote_active_when_main_engine_not_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert_eq!(Plugin::is_vote_active(&py.get_type::<Plugin>()), false);
         });
     }
@@ -4511,7 +4511,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn current_vote_count_when_main_engine_not_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
             assert!(result.is_ok_and(|value| value.is_none()))
         });
@@ -4525,7 +4525,7 @@ mod plugin_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "42", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_ok_and(|value| value.is_none()));
                 });
@@ -4540,7 +4540,7 @@ mod plugin_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "42", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_ok_and(|value| value.is_none()));
                 });
@@ -4555,7 +4555,7 @@ mod plugin_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "42", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "21", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(
                         result
@@ -4575,7 +4575,7 @@ mod plugin_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "asdf", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "21", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -4590,7 +4590,7 @@ mod plugin_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "42", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::current_vote_count(&py.get_type::<Plugin>());
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -4604,7 +4604,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_VOTE_STRING as u16, "map overkill ca", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::callvote(
                         &py.get_type::<Plugin>(),
                         "map thunderstruck ca",
@@ -4637,7 +4637,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4665,7 +4665,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::callvote(
                         &py.get_type::<Plugin>(),
                         "map thunderstruck ca",
@@ -4681,7 +4681,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn force_vote_with_unparseable_value(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::force_vote(
                 &py.get_type::<Plugin>(),
                 PyString::intern(py, "asdf").as_any(),
@@ -4724,7 +4724,7 @@ mod plugin_tests {
             })
             .run(predicate::eq(0), || {
                 MockEngineBuilder::default().with_max_clients(1).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let result = Plugin::force_vote(
                             &py.get_type::<Plugin>(),
                             PyBool::new(py, true).as_any(),
@@ -4769,7 +4769,7 @@ mod plugin_tests {
             })
             .run(predicate::eq(0), || {
                 MockEngineBuilder::default().with_max_clients(1).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let result = Plugin::force_vote(
                             &py.get_type::<Plugin>(),
                             PyBool::new(py, false).as_any(),
@@ -4795,7 +4795,7 @@ mod plugin_tests {
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::teamsize(&py.get_type::<Plugin>(), 42);
                     assert!(result.is_ok());
                 });
@@ -4806,7 +4806,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_for_unknown_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::kick(
                 &py.get_type::<Plugin>(),
                 PyFloat::new(py, 1.23f64).as_any(),
@@ -4839,7 +4839,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = Plugin::kick(
                     &py.get_type::<Plugin>(),
                     Bound::new(py, default_test_player())
@@ -4875,7 +4875,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = Plugin::kick(
                     &py.get_type::<Plugin>(),
                     Bound::new(py, default_test_player())
@@ -4895,7 +4895,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("forceshuffle", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::shuffle(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::shuffle(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -4903,7 +4903,7 @@ mod plugin_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn cointoss_does_nothing(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Plugin::cointoss(&py.get_type::<Plugin>());
         });
     }
@@ -4915,7 +4915,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("map thunderstruck", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result =
                         Plugin::change_map(&py.get_type::<Plugin>(), "thunderstruck", None);
                     assert!(result.is_ok());
@@ -4930,7 +4930,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("map thunderstruck ffa", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result =
                         Plugin::change_map(&py.get_type::<Plugin>(), "thunderstruck", Some("ffa"));
                     assert!(result.is_ok());
@@ -4942,7 +4942,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn change_map_when_no_main_engine_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::change_map(&py.get_type::<Plugin>(), "thunderstruck", Some("ffa"));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -4952,7 +4952,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn switch_with_invalid_player1(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::switch(
                 &py.get_type::<Plugin>(),
                 PyFloat::new(py, 1.23f64).as_any(),
@@ -4968,7 +4968,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn switch_with_invalid_player2(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::switch(
                 &py.get_type::<Plugin>(),
                 Bound::new(py, default_test_player())
@@ -5005,7 +5005,7 @@ mod plugin_tests {
             ..default_test_player()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::switch(
                 &py.get_type::<Plugin>(),
                 Bound::new(py, player1)
@@ -5048,7 +5048,7 @@ mod plugin_tests {
             .with_execute_console_command("put 0 blue", 1)
             .with_execute_console_command("put 1 red", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::switch(
                         &py.get_type::<Plugin>(),
                         Bound::new(py, player1)
@@ -5073,7 +5073,7 @@ mod plugin_tests {
             .withf(|client, cmd| client.is_none() && cmd == "playSound sound/vo/midair.ogg")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::play_sound(&py.get_type::<Plugin>(), "sound/vo/midair.ogg", None);
             assert!(result.is_ok_and(|value| value),);
         });
@@ -5104,7 +5104,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = Plugin::play_sound(
                     &py.get_type::<Plugin>(),
                     "sound/vo/midair.ogg",
@@ -5119,7 +5119,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn play_sound_with_empty_soundpath(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::play_sound(&py.get_type::<Plugin>(), "", None);
             assert!(result.is_ok_and(|value| !value),);
         });
@@ -5129,7 +5129,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn play_sound_for_sound_containing_music(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::play_sound(&py.get_type::<Plugin>(), "music/sonic1.ogg", None);
             assert!(result.is_ok_and(|value| !value),);
         });
@@ -5145,7 +5145,7 @@ mod plugin_tests {
             .withf(|client, cmd| client.is_none() && cmd == "playMusic music/sonic1.ogg")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::play_music(&py.get_type::<Plugin>(), "music/sonic1.ogg", None);
             assert!(result.is_ok_and(|value| value),);
         });
@@ -5176,7 +5176,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result =
                     Plugin::play_music(&py.get_type::<Plugin>(), "music/sonic1.ogg", Some(player));
                 assert!(result.is_ok_and(|value| value),);
@@ -5188,7 +5188,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn play_music_with_empty_musicpath(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::play_music(&py.get_type::<Plugin>(), "", None);
             assert!(result.is_ok_and(|value| !value),);
         });
@@ -5198,7 +5198,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn play_music_for_music_containing_sound(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::play_music(&py.get_type::<Plugin>(), "sound/vo/midair.ogg", None);
             assert!(result.is_ok_and(|value| !value),);
         });
@@ -5214,7 +5214,7 @@ mod plugin_tests {
             .withf(|client, cmd| client.is_none() && cmd == "clearSounds")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::stop_sound(&py.get_type::<Plugin>(), None);
             assert!(result.is_ok());
         });
@@ -5245,7 +5245,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = Plugin::stop_sound(&py.get_type::<Plugin>(), Some(player));
                 assert!(result.is_ok());
             });
@@ -5262,7 +5262,7 @@ mod plugin_tests {
             .withf(|client, cmd| client.is_none() && cmd == "stopMusic")
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::stop_music(&py.get_type::<Plugin>(), None);
             assert!(result.is_ok());
         });
@@ -5293,7 +5293,7 @@ mod plugin_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = Plugin::stop_music(&py.get_type::<Plugin>(), Some(player));
                 assert!(result.is_ok());
             });
@@ -5304,7 +5304,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slap_for_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::slap(&py.get_type::<Plugin>(), py.None().bind(py), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5317,7 +5317,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("slap 21 42", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result =
                         Plugin::slap(&py.get_type::<Plugin>(), PyInt::new(py, 21i32).as_any(), 42);
                     assert!(result.is_ok());
@@ -5329,7 +5329,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_for_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::slay(&py.get_type::<Plugin>(), py.None().bind(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5342,7 +5342,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("slay 21", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result =
                         Plugin::slay(&py.get_type::<Plugin>(), PyInt::new(py, 21i32).as_any());
                     assert!(result.is_ok());
@@ -5357,7 +5357,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("timeout", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::timeout(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::timeout(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             })
     }
@@ -5369,7 +5369,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("timein", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::timein(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::timein(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5381,7 +5381,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("allready", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::allready(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::allready(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5393,7 +5393,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("pause", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::pause(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::pause(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5405,7 +5405,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("unpause", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::unpause(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::unpause(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5417,7 +5417,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .configure(|_mock_engine| {})
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::lock(&py.get_type::<Plugin>(), Some("invalid_team"));
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -5431,7 +5431,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("lock", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::lock(&py.get_type::<Plugin>(), None));
+                let result = Python::attach(|py| Plugin::lock(&py.get_type::<Plugin>(), None));
                 assert!(result.is_ok());
             });
     }
@@ -5448,9 +5448,8 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command(format!("lock {}", locked_team.to_lowercase()), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
-                    Plugin::lock(&py.get_type::<Plugin>(), Some(locked_team))
-                });
+                let result =
+                    Python::attach(|py| Plugin::lock(&py.get_type::<Plugin>(), Some(locked_team)));
                 assert!(result.is_ok());
             });
     }
@@ -5462,7 +5461,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .configure(|_mock_engine| {})
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Plugin::unlock(&py.get_type::<Plugin>(), Some("invalid_team"));
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -5476,7 +5475,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("unlock", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::unlock(&py.get_type::<Plugin>(), None));
+                let result = Python::attach(|py| Plugin::unlock(&py.get_type::<Plugin>(), None));
                 assert!(result.is_ok());
             });
     }
@@ -5493,7 +5492,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command(format!("unlock {}", locked_team.to_lowercase()), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::unlock(&py.get_type::<Plugin>(), Some(locked_team))
                 });
                 assert!(result.is_ok());
@@ -5504,7 +5503,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_with_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::put(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 2i32).as_any(),
@@ -5518,7 +5517,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::put(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 2048i32).as_any(),
@@ -5540,7 +5539,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::put(
                         &py.get_type::<Plugin>(),
                         PyInt::new(py, 2i32).as_any(),
@@ -5555,7 +5554,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::mute(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5568,7 +5567,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("mute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::mute(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5579,7 +5578,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::unmute(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5592,7 +5591,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::unmute(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5603,7 +5602,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result =
                 Plugin::tempban(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -5617,7 +5616,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::tempban(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5628,7 +5627,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::ban(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5641,7 +5640,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("ban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::ban(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5652,7 +5651,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::unban(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5665,7 +5664,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("unban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::unban(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5679,7 +5678,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("opsay asdf", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::opsay(&py.get_type::<Plugin>(), "asdf"));
+                let result = Python::attach(|py| Plugin::opsay(&py.get_type::<Plugin>(), "asdf"));
                 assert!(result.is_ok());
             });
     }
@@ -5688,7 +5687,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result =
                 Plugin::addadmin(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -5702,7 +5701,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::addadmin(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5713,7 +5712,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::addmod(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5726,7 +5725,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::addmod(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5737,7 +5736,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::demote(&py.get_type::<Plugin>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5750,7 +5749,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("demote 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::demote(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -5764,7 +5763,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("map_restart", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Plugin::abort(&py.get_type::<Plugin>()));
+                let result = Python::attach(|py| Plugin::abort(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
     }
@@ -5773,7 +5772,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::addscore(
                 &py.get_type::<Plugin>(),
                 PyInt::new(py, 2048i32).as_any(),
@@ -5790,7 +5789,7 @@ mod plugin_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Plugin::addscore(&py.get_type::<Plugin>(), PyInt::new(py, 2i32).as_any(), 42)
                 });
                 assert!(result.is_ok());
@@ -5801,7 +5800,7 @@ mod plugin_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Plugin::addteamscore(&py.get_type::<Plugin>(), "invalid_team", 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -5820,7 +5819,7 @@ mod plugin_tests {
             .with_execute_console_command(format!("addteamscore {} 42", team.to_lowercase()), 1)
             .run(|| {
                 let result =
-                    Python::with_gil(|py| Plugin::addteamscore(&py.get_type::<Plugin>(), team, 42));
+                    Python::attach(|py| Plugin::addteamscore(&py.get_type::<Plugin>(), team, 42));
                 assert!(result.is_ok());
             });
     }
@@ -5833,7 +5832,7 @@ mod plugin_tests {
             .with_execute_console_command("setmatchtime 42", 1)
             .run(|| {
                 let result =
-                    Python::with_gil(|py| Plugin::setmatchtime(&py.get_type::<Plugin>(), 42));
+                    Python::attach(|py| Plugin::setmatchtime(&py.get_type::<Plugin>(), 42));
                 assert!(result.is_ok());
             });
     }

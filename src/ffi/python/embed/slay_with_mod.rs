@@ -14,7 +14,7 @@ pub(crate) fn pyshinqlx_slay_with_mod(
     client_id: i32,
     mean_of_death: i32,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         mean_of_death.try_conv::<meansOfDeath_t>().map_or(
@@ -56,7 +56,7 @@ mod slay_with_mod_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn slay_with_mod_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_slay_with_mod(py, 21, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -67,7 +67,7 @@ mod slay_with_mod_tests {
     #[serial]
     fn slay_with_mod_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result =
                     pyshinqlx_slay_with_mod(py, -1, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -80,7 +80,7 @@ mod slay_with_mod_tests {
     #[serial]
     fn slay_with_mod_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result =
                     pyshinqlx_slay_with_mod(py, 666, meansOfDeath_t::MOD_TRIGGER_HURT as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -93,7 +93,7 @@ mod slay_with_mod_tests {
     #[serial]
     fn slay_with_mod_for_invalid_means_of_death(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_slay_with_mod(py, 2, 12345);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -110,7 +110,7 @@ mod slay_with_mod_tests {
             .with_slay_with_mod(predicate::eq(meansOfDeath_t::MOD_PROXIMITY_MINE), 1)
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| {
+                    let result = Python::attach(|py| {
                         pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
                     });
                     assert_eq!(result.expect("result was not OK"), true);
@@ -128,7 +128,7 @@ mod slay_with_mod_tests {
             .with_slay_with_mod(predicate::always(), 0)
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| {
+                    let result = Python::attach(|py| {
                         pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_PROXIMITY_MINE as i32)
                     });
                     assert_eq!(result.expect("result was not OK"), true);
@@ -144,7 +144,7 @@ mod slay_with_mod_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| {
+                    let result = Python::attach(|py| {
                         pyshinqlx_slay_with_mod(py, 2, meansOfDeath_t::MOD_CRUSH as i32)
                     });
                     assert_eq!(result.expect("result was not OK"), false);

@@ -197,7 +197,8 @@ pub(crate) fn log_unexpected_return_value(
 
 #[pyclass(name = "EventDispatcher", module = "_events", subclass, frozen)]
 pub(crate) struct EventDispatcher {
-    plugins: parking_lot::RwLock<Vec<(String, [Vec<PyObject>; 5])>>,
+    #[allow(clippy::type_complexity)]
+    plugins: parking_lot::RwLock<Vec<(String, [Vec<Py<PyAny>>; 5])>>,
 }
 
 const NO_DEBUG: [&str; 9] = [
@@ -362,7 +363,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                                 .collect(),
                         )
                     })
-                    .collect::<Vec<(String, Vec<Vec<PyObject>>)>>()
+                    .collect::<Vec<(String, Vec<Vec<Py<PyAny>>>)>>()
                     .into_py_dict(self.py())
                     .ok()
             })
@@ -645,7 +646,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_plugins_when_none_are_registered(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dispatcher = custom_dispatcher(py);
 
             let result = dispatcher.getattr(intern!(py, "plugins"));
@@ -674,7 +675,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
                     dispatcher
                         .call_method1(
@@ -741,7 +742,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dispatcher = custom_dispatcher(py);
 
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
@@ -770,7 +771,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let throws_exception_hook = python_function_raising_exception(py);
@@ -813,7 +814,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let returns_none_hook =
@@ -857,7 +858,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let returns_none_hook =
@@ -901,7 +902,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let returns_stop_hook =
@@ -945,7 +946,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let returns_stop_event_hook =
@@ -989,7 +990,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let returns_stop_all_hook =
@@ -1033,7 +1034,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let returns_string_hook = python_function_returning(py, &"return string");
@@ -1078,7 +1079,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
                     let return_handler = python_function_raising_exception(py);
                     dispatcher
@@ -1127,7 +1128,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
                     let return_handler =
                         python_function_returning(py, &"return_handler string return");
@@ -1164,7 +1165,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_hook_with_wrong_priority(#[case] priority: i32, _pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dispatcher = custom_dispatcher(py);
 
             let default_hook = python_function_returning(py, &py.None().into_bound(py));
@@ -1181,7 +1182,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_hook_for_dispatcher_with_no_name(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let nameless_dispatcher = PyModule::from_code(
                 py,
                 cr#"
@@ -1220,7 +1221,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_hook_for_dispatcher_with_no_zmq_enabled_flag(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let zmq_less_dispatcher = PyModule::from_code(
                 py,
                 cr#"
@@ -1272,7 +1273,7 @@ class ZmqLessDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let zmq_dispatcher = PyModule::from_code(
                         py,
                         cr#"
@@ -1326,7 +1327,7 @@ class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let default_hook = python_function_returning(py, &py.None().into_bound(py));
@@ -1359,7 +1360,7 @@ class ZmqEnabledDispatcher(shinqlx.EventDispatcher):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_hook_for_dispatcher_with_no_name(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let nameless_dispatcher = PyModule::from_code(
                 py,
                 cr#"
@@ -1398,7 +1399,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn remove_hook_for_handler_that_was_not_added(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dispatcher = custom_dispatcher(py);
 
             let default_hook = python_function_returning(py, &py.None().into_bound(py));
@@ -1432,7 +1433,7 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = custom_dispatcher(py);
 
                     let default_hook = python_function_returning(py, &py.None().into_bound(py));
@@ -1468,14 +1469,14 @@ class NamelessDispatcher(shinqlx.EventDispatcher):
 #[pyclass(name = "EventDispatcherManager", module = "_events", mapping, frozen)]
 #[derive(Default)]
 pub(crate) struct EventDispatcherManager {
-    dispatchers: parking_lot::RwLock<Vec<(String, PyObject)>>,
+    dispatchers: parking_lot::RwLock<Vec<(String, Py<PyAny>)>>,
 }
 
 #[pymethods]
 impl EventDispatcherManager {
     #[new]
     fn py_new(py: Python<'_>) -> Self {
-        py.allow_threads(Self::default)
+        py.detach(Self::default)
     }
 
     fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
@@ -1568,7 +1569,7 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
                     dispatch_function.bind(self.py()).as_unbound(),
                 )
             })
-            .collect::<Vec<(String, &PyObject)>>()
+            .collect::<Vec<(String, &Py<PyAny>)>>()
             .into_py_dict(self.py())
     }
 
@@ -1664,7 +1665,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn event_dispatcher_manager_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
@@ -1687,7 +1688,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_dispatchers_when_no_dispatchers_added(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
@@ -1699,7 +1700,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_dispatchers_with_added_dispatchers(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
@@ -1742,7 +1743,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_item_from_empty_dispatchers(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
@@ -1754,7 +1755,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_item_for_existing_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
@@ -1771,7 +1772,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn contains_with_added_dispatchers(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
@@ -1815,7 +1816,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn add_dispatcher_with_type_not_being_subclass_of_event_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
@@ -1828,7 +1829,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn add_dispatcher_that_is_already_added(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
@@ -1845,7 +1846,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn remove_dispatcher_with_type_not_being_subclass_of_event_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 
@@ -1858,7 +1859,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn remove_dispatcher_that_is_already_added(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
             event_dispatchers
@@ -1876,7 +1877,7 @@ mod event_dispatcher_manager_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn remove_dispatcher_that_is_not_added(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatchers =
                 Bound::new(py, EventDispatcherManager::py_new(py)).expect("this should not happen");
 

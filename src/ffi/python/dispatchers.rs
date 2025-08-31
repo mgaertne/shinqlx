@@ -13,7 +13,7 @@ where
         return Some(cmd.as_ref().to_string());
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let result = handle_client_command(py, client_id, cmd.as_ref());
 
         match result.bind(py).downcast::<PyBool>() {
@@ -37,7 +37,7 @@ where
         return Some(cmd.as_ref().to_string());
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let result =
             handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref()).into_bound(py);
 
@@ -59,7 +59,7 @@ pub(crate) fn frame_dispatcher() {
         return;
     }
 
-    let _ = Python::with_gil(handle_frame);
+    let _ = Python::attach(handle_frame);
 }
 
 pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<String> {
@@ -73,7 +73,7 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
         ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::Release);
     }
 
-    let returned: Option<String> = Python::with_gil(|py| {
+    let returned: Option<String> = Python::attach(|py| {
         let result = handle_player_connect(py, client_id, is_bot).into_bound(py);
 
         match result.downcast::<PyBool>() {
@@ -112,9 +112,7 @@ where
         ALLOW_FREE_CLIENT.store(allowed_clients | (1 << client_id as u64), Ordering::Release);
     }
 
-    Python::with_gil(|py| {
-        handle_player_disconnect(py, client_id, Some(reason.as_ref().to_string()))
-    });
+    Python::attach(|py| handle_player_disconnect(py, client_id, Some(reason.as_ref().to_string())));
 
     {
         let allowed_clients = ALLOW_FREE_CLIENT.load(Ordering::Acquire);
@@ -131,7 +129,7 @@ pub(crate) fn client_loaded_dispatcher(client_id: i32) {
         return;
     }
 
-    Python::with_gil(|py| handle_player_loaded(py, client_id));
+    Python::attach(|py| handle_player_loaded(py, client_id));
 }
 
 pub(crate) fn new_game_dispatcher(restart: bool) {
@@ -140,7 +138,7 @@ pub(crate) fn new_game_dispatcher(restart: bool) {
         return;
     }
 
-    let _ = Python::with_gil(|py| handle_new_game(py, restart));
+    let _ = Python::attach(|py| handle_new_game(py, restart));
 }
 
 pub(crate) fn set_configstring_dispatcher<T, U>(index: T, value: U) -> Option<String>
@@ -153,7 +151,7 @@ where
         return Some(value.as_ref().to_string());
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let result = handle_set_configstring(py, index.into(), value.as_ref()).into_bound(py);
 
         match result.downcast::<PyBool>() {
@@ -179,7 +177,7 @@ where
         return;
     }
 
-    Python::with_gil(|py| handle_rcon(py, cmd.as_ref()));
+    Python::attach(|py| handle_rcon(py, cmd.as_ref()));
 }
 
 pub(crate) fn console_print_dispatcher<T>(text: T) -> Option<String>
@@ -191,7 +189,7 @@ where
         return Some(text.as_ref().to_string());
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let result = handle_console_print(py, text.as_ref()).into_bound(py);
 
         match result.downcast::<PyBool>() {
@@ -212,7 +210,7 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
         return;
     }
 
-    Python::with_gil(|py| handle_player_spawn(py, client_id));
+    Python::attach(|py| handle_player_spawn(py, client_id));
 }
 
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
@@ -221,7 +219,7 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
         return;
     }
 
-    Python::with_gil(|py| handle_kamikaze_use(py, client_id));
+    Python::attach(|py| handle_kamikaze_use(py, client_id));
 }
 
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
@@ -230,7 +228,7 @@ pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: boo
         return;
     }
 
-    Python::with_gil(|py| handle_kamikaze_explode(py, client_id, is_used_on_demand));
+    Python::attach(|py| handle_kamikaze_explode(py, client_id, is_used_on_demand));
 }
 
 pub(crate) fn damage_dispatcher(
@@ -245,7 +243,7 @@ pub(crate) fn damage_dispatcher(
         return;
     }
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         handle_damage(
             py,
             target_client_id,

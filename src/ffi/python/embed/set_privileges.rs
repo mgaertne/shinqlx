@@ -11,7 +11,7 @@ pub(crate) fn pyshinqlx_set_privileges(
     client_id: i32,
     privileges: i32,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -41,7 +41,7 @@ mod set_privileges_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_privileges_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_privileges(py, 21, privileges_t::PRIV_MOD as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -52,7 +52,7 @@ mod set_privileges_tests {
     #[serial]
     fn set_privileges_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_privileges(py, -1, privileges_t::PRIV_MOD as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -64,7 +64,7 @@ mod set_privileges_tests {
     #[serial]
     fn set_privileges_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_privileges(py, 666, privileges_t::PRIV_MOD as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -95,7 +95,7 @@ mod set_privileges_tests {
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
                     let result =
-                        Python::with_gil(|py| pyshinqlx_set_privileges(py, 2, *privileges as i32));
+                        Python::attach(|py| pyshinqlx_set_privileges(py, 2, *privileges as i32));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -109,7 +109,7 @@ mod set_privileges_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| {
+                    let result = Python::attach(|py| {
                         pyshinqlx_set_privileges(py, 2, privileges_t::PRIV_NONE as i32)
                     });
                     assert_eq!(result.expect("result was not OK"), false);

@@ -8,7 +8,7 @@ pub(crate) fn pyshinqlx_set_configstring(
     config_id: u16,
     value: &str,
 ) -> PyResult<()> {
-    py.allow_threads(|| set_configstring(config_id, value))
+    py.detach(|| set_configstring(config_id, value))
 }
 
 #[cfg(test)]
@@ -25,7 +25,7 @@ mod set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_configstring_with_index_out_of_bounds(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_configstring(py, 2048, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -41,7 +41,7 @@ mod set_configstring_tests {
             .with(predicate::eq(666), predicate::eq("asdf"))
             .times(1);
 
-        let result = Python::with_gil(|py| pyshinqlx_set_configstring(py, 666, "asdf"));
+        let result = Python::attach(|py| pyshinqlx_set_configstring(py, 666, "asdf"));
         assert!(result.is_ok());
     }
 }

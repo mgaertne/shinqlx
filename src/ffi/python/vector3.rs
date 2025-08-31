@@ -104,7 +104,7 @@ mod vector3_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_tuple_test(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -127,7 +127,7 @@ mod vector3_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let vector3_constructor = py.run(
                 cr#"
 import shinqlx
@@ -147,7 +147,7 @@ weapons = shinqlx.Vector3((0, 42, 666))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let vector3_constructor = py.run(
                 cr#"
 import shinqlx
@@ -163,7 +163,7 @@ powerups = shinqlx.Vector3((0, 1))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let vector3_constructor = py.run(
                 cr#"
 import shinqlx
@@ -179,7 +179,7 @@ powerups = shinqlx.Vector3((0, 1, 2, 3))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_py_constructor_with_non_numeric_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let vector3_constructor = py.run(
                 cr#"
 import shinqlx
@@ -195,7 +195,7 @@ powerups = shinqlx.Vector3(("asdf", True, (1, 2, 3)))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -211,7 +211,7 @@ assert(shinqlx.Vector3((0, 1, 2)) == shinqlx.Vector3((0, 1, 2)))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -227,7 +227,7 @@ assert(shinqlx.Vector3((0, 1, 2)) != shinqlx.Vector3((2, 1, 0)))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -243,7 +243,7 @@ assert(shinqlx.Vector3((0, 1, 2)) < shinqlx.Vector3((2, 1, 0)))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn vector3_can_be_iterated_over_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx

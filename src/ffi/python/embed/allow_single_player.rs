@@ -6,7 +6,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "allow_single_player")]
 pub(crate) fn pyshinqlx_allow_single_player(py: Python<'_>, allow: bool) {
-    py.allow_threads(|| {
+    py.detach(|| {
         let _ = CurrentLevel::try_get().tap_ok_mut(|current_level| {
             current_level.set_training_map(allow);
         });
@@ -32,7 +32,7 @@ mod allow_single_player_tests {
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        Python::with_gil(|py| pyshinqlx_allow_single_player(py, true));
+        Python::attach(|py| pyshinqlx_allow_single_player(py, true));
     }
 
     #[rstest]
@@ -49,6 +49,6 @@ mod allow_single_player_tests {
             Ok(mock_level)
         });
 
-        Python::with_gil(|py| pyshinqlx_allow_single_player(py, true));
+        Python::attach(|py| pyshinqlx_allow_single_player(py, true));
     }
 }

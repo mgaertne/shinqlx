@@ -11,7 +11,7 @@ use crate::{
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
 pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
-    py.allow_threads(|| {
+    py.detach(|| {
         let maxclients = MAIN_ENGINE.load().as_ref().map_or(
             {
                 cold_path();
@@ -55,7 +55,7 @@ mod get_players_info_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_players_info_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_players_info(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -128,7 +128,7 @@ mod get_players_info_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
-            let players_info = Python::with_gil(pyshinqlx_players_info);
+            let players_info = Python::attach(pyshinqlx_players_info);
             assert_eq!(
                 players_info.expect("result was not OK"),
                 vec![

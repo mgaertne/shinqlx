@@ -15,7 +15,7 @@ pub(crate) fn pyshinqlx_client_command(
     client_id: i32,
     cmd: &str,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         let opt_client = client_id.try_conv::<Client>().ok().filter(|client| {
@@ -45,7 +45,7 @@ mod client_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_client_command(py, 0, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -59,7 +59,7 @@ mod client_command_tests {
         hook_ctx.expect().times(0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_client_command(py, -1, "asdf");
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -74,7 +74,7 @@ mod client_command_tests {
         hook_ctx.expect().times(0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_client_command(py, 42, "asdf");
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -105,7 +105,7 @@ mod client_command_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf"));
+            let result = Python::attach(|py| pyshinqlx_client_command(py, 2, "asdf"));
             assert_eq!(result.expect("result was not OK"), true);
         });
     }
@@ -130,7 +130,7 @@ mod client_command_tests {
         hook_ctx.expect().times(0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_client_command(py, 2, "asdf"));
+            let result = Python::attach(|py| pyshinqlx_client_command(py, 2, "asdf"));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }

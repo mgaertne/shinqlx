@@ -235,7 +235,7 @@ pub extern "C" fn cmd_py_command() {
             MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
                 let cmd_args = main_engine.cmd_args();
 
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = match cmd_args {
                         None => custom_command_handler.call0(py),
                         Some(args) => custom_command_handler.call1(py, (args,)),
@@ -912,7 +912,7 @@ mod commands_tests {
             .with_com_printf(predicate::always(), 0)
             .with_args(Some("custom parameter"), 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let pymodule = PyModule::from_code(
                         py,
                         cr#"
@@ -941,7 +941,7 @@ def handler(params):
             .with_com_printf(predicate::always(), 0)
             .with_args(None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let custom_command_handler =
                         python_function_returning(py, &PyBool::new(py, true));
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
@@ -962,7 +962,7 @@ def handler(params):
             )
             .with_args(None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let custom_command_handler = python_function_raising_exception(py);
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));
 
@@ -982,7 +982,7 @@ def handler(params):
             )
             .with_args(None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let custom_command_handler =
                         python_function_returning(py, &PyBool::new(py, false));
                     CUSTOM_COMMAND_HANDLER.store(Some(custom_command_handler.unbind().into()));

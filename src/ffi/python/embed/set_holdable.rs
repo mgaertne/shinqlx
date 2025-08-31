@@ -11,7 +11,7 @@ pub(crate) fn pyshinqlx_set_holdable(
     client_id: i32,
     holdable: i32,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -42,7 +42,7 @@ mod set_holdable_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_holdable(py, 21, Holdable::Kamikaze as i32);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -53,7 +53,7 @@ mod set_holdable_tests {
     #[serial]
     fn set_holdable_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_holdable(py, -1, Holdable::Invulnerability as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -65,7 +65,7 @@ mod set_holdable_tests {
     #[serial]
     fn set_holdable_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_holdable(py, 666, Holdable::Teleporter as i32);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -87,7 +87,7 @@ mod set_holdable_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| {
+                    let result = Python::attach(|py| {
                         pyshinqlx_set_holdable(py, 2, Holdable::Kamikaze as i32)
                     });
                     assert_eq!(result.expect("result was not OK"), true);
@@ -103,7 +103,7 @@ mod set_holdable_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| {
+                    let result = Python::attach(|py| {
                         pyshinqlx_set_holdable(py, 2, Holdable::Invulnerability as i32)
                     });
                     assert_eq!(result.expect("result was not OK"), false);

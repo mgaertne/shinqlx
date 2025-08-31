@@ -7,7 +7,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "drop_holdable")]
 pub(crate) fn pyshinqlx_drop_holdable(py: Python<'_>, client_id: i32) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         client_id
@@ -53,7 +53,7 @@ mod drop_holdable_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn drop_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_drop_holdable(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -64,7 +64,7 @@ mod drop_holdable_tests {
     #[serial]
     fn drop_holdable_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_drop_holdable(py, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -76,7 +76,7 @@ mod drop_holdable_tests {
     #[serial]
     fn drop_holdable_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_drop_holdable(py, 666);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -97,7 +97,7 @@ mod drop_holdable_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+            let result = Python::attach(|py| pyshinqlx_drop_holdable(py, 2));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }
@@ -140,7 +140,7 @@ mod drop_holdable_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+            let result = Python::attach(|py| pyshinqlx_drop_holdable(py, 2));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }
@@ -193,7 +193,7 @@ mod drop_holdable_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_drop_holdable(py, 2));
+            let result = Python::attach(|py| pyshinqlx_drop_holdable(py, 2));
             assert_eq!(result.expect("result was not OK"), true);
         });
     }

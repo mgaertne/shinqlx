@@ -10,7 +10,7 @@ pub(crate) fn pyshinqlx_callvote(
     vote_disp: &str,
     vote_time: Option<i32>,
 ) {
-    py.allow_threads(|| {
+    py.detach(|| {
         let _ = CurrentLevel::try_get().tap_ok_mut(|current_level| {
             current_level.callvote(vote, vote_disp, vote_time);
         });
@@ -36,9 +36,7 @@ mod callvote_tests {
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        Python::with_gil(|py| {
-            pyshinqlx_callvote(py, "map thunderstruck", "map thunderstruck", None)
-        });
+        Python::attach(|py| pyshinqlx_callvote(py, "map thunderstruck", "map thunderstruck", None));
     }
 
     #[rstest]
@@ -59,7 +57,7 @@ mod callvote_tests {
             Ok(mock_level)
         });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyshinqlx_callvote(py, "map theatreofpain", "map Theatre of Pain", Some(10))
         });
     }

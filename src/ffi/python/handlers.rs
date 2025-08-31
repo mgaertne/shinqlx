@@ -82,7 +82,7 @@ mod handle_rcon_tests {
         COMMANDS.store(None);
         EVENT_DISPATCHERS.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = try_handle_rcon(py, "asdf");
             assert!(result.is_ok_and(|value| value.is_none()));
         })
@@ -92,7 +92,7 @@ mod handle_rcon_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_rcon_with_command_invoker_in_place(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin = test_plugin(py).call0().expect("this should not happen");
             let capturing_hook = capturing_hook(py);
             let cmd_handler = capturing_hook
@@ -143,7 +143,7 @@ mod handle_rcon_tests {
     fn handle_rcon_with_no_main_engine(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let plugin = test_plugin(py).call0().expect("this should not happen");
             let cmd_handler = python_function_raising_exception(py);
 
@@ -217,7 +217,7 @@ static RE_USERINFO: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
-fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<PyObject> {
+fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
     let player = Player::py_new(client_id, None)?;
 
     let return_value = EVENT_DISPATCHERS
@@ -602,7 +602,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 /// "disconnect" and so on. This function parses those and passes it
 /// on to the event dispatcher.
 #[pyfunction]
-pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyObject {
+pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> Py<PyAny> {
     try_handle_client_command(py, client_id, cmd).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -688,7 +688,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -759,7 +759,7 @@ mod handle_client_command_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     EVENT_DISPATCHERS.store(None);
 
                     let result = try_handle_client_command(py, 42, "cp \"asdf\"");
@@ -808,7 +808,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -885,7 +885,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -956,7 +956,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let channel = Bound::new(
                                 py,
                                 TeamChatChannel::py_new(
@@ -1059,7 +1059,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let channel = Bound::new(
                                 py,
                                 TeamChatChannel::py_new(
@@ -1149,7 +1149,7 @@ mod handle_client_command_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let channel = Bound::new(
                         py,
                         TeamChatChannel::py_new(
@@ -1202,7 +1202,7 @@ mod handle_client_command_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     CHAT_CHANNEL.store(None);
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
@@ -1259,7 +1259,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let channel = Bound::new(
                                 py,
                                 TeamChatChannel::py_new(
@@ -1361,7 +1361,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let py_channel = Bound::new(
                                 py,
                                 TeamChatChannel::py_new(
@@ -1459,7 +1459,7 @@ mod handle_client_command_tests {
             .with_team(move || team, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     channel.store(None);
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
@@ -1517,7 +1517,7 @@ mod handle_client_command_tests {
             .with_team(move || team, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let py_channel = Bound::new(
                         py,
                         TeamChatChannel::py_new(
@@ -1593,7 +1593,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let py_channel = Bound::new(
                                 py,
                                 TeamChatChannel::py_new(
@@ -1686,7 +1686,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -1776,7 +1776,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "allready", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -1855,7 +1855,7 @@ mod handle_client_command_tests {
                 MockEngineBuilder::default()
                     .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -1907,7 +1907,7 @@ mod handle_client_command_tests {
                 MockEngineBuilder::default()
                     .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -1968,7 +1968,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2061,7 +2061,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2145,7 +2145,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2237,7 +2237,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not hapopen");
@@ -2310,7 +2310,7 @@ mod handle_client_command_tests {
                 MockEngineBuilder::default()
                     .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2377,7 +2377,7 @@ mod handle_client_command_tests {
                     )
                     .with_get_configstring(CS_VOTE_STRING as u16, "map thunderstruck", 1)
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2466,7 +2466,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2553,7 +2553,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2643,7 +2643,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2718,7 +2718,7 @@ mod handle_client_command_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2779,7 +2779,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2858,7 +2858,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -2944,7 +2944,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -3027,7 +3027,7 @@ mod handle_client_command_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3085,7 +3085,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -3169,7 +3169,7 @@ mod handle_client_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -3252,7 +3252,7 @@ def returning_other_userinfo_hook(*args, **kwargs):
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = handle_client_command(py, 42, "asdf");
                     assert!(
                         result
@@ -3354,7 +3354,7 @@ fn try_handle_server_command<'py>(
 }
 
 #[pyfunction]
-pub(crate) fn handle_server_command<'py>(py: Python<'py>, client_id: i32, cmd: &str) -> PyObject {
+pub(crate) fn handle_server_command<'py>(py: Python<'py>, client_id: i32, cmd: &str) -> Py<PyAny> {
     try_handle_server_command(py, client_id, cmd)
         .unwrap_or_else(|e| {
             log_exception(py, &e);
@@ -3413,7 +3413,7 @@ mod handle_server_command_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3493,7 +3493,7 @@ mod handle_server_command_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -3543,7 +3543,7 @@ mod handle_server_command_tests {
     fn handle_server_command_for_server_command_with_no_event_dispatcher(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = try_handle_server_command(py, -1, "cp \"asdf\"");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -3566,7 +3566,7 @@ mod handle_server_command_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3614,7 +3614,7 @@ mod handle_server_command_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3665,7 +3665,7 @@ mod handle_server_command_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "42", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "1", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3730,7 +3730,7 @@ mod handle_server_command_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "1", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "42", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3779,7 +3779,7 @@ mod handle_server_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_server_command_for_vote_ended_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -3797,7 +3797,7 @@ mod handle_server_command_tests {
     #[serial]
     fn handle_server_command_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = handle_server_command(py, -1, "asdf");
             assert!(
                 result
@@ -3920,7 +3920,7 @@ mod handle_frame_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_run_frame_tasks_with_no_pending_tasks(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -3950,7 +3950,7 @@ for event in frame_tasks.queue:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_run_frame_tasks_pending_task_throws_exception(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -3985,7 +3985,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_run_frame_tasks_pending_task_succeeds(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
@@ -4044,7 +4044,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4083,7 +4083,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_frame_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             EVENT_DISPATCHERS.store(None);
 
             let result = try_handle_frame(py);
@@ -4095,7 +4095,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn transfer_next_frame_tasks_with_none_pending(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -4173,7 +4173,7 @@ for event in frame_tasks.queue:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn transfer_next_frame_tasks_with_pending_tasks_for_next_frame(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
@@ -4245,7 +4245,7 @@ for event in frame_tasks.queue:
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let shinqlx_module = py
                         .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
@@ -4309,7 +4309,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_frame_when_frame_handler_throws_exception(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -4502,7 +4502,7 @@ mod handle_new_game_tests {
             .with_get_configstring(CS_AUTHOR as u16, "Till 'Firestarter' Merker", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "None", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4554,7 +4554,7 @@ mod handle_new_game_tests {
             .with_get_configstring(CS_AUTHOR as u16, "", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4610,7 +4610,7 @@ mod handle_new_game_tests {
             .with_get_configstring(CS_AUTHOR as u16, "", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     run_all_frame_tasks(py).expect("this should not happen");
                     EVENT_DISPATCHERS.store(Some(
@@ -4673,7 +4673,7 @@ mod handle_new_game_tests {
             .with_get_configstring(CS_AUTHOR as u16, "", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4770,7 +4770,7 @@ mod handle_new_game_tests {
             .with_get_configstring(CS_AUTHOR as u16, "", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4866,7 +4866,7 @@ mod handle_new_game_tests {
                 });
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -4961,7 +4961,7 @@ mod handle_new_game_tests {
                 });
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5059,7 +5059,7 @@ mod handle_new_game_tests {
                 });
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5088,7 +5088,7 @@ mod handle_new_game_tests {
         IS_FIRST_GAME.store(false, Ordering::Release);
         ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = handle_new_game(py, true);
             assert!(result.is_some_and(|value| value));
         });
@@ -5111,7 +5111,7 @@ mod handle_new_game_tests {
             .with_get_configstring(CS_AUTHOR as u16, "", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5128,7 +5128,7 @@ mod handle_new_game_tests {
 
 static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
 
-fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<PyObject> {
+fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<Py<PyAny>> {
     let result = EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -5401,7 +5401,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
 /// Called whenever the server tries to set a configstring. Can return
 /// False to stop the event.
 #[pyfunction]
-pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyObject {
+pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> Py<PyAny> {
     try_handle_set_configstring(py, index, value).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -5461,7 +5461,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5517,7 +5517,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5553,7 +5553,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_when_dispatcher_is_missing(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -5583,7 +5583,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5631,7 +5631,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5689,7 +5689,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5748,7 +5748,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5799,7 +5799,7 @@ mod handle_set_configstring_tests {
     fn try_set_configstring_for_vote_string_change_with_no_vote_started_dispatcher(
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -5816,7 +5816,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_server_info_change_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -5836,7 +5836,7 @@ mod handle_set_configstring_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5860,7 +5860,7 @@ mod handle_set_configstring_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gameState\PRE_GAME", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5896,7 +5896,7 @@ mod handle_set_configstring_tests {
             )
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gameState\PRE_GAME", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5962,7 +5962,7 @@ mod handle_set_configstring_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -5989,7 +5989,7 @@ mod handle_set_configstring_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gameState\PRE_GAME", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -6013,7 +6013,7 @@ mod handle_set_configstring_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gameState\IN_PROGRESS", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -6051,7 +6051,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -6108,7 +6108,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -6170,7 +6170,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -6228,7 +6228,7 @@ mod handle_set_configstring_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -6277,7 +6277,7 @@ mod handle_set_configstring_tests {
     fn try_set_configstring_for_round_status_change_with_no_turn_in_value_triggering_round_countdown_with_no_dispatcher(
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6296,7 +6296,7 @@ mod handle_set_configstring_tests {
     fn try_set_configstring_for_round_status_change_for_ad_triggering_round_countdown_with_no_dispatcher(
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6319,7 +6319,7 @@ mod handle_set_configstring_tests {
     fn try_set_configstring_for_round_status_change_with_no_turn_in_value_triggering_round_start_with_no_dispatcher(
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6338,7 +6338,7 @@ mod handle_set_configstring_tests {
     fn try_set_configstring_for_round_status_change_for_ad_triggering_round_start_with_no_dispatcher(
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6356,7 +6356,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_with_empty_string(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6377,7 +6377,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_for_round_zero(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6398,7 +6398,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_for_ad_state_zero(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6418,7 +6418,7 @@ mod handle_set_configstring_tests {
     fn try_set_configstring_for_round_status_change_for_unparseable_round_number(
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6435,7 +6435,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_for_unparseable_state(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6453,7 +6453,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_for_unparseable_turn(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6471,7 +6471,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_with_no_round_number(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6488,7 +6488,7 @@ mod handle_set_configstring_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_set_configstring_for_round_status_change_with_no_state(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -6507,7 +6507,7 @@ mod handle_set_configstring_tests {
     fn handle_set_configstring_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
         EVENT_DISPATCHERS.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = handle_set_configstring(py, CS_ALLREADY_TIME, "42");
             assert!(
                 result
@@ -6519,7 +6519,7 @@ mod handle_set_configstring_tests {
     }
 }
 
-fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<PyObject> {
+fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<Py<PyAny>> {
     EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -6553,7 +6553,7 @@ fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> P
 /// a message explaining why. The default message is "You are banned from this
 /// server.", but it can be set with :func:`shinqlx.set_ban_message`.
 #[pyfunction]
-pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool) -> PyObject {
+pub(crate) fn handle_player_connect(py: Python<'_>, client_id: i32, is_bot: bool) -> Py<PyAny> {
     try_handle_player_connect(py, client_id, is_bot).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -6627,7 +6627,7 @@ mod handle_player_connect_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -6673,7 +6673,7 @@ mod handle_player_connect_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_player_connect_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6724,7 +6724,7 @@ mod handle_player_connect_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -6762,7 +6762,7 @@ mod handle_player_connect_tests {
     #[serial]
     fn handle_player_connect_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -6782,7 +6782,7 @@ mod handle_player_connect_tests {
     }
 }
 
-fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<PyObject> {
+fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -6815,7 +6815,7 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<PyObject
 /// meaning it'll go off a bit later than the usual "X connected" messages.
 /// This will not trigger on bots.his will be called whenever a player tries to connect. If the dispatcher
 #[pyfunction]
-pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> PyObject {
+pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> Py<PyAny> {
     try_handle_player_loaded(py, client_id).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -6889,7 +6889,7 @@ mod handle_player_loaded_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -6935,7 +6935,7 @@ mod handle_player_loaded_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_player_loaded_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -6953,7 +6953,7 @@ mod handle_player_loaded_tests {
     #[serial]
     fn handle_player_loaded_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -6977,7 +6977,7 @@ fn try_handle_player_disconnect(
     py: Python<'_>,
     client_id: i32,
     reason: Option<String>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -7014,7 +7014,7 @@ pub(crate) fn handle_player_disconnect(
     py: Python<'_>,
     client_id: i32,
     reason: Option<String>,
-) -> PyObject {
+) -> Py<PyAny> {
     try_handle_player_disconnect(py, client_id, reason).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -7088,7 +7088,7 @@ mod handle_player_disconnect_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -7134,7 +7134,7 @@ mod handle_player_disconnect_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_player_disconnect_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -7152,7 +7152,7 @@ mod handle_player_disconnect_tests {
     #[serial]
     fn handle_player_disconnect_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -7172,7 +7172,7 @@ mod handle_player_disconnect_tests {
     }
 }
 
-fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject> {
+fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -7205,7 +7205,7 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 /// makes the client spawn, so you'll want to check for that if you only want "actual"
 /// spawns.
 #[pyfunction]
-pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> PyObject {
+pub(crate) fn handle_player_spawn(py: Python<'_>, client_id: i32) -> Py<PyAny> {
     try_handle_player_spawn(py, client_id).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -7279,7 +7279,7 @@ mod handle_player_spawn_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -7325,7 +7325,7 @@ mod handle_player_spawn_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_player_spawn_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -7343,7 +7343,7 @@ mod handle_player_spawn_tests {
     #[serial]
     fn handle_player_spawn_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -7363,7 +7363,7 @@ mod handle_player_spawn_tests {
     }
 }
 
-fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject> {
+fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -7394,7 +7394,7 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<PyObject>
 
 /// This will be called whenever player uses kamikaze item.
 #[pyfunction]
-pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyObject {
+pub(crate) fn handle_kamikaze_use(py: Python<'_>, client_id: i32) -> Py<PyAny> {
     try_handle_kamikaze_use(py, client_id).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -7468,7 +7468,7 @@ mod handle_kamikaze_use_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -7514,7 +7514,7 @@ mod handle_kamikaze_use_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_kamikaze_use_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -7532,7 +7532,7 @@ mod handle_kamikaze_use_tests {
     #[serial]
     fn handle_kamikaze_use_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -7556,7 +7556,7 @@ fn try_handle_kamikaze_explode(
     py: Python<'_>,
     client_id: i32,
     is_used_on_demand: bool,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let player = Player::py_new(client_id, None)?;
 
     let Some(kamikaze_explode_dispatcher) =
@@ -7590,7 +7590,7 @@ pub(crate) fn handle_kamikaze_explode(
     py: Python<'_>,
     client_id: i32,
     is_used_on_demand: bool,
-) -> PyObject {
+) -> Py<PyAny> {
     try_handle_kamikaze_explode(py, client_id, is_used_on_demand).unwrap_or_else(|e| {
         log_exception(py, &e);
         PyBool::new(py, true).to_owned().into_any().unbind()
@@ -7664,7 +7664,7 @@ mod handle_kamikaze_explode_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -7744,7 +7744,7 @@ mod handle_kamikaze_explode_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -7811,7 +7811,7 @@ mod handle_kamikaze_explode_tests {
             .with_team(|| team_t::TEAM_RED, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = EventDispatcherManager::default();
                     EVENT_DISPATCHERS.store(Some(
                         Py::new(py, event_dispatcher)
@@ -7851,7 +7851,7 @@ mod handle_kamikaze_explode_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
                 MockEngineBuilder::default().run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let event_dispatcher = EventDispatcherManager::default();
                         EVENT_DISPATCHERS.store(Some(
                             Py::new(py, event_dispatcher)
@@ -8015,7 +8015,7 @@ mod handle_damage_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -8106,7 +8106,7 @@ mod handle_damage_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -8191,7 +8191,7 @@ mod handle_damage_tests {
                         1..,
                     )
                     .run(|| {
-                        Python::with_gil(|py| {
+                        Python::attach(|py| {
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
                                     .expect("this should not happen");
@@ -8242,7 +8242,7 @@ mod handle_damage_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_daamage_with_no_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -8267,7 +8267,7 @@ mod handle_damage_tests {
     #[serial]
     fn handle_damage_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = EventDispatcherManager::default();
                 EVENT_DISPATCHERS.store(Some(
                     Py::new(py, event_dispatcher)
@@ -8292,7 +8292,7 @@ mod handle_damage_tests {
 static PRINT_REDIRECTION: LazyLock<ArcSwapOption<Py<PrintRedirector>>> =
     LazyLock::new(ArcSwapOption::empty);
 
-fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
+fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let debug_level = py
             .import(intern!(py, "logging"))
@@ -8357,7 +8357,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<PyObject> {
 
 /// Called whenever the server prints something to the console and when rcon is used.
 #[pyfunction]
-pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> PyObject {
+pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> Py<PyAny> {
     if text.is_empty() {
         return py.None();
     }
@@ -8420,7 +8420,7 @@ mod handle_console_print_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -8478,7 +8478,7 @@ mod handle_console_print_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -8529,7 +8529,7 @@ mod handle_console_print_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -8571,7 +8571,7 @@ mod handle_console_print_tests {
             .times(1);
 
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let console_channel =
                     Py::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                         .expect("this should not happen");
@@ -8618,7 +8618,7 @@ mod handle_console_print_tests {
     fn try_handle_console_print_with_no_dispatcher(_pyshinqlx_setup: ()) {
         PRINT_REDIRECTION.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -8635,7 +8635,7 @@ mod handle_console_print_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_console_print_with_empty_text(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = handle_console_print(py, "");
             assert!(result.is_none(py));
         });
@@ -8647,7 +8647,7 @@ mod handle_console_print_tests {
     fn handle_console_print_with_no_dispatcher(_pyshinqlx_setup: ()) {
         PRINT_REDIRECTION.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = EventDispatcherManager::default();
             EVENT_DISPATCHERS.store(Some(
                 Py::new(py, event_dispatcher)
@@ -8668,7 +8668,7 @@ mod handle_console_print_tests {
 
 #[pyclass(module = "_handlers", name = "PrintRedirector", frozen)]
 pub(crate) struct PrintRedirector {
-    channel: PyObject,
+    channel: Py<PyAny>,
     print_buffer: parking_lot::RwLock<String>,
 }
 
@@ -8776,7 +8776,7 @@ mod print_redirector_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_wrong_type(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = PrintRedirector::py_new(py, py.None().into_bound(py));
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -8785,7 +8785,7 @@ mod print_redirector_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_subclass_of_abstract_channel(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let channel = Bound::new(
                 py,
                 ChatChannel::py_new(py, "chat", "print \"{}\n\"\n", py.None().bind(py), None),
@@ -8799,7 +8799,7 @@ mod print_redirector_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn print_redirector_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let channel = Bound::new(
                 py,
                 ChatChannel::py_new(py, "chat", "print \"{}\n\"\n", py.None().bind(py), None),
@@ -8819,7 +8819,7 @@ mod print_redirector_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn python_context_manager_interaction(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let sample_module = PyModule::from_code(
                 py,
                 cr#"
@@ -8884,7 +8884,7 @@ mod redirect_print_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn redirect_print_returns_print_redirector(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let channel = Bound::new(
                 py,
                 ChatChannel::py_new(py, "chat", "print \"{}\n\"\n", py.None().bind(py), None),
@@ -8927,7 +8927,7 @@ pub(crate) mod handlers {
         py: Python<'a>,
         _client_id: i32,
         _cmd: &str,
-    ) -> PyObject {
+    ) -> Py<PyAny> {
         py.None()
     }
 
@@ -8937,7 +8937,7 @@ pub(crate) mod handlers {
         py: Python<'a>,
         _client_id: i32,
         _cmd: &str,
-    ) -> PyObject {
+    ) -> Py<PyAny> {
         py.None()
     }
 
@@ -8959,7 +8959,7 @@ pub(crate) mod handlers {
         py: Python<'a>,
         _index: u32,
         _value: &str,
-    ) -> PyObject {
+    ) -> Py<PyAny> {
         py.None()
     }
 
@@ -8969,13 +8969,13 @@ pub(crate) mod handlers {
         py: Python<'a>,
         _client_id: i32,
         _is_bot: bool,
-    ) -> PyObject {
+    ) -> Py<PyAny> {
         py.None()
     }
 
     #[allow(clippy::needless_lifetimes)]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_player_loaded<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
+    pub(crate) fn handle_player_loaded<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
         py.None()
     }
 
@@ -8985,19 +8985,19 @@ pub(crate) mod handlers {
         py: Python<'a>,
         _client_id: i32,
         _reason: Option<String>,
-    ) -> PyObject {
+    ) -> Py<PyAny> {
         py.None()
     }
 
     #[allow(clippy::needless_lifetimes)]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_player_spawn<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
+    pub(crate) fn handle_player_spawn<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
         py.None()
     }
 
     #[allow(clippy::needless_lifetimes)]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_kamikaze_use<'a>(py: Python<'a>, _client_id: i32) -> PyObject {
+    pub(crate) fn handle_kamikaze_use<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
         py.None()
     }
 
@@ -9007,7 +9007,7 @@ pub(crate) mod handlers {
         py: Python<'a>,
         _client_id: i32,
         _is_used_on_demand: bool,
-    ) -> PyObject {
+    ) -> Py<PyAny> {
         py.None()
     }
 
@@ -9026,7 +9026,7 @@ pub(crate) mod handlers {
 
     #[allow(clippy::needless_lifetimes)]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: &str) -> PyObject {
+    pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: &str) -> Py<PyAny> {
         py.None()
     }
 

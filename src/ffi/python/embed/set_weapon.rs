@@ -10,7 +10,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "set_weapon")]
 pub(crate) fn pyshinqlx_set_weapon(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         if !(0..16).contains(&weapon) {
@@ -47,7 +47,7 @@ mod set_weapon_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_weapon_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_weapon(py, 21, weapon_t::WP_ROCKET_LAUNCHER.into());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -58,7 +58,7 @@ mod set_weapon_tests {
     #[serial]
     fn set_weapon_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_weapon(py, -1, weapon_t::WP_GRAPPLING_HOOK.into());
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -70,7 +70,7 @@ mod set_weapon_tests {
     #[serial]
     fn set_weapon_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_weapon(py, 666, weapon_t::WP_PROX_LAUNCHER.into());
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -82,7 +82,7 @@ mod set_weapon_tests {
     #[serial]
     fn set_weapon_for_weapon_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_weapon(py, 2, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -94,7 +94,7 @@ mod set_weapon_tests {
     #[serial]
     fn set_weapon_for_weapon_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_weapon(py, 2, 42);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -117,7 +117,7 @@ mod set_weapon_tests {
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
                     let result =
-                        Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into()));
+                        Python::attach(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_BFG.into()));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -132,7 +132,7 @@ mod set_weapon_tests {
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
                     let result =
-                        Python::with_gil(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into()));
+                        Python::attach(|py| pyshinqlx_set_weapon(py, 2, weapon_t::WP_HMG.into()));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });

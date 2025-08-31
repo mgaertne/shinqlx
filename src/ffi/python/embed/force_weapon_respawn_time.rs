@@ -13,7 +13,7 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
     py: Python<'_>,
     respawn_time: i32,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         if respawn_time < 0 {
             cold_path();
             return Err(PyValueError::new_err(
@@ -45,7 +45,7 @@ mod force_weapon_respawn_time_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn force_weapon_respawn_time_with_too_small_respawn_time(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_force_weapon_respawn_time(py, -1);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -78,7 +78,7 @@ mod force_weapon_respawn_time_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
+        let result = Python::attach(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -109,7 +109,7 @@ mod force_weapon_respawn_time_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
+        let result = Python::attach(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -133,7 +133,7 @@ mod force_weapon_respawn_time_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
+        let result = Python::attach(|py| pyshinqlx_force_weapon_respawn_time(py, 123));
         assert_eq!(result.expect("result was not OK"), true);
     }
 }

@@ -151,7 +151,7 @@ mod chat_event_dispatcher_tests {
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         COMMANDS.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dispatcher =
                 Bound::new(py, ChatEventDispatcher::py_new(py)).expect("this should not happen");
 
@@ -186,7 +186,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -232,7 +232,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -279,7 +279,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -326,7 +326,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -373,7 +373,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -420,7 +420,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -467,7 +467,7 @@ mod chat_event_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -513,7 +513,7 @@ mod chat_event_dispatcher_tests {
             )
             .with_find_cvar(|cmd| cmd != "zmq_stats_enable", |_| None, 0..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let plugin = test_plugin(py).call0().expect("this should not happen");
                     let cmd_handler =
                         python_function_returning(py, &(PythonReturnCodes::RET_STOP as i32));

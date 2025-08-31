@@ -107,7 +107,7 @@ impl AbstractChannel {
         limit: i32,
         delimiter: &str,
     ) -> Vec<String> {
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             let split_string = msg.split('\n').flat_map(|value| {
                 if value.len() <= limit as usize {
                     vec![value.to_string()]
@@ -168,7 +168,7 @@ mod abstract_channel_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abstract_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel_constructor = py.run(
                 cr#"
 import shinqlx
@@ -185,7 +185,7 @@ shinqlx.AbstractChannel("abstract")
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abstract_channel_can_be_subclassed(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 from shinqlx import AbstractChannel
@@ -210,7 +210,7 @@ ConcreteChannel("asdf", 42)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abstract_channel_repr_representation(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel_repr_assert = py.run(
                 cr#"
 import shinqlx
@@ -227,7 +227,7 @@ assert repr(shinqlx.AbstractChannel("abstract")) == "abstract"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn abstract_channel_str_representation(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel_str_assert = py.run(
                 cr#"
 import shinqlx
@@ -243,7 +243,7 @@ assert str(shinqlx.AbstractChannel("abstract")) == "abstract"
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel_eq_assert = py.run(
                 cr#"
 import shinqlx
@@ -268,7 +268,7 @@ assert not (shinqlx.AbstractChannel("abstract") == NoReprClass())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel_ne_assert = py.run(
                 cr#"
 import shinqlx
@@ -293,7 +293,7 @@ assert shinqlx.AbstractChannel("abstract") != NoReprClass()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel_cmp_assert = py.run(
                 cr#"
 import shinqlx
@@ -316,7 +316,7 @@ shinqlx.AbstractChannel("abstract") < 2
             name: "abstract".to_string().into(),
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let bound_channel = Bound::new(py, abstract_channel).expect("this should not happen");
             assert_eq!(bound_channel.get_name(), "abstract");
         });
@@ -325,7 +325,7 @@ shinqlx.AbstractChannel("abstract") < 2
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn reply_is_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_channel = Bound::new(
                 py,
                 AbstractChannel::py_new("abstract", py.None().bind(py), None),
@@ -339,7 +339,7 @@ shinqlx.AbstractChannel("abstract") < 2
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn split_long_lines_with_short_string(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             AbstractChannel::split_long_lines(&py.get_type::<AbstractChannel>(), "short", 100, " ")
         });
 
@@ -349,7 +349,7 @@ shinqlx.AbstractChannel("abstract") < 2
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn split_long_lines_with_string_that_is_split(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             AbstractChannel::split_long_lines(
                 &py.get_type::<AbstractChannel>(),
                 "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6",
@@ -374,7 +374,7 @@ shinqlx.AbstractChannel("abstract") < 2
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn split_long_lines_with_string_with_multiple_chunks(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             AbstractChannel::split_long_lines(
                 &py.get_type::<AbstractChannel>(),
                 "asdf1 asdf2 asdf3 asdf4\nasdf5\nasdf6",
@@ -464,7 +464,7 @@ mod console_channel_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let console_channel_constructor = py.run(
                 cr#"
 import shinqlx
@@ -487,7 +487,7 @@ console_channel = shinqlx.ConsoleChannel()
             .with(predicate::eq("asdf\n"))
             .times(1);
 
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                     .expect("this shouöld not happen");
@@ -684,7 +684,7 @@ mod chat_channel_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let chat_channel_constructor = py.run(
                 cr#"
 import shinqlx
@@ -700,7 +700,7 @@ chat_channel = shinqlx.ChatChannel()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn receipients_is_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let chat_channel = Bound::new(
                 py,
                 ChatChannel::py_new(py, "chat", "print \"{}\n\"\n", py.None().bind(py), None),
@@ -714,7 +714,7 @@ chat_channel = shinqlx.ChatChannel()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn chat_channel_subclasses_can_overwrite_recipients(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let test_reply_to_recipients = py.run(
                 cr#"
 import shinqlx
@@ -768,7 +768,7 @@ test_channel.reply("asdf")
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let tell_channel = Bound::new(
                     py,
                     TellChannel::py_new(py, &player, py.None().bind(py), None),
@@ -815,7 +815,7 @@ test_channel.reply("asdf")
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let tell_channel = Bound::new(
                     py,
                     TellChannel::py_new(py, &player, py.None().bind(py), None),
@@ -865,7 +865,7 @@ test_channel.reply("asdf")
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let chat_channel = Bound::new(
                     py,
                     TellChannel::py_new(py, &player, py.None().bind(py), None),
@@ -955,7 +955,7 @@ test_channel.reply("asdf")
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let chat_channel = Bound::new(
                     py,
                     TellChannel::py_new(py, &player, py.None().bind(py), None),
@@ -1103,7 +1103,7 @@ mod tell_channel_tests {
     fn tell_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let tell_channel_constructor = py.run(
                 cr#"
 import shinqlx
@@ -1157,7 +1157,7 @@ tell_channel = shinqlx.TellChannel(player)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let tell_channel = PyClassInitializer::from(AbstractChannel::py_new(
                         "tell",
                         py.None().bind(py),
@@ -1184,7 +1184,7 @@ tell_channel = shinqlx.TellChannel(player)
     #[cfg_attr(miri, ignore)]
     fn recipients_returns_vec_with_client_id(_pyshinqlx_setup: ()) {
         let player = default_test_player();
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_tell_channel = Bound::new(
                 py,
                 TellChannel::py_new(py, &player, py.None().bind(py), None),
@@ -1293,7 +1293,7 @@ mod team_chat_channel_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn team_chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let team_chat_channel_constructor = py.run(
                 cr#"
 import shinqlx
@@ -1360,7 +1360,7 @@ tell_channel.__init__("all")
             });
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 let team_chat_channel = Bound::new(
                     py,
                     TeamChatChannel::py_new(
@@ -1423,7 +1423,7 @@ tell_channel.__init__("all")
             });
 
         MockEngineBuilder::default().with_max_clients(8).run(|| {
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 let team_chat_channel = Bound::new(
                     py,
                     TeamChatChannel::py_new(
@@ -1572,7 +1572,7 @@ mod client_command_channel_tests {
     fn client_command_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let client_command_channel_constructor = py.run(
                 cr#"
 import shinqlx
@@ -1625,7 +1625,7 @@ shinqlx.ClientCommandChannel(player)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let client_command_channel = PyClassInitializer::from(AbstractChannel::py_new(
                         "client_command",
                         py.None().bind(py),
@@ -1670,7 +1670,7 @@ shinqlx.ClientCommandChannel(player)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let client_command_channel = PyClassInitializer::from(AbstractChannel::py_new(
                         "client_command",
                         py.None().bind(py),
@@ -1722,7 +1722,7 @@ shinqlx.ClientCommandChannel(player)
         };
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let client_command_channel = Bound::new(
                     py,
                     ClientCommandChannel::py_new(py, &player, py.None().bind(py), None),

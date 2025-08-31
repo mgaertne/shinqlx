@@ -11,7 +11,7 @@ pub(crate) fn pyshinqlx_set_flight(
     client_id: i32,
     flight: &Flight,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -43,7 +43,7 @@ mod set_flight_tests {
     fn set_flight_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         let flight = Flight(0, 0, 0, 0);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_flight(py, 21, &flight);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -56,7 +56,7 @@ mod set_flight_tests {
         let flight = Flight(0, 0, 0, 0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_flight(py, -1, &flight);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -70,7 +70,7 @@ mod set_flight_tests {
         let flight = Flight(0, 0, 0, 0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_flight(py, 666, &flight);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -94,7 +94,7 @@ mod set_flight_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, &flight));
+                    let result = Python::attach(|py| pyshinqlx_set_flight(py, 2, &flight));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -110,7 +110,7 @@ mod set_flight_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_flight(py, 2, &flight));
+                    let result = Python::attach(|py| pyshinqlx_set_flight(py, 2, &flight));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });

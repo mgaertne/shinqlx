@@ -11,7 +11,7 @@ pub(crate) fn pyshinqlx_set_position(
     client_id: i32,
     position: &Vector3,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -43,7 +43,7 @@ mod set_position_tests {
     fn set_position_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         let vector = Vector3(1, 2, 3);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_position(py, 21, &vector);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -56,7 +56,7 @@ mod set_position_tests {
         let vector = Vector3(1, 2, 3);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_position(py, -1, &vector);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -70,7 +70,7 @@ mod set_position_tests {
         let vector = Vector3(1, 2, 3);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_position(py, 666, &vector);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -94,7 +94,7 @@ mod set_position_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_position(py, 2, &vector));
+                    let result = Python::attach(|py| pyshinqlx_set_position(py, 2, &vector));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -110,7 +110,7 @@ mod set_position_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_position(py, 2, &vector));
+                    let result = Python::attach(|py| pyshinqlx_set_position(py, 2, &vector));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });

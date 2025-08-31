@@ -17,7 +17,7 @@ fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
             )))
         }
         Err(_) => match item.extract::<String>() {
-            Ok(item_classname) => item.py().allow_threads(|| {
+            Ok(item_classname) => item.py().detach(|| {
                 (1..GameItem::get_num_items())
                     .filter(|&i| {
                         i.try_conv::<GameItem>()
@@ -51,28 +51,26 @@ pub(crate) fn pyshinqlx_replace_items(
     // Note: if item_id == 0 and item_classname == NULL, then item will be removed
 
     match item1.extract::<i32>() {
-        Ok(item1_id) if (0..GameItem::get_num_items()).contains(&item1_id) => {
-            py.allow_threads(|| {
-                item1_id
-                    .try_conv::<GameEntity>()
-                    .ok()
-                    .filter(|game_entity| {
-                        game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
-                    })
-                    .map_or(
-                        {
-                            cold_path();
-                            Err(PyValueError::new_err(format!(
-                                "entity #{item1_id} is not a valid game item"
-                            )))
-                        },
-                        |mut game_entity| {
-                            game_entity.replace_item(item2_id);
-                            Ok(true)
-                        },
-                    )
-            })
-        }
+        Ok(item1_id) if (0..GameItem::get_num_items()).contains(&item1_id) => py.detach(|| {
+            item1_id
+                .try_conv::<GameEntity>()
+                .ok()
+                .filter(|game_entity| {
+                    game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
+                })
+                .map_or(
+                    {
+                        cold_path();
+                        Err(PyValueError::new_err(format!(
+                            "entity #{item1_id} is not a valid game item"
+                        )))
+                    },
+                    |mut game_entity| {
+                        game_entity.replace_item(item2_id);
+                        Ok(true)
+                    },
+                )
+        }),
         Ok(_) => {
             cold_path();
             Err(PyValueError::new_err(format!(
@@ -81,7 +79,7 @@ pub(crate) fn pyshinqlx_replace_items(
             )))
         }
         Err(_) => match item1.extract::<String>() {
-            Ok(item1_classname) => py.allow_threads(|| {
+            Ok(item1_classname) => py.detach(|| {
                 let mut matching_item1_entities: ArrayVec<
                     Box<GameEntity>,
                     { MAX_GENTITIES as usize },
@@ -132,7 +130,7 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, -1i32).as_any(),
@@ -149,7 +147,7 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 43i32).as_any(),
@@ -166,7 +164,7 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -183,7 +181,7 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -200,7 +198,7 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyTuple::new(py, [1i32, 2i32])
@@ -219,7 +217,7 @@ mod replace_items_tests {
         let get_num_items_ctx = MockGameItem::get_num_items_context();
         get_num_items_ctx.expect().returning(|| 42);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -252,7 +250,7 @@ mod replace_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             pyshinqlx_replace_items(
                 py,
                 PyString::intern(py, "not existing classname").as_ref(),
@@ -278,7 +276,7 @@ mod replace_items_tests {
             mock_game_item
         });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -305,7 +303,7 @@ mod replace_items_tests {
                 mock_game_entity
             });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -336,7 +334,7 @@ mod replace_items_tests {
                 mock_game_entity
             });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -371,7 +369,7 @@ mod replace_items_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -425,7 +423,7 @@ mod replace_items_tests {
                 mock_game_entity
             });
 
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             pyshinqlx_replace_items(
                 py,
                 PyInt::new(py, 1i32).as_any(),
@@ -543,7 +541,7 @@ mod replace_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             pyshinqlx_replace_items(
                 py,
                 PyString::intern(py, "weapon_railgun").as_ref(),
@@ -632,7 +630,7 @@ mod replace_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             pyshinqlx_replace_items(
                 py,
                 PyString::intern(py, "weapon_railgun").as_ref(),

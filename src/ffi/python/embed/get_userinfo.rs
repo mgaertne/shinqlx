@@ -8,7 +8,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
 pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -40,7 +40,7 @@ mod get_userinfo_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_userinfo_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_get_userinfo(py, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -51,7 +51,7 @@ mod get_userinfo_tests {
     #[serial]
     fn get_userinfo_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_get_userinfo(py, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -63,7 +63,7 @@ mod get_userinfo_tests {
     #[serial]
     fn get_userinfo_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_get_userinfo(py, 42);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -87,7 +87,7 @@ mod get_userinfo_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            let userinfo = Python::attach(|py| pyshinqlx_get_userinfo(py, 2));
             assert_eq!(
                 userinfo.expect("result was not OK"),
                 Some("asdf".to_string())
@@ -114,7 +114,7 @@ mod get_userinfo_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            let userinfo = Python::attach(|py| pyshinqlx_get_userinfo(py, 2));
             assert_eq!(userinfo.expect("result was not OK"), None);
         });
     }
@@ -138,7 +138,7 @@ mod get_userinfo_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let userinfo = Python::with_gil(|py| pyshinqlx_get_userinfo(py, 2));
+            let userinfo = Python::attach(|py| pyshinqlx_get_userinfo(py, 2));
             assert_eq!(
                 userinfo.expect("result was not OK"),
                 Some("asdf".to_string())

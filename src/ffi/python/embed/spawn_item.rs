@@ -15,7 +15,7 @@ pub(crate) fn pyshinqlx_spawn_item(
     y: i32,
     z: i32,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         let max_items: i32 = GameItem::get_num_items();
         if !(1..max_items).contains(&item_id) {
             cold_path();
@@ -52,7 +52,7 @@ mod spawn_item_tests {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
         get_num_item_ctx.expect().returning(|| 1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_spawn_item(py, -1, 0, 0, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -65,7 +65,7 @@ mod spawn_item_tests {
         let get_num_item_ctx = MockGameItem::get_num_items_context();
         get_num_item_ctx.expect().returning(|| 64);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_spawn_item(py, 64, 0, 0, 0);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -91,7 +91,7 @@ mod spawn_item_tests {
                 mock_item
             });
 
-        let result = Python::with_gil(|py| pyshinqlx_spawn_item(py, 42, 1, 2, 3));
+        let result = Python::attach(|py| pyshinqlx_spawn_item(py, 42, 1, 2, 3));
 
         assert_eq!(result.expect("result was not OK"), true);
     }

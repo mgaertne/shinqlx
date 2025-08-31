@@ -7,7 +7,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "destroy_kamikaze_timers")]
 pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         let mut in_use_entities: ArrayVec<Box<GameEntity>, { MAX_GENTITIES as usize }> = (0
             ..MAX_GENTITIES)
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
@@ -74,7 +74,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
+        let result = Python::attach(pyshinqlx_destroy_kamikaze_timers);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -112,7 +112,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
+        let result = Python::attach(pyshinqlx_destroy_kamikaze_timers);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -150,7 +150,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
+        let result = Python::attach(pyshinqlx_destroy_kamikaze_timers);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -192,7 +192,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
+        let result = Python::attach(pyshinqlx_destroy_kamikaze_timers);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -219,7 +219,7 @@ mod destroy_kamikaze_timers_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_destroy_kamikaze_timers);
+        let result = Python::attach(pyshinqlx_destroy_kamikaze_timers);
         assert_eq!(result.expect("result was not OK"), true);
     }
 }

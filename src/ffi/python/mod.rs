@@ -143,7 +143,7 @@ use pyo3::{
     append_to_inittab, create_exception,
     exceptions::{PyAttributeError, PyEnvironmentError, PyException, PyValueError},
     ffi::Py_IsInitialized,
-    intern, prepare_freethreaded_python,
+    intern,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFloat, PyInt, PyString, PyTuple, PyType},
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -164,7 +164,7 @@ const SHINQLX_THREADNAME: &str = "shinqlxthread";
 
 pub(crate) static ALLOW_FREE_CLIENT: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) static CUSTOM_COMMAND_HANDLER: LazyLock<ArcSwapOption<PyObject>> =
+pub(crate) static CUSTOM_COMMAND_HANDLER: LazyLock<ArcSwapOption<Py<PyAny>>> =
     LazyLock::new(ArcSwapOption::empty);
 
 pub(crate) static MODULES: LazyLock<ArcSwapOption<Py<PyDict>>> =
@@ -249,7 +249,7 @@ mod python_return_codes_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn extract_from_none(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PythonReturnCodes::extract_bound(&py.None().into_bound(py))
                     .is_ok_and(|value| value == PythonReturnCodes::RET_NONE)
@@ -260,7 +260,7 @@ mod python_return_codes_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn extract_from_bool_true(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PythonReturnCodes::extract_bound(&PyBool::new(py, true))
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
@@ -271,7 +271,7 @@ mod python_return_codes_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn extract_from_bool_false(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PythonReturnCodes::extract_bound(&PyBool::new(py, false))
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
@@ -291,7 +291,7 @@ mod python_return_codes_tests {
         #[case] expected_value: PythonReturnCodes,
         _pyshinqlx_setup: (),
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PythonReturnCodes::extract_bound(
                     &python_value
@@ -308,7 +308,7 @@ mod python_return_codes_tests {
     #[case(5)]
     #[cfg_attr(miri, ignore)]
     fn extract_from_invalid_value(#[case] wrong_value: i32, _pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PythonReturnCodes::extract_bound(
                     &wrong_value
@@ -323,7 +323,7 @@ mod python_return_codes_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn extract_from_str(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             assert!(
                 PythonReturnCodes::extract_bound(&PyString::intern(py, "asdf"))
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
@@ -849,7 +849,7 @@ fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let team_lower = team.to_lowercase();
                 match Teams::from(team_lower.as_str()) {
                     Teams::Invalid => {
@@ -873,7 +873,7 @@ fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let mute_cmd = format!("mute {player_id}");
                 console_command(&mute_cmd)
             })
@@ -888,7 +888,7 @@ fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let unmute_cmd = format!("unmute {player_id}");
                 console_command(&unmute_cmd)
             })
@@ -903,7 +903,7 @@ fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let tempban_cmd = format!("tempban {player_id}");
                 console_command(&tempban_cmd)
             })
@@ -918,7 +918,7 @@ fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let ban_cmd = format!("ban {player_id}");
                 console_command(&ban_cmd)
             })
@@ -933,7 +933,7 @@ fn unban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let unban_cmd = format!("unban {player_id}");
                 console_command(&unban_cmd)
             })
@@ -953,7 +953,7 @@ fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let addadmin_cmd = format!("addadmin {player_id}");
                 console_command(&addadmin_cmd)
             })
@@ -968,7 +968,7 @@ fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let addmod_cmd = format!("addmod {player_id}");
                 console_command(&addmod_cmd)
             })
@@ -983,7 +983,7 @@ fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let demote_cmd = format!("demote {player_id}");
                 console_command(&demote_cmd)
             })
@@ -998,7 +998,7 @@ fn addscore(py: Python<'_>, player: &Bound<'_, PyAny>, score: i32) -> PyResult<(
             Err(PyValueError::new_err("Invalid player."))
         },
         |player_id| {
-            py.allow_threads(|| {
+            py.detach(|| {
                 let addscore_cmd = format!("addscore {player_id} {score}");
                 console_command(&addscore_cmd)
             })
@@ -1055,7 +1055,7 @@ fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
     get_configstring(CS_AUTHOR2 as u16).and_then(|mut map_subtitle2| {
         module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
 
-        module.py().allow_threads(|| {
+        module.py().detach(|| {
             if !map_subtitle2.is_empty() {
                 map_subtitle2.push_str(" - ");
             }
@@ -1103,7 +1103,7 @@ mod set_map_subtitles_tests {
             .with_get_configstring(CS_AUTHOR as u16, "Till 'Firestarter' Merker", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "Second author would go here", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let shinqlx_module = py
                         .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
@@ -1155,7 +1155,7 @@ mod set_map_subtitles_tests {
             .with_get_configstring(CS_AUTHOR as u16, "", 1)
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let shinqlx_module = py
                         .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
@@ -1194,7 +1194,7 @@ fn pyshinqlx_parse_variables<'py>(
     varstr: &str,
     #[allow(unused_variables)] ordered: bool,
 ) -> Bound<'py, PyDict> {
-    let parsed_variables = py.allow_threads(|| parse_variables(varstr));
+    let parsed_variables = py.detach(|| parse_variables(varstr));
     parsed_variables.into_py_dict(py).unwrap_or(PyDict::new(py))
 }
 
@@ -1208,7 +1208,7 @@ mod pyshinqlx_parse_variables_test {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn parse_variables_with_space(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let variables = pyshinqlx_parse_variables(py, r"\name\Unnamed Player\country\de", true);
             assert!(variables.get_item(intern!(py, "name")).is_ok_and(|value| {
                 value.is_some_and(|str_value| str_value.to_string() == "Unnamed Player")
@@ -1227,7 +1227,7 @@ fn get_logger_name(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> String {
             .ok()
             .map(|plugin_name| plugin_name.to_string())
     });
-    py.allow_threads(|| {
+    py.detach(|| {
         opt_plugin_name.map_or("shinqlx".to_string(), |plugin_name| {
             format!("shinqlx.{plugin_name}")
         })
@@ -1389,7 +1389,7 @@ mod pyshinqlx_configure_logger_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn configure_logger_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_configure_logger(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -1437,7 +1437,7 @@ mod pyshinqlx_configure_logger_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = pyshinqlx_configure_logger(py);
                     assert!(result.is_ok());
 
@@ -1516,7 +1516,7 @@ mod pyshinqlx_configure_logger_tests {
             .with_find_cvar(|cmd| cmd == "qlx_logs", |_| None, 1)
             .with_find_cvar(|cmd| cmd == "qlx_logsSize", |_| None, 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = pyshinqlx_configure_logger(py);
                     assert!(result.is_ok());
 
@@ -1619,7 +1619,7 @@ mod pyshinqlx_log_exception_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn log_exception_with_no_exception_pending(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_log_exception(py, None);
             assert!(result.is_ok());
         });
@@ -1628,7 +1628,7 @@ mod pyshinqlx_log_exception_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn log_exception_with_pending_exception(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -1687,7 +1687,7 @@ mod pyshinqlx_handle_exception_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn handle_exception_with_no_exception_pending(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_handle_exception(
                 py,
                 py.None().into_bound(py),
@@ -1701,7 +1701,7 @@ mod pyshinqlx_handle_exception_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn handle_exception_with_pending_exception(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -1740,7 +1740,7 @@ mod pyshinqlx_handle_threading_exception_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn handle_threading_exception_with_pending_exception(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -1867,7 +1867,7 @@ mod next_frame_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn next_frame_enqueues_function_call(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -1915,7 +1915,7 @@ test_func()
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn next_frame_enqueues_function_call_on_an_instance_method(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -2000,7 +2000,7 @@ mod delay_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn delay_enqueues_function_call(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -2049,7 +2049,7 @@ test_func()
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn delay_with_float_delay(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -2098,7 +2098,7 @@ test_func()
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn delay_enqueues_function_call_for_class_method(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -2189,7 +2189,7 @@ mod thread_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn thread_on_callable_function(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_test_module = PyModule::from_code(
                 py,
                 cr#"
@@ -2226,7 +2226,7 @@ def threaded_func():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn thread_on_nested_thread(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_test_module = PyModule::from_code(
                 py,
                 cr#"
@@ -2267,7 +2267,7 @@ def threaded_func():
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
 #[pyfunction]
 fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
-    let (elapsed_days, elapsed_seconds, elapsed_microseconds) = py.allow_threads(|| {
+    let (elapsed_days, elapsed_seconds, elapsed_microseconds) = py.detach(|| {
         let elapsed = Utc::now() - *_INIT_TIME;
         let elapsed_days = elapsed.num_days().try_conv::<i32>().unwrap_or_default();
         let elapsed_seconds = (elapsed.num_seconds() % (24 * 60 * 60))
@@ -2299,7 +2299,7 @@ mod uptime_tests {
     fn uptime_returns_uptime(_pyshinqlx_setup: ()) {
         let _ = _INIT_TIME.timestamp();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = uptime(py);
             assert!(
                 result.is_ok_and(|time_delta| time_delta.get_microseconds() > 0
@@ -2313,7 +2313,7 @@ mod uptime_tests {
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction(name = "owner")]
 fn pyshinqlx_owner(py: Python<'_>) -> PyResult<Option<i64>> {
-    py.allow_threads(owner)
+    py.detach(owner)
 }
 
 fn owner() -> PyResult<Option<i64>> {
@@ -2342,7 +2342,7 @@ mod owner_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn owner_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_owner(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -2355,7 +2355,7 @@ mod owner_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = pyshinqlx_owner(py);
                     assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
                 });
@@ -2379,7 +2379,7 @@ mod owner_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = pyshinqlx_owner(py);
                     assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
                 });
@@ -2403,7 +2403,7 @@ mod owner_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = pyshinqlx_owner(py);
                     assert!(result.is_ok_and(|opt_value| opt_value.is_none()));
                 });
@@ -2427,7 +2427,7 @@ mod owner_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = pyshinqlx_owner(py);
                     assert!(
                         result.is_ok_and(
@@ -2463,7 +2463,7 @@ mod stats_listener_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_stats_listener_returns_none(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let shinqlx_module = py
                 .import(intern!(py, "shinqlx"))
                 .expect("this should not happen");
@@ -2494,7 +2494,7 @@ mod stats_listener_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let shinqlx_module = py
                         .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
@@ -2551,7 +2551,7 @@ fn get_plugins_version(path: &str) -> String {
 
 #[pyfunction(name = "set_plugins_version", pass_module)]
 fn set_plugins_version(module: &Bound<'_, PyModule>, path: &str) {
-    let plugins_version = module.py().allow_threads(|| get_plugins_version(path));
+    let plugins_version = module.py().detach(|| get_plugins_version(path));
 
     let _ = module.setattr(intern!(module.py(), "__plugins_version__"), plugins_version);
 }
@@ -3083,7 +3083,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn load_preset_plugins_with_main_engine_missing(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = load_preset_plugins(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
         });
@@ -3096,7 +3096,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = load_preset_plugins(py);
                     assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
                 });
@@ -3130,7 +3130,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3181,7 +3181,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3232,7 +3232,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3260,7 +3260,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn load_plugin_with_main_engine_missing(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = load_plugin(py, "not_existing_plugin");
             assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
         });
@@ -3273,7 +3273,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 0..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = load_plugin(py, "not_existing_plugin");
                     assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
                 });
@@ -3297,7 +3297,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3338,7 +3338,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3382,7 +3382,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3423,7 +3423,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -3464,7 +3464,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3501,7 +3501,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn unloading_a_non_loaded_plugin(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = unload_plugin(py, "non_loaded_plugin");
             assert!(result.is_err_and(|err| err.is_instance_of::<PluginUnloadError>(py)));
         });
@@ -3527,7 +3527,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3586,7 +3586,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3640,7 +3640,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3703,7 +3703,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3756,7 +3756,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3933,7 +3933,7 @@ mod initialize_cvars_tests {
                 );
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = initialize_cvars(py);
                     assert!(result.is_ok());
                 });
@@ -3943,7 +3943,7 @@ mod initialize_cvars_tests {
 
 #[pyfunction(name = "initialize")]
 fn initialize(py: Python<'_>) {
-    py.allow_threads(register_handlers)
+    py.detach(register_handlers)
 }
 
 fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
@@ -4849,8 +4849,8 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     if unsafe { Py_IsInitialized() } == 0 {
         append_to_inittab!(pyshinqlx_module);
     }
-    prepare_freethreaded_python();
-    Python::with_gil(|py| {
+    Python::initialize();
+    Python::attach(|py| {
         py.import(intern!(py, "shinqlx")).and_then(|shinqlx_module| {
             shinqlx_module.call_method0(intern!(py, "initialize"))
         }).map_or_else(|err| {
@@ -4876,7 +4876,7 @@ pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
 
     CUSTOM_COMMAND_HANDLER.store(None);
 
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         py.import(intern!(py, "importlib"))
             .and_then(|importlib_module| {
                 let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
@@ -4928,7 +4928,7 @@ mod pyshinqlx_tests {
     fn initialize_when_python_init_succeeds(_pyshinqlx_setup: ()) {
         PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
 
-        let _shinqlx_module = Python::with_gil(|py| {
+        let _shinqlx_module = Python::attach(|py| {
             PyModule::from_code(
                 py,
                 cr#"""
@@ -5207,7 +5207,7 @@ pub(crate) mod python_tests {
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_setup_fixture {
-    use pyo3::{append_to_inittab, ffi::Py_IsInitialized, prepare_freethreaded_python};
+    use pyo3::{Python, append_to_inittab, ffi::Py_IsInitialized};
     use rstest::fixture;
 
     use super::pyshinqlx_module;
@@ -5217,7 +5217,7 @@ pub(crate) mod pyshinqlx_setup_fixture {
     pub(crate) fn pyshinqlx_setup() {
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyshinqlx_module);
-            prepare_freethreaded_python();
+            Python::initialize();
         }
     }
 }

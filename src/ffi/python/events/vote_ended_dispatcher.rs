@@ -149,7 +149,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -178,7 +178,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "0", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -217,7 +217,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -257,7 +257,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -297,7 +297,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -337,7 +337,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -377,7 +377,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -417,7 +417,7 @@ mod vote_ended_dispatcher_tests {
             .with_get_configstring(CS_VOTE_YES as u16, "0", 1)
             .with_get_configstring(CS_VOTE_NO as u16, "8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -454,7 +454,7 @@ mod vote_ended_dispatcher_tests {
             )
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -492,7 +492,7 @@ mod vote_ended_dispatcher_tests {
             )
             .with_get_configstring(CS_VOTE_STRING as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, VoteEndedDispatcher::py_new(py))
                         .expect("this should not happen");
 

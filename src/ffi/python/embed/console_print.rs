@@ -8,7 +8,7 @@ use crate::hooks::shinqlx_com_printf;
 #[pyfunction]
 #[pyo3(name = "console_print")]
 pub(crate) fn pyshinqlx_console_print(py: Python<'_>, text: &str) {
-    py.allow_threads(|| {
+    py.detach(|| {
         let formatted_string = format!("{text}\n");
         shinqlx_com_printf(formatted_string.as_str());
     })
@@ -30,7 +30,7 @@ mod console_print_tests {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx.expect().with(predicate::eq("asdf\n"));
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             pyshinqlx_console_print(py, "asdf");
         });
     }

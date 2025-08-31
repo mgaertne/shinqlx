@@ -7,7 +7,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "set_score")]
 pub(crate) fn pyshinqlx_set_score(py: Python<'_>, client_id: i32, score: i32) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -37,7 +37,7 @@ mod set_score_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_score(py, 21, 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -48,7 +48,7 @@ mod set_score_tests {
     #[serial]
     fn set_score_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_score(py, -1, 42);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -60,7 +60,7 @@ mod set_score_tests {
     #[serial]
     fn set_score_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_score(py, 666, 42);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -82,7 +82,7 @@ mod set_score_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42));
+                    let result = Python::attach(|py| pyshinqlx_set_score(py, 2, 42));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -96,7 +96,7 @@ mod set_score_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_score(py, 2, 42));
+                    let result = Python::attach(|py| pyshinqlx_set_score(py, 2, 42));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });
