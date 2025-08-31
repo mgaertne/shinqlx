@@ -14,7 +14,7 @@ pub(crate) fn pyshinqlx_player_info(
     py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerInfo>> {
-    py.allow_threads(|| {
+    py.detach(|| {
         if !(0..MAX_CLIENTS as i32).contains(&client_id) {
             cold_path();
             return Err(PyValueError::new_err(format!(
@@ -63,7 +63,7 @@ mod get_player_info_tests {
     #[serial]
     fn get_player_info_for_client_id_below_zero(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_player_info(py, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -75,7 +75,7 @@ mod get_player_info_tests {
     #[serial]
     fn get_player_info_for_client_id_above_max_clients(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_player_info(py, 65);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -105,7 +105,7 @@ mod get_player_info_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+                    let player_info = Python::attach(|py| pyshinqlx_player_info(py, 2));
                     assert_eq!(
                         player_info.expect("result was not OK"),
                         Some(PlayerInfo {
@@ -142,7 +142,7 @@ mod get_player_info_tests {
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+            let player_info = Python::attach(|py| pyshinqlx_player_info(py, 2));
             assert_eq!(player_info.expect("result was not OK"), None);
         });
     }
@@ -172,7 +172,7 @@ mod get_player_info_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let player_info = Python::with_gil(|py| pyshinqlx_player_info(py, 2));
+                    let player_info = Python::attach(|py| pyshinqlx_player_info(py, 2));
                     assert_eq!(
                         player_info.expect("result was not OK"),
                         Some(PlayerInfo {

@@ -7,7 +7,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "noclip")]
 pub(crate) fn pyshinqlx_noclip(py: Python<'_>, client_id: i32, activate: bool) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -38,7 +38,7 @@ mod noclip_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn noclip_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_noclip(py, 21, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -49,7 +49,7 @@ mod noclip_tests {
     #[serial]
     fn noclip_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_noclip(py, -1, false);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -61,7 +61,7 @@ mod noclip_tests {
     #[serial]
     fn noclip_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_noclip(py, 666, true);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -76,7 +76,7 @@ mod noclip_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+                    let result = Python::attach(|py| pyshinqlx_noclip(py, 2, true));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });
@@ -95,7 +95,7 @@ mod noclip_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, true));
+                    let result = Python::attach(|py| pyshinqlx_noclip(py, 2, true));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });
@@ -117,7 +117,7 @@ mod noclip_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_noclip(py, 2, false));
+                    let result = Python::attach(|py| pyshinqlx_noclip(py, 2, false));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });

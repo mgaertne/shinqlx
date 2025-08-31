@@ -15,7 +15,7 @@ use crate::hooks::shinqlx_drop_client;
 #[pyo3(name = "kick")]
 #[pyo3(signature = (client_id, reason=None), text_signature = "(client_id, reason=None)")]
 pub(crate) fn pyshinqlx_kick(py: Python<'_>, client_id: i32, reason: Option<&str>) -> PyResult<()> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         if client_id
@@ -56,7 +56,7 @@ mod kick_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn kick_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_kick(py, 0, None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -67,7 +67,7 @@ mod kick_tests {
     #[serial]
     fn kick_with_client_id_below_zero(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_kick(py, -1, None);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -79,7 +79,7 @@ mod kick_tests {
     #[serial]
     fn kick_with_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_kick(py, 42, None);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -108,7 +108,7 @@ mod kick_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_kick(py, 2, None);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -138,7 +138,7 @@ mod kick_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, None));
+            let result = Python::attach(|py| pyshinqlx_kick(py, 2, None));
             assert!(result.is_ok());
         });
     }
@@ -166,7 +166,7 @@ mod kick_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("please go away!")));
+            let result = Python::attach(|py| pyshinqlx_kick(py, 2, Some("please go away!")));
             assert!(result.is_ok());
         });
     }
@@ -194,7 +194,7 @@ mod kick_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_kick(py, 2, Some("")));
+            let result = Python::attach(|py| pyshinqlx_kick(py, 2, Some("")));
             assert!(result.is_ok());
         });
     }

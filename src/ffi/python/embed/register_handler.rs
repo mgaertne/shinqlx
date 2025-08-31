@@ -50,12 +50,12 @@ mod register_handler_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_setting_handler_to_none(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_handler = python_function_returning(py, &py.None());
             CUSTOM_COMMAND_HANDLER.store(Some(py_handler.unbind().into()));
 
             let result =
-                Python::with_gil(|py| pyshinqlx_register_handler(py, "custom_command", None));
+                Python::attach(|py| pyshinqlx_register_handler(py, "custom_command", None));
             assert!(result.is_ok());
 
             let stored_handler = CUSTOM_COMMAND_HANDLER.load();
@@ -67,11 +67,11 @@ mod register_handler_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_custom_command_handler_setting_handler_to_some_handler(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_handler = python_function_returning(py, &py.None());
             CUSTOM_COMMAND_HANDLER.store(None);
 
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 pyshinqlx_register_handler(py, "custom_command", Some(py_handler))
             });
             assert!(result.is_ok());
@@ -85,7 +85,7 @@ mod register_handler_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_for_some_unknown_event(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let py_handler = python_function_returning(py, &py.None());
 
             let result = pyshinqlx_register_handler(py, "unknown_event", Some(py_handler));
@@ -97,7 +97,7 @@ mod register_handler_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn register_handler_for_uncallable_handler(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_register_handler(
                 py,
                 "custom_command",

@@ -16,7 +16,7 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
     max: &str,
     flags: Option<i32>,
 ) -> PyResult<()> {
-    py.allow_threads(|| {
+    py.detach(|| {
         MAIN_ENGINE.load().as_ref().map_or(
             {
                 cold_path();
@@ -48,7 +48,7 @@ mod set_cvar_limit_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_limit_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_cvar_limit(py, "sv_maxclients", "64", "1", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -72,7 +72,7 @@ mod set_cvar_limit_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     pyshinqlx_set_cvar_limit(
                         py,
                         "sv_maxclients",

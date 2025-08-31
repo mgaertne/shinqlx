@@ -6,7 +6,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "remove_dropped_items")]
 pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         (0..MAX_GENTITIES)
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| {
@@ -56,7 +56,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
+        let result = Python::attach(pyshinqlx_remove_dropped_items);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -87,7 +87,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
+        let result = Python::attach(pyshinqlx_remove_dropped_items);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -120,7 +120,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
+        let result = Python::attach(pyshinqlx_remove_dropped_items);
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -138,7 +138,7 @@ mod remove_dropped_items_tests {
             mock_game_entity
         });
 
-        let result = Python::with_gil(pyshinqlx_remove_dropped_items);
+        let result = Python::attach(pyshinqlx_remove_dropped_items);
         assert_eq!(result.expect("result was not OK"), true);
     }
 }

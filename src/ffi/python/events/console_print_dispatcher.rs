@@ -111,7 +111,7 @@ mod console_print_dispatcher_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let dispatcher =
                 Bound::new(py, ConsolePrintDispatcher::py_new(py)).expect("this should not happen");
 
@@ -140,7 +140,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -180,7 +180,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -221,7 +221,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -262,7 +262,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -303,7 +303,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -344,7 +344,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -385,7 +385,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 
@@ -425,7 +425,7 @@ mod console_print_dispatcher_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let dispatcher = Bound::new(py, ConsolePrintDispatcher::py_new(py))
                         .expect("this should not happen");
 

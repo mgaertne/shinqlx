@@ -542,7 +542,7 @@ def run_zmq_thread(poller):
         )?;
 
         loop {
-            if !self.py().allow_threads(|| {
+            if !self.py().detach(|| {
                 socket
                     .poll(PollEvents::POLL_IN, 125)
                     .is_ok_and(|value| value == PollEvents::POLL_IN)
@@ -552,7 +552,7 @@ def run_zmq_thread(poller):
 
             let _ = self
                 .py()
-                .allow_threads(|| socket.recv_msg(RecvFlags::DONT_WAIT))
+                .detach(|| socket.recv_msg(RecvFlags::DONT_WAIT))
                 .tap_ok(|zmq_msg| {
                     handle_zmq_msg(self.py(), &zmq_msg.to_string());
                 });
@@ -610,7 +610,7 @@ mod stats_listener_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = StatsListener::py_new();
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -766,7 +766,7 @@ mod stats_listener_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn stop_sets_done_field(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let listener = Bound::new(
                 py,
                 StatsListener {
@@ -785,7 +785,7 @@ mod stats_listener_tests {
 }
 
 fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
-    let stats = py.allow_threads(|| {
+    let stats = py.detach(|| {
         from_str::<Value>(zmq_msg).map_err(|err: serde_json::Error| {
             let error_msg = format!("error parsing json data: {err:?}");
             PyIOError::new_err(error_msg)
@@ -858,7 +858,7 @@ mod handle_zmq_msg_tests {
     fn try_handle_zmq_msg_for_unparseable_json_msg(_pyshinqlx_setup: ()) {
         let zmq_msg = r#"{"INVALID":"#;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = try_handle_zmq_msg(py, zmq_msg);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyIOError>(py)));
         });
@@ -869,7 +869,7 @@ mod handle_zmq_msg_tests {
     fn handle_zmq_msg_for_unparseable_json_msg(_pyshinqlx_setup: ()) {
         let zmq_msg = r#"{"INVALID":"#;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             handle_zmq_msg(py, zmq_msg);
         });
     }
@@ -893,7 +893,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -937,7 +937,7 @@ mod handle_zmq_msg_tests {
     fn try_handle_stats_msg_with_no_stats_dispatcher(_pyshinqlx_setup: ()) {
         let stats_msg = r#"{"DATA": {}, "TYPE": "STATS"}"#;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                 .expect("could not create event dispatcher manager in python");
             EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
@@ -966,7 +966,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1044,7 +1044,7 @@ mod handle_zmq_msg_tests {
     fn try_handle_game_start_msg_with_no_game_start_dispatcher(_pyshinqlx_setup: ()) {
         let game_start_data = r#"{"DATA": {"CAPTURE_LIMIT": 8, "FACTORY": "ca", "FACTORY_TITLE": "Clan Arena", "FRAG_LIMIT": 50, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "MAP": "thunderstruck", "MATCH_GUID": "asdf", "MERCY_LIMIT": 0, "PLAYERS": [{"NAME": "player1", "STEAM_ID": "1234", "TEAM": 1}, {"NAME": "player2", "STEAM_ID": "5678", "TEAM": 2}], "QUADHOG": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "shinqlx test server", "TIME_LIMIT": 0, "TRAINING": 0}, "TYPE": "MATCH_STARTED"}"#;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -1076,7 +1076,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1153,7 +1153,7 @@ mod handle_zmq_msg_tests {
     fn try_handle_round_end_msg_with_no_round_end_dispatcher(_pyshinqlx_setup: ()) {
         let round_end_data = r#"{"DATA": {"MATCH_GUID": "asdf", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}, "TYPE": "ROUND_OVER"}"#;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -1185,7 +1185,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1278,7 +1278,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1358,7 +1358,7 @@ mod handle_zmq_msg_tests {
     fn try_handle_game_end_msg_with_no_game_end_dispatcher(_pyshinqlx_setup: ()) {
         let game_end_data = r#"{"DATA": {"ABORTED": false, "CAPTURE_LIMIT": 8, "EXIT_MSG": "Roundlimit hit.", "FACTORY": "ca", "FACTORY_TITLE": "Clan Arena", "FIRST_SCORER": "player1", "FRAG_LIMIT": 50, "GAME_LENGTH": 590, "GAME_TYPE": "CA", "INFECTED": 0, "INSTAGIB": 0, "LAST_LEAD_CHANGE_TIME": 41300, "LAST_SCORER": "skepp", "LAST_TEAMSCORER": "none", "MAP": "x0r3", "MATCH_GUID": "asdf", "MERCY_LIMIT": 0, "QUADHOG": 0, "RESTARTED": 0, "ROUND_LIMIT": 8, "SCORE_LIMIT": 150, "SERVER_TITLE": "shinqlx test server", "TIME_LIMIT": 0, "TRAINING": 0, "TSCORE0": 3, "TSCORE1": 8}, "TYPE": "MATCH_REPORT"}"#;
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let event_dispatcher =
                 Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
             event_dispatcher
@@ -1392,7 +1392,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1514,7 +1514,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1671,7 +1671,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1800,7 +1800,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -1912,7 +1912,7 @@ mod handle_zmq_msg_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                     .expect("this should not happen");
                 event_dispatcher
@@ -2040,7 +2040,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2259,7 +2259,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2466,7 +2466,7 @@ mod handle_zmq_msg_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                     .expect("this should not happen");
                 event_dispatcher
@@ -2567,7 +2567,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2715,7 +2715,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2865,7 +2865,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -2987,7 +2987,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3109,7 +3109,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3231,7 +3231,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3323,7 +3323,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher
@@ -3433,7 +3433,7 @@ mod handle_zmq_msg_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                     .expect("this should not happen");
                 event_dispatcher
@@ -3532,7 +3532,7 @@ mod handle_zmq_msg_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
                     event_dispatcher

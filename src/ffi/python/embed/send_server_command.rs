@@ -16,7 +16,7 @@ pub(crate) fn pyshinqlx_send_server_command(
     client_id: Option<i32>,
     cmd: &str,
 ) -> PyResult<bool> {
-    py.allow_threads(|| match client_id {
+    py.detach(|| match client_id {
         None => {
             shinqlx_send_server_command(None, cmd);
             Ok(true)
@@ -58,7 +58,7 @@ mod send_server_command_tests {
             .expect()
             .withf(|client, cmd| client.is_none() && cmd == "asdf")
             .times(1);
-        let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, None, "asdf"));
+        let result = Python::attach(|py| pyshinqlx_send_server_command(py, None, "asdf"));
         assert_eq!(result.expect("result was not OK"), true);
     }
 
@@ -69,7 +69,7 @@ mod send_server_command_tests {
         let hook_ctx = shinqlx_send_server_command_context();
         hook_ctx.expect().times(0);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_send_server_command(py, Some(0), "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -83,7 +83,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_send_server_command(py, Some(-1), "asdf");
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -98,7 +98,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_send_server_command(py, Some(42), "asdf");
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -125,7 +125,7 @@ mod send_server_command_tests {
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+            let result = Python::attach(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
             assert_eq!(result.expect("result was not OK"), true);
         });
     }
@@ -152,7 +152,7 @@ mod send_server_command_tests {
         hook_ctx.expect().times(0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
+            let result = Python::attach(|py| pyshinqlx_send_server_command(py, Some(2), "asdf"));
             assert_eq!(result.expect("result was not OK"), false);
         });
     }

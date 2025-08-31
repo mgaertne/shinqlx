@@ -10,7 +10,7 @@ pub(crate) fn pyshinqlx_set_cvar(
     value: &str,
     flags: Option<i32>,
 ) -> PyResult<bool> {
-    py.allow_threads(|| set_cvar(cvar, value, flags))
+    py.detach(|| set_cvar(cvar, value, flags))
 }
 
 #[cfg(test)]
@@ -31,7 +31,7 @@ mod set_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_cvar(py, "sv_maxclients", "64", None);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -54,7 +54,7 @@ mod set_cvar_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
                 });
                 assert_eq!(result.expect("result was not OK"), true);
@@ -86,7 +86,7 @@ mod set_cvar_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     pyshinqlx_set_cvar(py, "sv_maxclients", "64", Some(cvar_flags::CVAR_ROM as i32))
                 });
                 assert_eq!(result.expect("result was not OK"), false);

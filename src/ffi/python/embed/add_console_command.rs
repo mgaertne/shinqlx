@@ -10,7 +10,7 @@ use crate::{
 #[pyfunction]
 #[pyo3(name = "add_console_command")]
 pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
-    py.allow_threads(|| {
+    py.detach(|| {
         MAIN_ENGINE.load().as_ref().map_or(
             {
                 cold_path();
@@ -39,7 +39,7 @@ mod add_console_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn add_console_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_add_console_command(py, "slap");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -57,7 +57,7 @@ mod add_console_command_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_add_console_command(py, "asdf"));
+                let result = Python::attach(|py| pyshinqlx_add_console_command(py, "asdf"));
                 assert!(result.is_ok());
             });
     }

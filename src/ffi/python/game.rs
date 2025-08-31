@@ -46,7 +46,7 @@ impl Game {
     #[new]
     #[pyo3(signature = (cached = true), text_signature = "(cached = true)")]
     pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
-        py.allow_threads(|| {
+        py.detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -361,44 +361,44 @@ impl Game {
 
     #[classmethod]
     pub(crate) fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("forceshuffle"))
+        cls.py().detach(|| console_command("forceshuffle"))
     }
 
     #[classmethod]
     fn timeout(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("timeout"))
+        cls.py().detach(|| console_command("timeout"))
     }
 
     #[classmethod]
     fn timein(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("timein"))
+        cls.py().detach(|| console_command("timein"))
     }
 
     #[classmethod]
     fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("allready"))
+        cls.py().detach(|| console_command("allready"))
     }
 
     #[classmethod]
     fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("pause"))
+        cls.py().detach(|| console_command("pause"))
     }
 
     #[classmethod]
     fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("unpause"))
+        cls.py().detach(|| console_command("unpause"))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
-        cls.py().allow_threads(|| lock(team))
+        cls.py().detach(|| lock(team))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
     fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
-        cls.py().allow_threads(|| unlock(team))
+        cls.py().detach(|| unlock(team))
     }
 
     #[classmethod]
@@ -433,7 +433,7 @@ impl Game {
 
     #[classmethod]
     fn opsay(cls: &Bound<'_, PyType>, msg: &str) -> PyResult<()> {
-        cls.py().allow_threads(|| opsay(msg))
+        cls.py().detach(|| opsay(msg))
     }
 
     #[classmethod]
@@ -453,7 +453,7 @@ impl Game {
 
     #[classmethod]
     fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().allow_threads(|| console_command("map_restart"))
+        cls.py().detach(|| console_command("map_restart"))
     }
 
     #[classmethod]
@@ -463,12 +463,12 @@ impl Game {
 
     #[classmethod]
     fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
-        cls.py().allow_threads(|| addteamscore(team, score))
+        cls.py().detach(|| addteamscore(team, score))
     }
 
     #[classmethod]
     fn setmatchtime(cls: &Bound<'_, PyType>, time: i32) -> PyResult<()> {
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             let setmatchtime_cmd = format!("setmatchtime {time}");
             console_command(&setmatchtime_cmd)
         })
@@ -579,7 +579,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_map(&self, value: &str) -> PyResult<()> {
-        self.py().allow_threads(|| {
+        self.py().detach(|| {
             let mapchange_command = format!("map {value}");
             console_command(&mapchange_command)
         })
@@ -607,7 +607,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_red_score(&self) -> PyResult<i32> {
-        self.py().allow_threads(|| {
+        self.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -624,7 +624,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_blue_score(&self) -> PyResult<i32> {
-        self.py().allow_threads(|| {
+        self.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -662,7 +662,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
     fn set_factory(&self, value: &str) -> PyResult<()> {
         let mapname = self.get_map()?;
-        self.py().allow_threads(|| {
+        self.py().detach(|| {
             let mapchange_command = format!("map {mapname} {value}");
             console_command(&mapchange_command)
         })
@@ -813,7 +813,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_teamsize(&self, value: i32) -> PyResult<()> {
-        self.py().allow_threads(|| set_teamsize(value))
+        self.py().detach(|| set_teamsize(value))
     }
 
     fn get_tags(&self) -> PyResult<Vec<String>> {
@@ -842,7 +842,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_workshop_items(&self) -> PyResult<Vec<u64>> {
-        self.py().allow_threads(|| {
+        self.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -873,7 +873,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
             }
         };
 
-        self.py().allow_threads(|| {
+        self.py().detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(
                 {
                     cold_path();
@@ -921,7 +921,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn pyconstructor_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::py_new(py, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -934,7 +934,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Game::py_new(py, true);
                     assert!(
                         result.is_err_and(|err| err.is_instance_of::<NonexistentGameError>(py))
@@ -950,7 +950,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "asdf", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::py_new(py, true));
+                let result = Python::attach(|py| Game::py_new(py, true));
                 assert_eq!(result.expect("result was not OK"), default_game());
             });
     }
@@ -959,7 +959,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn repr_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.repr();
@@ -975,7 +975,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.repr();
@@ -992,7 +992,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.repr();
@@ -1009,7 +1009,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.repr();
@@ -1030,7 +1030,7 @@ mod pyshinqlx_game_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.repr();
@@ -1044,7 +1044,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn str_when_no_main_engine_loaded(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.str();
@@ -1060,7 +1060,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.str();
@@ -1077,7 +1077,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\4", 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.str();
@@ -1094,7 +1094,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.str();
@@ -1115,7 +1115,7 @@ mod pyshinqlx_game_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.str();
@@ -1129,7 +1129,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn contains_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.contains("asdf");
@@ -1145,7 +1145,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.contains("asdf");
@@ -1164,7 +1164,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.contains("asdf");
@@ -1181,7 +1181,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.contains("qwertz");
@@ -1198,7 +1198,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.contains("asdf");
@@ -1215,7 +1215,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.contains("asdf");
@@ -1229,7 +1229,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getitem_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_item(intern!(py, "asdf"));
@@ -1245,7 +1245,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_item(intern!(py, "asdf"));
@@ -1264,7 +1264,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_item(intern!(py, "asdf"));
@@ -1281,7 +1281,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\12", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_item(intern!(py, "qwertz"));
@@ -1298,7 +1298,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_item(intern!(py, "asdf"));
@@ -1315,7 +1315,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "qwertz", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_item(intern!(py, "asdf"));
@@ -1329,7 +1329,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn cvars_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let cvars_result = game.get_cvars();
@@ -1344,7 +1344,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let cvars_result = game.get_cvars();
@@ -1363,7 +1363,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\asdf\42", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let cvars_result = game.get_cvars();
@@ -1382,7 +1382,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_gametype();
@@ -1397,7 +1397,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_gametype();
@@ -1435,7 +1435,7 @@ mod pyshinqlx_game_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_gametype();
@@ -1448,7 +1448,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_type_short_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_gametype_short();
@@ -1463,7 +1463,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_gametype\asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_gametype_short();
@@ -1501,7 +1501,7 @@ mod pyshinqlx_game_tests {
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_gametype_short();
@@ -1517,7 +1517,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\thunderstruck", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_map();
@@ -1533,7 +1533,7 @@ mod pyshinqlx_game_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("map campgrounds", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_map("campgrounds").expect("this should not happen");
@@ -1545,7 +1545,7 @@ mod pyshinqlx_game_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_title_gets_current_map(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -1566,7 +1566,7 @@ shinqlx._map_title = "eyetoeye"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_subtitle1_gets_current_subtitle1(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -1590,7 +1590,7 @@ shinqlx._map_subtitle1 = "Clan Arena"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_map_subtitle2_gets_current_subtitle2(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -1614,7 +1614,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_red_score_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_red_score();
@@ -1629,7 +1629,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SCORES1 as u16, "7", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_red_score();
@@ -1645,7 +1645,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SCORES1 as u16, "asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_red_score();
@@ -1658,7 +1658,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_blue_score_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_blue_score();
@@ -1673,7 +1673,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SCORES2 as u16, "5", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_blue_score();
@@ -1689,7 +1689,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SCORES2 as u16, "asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_blue_score();
@@ -1702,7 +1702,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_state_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_state();
@@ -1729,7 +1729,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 1,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_state();
@@ -1743,7 +1743,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_factory();
@@ -1759,7 +1759,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_factory\ca", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_factory();
@@ -1777,7 +1777,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command("map theatreofpain ffa", 1)
             .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\theatreofpain", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_factory("ffa").expect("this should not happen");
@@ -1789,7 +1789,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_factory_title_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
             let result = game.get_factory_title();
@@ -1804,7 +1804,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\g_factoryTitle\Clan Arena", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_factory_title();
@@ -1821,7 +1821,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_hostname\Awesome server!", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_hostname();
@@ -1846,7 +1846,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_hostname("More awesome server!")
@@ -1868,7 +1868,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_instagib\{mode}"), 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_instagib();
@@ -1899,7 +1899,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_instagib(PyBool::new(py, value_set).as_any())
@@ -1929,7 +1929,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_instagib(PyInt::new(py, value_set).as_any())
@@ -1951,7 +1951,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(0);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.set_instagib(PyString::intern(py, "asdf").as_any());
@@ -1974,7 +1974,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, format!(r"\g_loadout\{mode}"), 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_loadout();
@@ -2005,7 +2005,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_loadout(PyBool::new(py, value_set).as_any())
@@ -2035,7 +2035,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_loadout(PyInt::new(py, value_set).as_any())
@@ -2057,7 +2057,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(0);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.set_loadout(PyString::intern(py, "asdf").as_any());
@@ -2074,7 +2074,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_maxclients\8", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_maxclients();
@@ -2099,7 +2099,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_maxclients(32).expect("this should not happen");
@@ -2114,7 +2114,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\timelimit\20", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_timelimit();
@@ -2139,7 +2139,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_timelimit(30).expect("this should not happen");
@@ -2154,7 +2154,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\fraglimit\10", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_fraglimit();
@@ -2179,7 +2179,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_fraglimit(20).expect("this should not happen");
@@ -2194,7 +2194,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\roundlimit\11", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_roundlimit();
@@ -2219,7 +2219,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_roundlimit(13).expect("this should not happen");
@@ -2234,7 +2234,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\roundtimelimit\240", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_roundtimelimit();
@@ -2259,7 +2259,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_roundtimelimit(150)
@@ -2275,7 +2275,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\scorelimit\10", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_scorelimit();
@@ -2300,7 +2300,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_scorelimit(8).expect("this should not happen");
@@ -2315,7 +2315,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\capturelimit\10", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_capturelimit();
@@ -2340,7 +2340,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.set_capturelimit(20);
@@ -2357,7 +2357,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\teamsize\4", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_teamsize();
@@ -2382,7 +2382,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_teamsize(8).expect("this should not happen");
@@ -2397,7 +2397,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_SERVERINFO as u16, r"\sv_tags\tag1,tag2,tag3", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_tags();
@@ -2425,7 +2425,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_tags(PyString::intern(py, "tag1,tag2,tag3").as_any())
@@ -2449,7 +2449,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_tags(
@@ -2475,7 +2475,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(0);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.set_tags(PyInt::new(py, 42i32).as_any());
@@ -2491,7 +2491,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_get_configstring(CS_STEAM_WORKSHOP_IDS as u16, "1234 5678 9101", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.get_workshop_items();
@@ -2516,7 +2516,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     game.set_workshop_items(
@@ -2544,7 +2544,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     .times(0);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let game = Bound::new(py, default_game()).expect("this should not happen");
 
                     let result = game.set_workshop_items(PyInt::new(py, 42i32).as_any());
@@ -2560,7 +2560,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("forceshuffle", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::shuffle(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::shuffle(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2572,7 +2572,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("timeout", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::timeout(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::timeout(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2584,7 +2584,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("timein", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::timein(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::timein(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2596,7 +2596,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("allready", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::allready(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::allready(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2608,7 +2608,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("pause", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::pause(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::pause(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2620,7 +2620,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("unpause", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::unpause(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::unpause(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2632,7 +2632,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .configure(|_mock_engine| {})
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Game::lock(&py.get_type::<Game>(), Some("invalid_team"));
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
@@ -2646,7 +2646,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("lock", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::lock(&py.get_type::<Game>(), None));
+                let result = Python::attach(|py| Game::lock(&py.get_type::<Game>(), None));
                 assert!(result.is_ok());
             });
     }
@@ -2664,7 +2664,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command(format!("lock {}", locked_team.to_lowercase()), 1)
             .run(|| {
                 let result =
-                    Python::with_gil(|py| Game::lock(&py.get_type::<Game>(), Some(locked_team)));
+                    Python::attach(|py| Game::lock(&py.get_type::<Game>(), Some(locked_team)));
                 assert!(result.is_ok());
             });
     }
@@ -2674,7 +2674,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = Game::unlock(&py.get_type::<Game>(), Some("invalid_team"));
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -2688,7 +2688,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("unlock", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::unlock(&py.get_type::<Game>(), None));
+                let result = Python::attach(|py| Game::unlock(&py.get_type::<Game>(), None));
                 assert!(result.is_ok());
             });
     }
@@ -2706,7 +2706,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .with_execute_console_command(format!("unlock {}", locked_team.to_lowercase()), 1)
             .run(|| {
                 let result =
-                    Python::with_gil(|py| Game::unlock(&py.get_type::<Game>(), Some(locked_team)));
+                    Python::attach(|py| Game::unlock(&py.get_type::<Game>(), Some(locked_team)));
                 assert!(result.is_ok());
             });
     }
@@ -2715,7 +2715,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_with_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::put(
                 &py.get_type::<Game>(),
                 PyInt::new(py, 2i32).as_any(),
@@ -2729,7 +2729,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn put_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::put(
                 &py.get_type::<Game>(),
                 PyInt::new(py, 2048i32).as_any(),
@@ -2751,7 +2751,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::put(
                         &py.get_type::<Game>(),
                         PyInt::new(py, 2i32).as_any(),
@@ -2766,7 +2766,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn mute_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::mute(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2779,7 +2779,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("mute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::mute(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2790,7 +2790,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unmute_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::unmute(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2803,7 +2803,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::unmute(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2814,7 +2814,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn tempban_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::tempban(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2827,7 +2827,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::tempban(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2838,7 +2838,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn ban_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::ban(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2851,7 +2851,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("ban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::ban(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2862,7 +2862,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unban_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::unban(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2875,7 +2875,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("unban 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::unban(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2889,7 +2889,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("opsay asdf", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::opsay(&py.get_type::<Game>(), "asdf"));
+                let result = Python::attach(|py| Game::opsay(&py.get_type::<Game>(), "asdf"));
                 assert!(result.is_ok());
             });
     }
@@ -2898,7 +2898,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addadmin_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::addadmin(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2911,7 +2911,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::addadmin(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2922,7 +2922,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addmod_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::addmod(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2935,7 +2935,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::addmod(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2946,7 +2946,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn demote_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::demote(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any());
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2959,7 +2959,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("demote 2", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::demote(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any())
                 });
                 assert!(result.is_ok());
@@ -2973,7 +2973,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("map_restart", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::abort(&py.get_type::<Game>()));
+                let result = Python::attach(|py| Game::abort(&py.get_type::<Game>()));
                 assert!(result.is_ok());
             });
     }
@@ -2982,7 +2982,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addscore_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result =
                 Game::addscore(&py.get_type::<Game>(), PyInt::new(py, 2048i32).as_any(), 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
@@ -2996,7 +2996,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::addscore(&py.get_type::<Game>(), PyInt::new(py, 2i32).as_any(), 42)
                 });
                 assert!(result.is_ok());
@@ -3007,7 +3007,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Game::addteamscore(&py.get_type::<Game>(), "invalid_team", 42);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -3028,7 +3028,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     Game::addteamscore(&py.get_type::<Game>(), locked_team, 42)
                 });
                 assert!(result.is_ok());
@@ -3042,7 +3042,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command("setmatchtime 42", 1)
             .run(|| {
-                let result = Python::with_gil(|py| Game::setmatchtime(&py.get_type::<Game>(), 42));
+                let result = Python::attach(|py| Game::setmatchtime(&py.get_type::<Game>(), 42));
                 assert!(result.is_ok());
             });
     }

@@ -11,7 +11,7 @@ use crate::hooks::shinqlx_client_spawn;
 #[pyfunction]
 #[pyo3(name = "player_spawn")]
 pub(crate) fn pyshinqlx_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -45,7 +45,7 @@ mod player_spawn_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn player_spawn_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_player_spawn(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -56,7 +56,7 @@ mod player_spawn_tests {
     #[serial]
     fn player_spawn_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_player_spawn(py, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -68,7 +68,7 @@ mod player_spawn_tests {
     #[serial]
     fn player_spawn_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_player_spawn(py, 666);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -90,7 +90,7 @@ mod player_spawn_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2));
+                    let result = Python::attach(|py| pyshinqlx_player_spawn(py, 2));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -107,7 +107,7 @@ mod player_spawn_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_player_spawn(py, 2));
+                    let result = Python::attach(|py| pyshinqlx_player_spawn(py, 2));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });

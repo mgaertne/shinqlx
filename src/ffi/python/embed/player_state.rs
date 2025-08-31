@@ -10,7 +10,7 @@ pub(crate) fn pyshinqlx_player_state(
     py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerState>> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -40,7 +40,7 @@ mod player_state_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn player_state_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_player_state(py, 21);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -51,7 +51,7 @@ mod player_state_tests {
     #[serial]
     fn player_state_for_client_id_too_small(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_player_state(py, -1);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -63,7 +63,7 @@ mod player_state_tests {
     #[serial]
     fn player_state_for_client_id_too_large(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_player_state(py, 666);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -78,7 +78,7 @@ mod player_state_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
+                    let result = Python::attach(|py| pyshinqlx_player_state(py, 2));
                     assert_eq!(result.expect("result was not OK"), None);
                 });
             });
@@ -130,7 +130,7 @@ mod player_state_tests {
             })
             .run(predicate::eq(2), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_player_state(py, 2));
+                    let result = Python::attach(|py| pyshinqlx_player_state(py, 2));
                     assert_eq!(
                         result.expect("result was not OK"),
                         Some(default_player_state())

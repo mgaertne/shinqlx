@@ -4,7 +4,7 @@ use crate::ffi::python::{get_cvar, prelude::*};
 #[pyfunction]
 #[pyo3(name = "get_cvar")]
 pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
-    py.allow_threads(|| get_cvar(cvar))
+    py.detach(|| get_cvar(cvar))
 }
 
 #[cfg(test)]
@@ -23,7 +23,7 @@ mod get_cvar_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_cvar_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_get_cvar(py, "sv_maxclients");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -36,8 +36,8 @@ mod get_cvar_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "asdf", |_| None, 1)
             .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "asdf"))
-                    .expect("result waa not OK");
+                let result =
+                    Python::attach(|py| pyshinqlx_get_cvar(py, "asdf")).expect("result waa not OK");
                 assert!(result.is_none());
             });
     }
@@ -59,7 +59,7 @@ mod get_cvar_tests {
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
+                let result = Python::attach(|py| pyshinqlx_get_cvar(py, "sv_maxclients"))
                     .expect("result was not OK");
                 assert!(result.as_ref().is_some_and(|cvar| cvar == "16"));
             });

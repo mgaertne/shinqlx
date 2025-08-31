@@ -4,7 +4,7 @@ use crate::ffi::python::{console_command, prelude::*};
 #[pyfunction]
 #[pyo3(name = "console_command")]
 pub(crate) fn pyshinqlx_console_command(py: Python<'_>, cmd: &str) -> PyResult<()> {
-    py.allow_threads(|| console_command(cmd))
+    py.detach(|| console_command(cmd))
 }
 
 #[cfg(test)]
@@ -18,7 +18,7 @@ mod console_command_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn console_command_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_console_command(py, "asdf");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -31,7 +31,7 @@ mod console_command_tests {
         MockEngineBuilder::default()
             .with_execute_console_command("asdf", 1)
             .run(|| {
-                let result = Python::with_gil(|py| pyshinqlx_console_command(py, "asdf"));
+                let result = Python::attach(|py| pyshinqlx_console_command(py, "asdf"));
                 assert!(result.is_ok());
             });
     }

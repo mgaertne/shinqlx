@@ -15,7 +15,7 @@ use crate::{
 #[pyfunction]
 #[pyo3(name = "dev_print_items")]
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
-    py.allow_threads(|| {
+    py.detach(|| {
         let formatted_items: ArrayVec<String, { MAX_GENTITIES as usize }> = (0..MAX_GENTITIES)
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
             .filter(|game_entity| {
@@ -119,7 +119,7 @@ mod dev_print_items_tests {
             mock_game_entity
         });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_dev_print_items(py);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -160,7 +160,7 @@ mod dev_print_items_tests {
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                let result = Python::attach(pyshinqlx_dev_print_items);
                 assert!(result.is_ok());
             });
     }
@@ -200,7 +200,7 @@ mod dev_print_items_tests {
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                let result = Python::attach(pyshinqlx_dev_print_items);
                 assert!(result.is_ok());
             });
     }
@@ -246,7 +246,7 @@ mod dev_print_items_tests {
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                let result = Python::attach(pyshinqlx_dev_print_items);
                 assert!(result.is_ok());
             });
     }
@@ -293,7 +293,7 @@ mod dev_print_items_tests {
                 1,
             )
             .run(|| {
-                let result = Python::with_gil(pyshinqlx_dev_print_items);
+                let result = Python::attach(pyshinqlx_dev_print_items);
                 assert!(result.is_ok());
             });
     }

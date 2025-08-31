@@ -16,7 +16,7 @@ use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 #[pyclass(name = "AbstractDatabase", module = "database", subclass, frozen)]
 pub(crate) struct AbstractDatabase {
-    plugin: PyObject,
+    plugin: Py<PyAny>,
 }
 
 #[pymethods]
@@ -195,7 +195,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_logger_returns_logger_for_plugin(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let test_plugin = test_plugin(py).call0().expect("this should not happen");
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, test_plugin.as_any()))
@@ -215,7 +215,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn set_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -234,7 +234,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -252,7 +252,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn has_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -271,7 +271,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn set_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -291,7 +291,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn clear_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -310,7 +310,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -330,7 +330,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn connect_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -344,7 +344,7 @@ mod abstract_database_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn close_returns_not_implemented(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let abstract_database =
                 Bound::new(py, AbstractDatabase::py_new(py, py.None().bind(py)))
                     .expect("this should not happen");
@@ -378,7 +378,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_logger_returns_logger_for_plugin_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.getattr(intern!(py, "logger"));
@@ -395,7 +395,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn set_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method1(intern!(py, "set_permission"), (py.None(), 0));
@@ -406,7 +406,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method1(intern!(py, "get_permission"), (py.None(),));
@@ -417,7 +417,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn has_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method1(intern!(py, "has_permission"), (py.None(),));
@@ -428,7 +428,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn set_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method1(intern!(py, "set_flag"), (py.None(), "asdf"));
@@ -439,7 +439,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn clear_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method1(intern!(py, "clear_flag"), (py.None(), "asdf"));
@@ -450,7 +450,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method1(intern!(py, "get_flag"), (py.None(), "asdf"));
@@ -461,7 +461,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn connect_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method0(intern!(py, "connect"));
@@ -472,7 +472,7 @@ db = AbstractDatabase(test_plugin())
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn close_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let db = python_test_db(py);
 
             let result = db.call_method0(intern!(py, "close"));

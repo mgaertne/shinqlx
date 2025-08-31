@@ -414,7 +414,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_uncallable_handler(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command = Command::py_new(
                 &test_plugin(py).call0().expect("this should not happen"),
                 py.None().bind(py),
@@ -434,7 +434,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_wrong_channel_type(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let chat_channel = Bound::new(
@@ -464,7 +464,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_wrong_exclude_channel_type(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let chat_channel = Bound::new(
@@ -494,7 +494,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_names_in_pylist(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let names_vec = vec![
@@ -525,7 +525,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_names_in_pytuple(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let names_vec = vec![
@@ -556,7 +556,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_single_name_as_string(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let command = Command::py_new(
@@ -580,7 +580,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_multiple_whitelist_channels(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let chat_channel = Bound::new(
@@ -633,7 +633,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn constructor_with_multiple_exclude_channels(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let chat_channel = Bound::new(
@@ -686,7 +686,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn command_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
 
             let chat_channel = Bound::new(
@@ -730,7 +730,7 @@ class mocked_db:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn execute_calls_handler(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Command {
                 plugin: test_plugin(py)
@@ -773,7 +773,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn execute_when_name_is_empty(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Command {
                 plugin: test_plugin(py)
@@ -808,7 +808,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_eligible_name_with_no_prefix(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Bound::new(
                 py,
@@ -856,7 +856,7 @@ class mocked_db:
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -891,7 +891,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_eligilble_channel_when_none_are_configured(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
             let command = Bound::new(
                 py,
@@ -928,7 +928,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_eligilble_channel_with_configured_allowed_channels(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                     .expect("this should not happen");
@@ -987,7 +987,7 @@ class mocked_db:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_eligilble_channel_with_configured_allowed_and_exclude_channels(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                     .expect("this should not happen");
@@ -1084,7 +1084,7 @@ class mocked_db:
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -1134,7 +1134,7 @@ class mocked_db:
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -1192,7 +1192,7 @@ class mocked_db:
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -1243,7 +1243,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -1303,7 +1303,7 @@ class mocked_db:
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -1354,7 +1354,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let command = Bound::new(
                         py,
@@ -1405,7 +1405,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let test_plugin = test_plugin(py);
                     test_plugin
@@ -1460,7 +1460,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let test_plugin = test_plugin(py);
                     test_plugin
@@ -1517,7 +1517,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happend");
@@ -1572,7 +1572,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happend");
@@ -1627,7 +1627,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happend");
@@ -1682,7 +1682,7 @@ class mocked_db:
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let capturing_hook = capturing_hook(py);
                     let test_plugin =
                         test_plugin_with_permission_db(py).expect("this should not happen");
@@ -2138,7 +2138,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn emoty_command_invoker_has_empty_commands(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             assert!(command_invoker.get_commands().is_empty());
@@ -2148,7 +2148,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_registered_for_unregistered_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
 
@@ -2160,7 +2160,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_registered_with_variations_of_registered_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             let py_command = Bound::new(py, default_command(py)).expect("this should not happen");
@@ -2197,7 +2197,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn is_registered_for_registered_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             let py_command = Bound::new(py, default_command(py)).expect("this should not happen");
@@ -2212,7 +2212,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn add_command_adds_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             let py_command = Bound::new(py, default_command(py)).expect("this should not happen");
@@ -2232,7 +2232,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn add_command_for_already_added_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             let py_command = Bound::new(py, default_command(py)).expect("this should not happen");
@@ -2250,7 +2250,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn remove_command_for_command_not_added(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             let py_command = Bound::new(py, default_command(py)).expect("this should not happen");
@@ -2263,7 +2263,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn remove_command_removes_command(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let command_invoker =
                 Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
             let py_command = Bound::new(py, default_command(py)).expect("this should not happen");
@@ -2281,7 +2281,7 @@ mod command_invoker_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn handle_input_for_empty_input(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let chat_channel = Bound::new(
                 py,
@@ -2301,7 +2301,7 @@ mod command_invoker_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_with_no_event_dispatcher(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let chat_channel = Bound::new(
                 py,
@@ -2323,7 +2323,7 @@ mod command_invoker_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_with_non_eligible_cmd_name(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let chat_channel = Bound::new(
                 py,
@@ -2355,7 +2355,7 @@ mod command_invoker_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn handle_input_with_non_eligible_channel(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let chat_channel = Bound::new(
                 py,
@@ -2400,7 +2400,7 @@ mod command_invoker_tests {
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let chat_channel = Bound::new(
@@ -2460,7 +2460,7 @@ mod command_invoker_tests {
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let client_command_channel = Bound::new(
@@ -2524,7 +2524,7 @@ mod command_invoker_tests {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let client_command_channel = Bound::new(
@@ -2600,7 +2600,7 @@ mod command_invoker_tests {
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let client_command_channel = Bound::new(
@@ -2661,7 +2661,7 @@ mod command_invoker_tests {
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let chat_channel = Bound::new(
@@ -2735,7 +2735,7 @@ mod command_invoker_tests {
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let chat_channel = Bound::new(
@@ -2801,7 +2801,7 @@ mod command_invoker_tests {
             )
             .with_find_cvar(|cmd| cmd != "qlx_owner", |_| None, 1..)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let chat_channel = Bound::new(

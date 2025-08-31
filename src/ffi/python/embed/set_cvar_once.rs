@@ -19,7 +19,7 @@ pub(crate) fn pyshinqlx_set_cvar_once(
     flags: i32,
 ) -> PyResult<bool> {
     let value_string = value.to_string();
-    py.allow_threads(|| {
+    py.detach(|| {
         MAIN_ENGINE.load().as_ref().map_or(
             {
                 cold_path();
@@ -60,7 +60,7 @@ mod set_cvar_once_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_cvar_once_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_cvar_once(
                 py,
                 "sv_maxclients",
@@ -88,7 +88,7 @@ mod set_cvar_once_tests {
                     .times(1);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     pyshinqlx_set_cvar_once(
                         py,
                         "sv_maxclients",
@@ -116,7 +116,7 @@ mod set_cvar_once_tests {
                 mock_engine.expect_get_cvar().times(0);
             })
             .run(|| {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     pyshinqlx_set_cvar_once(
                         py,
                         "sv_maxclients",

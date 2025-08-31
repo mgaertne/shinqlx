@@ -286,7 +286,7 @@ impl Player {
 
     #[getter(team)]
     pub(crate) fn get_team(&self, py: Python<'_>) -> PyResult<String> {
-        py.allow_threads(|| match Teams::from(self.player_info.read().team) {
+        py.detach(|| match Teams::from(self.player_info.read().team) {
             Teams::Invalid => {
                 cold_path();
                 Err(PyValueError::new_err("invalid team"))
@@ -640,7 +640,7 @@ impl Player {
     #[classmethod]
     pub(crate) fn all_players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
         let players_info = pyshinqlx_players_info(cls.py())?;
-        cls.py().allow_threads(|| {
+        cls.py().detach(|| {
             Ok(players_info
                 .par_iter()
                 .filter_map(|opt_player_info| {
@@ -1126,7 +1126,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_privileges(&self, value: Option<&str>) -> PyResult<()> {
         let new_privileges = self
             .py()
-            .allow_threads(|| privileges_t::try_from(value.unwrap_or("none")));
+            .detach(|| privileges_t::try_from(value.unwrap_or("none")));
 
         new_privileges.map_or(
             {
@@ -1862,7 +1862,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn repr_with_all_values_set(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -1884,7 +1884,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn repr_with_an_invalidated_player(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -1921,7 +1921,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn contains_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -1939,7 +1939,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn contains_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -1962,7 +1962,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn contains_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -1985,7 +1985,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn getitem_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2003,7 +2003,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn getitem_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2026,7 +2026,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn getitem_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2049,7 +2049,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn cvars_with_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2067,7 +2067,7 @@ mod pyshinqlx_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn cvars_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2108,7 +2108,7 @@ mod pyshinqlx_player_tests {
             steam_id: 41,
             ..default_test_player_info()
         };
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -2136,7 +2136,7 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
             steam_id: 1234567890,
             ..default_test_player_info()
         };
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -2164,7 +2164,7 @@ assert((shinqlx.Player(42, player_info) == "asdf") == False)
             steam_id: 42,
             ..default_test_player_info()
         };
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -2192,7 +2192,7 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
             steam_id: 1234567890,
             ..default_test_player_info()
         };
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -2221,7 +2221,7 @@ assert(shinqlx.Player(42, player_info) != "asdf")
             ..default_test_player_info()
         };
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -2276,7 +2276,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(2), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player = Bound::new(
                         py,
                         Player {
@@ -2325,7 +2325,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(2), || {
-                let result = Python::with_gil(|py| {
+                let result = Python::attach(|py| {
                     py.run(
                         cr#"
 player.update()
@@ -2364,7 +2364,7 @@ assert(player._valid)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(2), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player = Bound::new(
                         py,
                         Player {
@@ -2408,7 +2408,7 @@ assert(player._valid)
             .with_team(|| team_t::TEAM_SPECTATOR, 1..)
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(2), || {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player = Bound::new(
                         py,
                         Player {
@@ -2428,7 +2428,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn invalidate_invalidates_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let result = player.invalidate("invalid player");
             assert_eq!(player.get().valid.load(Ordering::Acquire), false);
@@ -2460,7 +2460,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.set_cvars(
@@ -2476,7 +2476,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_ip_where_no_ip_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2498,7 +2498,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_no_port(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2520,7 +2520,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_ip_for_ip_with_port(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2543,7 +2543,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_clan_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
             let result = player.get_clan();
             assert_eq!(result, "");
@@ -2557,7 +2557,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_get_configstring((CS_PLAYERS + 2) as u16, "", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let result = player.get_clan();
@@ -2573,7 +2573,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_get_configstring((CS_PLAYERS + 2) as u16, r"\cn\asdf", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
                     let result = player.get_clan();
@@ -2586,7 +2586,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_clan_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             player.set_clan("asdf")
@@ -2610,7 +2610,7 @@ assert(player._valid)
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -2638,7 +2638,7 @@ assert(player._valid)
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -2650,7 +2650,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_name_for_color_terminated_name(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2672,7 +2672,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_name_for_color_unterminated_name(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2715,7 +2715,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -2739,7 +2739,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_clean_name_returns_cleaned_name(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2757,7 +2757,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_qport_where_no_port_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2779,7 +2779,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_port_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2801,7 +2801,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_qport_for_invalid_port_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2831,7 +2831,7 @@ assert(player._valid)
         #[case] team: team_t,
         #[case] return_value: &str,
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2852,7 +2852,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_team_for_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2878,7 +2878,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_team_with_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = Bound::new(py, default_test_player())
                 .expect("this should not happen")
                 .set_team("invalid team");
@@ -2898,7 +2898,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let result = Bound::new(py, default_test_player())
                         .expect("this should not happen")
                         .set_team(new_team);
@@ -2910,7 +2910,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_colors_where_no_colors_are_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2932,7 +2932,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_colors_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2954,7 +2954,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color1_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -2976,7 +2976,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_colors_for_invalid_color2_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3019,7 +3019,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3045,7 +3045,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_model_when_no_model_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3068,7 +3068,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_model_when_model_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3112,7 +3112,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3136,7 +3136,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_headmodel_when_no_headmodel_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3159,7 +3159,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_headmodel_when_headmodel_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3203,7 +3203,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3228,7 +3228,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_handicap_when_no_handicap_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3251,7 +3251,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_handicap_when_handicap_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3295,7 +3295,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3320,7 +3320,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_handicap_for_unparseable_value(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3343,7 +3343,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_no_autohop_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3366,7 +3366,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3389,7 +3389,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_is_disabled(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3412,7 +3412,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autohop_when_autohop_cannot_be_parsed(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3456,7 +3456,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3481,7 +3481,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_autohop_for_unparseable_value(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3504,7 +3504,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_no_autoaction_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3527,7 +3527,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autohop_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3550,7 +3550,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autoaction_is_disabled(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3573,7 +3573,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_autoaction_when_autoaction_cannot_be_parsed(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3617,7 +3617,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3642,7 +3642,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_autoaction_with_unparseable_value(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3665,7 +3665,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_predictitems_when_no_predictitems_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3688,7 +3688,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_predictitems_when_predictitems_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3711,7 +3711,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_predititems_when_predictitems_is_disabled(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3734,7 +3734,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_predititems_when_predictitems_is_unparseable(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3778,7 +3778,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -3804,7 +3804,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_predictitems_with_unparseable_value(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3836,7 +3836,7 @@ assert(player._valid)
         #[case] client_state: clientState_t,
         #[case] expected_value: &str,
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3858,7 +3858,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_connection_state_for_invalid_value(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -3881,7 +3881,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_state_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_state();
@@ -3897,7 +3897,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -3954,7 +3954,7 @@ assert(player._valid)
             })
             .run(predicate::eq(2), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -3996,7 +3996,7 @@ assert(player._valid)
         #[case] privileges: i32,
         #[case] expected_value: Option<&str>,
     ) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -4038,7 +4038,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4052,7 +4052,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn set_privileges_for_invalid_string(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.set_privileges(Some("root"));
@@ -4063,7 +4063,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_country_when_country_is_set(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -4107,7 +4107,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -4131,7 +4131,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_valid_for_valid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -4148,7 +4148,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_valid_for_invalid_player(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -4166,7 +4166,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_stats_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_stats();
@@ -4196,7 +4196,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4229,7 +4229,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4245,7 +4245,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_ping_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_ping();
@@ -4275,7 +4275,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4295,7 +4295,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4339,7 +4339,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4414,7 +4414,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.position(
@@ -4458,7 +4458,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4492,7 +4492,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.position(
@@ -4546,7 +4546,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4621,7 +4621,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.velocity(
@@ -4665,7 +4665,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4699,7 +4699,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.velocity(
@@ -4753,7 +4753,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4826,7 +4826,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.weapons(
@@ -4898,7 +4898,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -4932,7 +4932,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.weapons(
@@ -5015,7 +5015,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5040,7 +5040,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5091,7 +5091,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5112,7 +5112,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapon_sets_players_weapon_from_invalid_str(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.weapon(Some(PyString::intern(py, "invalid weapon").into_any()));
@@ -5154,7 +5154,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5174,7 +5174,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapon_sets_players_weapon_from_invalid_int(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.weapon(Some(PyInt::new(py, 42i32).into_any()));
@@ -5214,7 +5214,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5287,7 +5287,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.ammo(
@@ -5359,7 +5359,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5393,7 +5393,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.ammo(
@@ -5463,7 +5463,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5538,7 +5538,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.powerups(
@@ -5592,7 +5592,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5626,7 +5626,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.powerups(
@@ -5659,7 +5659,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_holdable();
@@ -5710,7 +5710,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5728,7 +5728,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.set_holdable(Some("kamikaze"));
@@ -5742,7 +5742,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_holdable_for_unknown_values(_pyshinqlx_setup: (), #[case] invalid_str: &str) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.set_holdable(Some(invalid_str));
@@ -5776,7 +5776,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5829,7 +5829,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.set_holdable(Some("flight"));
@@ -5877,7 +5877,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.drop_holdable();
@@ -5922,7 +5922,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -5995,7 +5995,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.flight(
@@ -6091,7 +6091,7 @@ assert(player._valid)
             });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.flight(
@@ -6127,7 +6127,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.flight(
@@ -6183,7 +6183,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6202,7 +6202,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6217,7 +6217,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_noclip_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_noclip();
@@ -6265,7 +6265,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6319,7 +6319,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6372,7 +6372,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6417,7 +6417,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6459,7 +6459,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6478,7 +6478,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6493,7 +6493,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_health_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_health();
@@ -6509,7 +6509,7 @@ assert(player._valid)
             .with_set_health(predicate::eq(666), 1)
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6551,7 +6551,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6570,7 +6570,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6585,7 +6585,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_armor_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_armor();
@@ -6626,7 +6626,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6672,7 +6672,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6691,7 +6691,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6706,7 +6706,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_alive_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_is_alive();
@@ -6718,7 +6718,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn set_is_alive_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_is_alive();
@@ -6800,7 +6800,7 @@ assert(player._valid)
                     .times(1);
             })
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6840,7 +6840,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6881,7 +6881,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -6962,7 +6962,7 @@ assert(player._valid)
         shinqlx_client_spawn_ctx.expect().times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.set_is_alive(true);
@@ -7008,7 +7008,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7027,7 +7027,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7042,7 +7042,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_frozen_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_is_frozen();
@@ -7087,7 +7087,7 @@ assert(player._valid)
             .with_health(200, 0..)
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7106,7 +7106,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7121,7 +7121,7 @@ assert(player._valid)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_is_chatting_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_is_chatting();
@@ -7133,7 +7133,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn get_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_score();
@@ -7163,7 +7163,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7182,7 +7182,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7197,7 +7197,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn set_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.set_score(42);
@@ -7220,7 +7220,7 @@ assert(player._valid)
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7239,7 +7239,7 @@ assert(player._valid)
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7253,7 +7253,7 @@ assert(player._valid)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_tell_channel(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.get_channel();
@@ -7281,7 +7281,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.center_print("asdf");
@@ -7310,7 +7310,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
                 let result = player.tell("asdf", None);
@@ -7345,7 +7345,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -7398,7 +7398,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -7454,7 +7454,7 @@ assert(player._valid)
             .times(1);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let player = Bound::new(
                     py,
                     Player {
@@ -7481,7 +7481,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("ban 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7498,7 +7498,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("tempban 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7515,7 +7515,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("addadmin 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7532,7 +7532,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("addmod 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7549,7 +7549,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("demote 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7566,7 +7566,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("mute 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7583,7 +7583,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("unmute 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7597,7 +7597,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn put_with_invalid_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
 
             let result = player.put("invalid team");
@@ -7617,7 +7617,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7634,7 +7634,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("addscore 2 42", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7648,7 +7648,7 @@ assert(player._valid)
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn switch_with_player_on_same_team(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 Player {
@@ -7689,7 +7689,7 @@ assert(player._valid)
             .with_execute_console_command("put 2 blue", 1)
             .with_execute_console_command("put 1 red", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player = Bound::new(
                         py,
                         Player {
@@ -7730,7 +7730,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("slap 2 42", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7747,7 +7747,7 @@ assert(player._valid)
         MockEngineBuilder::default()
             .with_execute_console_command("slay 2", 1)
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let player =
                         Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7767,7 +7767,7 @@ assert(player._valid)
             .with_game_client(|| Ok(MockGameClient::new()))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let player =
                             Bound::new(py, default_test_player()).expect("this should not happen");
 
@@ -7846,7 +7846,7 @@ assert(player._valid)
         });
 
         MockEngineBuilder::default().with_max_clients(3).run(|| {
-            let all_players = Python::with_gil(|py| Player::all_players(&py.get_type::<Player>()));
+            let all_players = Python::attach(|py| Player::all_players(&py.get_type::<Player>()));
             assert_eq!(
                 all_players.expect("result was not ok"),
                 vec![
@@ -8017,7 +8017,7 @@ mod pyshinqlx_abstract_dummy_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -8035,7 +8035,7 @@ assert(isinstance(shinqlx.AbstractDummyPlayer(), shinqlx.Player))
     #[serial]
     fn dummy_player_can_be_subclassed(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            let result = Python::with_gil(|py| {
+            let result = Python::attach(|py| {
                 py.run(
                     cr#"
 from shinqlx import AbstractDummyPlayer
@@ -8057,7 +8057,7 @@ player = ConcreteDummyPlayer("asdf")
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
@@ -8073,7 +8073,7 @@ player = ConcreteDummyPlayer("asdf")
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
@@ -8089,7 +8089,7 @@ player = ConcreteDummyPlayer("asdf")
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
@@ -8105,7 +8105,7 @@ player = ConcreteDummyPlayer("asdf")
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
@@ -8121,7 +8121,7 @@ player = ConcreteDummyPlayer("asdf")
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let player = Bound::new(
                 py,
                 AbstractDummyPlayer::py_new("DummyPlayer", py.None().bind(py), None),
@@ -8180,7 +8180,7 @@ pub(crate) trait RconDummyPlayerMethods<'py> {
 impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
     fn get_steam_id(&self) -> PyResult<i64> {
         self.py()
-            .allow_threads(|| owner().map(|opt_value| opt_value.unwrap_or_default()))
+            .detach(|| owner().map(|opt_value| opt_value.unwrap_or_default()))
     }
 
     fn get_channel(&self) -> PyResult<Bound<'py, ConsoleChannel>> {
@@ -8233,7 +8233,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -8250,7 +8250,7 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn dummy_player_has_default_name(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 from shinqlx import RconDummyPlayer
@@ -8283,7 +8283,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
                 1..,
             )
             .run(|| {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let rcon_dummy_player =
                         Bound::new(py, RconDummyPlayer::py_new(py, py.None().bind(py), None))
                             .expect("this should not happen");
@@ -8300,7 +8300,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
     fn get_channel_with_no_console_channel_initialized(_pyshinqlx_setup: ()) {
         CONSOLE_CHANNEL.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rcon_dummy_player =
                 Bound::new(py, RconDummyPlayer::py_new(py, py.None().bind(py), None))
                     .expect("this should not happen");
@@ -8314,7 +8314,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn get_channel_with_console_channel_properly_initialized(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let console_channel = Py::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                 .expect("this should not happen");
             CONSOLE_CHANNEL.store(Some(console_channel.into()));
@@ -8334,7 +8334,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
     fn tell_with_no_console_channel_initialized(_pyshinqlx_setup: ()) {
         CONSOLE_CHANNEL.store(None);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let rcon_dummy_player =
                 Bound::new(py, RconDummyPlayer::py_new(py, py.None().bind(py), None))
                     .expect("this should not happen");
@@ -8354,7 +8354,7 @@ assert(rcon_player.name == "RconDummyPlayer^7")
             .with(predicate::eq("asdf\n"))
             .times(1);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let console_channel =
                 Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
                     .expect("this should not happen");

@@ -11,7 +11,7 @@ pub(crate) fn pyshinqlx_set_ammo(
     client_id: i32,
     ammos: &Weapons,
 ) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -43,7 +43,7 @@ mod set_ammo_tests {
     fn set_ammo_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
         let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_set_ammo(py, 21, &weapons);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -56,7 +56,7 @@ mod set_ammo_tests {
         let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_ammo(py, -1, &weapons);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -70,7 +70,7 @@ mod set_ammo_tests {
         let weapons = Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         MockEngineBuilder::default().with_max_clients(16).run(|| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let result = pyshinqlx_set_ammo(py, 666, &weapons);
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
@@ -96,7 +96,7 @@ mod set_ammo_tests {
             })
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_ammo(py, 2, &weapons));
+                    let result = Python::attach(|py| pyshinqlx_set_ammo(py, 2, &weapons));
                     assert_eq!(result.expect("result was not OK"), true);
                 });
             });
@@ -112,7 +112,7 @@ mod set_ammo_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::always(), || {
                 MockEngineBuilder::default().with_max_clients(16).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_set_ammo(py, 2, &weapons));
+                    let result = Python::attach(|py| pyshinqlx_set_ammo(py, 2, &weapons));
                     assert_eq!(result.expect("result was not OK"), false);
                 });
             });

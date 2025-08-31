@@ -110,7 +110,7 @@ mod weapons_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let weapons_constructor =py.run(cr#"
 import shinqlx
 weapons = shinqlx.Weapons((False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
@@ -126,7 +126,7 @@ weapons = shinqlx.Weapons((False, False, False, False, False, False, False, Fals
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let weapons_constructor = py.run(
                 cr#"
 import shinqlx
@@ -142,7 +142,7 @@ powerups = shinqlx.Weapons((False, False, False, False, False, False, False, Fal
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let weapons_constructor = py.run(
                 cr#"
 import shinqlx
@@ -158,7 +158,7 @@ powerups = shinqlx.Weapons((False, False, False, False, False, False, False, Fal
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_py_constructor_with_non_boolean_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let weapons_constructor = py.run(
                 cr#"
 import shinqlx
@@ -174,7 +174,7 @@ powerups = shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -190,7 +190,7 @@ assert(shinqlx.Weapons((False, False, False, False, False, False, False, False, 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -206,7 +206,7 @@ assert(shinqlx.Weapons((False, False, False, False, False, False, False, False, 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn weapons_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx
@@ -248,7 +248,7 @@ mod ammo_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_can_be_created_from_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ammo_constructor = py.run(
                 cr#"
 import shinqlx
@@ -268,7 +268,7 @@ weapons = shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_py_constructor_with_too_few_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ammo_constructor = py.run(
                 cr#"
 import shinqlx
@@ -284,7 +284,7 @@ powerups = shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13))
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_py_constructor_with_too_many_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ammo_constructor = py.run(
                 cr#"
 import shinqlx
@@ -300,7 +300,7 @@ powerups = shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_py_constructor_with_non_numeric_values(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let ammo_constructor = py.run(
                 cr#"
 import shinqlx
@@ -316,7 +316,7 @@ powerups = shinqlx.Weapons(("asdf", True, (1, 2, 3), [], {}, set(), 6, 7, 8, 9, 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_can_be_compared_for_equality_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -332,7 +332,7 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) == sh
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_can_be_compared_for_non_equality_in_python(_pyshinqlx_setup: ()) {
-        let result = Python::with_gil(|py| {
+        let result = Python::attach(|py| {
             py.run(
                 cr#"
 import shinqlx
@@ -348,7 +348,7 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) != sh
     #[rstest]
     #[cfg_attr(miri, ignore)]
     fn ammo_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = py.run(
                 cr#"
 import shinqlx

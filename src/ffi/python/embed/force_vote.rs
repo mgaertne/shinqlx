@@ -12,7 +12,7 @@ use crate::{
 #[pyfunction]
 #[pyo3(name = "force_vote")]
 pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
-    py.allow_threads(|| {
+    py.detach(|| {
         if CurrentLevel::try_get()
             .ok()
             .and_then(|current_level| current_level.get_vote_time())
@@ -70,7 +70,7 @@ mod force_vote_tests {
             Ok(mock_level)
         });
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let result = pyshinqlx_force_vote(py, true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
         });
@@ -85,7 +85,7 @@ mod force_vote_tests {
             .expect()
             .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
 
-        let result = Python::with_gil(|py| pyshinqlx_force_vote(py, false));
+        let result = Python::attach(|py| pyshinqlx_force_vote(py, false));
         assert_eq!(result.expect("result was not OK"), false);
     }
 
@@ -115,7 +115,7 @@ mod force_vote_tests {
             });
 
         MockEngineBuilder::default().with_max_clients(1).run(|| {
-            let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+            let result = Python::attach(|py| pyshinqlx_force_vote(py, true));
 
             assert_eq!(result.expect("result was not OK"), true);
         });
@@ -148,7 +148,7 @@ mod force_vote_tests {
             .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
             .run(predicate::eq(0), || {
                 MockEngineBuilder::default().with_max_clients(1).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+                    let result = Python::attach(|py| pyshinqlx_force_vote(py, true));
 
                     assert_eq!(result.expect("result was not OK"), true);
                 });
@@ -189,7 +189,7 @@ mod force_vote_tests {
             })
             .run(predicate::eq(0), || {
                 MockEngineBuilder::default().with_max_clients(1).run(|| {
-                    let result = Python::with_gil(|py| pyshinqlx_force_vote(py, true));
+                    let result = Python::attach(|py| pyshinqlx_force_vote(py, true));
 
                     assert_eq!(result.expect("result was not OK"), true);
                 });
