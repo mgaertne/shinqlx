@@ -961,7 +961,7 @@ mod game_entity_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_i32_gentities_initialized() {
-        let mut gentities = vec![
+        let mut gentities = Box::new([
             GEntityBuilder::default()
                 .build()
                 .expect("this should not happen"),
@@ -974,7 +974,7 @@ mod game_entity_tests {
             GEntityBuilder::default()
                 .build()
                 .expect("this should not happen"),
-        ];
+        ]);
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
@@ -1012,7 +1012,7 @@ mod game_entity_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_u32_gentities_initialized() {
-        let mut gentities = vec![
+        let mut gentities = Box::new([
             GEntityBuilder::default()
                 .build()
                 .expect("this should not happen"),
@@ -1025,7 +1025,7 @@ mod game_entity_tests {
             GEntityBuilder::default()
                 .build()
                 .expect("this should not happen"),
-        ];
+        ]);
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
@@ -1074,7 +1074,7 @@ mod game_entity_tests {
     #[serial]
     #[cfg_attr(miri, ignore)]
     fn game_entity_get_entity_id_gets_offset() {
-        let mut gentities = vec![
+        let mut gentities = Box::new([
             GEntityBuilder::default()
                 .build()
                 .expect("this should not happen"),
@@ -1090,7 +1090,7 @@ mod game_entity_tests {
             GEntityBuilder::default()
                 .build()
                 .expect("this should not happen"),
-        ];
+        ]);
 
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
