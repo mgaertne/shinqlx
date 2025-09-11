@@ -13,7 +13,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
       - run: cargo check
 
   check-tests:
@@ -25,7 +25,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
       - run: cargo check --tests
 
   clippy:
@@ -37,7 +37,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: clippy
       - run: cargo clippy -- -D warnings
 
@@ -50,7 +50,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: clippy
       - run: cargo clippy --tests -- -D warnings
 
@@ -64,7 +64,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
       - run: cargo doc --no-deps
 
   python-checks:
@@ -77,7 +77,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: rust-src
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
@@ -100,7 +100,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: rust-src
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
@@ -134,7 +134,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -160,7 +160,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -182,7 +182,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: "llvm-tools"
       - run: cargo install cargo-tarpaulin
       - run: cargo tarpaulin
@@ -209,7 +209,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: "llvm-tools"
       - run: cargo install cargo-llvm-cov
       - run: cargo llvm-cov --lcov --output-path lcov.info
@@ -234,7 +234,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: miri
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
@@ -257,7 +257,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: nightly-2025-06-23
+          toolchain: nightly
           components: rust-src
       - name: Build sdist
         uses: PyO3/maturin-action@v1
