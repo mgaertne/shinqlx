@@ -212,6 +212,7 @@ mod server_static_tests {
 
     #[test]
     fn server_static_try_get_client_by_id_from_ok_client_not_first_position() {
+        #[allow(clippy::useless_vec)]
         let mut clients = vec![
             ClientBuilder::default()
                 .build()
@@ -272,6 +273,7 @@ mod server_static_tests {
 
     #[test]
     fn server_static_determine_client_id_from_ok_client_not_first_position() {
+        #[allow(clippy::useless_vec)]
         let mut clients = vec![
             ClientBuilder::default()
                 .build()
