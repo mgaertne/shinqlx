@@ -54,7 +54,7 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 arzmq = { workspace = true }
 
-ctor = { version = ">=0.5", default-features = false, features = ["proc_macro"] }
+ctor = { version = ">=0.6", default-features = false, features = ["proc_macro"] }
 rand = { version = ">=0.9", default-features = false, features = ["thread_rng"] }
 pyo3 = { version = ">=0.26, <0.27", features = ["pyo3-macros", "extension-module", "nightly", "parking_lot"] }
 retour = { version = ">=0.4.0-alpha.4", default-features = false, features = ["nightly"] }
@@ -80,8 +80,8 @@ unicode-segmentation = { version = ">=1.12", default-features = false, features 
 region = { version = ">=3.0", default-features = false, optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
-procfs = { version = ">=0.17", default-features = false }
-procfs-core = { version = ">=0.17", default-features = false }
+procfs = { version = ">=0.18", default-features = false }
+procfs-core = { version = ">=0.18", default-features = false }
 
 [target."cfg(not(windows))".dependencies]
 tikv-jemallocator = { version = ">=0.6", default-features = false, features = ["background_threads_runtime_support"], optional = true }
