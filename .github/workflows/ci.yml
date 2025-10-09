@@ -146,7 +146,6 @@ jobs:
     name: build & test with minimal versions
     runs-on: ${{ matrix.os }}
     needs: [ check-tests, clippy-tests ]
-    continue-on-error: true
     strategy:
       matrix:
         os: [ubuntu-latest]
