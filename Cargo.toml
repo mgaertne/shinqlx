@@ -68,7 +68,7 @@ log = { version = ">=0.4", default-features = false }
 log4rs = { version = ">=1.4.0", default-features = false, features = ["console_appender", "config_parsing", ] }
 signal-hook = { version = ">=0.3", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
-chrono = { version = ">=0.4", default-features = false }
+chrono = { version = ">=0.4.41", default-features = false }
 itertools = { version = ">=0.14", default-features = false, features = ["use_std"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false }
