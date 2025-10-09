@@ -79,6 +79,9 @@ unicode-segmentation = { version = ">=1.12", default-features = false, features 
 
 region = { version = ">=3.0", default-features = false, optional = true }
 
+# dependencies for minimal versions build
+pkg-config = { version = ">=0.3.25" }
+
 [target."cfg(target_os = \"linux\")".dependencies]
 procfs = { version = ">=0.18", default-features = false }
 procfs-core = { version = ">=0.18", default-features = false }
