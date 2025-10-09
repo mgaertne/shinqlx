@@ -79,10 +79,10 @@ jobs:
         with:
           toolchain: nightly
           components: rust-src
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Install depend1encies
         run: |
           python -m pip install --upgrade pip
@@ -102,10 +102,10 @@ jobs:
         with:
           toolchain: nightly
           components: rust-src
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Install depend1encies
         run: |
           python -m pip install --upgrade pip
@@ -124,7 +124,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13', '3.14' ]
         include:
           - os: ubuntu-22.04
             python-version: '3.8'
@@ -150,7 +150,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13' ]
+        python-version: [ '3.9', '3.10', '3.11', '3.12', '3.13', '3.14' ]
         include:
           - os: ubuntu-22.04
             python-version: '3.8'
@@ -175,10 +175,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -202,10 +202,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -236,10 +236,10 @@ jobs:
         with:
           toolchain: nightly
           components: miri
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - run: cargo miri test
 
   release:
@@ -250,10 +250,10 @@ jobs:
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.14'
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
