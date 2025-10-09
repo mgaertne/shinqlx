@@ -9,7 +9,7 @@ edition = "2024"
 authors = ["Markus 'ShiN0' Gaertner"]
 
 [workspace.dependencies]
-arzmq = { version = ">=0.5", default-features = false, features = ["futures", "builder", "draft-api"] }
+arzmq = { version = ">=0.5.1", default-features = false, features = ["futures", "builder", "draft-api"] }
 regex = { version = ">=1.11", default-features = false, features = ["perf", "unicode"] }
 serde_json = { version = ">=1.0.145", default-features = false, features = ["alloc"] }
 
@@ -60,7 +60,7 @@ pyo3 = { version = ">=0.26, <0.27", features = ["pyo3-macros", "extension-module
 retour = { version = ">=0.4.0-alpha.4", default-features = false, features = ["nightly"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 arc-swap = { version = ">=1.7", default-features = false }
-tap = { version = ">=1.0", default-features = false }
+tap = { version = ">=1.0.1", default-features = false }
 rayon = { version = ">=1.11", default-features = false }
 derive_more = { version = ">=2.0", default-features = false, features = ["display", "try_from"]}
 derive-new = { version = ">=0.7", default-features = false }
@@ -78,9 +78,6 @@ semver = { version = ">=1.0", default-features = false }
 unicode-segmentation = { version = ">=1.12", default-features = false, features = ["no_std"] }
 
 region = { version = ">=3.0", default-features = false, optional = true }
-
-# dependencies for minimal versions build
-pkg-config = { version = ">=0.3.25" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 procfs = { version = ">=0.18", default-features = false }
