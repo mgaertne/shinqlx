@@ -10,7 +10,7 @@ authors = ["Markus 'ShiN0' Gaertner"]
 
 [workspace.dependencies]
 arzmq = { version = ">=0.5.6", default-features = false, features = ["futures", "builder", "draft-api"] }
-regex = { version = ">=1.11", default-features = false, features = ["perf", "unicode"] }
+regex = { version = ">=1.12", default-features = false, features = ["perf", "unicode"] }
 serde_json = { version = ">=1.0.145", default-features = false, features = ["alloc"] }
 
 [package]
