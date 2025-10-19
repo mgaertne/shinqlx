@@ -94,7 +94,7 @@ mod kill_dispatcher_tests {
             );
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -137,7 +137,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -182,7 +182,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -227,7 +227,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -272,7 +272,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -317,7 +317,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -362,7 +362,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -406,7 +406,7 @@ mod kill_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });

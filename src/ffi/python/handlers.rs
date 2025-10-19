@@ -238,14 +238,14 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             },
             |client_command_dispatcher| {
                 ClientCommandDispatcherMethods::dispatch(
-                    client_command_dispatcher.downcast()?,
+                    client_command_dispatcher.cast()?,
                     &Bound::new(py, player.to_owned())?,
                     cmd,
                 )
             },
         )?;
     if return_value
-        .downcast::<PyBool>()
+        .cast::<PyBool>()
         .is_ok_and(|value| !value.is_true())
     {
         return Ok(PyBool::new(py, false).into_any().unbind());
@@ -292,7 +292,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                     };
 
                     ChatEventDispatcherMethods::dispatch(
-                        chat_dispatcher.downcast()?,
+                        chat_dispatcher.cast()?,
                         &Bound::new(py, player)?,
                         &reformatted_msg,
                         main_chat_channel.bind(py),
@@ -300,7 +300,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
             )?;
 
-        return match result.downcast::<PyBool>() {
+        return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
             _ => {
                 let new_command = format!("say \"{reformatted_msg}\"");
@@ -353,7 +353,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                         ));
                     };
                     ChatEventDispatcherMethods::dispatch(
-                        chat_dispatcher.downcast()?,
+                        chat_dispatcher.cast()?,
                         &Bound::new(py, player)?,
                         &reformatted_msg,
                         chat_channel.bind(py),
@@ -361,7 +361,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
             )?;
 
-        return match result.downcast::<PyBool>() {
+        return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
             _ => {
                 let new_command = format!("say_team \"{reformatted_msg}\"");
@@ -401,7 +401,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
                 |vote_started_dispatcher| {
                     VoteStartedDispatcherMethods::caller(
-                        vote_started_dispatcher.downcast()?,
+                        vote_started_dispatcher.cast()?,
                         Bound::new(py, player.to_owned())?.as_any(),
                     );
                     Ok(())
@@ -425,7 +425,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
                 |vote_called_dispatcher| {
                     VoteCalledDispatcherMethods::dispatch(
-                        vote_called_dispatcher.downcast()?,
+                        vote_called_dispatcher.cast()?,
                         &Bound::new(py, player.to_owned())?,
                         vote.as_str(),
                         PyString::new(py, args).as_any(),
@@ -433,7 +433,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
             )?;
 
-        return match result.downcast::<PyBool>() {
+        return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
             _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
         };
@@ -465,14 +465,14 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
                 |vote_dispatcher| {
                     VoteDispatcherMethods::dispatch(
-                        vote_dispatcher.downcast()?,
+                        vote_dispatcher.cast()?,
                         &Bound::new(py, player.to_owned())?,
                         vote,
                     )
                 },
             )?;
 
-        return match result.downcast::<PyBool>() {
+        return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
             _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
         };
@@ -514,7 +514,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
                 |team_switch_attempt_dispatcher| {
                     TeamSwitchAttemptDispatcherMethods::dispatch(
-                        team_switch_attempt_dispatcher.downcast()?,
+                        team_switch_attempt_dispatcher.cast()?,
                         &Bound::new(py, player)?,
                         &current_team,
                         target_team,
@@ -522,7 +522,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
             )?;
 
-        return match result.downcast::<PyBool>() {
+        return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
             _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
         };
@@ -566,16 +566,16 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 },
                 |userinfo_dispatcher| {
                     UserinfoDispatcherMethods::dispatch(
-                        userinfo_dispatcher.downcast()?,
+                        userinfo_dispatcher.cast()?,
                         &Bound::new(py, player.to_owned())?,
                         &changed.into_py_dict(py)?,
                     )
                 },
             )?;
 
-        return match result.downcast::<PyBool>() {
+        return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => match result.downcast::<PyDict>() {
+            _ => match result.cast::<PyDict>() {
                 Ok(changed_values) => {
                     let updated_info = new_info.into_py_dict(py)?;
                     updated_info
@@ -700,7 +700,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "client_command"))
                                 .and_then(|client_command_dispatcher| {
                                     client_command_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -819,7 +819,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "client_command"))
                                 .and_then(|client_command_dispatcher| {
                                     client_command_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -837,7 +837,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -896,7 +896,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "client_command"))
                                 .and_then(|client_command_dispatcher| {
                                     client_command_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -985,7 +985,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1088,7 +1088,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1287,7 +1287,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1305,7 +1305,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -1390,7 +1390,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1621,7 +1621,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "chat"))
                                 .and_then(|chat_dispatcher| {
                                     chat_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1639,7 +1639,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -1704,7 +1704,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote_called"))
                                 .and_then(|vote_called_dispatcher| {
                                     vote_called_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1794,7 +1794,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote_called"))
                                 .and_then(|vote_called_dispatcher| {
                                     vote_called_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -1985,7 +1985,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote_called"))
                                 .and_then(|vote_called_dispatcher| {
                                     vote_called_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2004,7 +2004,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -2076,7 +2076,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2160,7 +2160,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2252,7 +2252,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2391,7 +2391,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "vote"))
                                 .and_then(|vote_dispatcher| {
                                     vote_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2410,7 +2410,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -2481,7 +2481,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2568,7 +2568,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2658,7 +2658,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2793,7 +2793,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "team_switch_attempt"))
                                 .and_then(|team_switch_attempt_dispatcher| {
                                     team_switch_attempt_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2812,7 +2812,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -2873,7 +2873,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -2959,7 +2959,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -3099,7 +3099,7 @@ mod handle_client_command_tests {
                                 .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -3121,7 +3121,7 @@ mod handle_client_command_tests {
                             assert!(result.is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| !bool_value.is_true())
                             }));
                         });
@@ -3193,7 +3193,7 @@ def returning_other_userinfo_hook(*args, **kwargs):
                                 .get_item(intern!(py, "userinfo"))
                                 .and_then(|userinfo_dispatcher| {
                                     userinfo_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -3256,7 +3256,7 @@ def returning_other_userinfo_hook(*args, **kwargs):
                     let result = handle_client_command(py, 42, "asdf");
                     assert!(
                         result
-                            .downcast_bound::<PyBool>(py)
+                            .cast_bound::<PyBool>(py)
                             .is_ok_and(|value| value.is_true())
                     );
                 });
@@ -3304,14 +3304,14 @@ fn try_handle_server_command<'py>(
             },
             |server_command_dispatcher| {
                 ServerCommandDispatcherMethods::dispatch(
-                    server_command_dispatcher.downcast()?,
+                    server_command_dispatcher.cast()?,
                     &player,
                     cmd,
                 )
             },
         )?;
     if return_value
-        .downcast::<PyBool>()
+        .cast::<PyBool>()
         .is_ok_and(|value| !value.is_true())
     {
         return Ok(PyBool::new(py, false).to_owned().into_any());
@@ -3343,7 +3343,7 @@ fn try_handle_server_command<'py>(
                             .name("result")
                             .is_some_and(|value| value.as_str() == "passed");
                         VoteEndedDispatcherMethods::dispatch(
-                            vote_ended_dispatcher.downcast()?,
+                            vote_ended_dispatcher.cast()?,
                             vote_passed,
                         )
                     },
@@ -3424,7 +3424,7 @@ mod handle_server_command_tests {
                         .get_item(intern!(py, "server_command"))
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -3505,7 +3505,7 @@ mod handle_server_command_tests {
                                 .get_item(intern!(py, "server_command"))
                                 .and_then(|server_command_dispatcher| {
                                     server_command_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -3576,7 +3576,7 @@ mod handle_server_command_tests {
                         .get_item(intern!(py, "server_command"))
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -3590,7 +3590,7 @@ mod handle_server_command_tests {
                     let result = try_handle_server_command(py, -1, "cp \"asdf\"");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -3624,7 +3624,7 @@ mod handle_server_command_tests {
                         .get_item(intern!(py, "server_command"))
                         .and_then(|server_command_dispatcher| {
                             server_command_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -3679,7 +3679,7 @@ mod handle_server_command_tests {
                         .get_item(intern!(py, "vote_ended"))
                         .and_then(|vote_ended_dispatcher| {
                             vote_ended_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -3744,7 +3744,7 @@ mod handle_server_command_tests {
                         .get_item(intern!(py, "vote_ended"))
                         .and_then(|vote_ended_dispatcher| {
                             vote_ended_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -3801,7 +3801,7 @@ mod handle_server_command_tests {
             let result = handle_server_command(py, -1, "asdf");
             assert!(
                 result
-                    .downcast_bound::<PyBool>(py)
+                    .cast_bound::<PyBool>(py)
                     .is_ok_and(|value| value.is_true())
             );
         });
@@ -3840,7 +3840,7 @@ fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
                 ))
             },
             |frame_dispatcher| {
-                FrameEventDispatcherMethods::dispatch(frame_dispatcher.downcast()?).map(|_| Ok(()))
+                FrameEventDispatcherMethods::dispatch(frame_dispatcher.cast()?).map(|_| Ok(()))
             },
         )?
 }
@@ -4055,7 +4055,7 @@ frame_tasks.enter(0, 1, capturing_hook, ("asdf", 42), {})
                         .get_item(intern!(py, "frame"))
                         .and_then(|frame_dispatcher| {
                             frame_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -4138,7 +4138,7 @@ for event in frame_tasks.queue:
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .expect("this should not happen")
                             .is_true()
                     })
@@ -4148,7 +4148,7 @@ for event in frame_tasks.queue:
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .expect("this should not happen")
                             .is_true()
                     })
@@ -4210,7 +4210,7 @@ for event in frame_tasks.queue:
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| {
                         !value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .expect("this should not happen")
                             .is_true()
                     })
@@ -4220,7 +4220,7 @@ for event in frame_tasks.queue:
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .expect("this should not happen")
                             .is_true()
                     })
@@ -4281,7 +4281,7 @@ frame_tasks.enter(0, 1, throws_exception, (), {})
                         .get_item(intern!(py, "frame"))
                         .and_then(|frame_dispatcher| {
                             frame_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -4401,7 +4401,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
                 },
                 |map_dispatcher| {
                     MapDispatcherMethods::dispatch(
-                        map_dispatcher.downcast()?,
+                        map_dispatcher.cast()?,
                         &map_name.unwrap_or_default(),
                         &factory_name.unwrap_or_default(),
                     )
@@ -4425,9 +4425,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
                     "could not get access to new game dispatcher",
                 ))
             },
-            |new_game_dispatcher| {
-                NewGameDispatcherMethods::dispatch(new_game_dispatcher.downcast()?)
-            },
+            |new_game_dispatcher| NewGameDispatcherMethods::dispatch(new_game_dispatcher.cast()?),
         )?;
 
     Ok(())
@@ -4565,7 +4563,7 @@ mod handle_new_game_tests {
                         .get_item(intern!(py, "new_game"))
                         .and_then(|new_game_dispatcher| {
                             new_game_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -4687,7 +4685,7 @@ mod handle_new_game_tests {
                         .get_item(intern!(py, "new_game"))
                         .and_then(|new_game_dispatcher| {
                             new_game_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -4702,7 +4700,7 @@ mod handle_new_game_tests {
                         .get_item(intern!(py, "map"))
                         .and_then(|map_dispatcher| {
                             map_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5147,7 +5145,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             },
             |set_configstring_dispatcher| {
                 SetConfigstringDispatcherMethods::dispatch(
-                    set_configstring_dispatcher.downcast()?,
+                    set_configstring_dispatcher.cast()?,
                     index,
                     value,
                 )
@@ -5155,7 +5153,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         )?;
 
     if result
-        .downcast::<PyBool>()
+        .cast::<PyBool>()
         .is_ok_and(|result_value| !result_value.is_true())
     {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
@@ -5185,7 +5183,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                     },
                     |vote_started_dispatcher| {
                         VoteStartedDispatcherMethods::dispatch(
-                            vote_started_dispatcher.downcast()?,
+                            vote_started_dispatcher.cast()?,
                             vote,
                             PyString::new(py, args).as_any(),
                         )?;
@@ -5234,7 +5232,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                         },
                         |game_countdown_dispatcher| {
                             GameCountdownDispatcherMethods::dispatch(
-                                game_countdown_dispatcher.downcast()?,
+                                game_countdown_dispatcher.cast()?,
                             )
                             .map(|_| ())
                         },
@@ -5361,7 +5359,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                         },
                         |round_dispatcher| {
                             RoundCountdownDispatcherMethods::dispatch(
-                                round_dispatcher.downcast()?,
+                                round_dispatcher.cast()?,
                                 round_number,
                             )
                             .map(|_| py.None())
@@ -5386,7 +5384,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                         },
                         |round_dispatcher| {
                             RoundStartDispatcherMethods::dispatch(
-                                round_dispatcher.downcast()?,
+                                round_dispatcher.cast()?,
                                 round_number,
                             )
                             .map(|_| py.None())
@@ -5472,7 +5470,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "set_configstring"))
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5527,7 +5525,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "set_configstring"))
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5542,7 +5540,7 @@ mod handle_set_configstring_tests {
                     assert!(result.is_ok_and(|value| {
                         value
                             .bind(py)
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -5593,7 +5591,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "set_configstring"))
                         .and_then(|set_configstring_dispatcher| {
                             set_configstring_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5645,7 +5643,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "vote_started"))
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5703,7 +5701,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "vote_started"))
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5762,7 +5760,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "vote_started"))
                         .and_then(|vote_start_dispatcher| {
                             vote_start_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -5910,7 +5908,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "game_countdown"))
                         .and_then(|game_countdown_dispatcher| {
                             game_countdown_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -6065,7 +6063,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "round_start"))
                         .and_then(|round_start_dispatcher| {
                             round_start_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -6122,7 +6120,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "round_start"))
                         .and_then(|round_start_dispatcher| {
                             round_start_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -6184,7 +6182,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "round_countdown"))
                         .and_then(|round_countdown_dispatcher| {
                             round_countdown_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -6242,7 +6240,7 @@ mod handle_set_configstring_tests {
                         .get_item(intern!(py, "round_countdown"))
                         .and_then(|round_countdown_dispatcher| {
                             round_countdown_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -6512,7 +6510,7 @@ mod handle_set_configstring_tests {
             assert!(
                 result
                     .bind(py)
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             );
         });
@@ -6540,7 +6538,7 @@ fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> P
                 let player = Player::py_new(client_id, None)?;
 
                 PlayerConnectDispatcherMethods::dispatch(
-                    player_connect_dispatcher.downcast()?,
+                    player_connect_dispatcher.cast()?,
                     &Bound::new(py, player)?,
                 )
                 .map(|value| value.unbind())
@@ -6639,7 +6637,7 @@ mod handle_player_connect_tests {
                                 .get_item(intern!(py, "player_connect"))
                                 .and_then(|player_connect_dispatcher| {
                                     player_connect_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -6656,7 +6654,7 @@ mod handle_player_connect_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -6735,7 +6733,7 @@ mod handle_player_connect_tests {
                                 .get_item(intern!(py, "player_connect"))
                                 .and_then(|player_connect_dispatcher| {
                                     player_connect_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -6774,7 +6772,7 @@ mod handle_player_connect_tests {
                 assert!(
                     result
                         .bind(py)
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())
                 );
             });
@@ -6803,7 +6801,7 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny
                 let player = Player::py_new(client_id, None)?;
 
                 PlayerLoadedDispatcherMethods::dispatch(
-                    player_loaded_dispatcher.downcast()?,
+                    player_loaded_dispatcher.cast()?,
                     &Bound::new(py, player)?,
                 )
                 .map(|value| value.unbind())
@@ -6901,7 +6899,7 @@ mod handle_player_loaded_tests {
                                 .get_item(intern!(py, "player_loaded"))
                                 .and_then(|player_loaded_dispatcher| {
                                     player_loaded_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -6918,7 +6916,7 @@ mod handle_player_loaded_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -6965,7 +6963,7 @@ mod handle_player_loaded_tests {
                 assert!(
                     result
                         .bind(py)
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())
                 );
             });
@@ -6998,7 +6996,7 @@ fn try_handle_player_disconnect(
                 let player = Player::py_new(client_id, None)?;
 
                 PlayerDisconnectDispatcherMethods::dispatch(
-                    player_disconnect_dispatcher.downcast()?,
+                    player_disconnect_dispatcher.cast()?,
                     &Bound::new(py, player)?,
                     &reason.into_bound_py_any(py)?,
                 )
@@ -7100,7 +7098,7 @@ mod handle_player_disconnect_tests {
                                 .get_item(intern!(py, "player_disconnect"))
                                 .and_then(|player_disconnect_dispatcher| {
                                     player_disconnect_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -7117,7 +7115,7 @@ mod handle_player_disconnect_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -7164,7 +7162,7 @@ mod handle_player_disconnect_tests {
                 assert!(
                     result
                         .bind(py)
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())
                 );
             });
@@ -7193,7 +7191,7 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>
                 let player = Player::py_new(client_id, None)?;
 
                 PlayerSpawnDispatcherMethods::dispatch(
-                    player_spawn_dispatcher.downcast()?,
+                    player_spawn_dispatcher.cast()?,
                     &Bound::new(py, player)?,
                 )
                 .map(|value| value.unbind())
@@ -7291,7 +7289,7 @@ mod handle_player_spawn_tests {
                                 .get_item(intern!(py, "player_spawn"))
                                 .and_then(|player_spawn_dispatcher| {
                                     player_spawn_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -7308,7 +7306,7 @@ mod handle_player_spawn_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -7355,7 +7353,7 @@ mod handle_player_spawn_tests {
                 assert!(
                     result
                         .bind(py)
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())
                 );
             });
@@ -7384,7 +7382,7 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>
                 let player = Player::py_new(client_id, None)?;
 
                 KamikazeUseDispatcherMethods::dispatch(
-                    kamikaze_use_dispatcher.downcast()?,
+                    kamikaze_use_dispatcher.cast()?,
                     &Bound::new(py, player)?,
                 )
                 .map(|value| value.unbind())
@@ -7480,7 +7478,7 @@ mod handle_kamikaze_use_tests {
                                 .get_item(intern!(py, "kamikaze_use"))
                                 .and_then(|kamikaze_use_dispatcher| {
                                     kamikaze_use_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -7497,7 +7495,7 @@ mod handle_kamikaze_use_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -7544,7 +7542,7 @@ mod handle_kamikaze_use_tests {
                 assert!(
                     result
                         .bind(py)
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true())
                 );
             });
@@ -7577,7 +7575,7 @@ fn try_handle_kamikaze_explode(
     };
 
     KamikazeExplodeDispatcherMethods::dispatch(
-        kamikaze_explode_dispatcher.downcast()?,
+        kamikaze_explode_dispatcher.cast()?,
         &Bound::new(py, player)?,
         is_used_on_demand,
     )
@@ -7676,7 +7674,7 @@ mod handle_kamikaze_explode_tests {
                                 .get_item(intern!(py, "kamikaze_explode"))
                                 .and_then(|kamikaze_explode_dispatcher| {
                                     kamikaze_explode_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -7693,7 +7691,7 @@ mod handle_kamikaze_explode_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -7756,7 +7754,7 @@ mod handle_kamikaze_explode_tests {
                                 .get_item(intern!(py, "kamikaze_explode"))
                                 .and_then(|kamikaze_explode_dispatcher| {
                                     kamikaze_explode_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -7773,7 +7771,7 @@ mod handle_kamikaze_explode_tests {
                             assert!(result.as_ref().is_ok_and(|value| {
                                 value
                                     .bind(py)
-                                    .downcast::<PyBool>()
+                                    .cast::<PyBool>()
                                     .is_ok_and(|bool_value| bool_value.is_true())
                             }));
                             assert!(
@@ -7863,7 +7861,7 @@ mod handle_kamikaze_explode_tests {
                         assert!(
                             result
                                 .bind(py)
-                                .downcast::<PyBool>()
+                                .cast::<PyBool>()
                                 .is_ok_and(|bool_value| bool_value.is_true())
                         );
                     });
@@ -7916,7 +7914,7 @@ fn try_handle_damage(
                 });
 
                 DamageDispatcherMethods::dispatch(
-                    damage_dispatcher.downcast()?,
+                    damage_dispatcher.cast()?,
                     &target_player,
                     &attacker_player.unwrap_or(py.None().bind(py).to_owned()),
                     damage,
@@ -8027,7 +8025,7 @@ mod handle_damage_tests {
                                 .get_item(intern!(py, "damage"))
                                 .and_then(|damage_dispatcher| {
                                     damage_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -8118,7 +8116,7 @@ mod handle_damage_tests {
                                 .get_item(intern!(py, "damage"))
                                 .and_then(|damage_dispatcher| {
                                     damage_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -8203,7 +8201,7 @@ mod handle_damage_tests {
                                 .get_item(intern!(py, "damage"))
                                 .and_then(|damage_dispatcher| {
                                     damage_dispatcher
-                                        .downcast::<EventDispatcher>()
+                                        .cast::<EventDispatcher>()
                                         .expect("this should not happen")
                                         .add_hook(
                                             "asdf",
@@ -8334,13 +8332,10 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
                 ))
             },
             |console_print_dispatcher| {
-                ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.downcast()?, text)
+                ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.cast()?, text)
             },
         )?;
-    if result
-        .downcast::<PyBool>()
-        .is_ok_and(|value| !value.is_true())
-    {
+    if result.cast::<PyBool>().is_ok_and(|value| !value.is_true()) {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
@@ -8431,7 +8426,7 @@ mod handle_console_print_tests {
                         .get_item(intern!(py, "console_print"))
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -8488,7 +8483,7 @@ mod handle_console_print_tests {
                         .get_item(intern!(py, "console_print"))
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -8503,7 +8498,7 @@ mod handle_console_print_tests {
                     assert!(result.is_ok_and(|value| {
                         value
                             .bind(py)
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -8539,7 +8534,7 @@ mod handle_console_print_tests {
                         .get_item(intern!(py, "console_print"))
                         .and_then(|console_print_dispatcher| {
                             console_print_dispatcher
-                                .downcast::<EventDispatcher>()
+                                .cast::<EventDispatcher>()
                                 .expect("this should not happen")
                                 .add_hook(
                                     "asdf",
@@ -8659,7 +8654,7 @@ mod handle_console_print_tests {
             assert!(
                 result
                     .bind(py)
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             );
         });

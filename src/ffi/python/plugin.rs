@@ -800,7 +800,7 @@ impl Plugin {
                 },
                 |vote_started_dispatcher| {
                     vote_started_dispatcher
-                        .downcast::<VoteStartedDispatcher>()?
+                        .cast::<VoteStartedDispatcher>()?
                         .caller(cls.py().None().bind(cls.py()));
                     Ok(())
                 },
@@ -814,7 +814,7 @@ impl Plugin {
     #[classmethod]
     fn force_vote(cls: &Bound<'_, PyType>, pass_it: &Bound<'_, PyAny>) -> PyResult<bool> {
         pass_it
-            .downcast::<PyBool>()
+            .cast::<PyBool>()
             .map_err(|_| PyValueError::new_err("pass_it must be either True or False."))
             .and_then(|vote_passed| pyshinqlx_force_vote(cls.py(), vote_passed.is_true()))
     }
@@ -1134,7 +1134,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .get_type::<Plugin>()
             .getattr(intern!(self.py(), "_loaded_plugins"))?;
 
-        Ok(loaded_plugins.downcast()?.to_owned())
+        Ok(loaded_plugins.cast()?.to_owned())
     }
 
     fn get_hooks(&self) -> Vec<(String, Py<PyAny>, i32)> {
@@ -1219,7 +1219,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                     let plugin_type = self.get_type();
                     let plugin_name = plugin_type.name()?;
                     EventDispatcherMethods::remove_hook(
-                        event_dispatcher.downcast()?,
+                        event_dispatcher.cast()?,
                         &plugin_name.to_string(),
                         handler,
                         priority,
@@ -1291,7 +1291,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         handler: &Bound<'py, PyAny>,
     ) -> PyResult<()> {
         let mut names = vec![];
-        name.downcast::<PyList>().ok().tap_some(|py_list| {
+        name.cast::<PyList>().ok().tap_some(|py_list| {
             names.extend(py_list.iter().filter_map(|py_alias| {
                 py_alias
                     .extract::<String>()
@@ -1299,7 +1299,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                     .map(|alias| alias.to_lowercase())
             }));
         });
-        name.downcast::<PyTuple>().ok().tap_some(|py_tuple| {
+        name.cast::<PyTuple>().ok().tap_some(|py_tuple| {
             names.extend(py_tuple.iter().filter_map(|py_alias| {
                 py_alias
                     .extract::<String>()
@@ -1442,7 +1442,7 @@ mod plugin_tests {
                         .expect("could not create plugin instance");
 
                     plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -1482,7 +1482,7 @@ mod plugin_tests {
             let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
             let result = plugin_instance
-                .downcast()
+                .cast()
                 .expect("this should not happen")
                 .get_db();
 
@@ -1501,7 +1501,7 @@ mod plugin_tests {
             let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
             let result = plugin_instance
-                .downcast()
+                .cast()
                 .expect("this should not happen")
                 .get_db();
 
@@ -1521,7 +1521,7 @@ mod plugin_tests {
             let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
             let result = plugin_instance
-                .downcast()
+                .cast()
                 .expect("this should not happen")
                 .get_db();
 
@@ -1536,7 +1536,7 @@ mod plugin_tests {
             let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let plugin_str = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("this should not happen")
                 .get_name();
 
@@ -1563,7 +1563,7 @@ mod plugin_tests {
             let plugin_instance = extended_plugin.call0().expect("this should not happen");
 
             let plugins = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("this should not happen")
                 .get_plugins();
 
@@ -1679,7 +1679,7 @@ mod plugin_tests {
             let plugin_instance = test_plugin(py).call0().expect("this should not happen");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("this should not happen")
                 .get_logger();
 
@@ -1707,7 +1707,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_hook(
                     "team_switch",
@@ -1748,7 +1748,7 @@ mod plugin_tests {
                         .expect("could not create plugin instance");
 
                     let result = plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -1760,7 +1760,7 @@ mod plugin_tests {
                         plugin_instance
                             .getattr(intern!(py, "hooks"))
                             .expect("could not get hooks")
-                            .downcast::<PyList>()
+                            .cast::<PyList>()
                             .expect("could not downcast to list")
                             .len(),
                         1
@@ -1799,7 +1799,7 @@ mod plugin_tests {
                         .expect("could not create plugin instance");
 
                     let result = plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -1815,7 +1815,7 @@ mod plugin_tests {
                             .expect("could not get access to event dispatchers")
                             .getattr(py, intern!(py, "_dispatchers"))
                             .expect("could not get dispatchers")
-                            .downcast_bound::<PyDict>(py)
+                            .cast_bound::<PyDict>(py)
                             .expect("could not downcast to dict")
                             .get_item(intern!(py, "team_switch_attempt"))
                             .expect("could not get team switch attempt dispatcher")
@@ -1823,7 +1823,7 @@ mod plugin_tests {
                                 team_switch_attempt_dispatcher
                                     .getattr(intern!(py, "plugins"))
                                     .expect("could not get plugins")
-                                    .downcast::<PyDict>()
+                                    .cast::<PyDict>()
                                     .expect("could not downcast to dict")
                                     .get_item(intern!(py, "test_plugin"))
                                     .is_ok_and(|opt_plugin| {
@@ -1852,7 +1852,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .remove_hook(
                     "team_switch",
@@ -1894,7 +1894,7 @@ mod plugin_tests {
                         .expect("could not create plugin instance");
 
                     plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -1904,7 +1904,7 @@ mod plugin_tests {
                         .expect("could not add command");
 
                     let result = plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .remove_hook(
                             "team_switch_attempt",
@@ -1920,7 +1920,7 @@ mod plugin_tests {
                             .expect("could not get access to event dispatchers")
                             .getattr(py, intern!(py, "_dispatchers"))
                             .expect("could not get dispatchers")
-                            .downcast_bound::<PyDict>(py)
+                            .cast_bound::<PyDict>(py)
                             .expect("could not downcast to dict")
                             .get_item(intern!(py, "team_switch_attempt"))
                             .expect("could not get team switch attempt dispatcher")
@@ -1928,7 +1928,7 @@ mod plugin_tests {
                                 team_switch_attempt_dispatcher
                                     .getattr(intern!(py, "plugins"))
                                     .expect("could not get plugins")
-                                    .downcast::<PyDict>()
+                                    .cast::<PyDict>()
                                     .expect("could not downcast to dict")
                                     .get_item(intern!(py, "test_plugin"))
                                     .is_ok_and(|opt_plugin| {
@@ -1976,7 +1976,7 @@ mod plugin_tests {
                         .expect("could not create plugin instance");
 
                     plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -1986,7 +1986,7 @@ mod plugin_tests {
                         .expect("could not add command");
 
                     let result = plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .remove_hook(
                             "team_switch_attempt",
@@ -1999,7 +1999,7 @@ mod plugin_tests {
                         plugin_instance
                             .getattr(intern!(py, "hooks"))
                             .expect("could not get hooks")
-                            .downcast::<PyList>()
+                            .cast::<PyList>()
                             .expect("could not downcast to list")
                             .is_empty()
                     );
@@ -2039,7 +2039,7 @@ mod plugin_tests {
                         .expect("could not create plugin instance");
 
                     plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -2049,7 +2049,7 @@ mod plugin_tests {
                         .expect("could not add command");
 
                     plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .add_hook(
                             "team_switch_attempt",
@@ -2059,7 +2059,7 @@ mod plugin_tests {
                         .expect("could not add command");
 
                     let result = plugin_instance
-                        .downcast::<Plugin>()
+                        .cast::<Plugin>()
                         .expect("could not downcast instance to plugin")
                         .remove_hook(
                             "team_switch_attempt",
@@ -2072,7 +2072,7 @@ mod plugin_tests {
                         plugin_instance
                             .getattr(intern!(py, "hooks"))
                             .expect("could not get hooks")
-                            .downcast::<PyList>()
+                            .cast::<PyList>()
                             .expect("could not downcast to list")
                             .len(),
                         1
@@ -2099,7 +2099,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyString::intern(py, "slap").as_any(),
@@ -2122,7 +2122,7 @@ mod plugin_tests {
                     .expect("could not get access to commands")
                     .getattr(py, intern!(py, "commands"))
                     .expect("could not get commands")
-                    .downcast_bound::<PyList>(py)
+                    .cast_bound::<PyList>(py)
                     .expect("could not downcast to list")
                     .get_item(0)
                     .expect("could not get first command")
@@ -2154,7 +2154,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyString::intern(py, "slap").as_any(),
@@ -2174,7 +2174,7 @@ mod plugin_tests {
                 plugin_instance
                     .getattr(intern!(py, "commands"))
                     .expect("could not get commands")
-                    .downcast::<PyList>()
+                    .cast::<PyList>()
                     .expect("could not downcast to list")
                     .len(),
                 1
@@ -2200,7 +2200,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyString::intern(py, "slap").as_any(),
@@ -2217,7 +2217,7 @@ mod plugin_tests {
                 .expect("could not add command");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .remove_command(PyString::intern(py, "slap").as_any(), &command_handler);
 
@@ -2229,7 +2229,7 @@ mod plugin_tests {
                     .expect("could not get access to commands")
                     .getattr(py, intern!(py, "commands"))
                     .expect("could not get commands")
-                    .downcast_bound::<PyList>(py)
+                    .cast_bound::<PyList>(py)
                     .expect("could not downcast to list")
                     .is_empty()
             );
@@ -2254,7 +2254,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyString::intern(py, "slap").as_any(),
@@ -2271,7 +2271,7 @@ mod plugin_tests {
                 .expect("could not add command");
 
             plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyTuple::new(py, ["slay", "asdf"])
@@ -2290,7 +2290,7 @@ mod plugin_tests {
                 .expect("could not add command");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .remove_command(
                     PyTuple::new(py, ["slay", "asdf"])
@@ -2308,7 +2308,7 @@ mod plugin_tests {
                     .expect("could not get access to commands")
                     .getattr(py, intern!(py, "commands"))
                     .expect("could not get commands")
-                    .downcast_bound::<PyList>(py)
+                    .cast_bound::<PyList>(py)
                     .expect("could not downcast to list")
                     .len(),
                 1
@@ -2334,7 +2334,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyTuple::new(py, ["slay", "asdf"])
@@ -2353,7 +2353,7 @@ mod plugin_tests {
                 .expect("could not add command");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .remove_command(
                     PyTuple::new(py, ["slay", "asdf"])
@@ -2371,7 +2371,7 @@ mod plugin_tests {
                     .expect("could not get access to commands")
                     .getattr(py, intern!(py, "commands"))
                     .expect("could not get commands")
-                    .downcast_bound::<PyList>(py)
+                    .cast_bound::<PyList>(py)
                     .expect("could not downcast to list")
                     .is_empty(),
             );
@@ -2396,7 +2396,7 @@ mod plugin_tests {
                 .expect("could not create plugin instance");
 
             plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .add_command(
                     PyString::intern(py, "slap").as_any(),
@@ -2413,7 +2413,7 @@ mod plugin_tests {
                 .expect("could not add command");
 
             let result = plugin_instance
-                .downcast::<Plugin>()
+                .cast::<Plugin>()
                 .expect("could not downcast instance to plugin")
                 .remove_command(PyString::intern(py, "slap").as_any(), &command_handler);
 
@@ -2422,7 +2422,7 @@ mod plugin_tests {
                 plugin_instance
                     .getattr(intern!(py, "commands"))
                     .expect("could not get commands")
-                    .downcast::<PyList>()
+                    .cast::<PyList>()
                     .expect("could not downcast to list")
                     .is_empty(),
             );
@@ -2813,9 +2813,7 @@ mod plugin_tests {
                     .expect("result was not OK");
                     assert!(
                         result.is_instance_of::<PyList>()
-                            && result
-                                .downcast::<PyList>()
-                                .is_ok_and(|value| value.len() == 5)
+                            && result.cast::<PyList>().is_ok_and(|value| value.len() == 5)
                     );
                 });
             });
@@ -2839,9 +2837,7 @@ mod plugin_tests {
 
                     assert!(
                         result.is_instance_of::<PyList>()
-                            && result
-                                .downcast::<PyList>()
-                                .is_ok_and(|value| value.is_empty())
+                            && result.cast::<PyList>().is_ok_and(|value| value.is_empty())
                     );
                 });
             });
@@ -2874,9 +2870,7 @@ mod plugin_tests {
                     .expect("result was not OK");
                     assert!(
                         result.is_instance_of::<PySet>()
-                            && result
-                                .downcast::<PySet>()
-                                .is_ok_and(|value| value.len() == 5)
+                            && result.cast::<PySet>().is_ok_and(|value| value.len() == 5)
                     );
                 });
             });
@@ -2900,9 +2894,7 @@ mod plugin_tests {
 
                     assert!(
                         result.is_instance_of::<PySet>()
-                            && result
-                                .downcast::<PySet>()
-                                .is_ok_and(|value| value.is_empty())
+                            && result.cast::<PySet>().is_ok_and(|value| value.is_empty())
                     );
                 });
             });
@@ -2935,9 +2927,7 @@ mod plugin_tests {
                     .expect("result was not OK");
                     assert!(
                         result.is_instance_of::<PyTuple>()
-                            && result
-                                .downcast::<PyTuple>()
-                                .is_ok_and(|value| value.len() == 5)
+                            && result.cast::<PyTuple>().is_ok_and(|value| value.len() == 5)
                     );
                 });
             });
@@ -2961,9 +2951,7 @@ mod plugin_tests {
 
                     assert!(
                         result.is_instance_of::<PyTuple>()
-                            && result
-                                .downcast::<PyTuple>()
-                                .is_ok_and(|value| value.is_empty())
+                            && result.cast::<PyTuple>().is_ok_and(|value| value.is_empty())
                     );
                 });
             });

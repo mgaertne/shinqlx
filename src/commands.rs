@@ -245,7 +245,7 @@ pub extern "C" fn cmd_py_command() {
                         || result.is_ok_and(|value| {
                             value
                                 .bind(py)
-                                .downcast::<PyBool>()
+                                .cast::<PyBool>()
                                 .is_ok_and(|bool_value| !bool_value.is_true())
                         })
                     {

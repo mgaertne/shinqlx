@@ -16,11 +16,11 @@ where
     Python::attach(|py| {
         let result = handle_client_command(py, client_id, cmd.as_ref());
 
-        match result.bind(py).downcast::<PyBool>() {
+        match result.bind(py).cast::<PyBool>() {
             Ok(bool_value) if !bool_value.is_true() => None,
             _ => result
                 .bind(py)
-                .downcast::<PyString>()
+                .cast::<PyString>()
                 .map_or(Some(cmd.as_ref().to_string()), |py_string| {
                     Some(py_string.to_string())
                 }),
@@ -41,11 +41,11 @@ where
         let result =
             handle_server_command(py, client_id.unwrap_or(-1), cmd.as_ref()).into_bound(py);
 
-        match result.downcast::<PyBool>() {
+        match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => None,
             _ => Some(
                 result
-                    .downcast::<PyString>()
+                    .cast::<PyString>()
                     .ok()
                     .map_or(cmd.as_ref().to_string(), |py_string| py_string.to_string()),
             ),
@@ -76,12 +76,12 @@ pub(crate) fn client_connect_dispatcher(client_id: i32, is_bot: bool) -> Option<
     let returned: Option<String> = Python::attach(|py| {
         let result = handle_player_connect(py, client_id, is_bot).into_bound(py);
 
-        match result.downcast::<PyBool>() {
+        match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => {
                 Some("You are banned from this server.".to_string())
             }
             _ => result
-                .downcast::<PyString>()
+                .cast::<PyString>()
                 .ok()
                 .map(|py_string| py_string.to_string()),
         }
@@ -154,11 +154,11 @@ where
     Python::attach(|py| {
         let result = handle_set_configstring(py, index.into(), value.as_ref()).into_bound(py);
 
-        match result.downcast::<PyBool>() {
+        match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => None,
             _ => Some(
                 result
-                    .downcast::<PyString>()
+                    .cast::<PyString>()
                     .ok()
                     .map_or(value.as_ref().to_string(), |py_string| {
                         py_string.to_string()
@@ -192,11 +192,11 @@ where
     Python::attach(|py| {
         let result = handle_console_print(py, text.as_ref()).into_bound(py);
 
-        match result.downcast::<PyBool>() {
+        match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => None,
             _ => Some(
                 result
-                    .downcast::<PyString>()
+                    .cast::<PyString>()
                     .ok()
                     .map_or(text.as_ref().to_string(), |py_string| py_string.to_string()),
             ),

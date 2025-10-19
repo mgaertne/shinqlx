@@ -651,9 +651,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
 
             let result = dispatcher.getattr(intern!(py, "plugins"));
             assert!(
-                result.is_ok_and(|value| value
-                    .downcast::<PyDict>()
-                    .is_ok_and(|dict| dict.is_empty()))
+                result.is_ok_and(|value| value.cast::<PyDict>().is_ok_and(|dict| dict.is_empty()))
             );
         });
     }
@@ -733,7 +731,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
 
                     let result = dispatcher.getattr(intern!(py, "plugins"));
                     assert!(result.is_ok_and(|value| {
-                        value.downcast::<PyDict>().is_ok_and(|dict| dict.len() == 5)
+                        value.cast::<PyDict>().is_ok_and(|dict| dict.len() == 5)
                     }));
                 });
             });
@@ -748,7 +746,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
             let result = dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -790,7 +788,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -834,7 +832,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -878,7 +876,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -922,7 +920,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -966,7 +964,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -1010,7 +1008,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -1053,7 +1051,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -1102,7 +1100,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
                         dispatcher.call_method1(intern!(py, "dispatch"), PyTuple::empty(py));
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });

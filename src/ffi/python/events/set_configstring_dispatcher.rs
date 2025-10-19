@@ -125,7 +125,7 @@ mod set_configstring_dispatcher_tests {
             let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -164,7 +164,7 @@ mod set_configstring_dispatcher_tests {
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -205,7 +205,7 @@ mod set_configstring_dispatcher_tests {
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -246,7 +246,7 @@ mod set_configstring_dispatcher_tests {
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -287,7 +287,7 @@ mod set_configstring_dispatcher_tests {
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -328,7 +328,7 @@ mod set_configstring_dispatcher_tests {
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -369,7 +369,7 @@ mod set_configstring_dispatcher_tests {
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -465,7 +465,7 @@ def returns_string_hook(*args, **kwargs):
                     let result = dispatcher.dispatch(CS_LEVEL_START_TIME, "asdf");
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });

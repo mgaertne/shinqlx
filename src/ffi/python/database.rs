@@ -1149,7 +1149,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                 ),))?;
                 return Err(PyErr::from_value(error));
             };
-            mapping.update(dict_arg.downcast::<PyDict>()?.as_mapping())?;
+            mapping.update(dict_arg.cast::<PyDict>()?.as_mapping())?;
         }
 
         if let Some(kwargs_dict) = kwargs {
@@ -1188,7 +1188,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                 ),))?;
                 return Err(PyErr::from_value(error));
             };
-            mapping.update(dict_arg.downcast::<PyDict>()?.as_mapping())?;
+            mapping.update(dict_arg.cast::<PyDict>()?.as_mapping())?;
         }
 
         if let Some(kwargs_dict) = kwargs {

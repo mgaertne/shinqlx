@@ -86,7 +86,7 @@ impl Command {
         }
 
         let mut names = vec![];
-        name.downcast::<PyList>().ok().tap_some(|py_list| {
+        name.cast::<PyList>().ok().tap_some(|py_list| {
             names.extend(py_list.iter().filter_map(|py_alias| {
                 py_alias
                     .extract::<String>()
@@ -95,7 +95,7 @@ impl Command {
             }));
         });
 
-        name.downcast::<PyTuple>().ok().tap_some(|py_tuple| {
+        name.cast::<PyTuple>().ok().tap_some(|py_tuple| {
             names.extend(py_tuple.iter().filter_map(|py_alias| {
                 py_alias
                     .extract::<String>()
@@ -240,7 +240,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
         let plugin_name = self
             .get()
             .plugin
-            .downcast_bound::<Plugin>(self.py())?
+            .cast_bound::<Plugin>(self.py())?
             .get_name()?;
         pyshinqlx_get_logger(
             self.py(),
@@ -2031,13 +2031,13 @@ def remove_command(cmd):
             };
 
             let dispatcher_result = CommandDispatcherMethods::dispatch(
-                command_dispatcher.downcast()?,
+                command_dispatcher.cast()?,
                 &Bound::new(self.py(), player.to_owned())?,
                 &Bound::new(self.py(), cmd_copy)?,
                 msg,
             )?;
             if dispatcher_result
-                .downcast::<PyBool>()
+                .cast::<PyBool>()
                 .is_ok_and(|value| !value.is_true())
             {
                 return Ok(true);

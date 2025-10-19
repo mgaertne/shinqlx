@@ -113,7 +113,7 @@ mod vote_started_dispatcher_tests {
             let result = dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -158,7 +158,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -205,7 +205,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -252,7 +252,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -299,7 +299,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -346,7 +346,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -393,7 +393,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -439,7 +439,7 @@ mod vote_started_dispatcher_tests {
                         dispatcher.dispatch("map", PyString::intern(py, "thunderstruck").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });

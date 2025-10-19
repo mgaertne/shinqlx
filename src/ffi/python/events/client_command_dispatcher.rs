@@ -101,7 +101,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
 
         if return_value
             .bind(self.py())
-            .downcast::<PyBool>()
+            .cast::<PyBool>()
             .is_ok_and(|value| !value.is_true())
         {
             return Ok(PyBool::new(self.py(), false).to_owned().into_any());
@@ -186,7 +186,7 @@ mod client_command_dispatcher_tests {
             );
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -229,7 +229,7 @@ mod client_command_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -274,7 +274,7 @@ mod client_command_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -319,7 +319,7 @@ mod client_command_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -364,7 +364,7 @@ mod client_command_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -409,7 +409,7 @@ mod client_command_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -454,7 +454,7 @@ mod client_command_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -558,7 +558,7 @@ def returns_string_hook(*args, **kwargs):
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -627,9 +627,7 @@ def returns_string_hook(*args, **kwargs):
                         "asdf",
                     );
                     assert!(result.is_ok_and(|value| {
-                        value
-                            .downcast::<PyBool>()
-                            .is_ok_and(|value| !value.is_true())
+                        value.cast::<PyBool>().is_ok_and(|value| !value.is_true())
                     }));
                 });
             });
