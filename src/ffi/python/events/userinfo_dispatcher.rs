@@ -81,7 +81,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
                     Ok(PythonReturnCodes::RET_STOP_ALL) => {
                         return Ok(PyBool::new(self.py(), false).to_owned().into_any());
                     }
-                    _ => match res.bind(self.py()).downcast::<PyDict>() {
+                    _ => match res.bind(self.py()).cast::<PyDict>() {
                         Err(_) => {
                             cold_path();
                             log_unexpected_return_value(
@@ -148,7 +148,7 @@ mod userinfo_dispatcher_tests {
             );
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -192,7 +192,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -238,7 +238,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -284,7 +284,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -330,7 +330,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -376,7 +376,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -422,7 +422,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -467,7 +467,7 @@ mod userinfo_dispatcher_tests {
                     );
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -515,15 +515,15 @@ mod userinfo_dispatcher_tests {
                             .into_py_dict(py)
                             .expect("this should not happen"),
                     );
-                    assert!(
-                        result.is_ok_and(|value| value.downcast::<PyDict>().is_ok_and(
-                            |dict_value| dict_value
+                    assert!(result.is_ok_and(|value| value.cast::<PyDict>().is_ok_and(
+                        |dict_value| {
+                            dict_value
                                 .eq([("qwertz", "asdf")]
                                     .into_py_dict(py)
                                     .expect("this should not happen"))
                                 .expect("this should not happen")
-                        ))
-                    );
+                        }
+                    )));
                 });
             });
     }

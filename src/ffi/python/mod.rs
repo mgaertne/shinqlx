@@ -202,8 +202,10 @@ pub(crate) enum PythonReturnCodes {
     RET_USAGE, // Used for commands. Replies to the channel with a command's usage.
 }
 
-impl FromPyObject<'_> for PythonReturnCodes {
-    fn extract_bound(item: &Bound<'_, PyAny>) -> PyResult<Self> {
+impl FromPyObject<'_, '_> for PythonReturnCodes {
+    type Error = PyErr;
+
+    fn extract(item: Borrowed<'_, '_, PyAny>) -> Result<Self, Self::Error> {
         if item.is_none() {
             return Ok(PythonReturnCodes::RET_NONE);
         }
@@ -251,7 +253,7 @@ mod python_return_codes_tests {
     fn extract_from_none(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(&py.None().into_bound(py))
+                PythonReturnCodes::extract(py.None().bind_borrowed(py))
                     .is_ok_and(|value| value == PythonReturnCodes::RET_NONE)
             );
         });
@@ -262,7 +264,7 @@ mod python_return_codes_tests {
     fn extract_from_bool_true(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(&PyBool::new(py, true))
+                PythonReturnCodes::extract(PyBool::new(py, true).as_any().as_borrowed())
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
             );
         });
@@ -273,7 +275,7 @@ mod python_return_codes_tests {
     fn extract_from_bool_false(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(&PyBool::new(py, false))
+                PythonReturnCodes::extract(PyBool::new(py, false).as_any().as_borrowed())
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
             );
         });
@@ -293,10 +295,12 @@ mod python_return_codes_tests {
     ) {
         Python::attach(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(
-                    &python_value
+                PythonReturnCodes::extract(
+                    python_value
                         .into_pyobject(py)
                         .expect("this should not happen")
+                        .as_any()
+                        .as_borrowed()
                 )
                 .is_ok_and(|value| value == expected_value)
             );
@@ -310,10 +314,12 @@ mod python_return_codes_tests {
     fn extract_from_invalid_value(#[case] wrong_value: i32, _pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(
-                    &wrong_value
+                PythonReturnCodes::extract(
+                    wrong_value
                         .into_pyobject(py)
                         .expect("this should not happen")
+                        .as_any()
+                        .as_borrowed()
                 )
                 .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
             );
@@ -325,7 +331,7 @@ mod python_return_codes_tests {
     fn extract_from_str(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
-                PythonReturnCodes::extract_bound(&PyString::intern(py, "asdf"))
+                PythonReturnCodes::extract(PyString::intern(py, "asdf").as_any().as_borrowed())
                     .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
             );
         });
@@ -676,7 +682,7 @@ pub(crate) fn client_id(
 
     match name.to_string().parse::<i32>() {
         Ok(value) if (0..64).contains(&value) => Some(value),
-        _ => match name.downcast::<Player>() {
+        _ => match name.cast::<Player>() {
             Ok(player) => Some(player.get().id),
             _ => {
                 let all_players = player_list.unwrap_or_else(|| {
@@ -1369,7 +1375,7 @@ mod pyshinqlx_configure_logger_tests {
             .call_method0(intern!(py, "hasHandlers"))
             .is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             })
         {
@@ -1590,7 +1596,7 @@ fn pyshinqlx_log_exception(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> 
                         traceback_module
                             .call_method1(
                                 intern!(py, "format_exception"),
-                                exc_info.downcast::<PyTuple>()?.to_owned(),
+                                exc_info.cast::<PyTuple>()?.to_owned(),
                             )
                             .and_then(|value| {
                                 value
@@ -1893,7 +1899,7 @@ test_func()
                 next_frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true()))
             );
             assert!(
@@ -1905,7 +1911,7 @@ test_func()
                 next_frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true()))
             );
         });
@@ -1944,7 +1950,7 @@ TestClass().test_func()
                 next_frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true()))
             );
         });
@@ -2026,7 +2032,7 @@ test_func()
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true()))
             );
             let scheduler_queue = frame_tasks
@@ -2039,7 +2045,7 @@ test_func()
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true()))
             );
         });
@@ -2075,7 +2081,7 @@ test_func()
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| !bool_value.is_true()))
             );
             let scheduler_queue = frame_tasks
@@ -2088,7 +2094,7 @@ test_func()
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true()))
             );
         });
@@ -2125,7 +2131,7 @@ TestClass().test_func()
                 frame_tasks
                     .call_method0(intern!(py, "empty"))
                     .is_ok_and(|value| value
-                        .downcast::<PyBool>()
+                        .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true()))
             );
         });
@@ -2214,9 +2220,7 @@ def threaded_func():
                 py_test_module
                     .getattr(intern!(py, "called"))
                     .is_ok_and(|called| {
-                        called
-                            .downcast::<PyBool>()
-                            .is_ok_and(|pybool| pybool.is_true())
+                        called.cast::<PyBool>().is_ok_and(|pybool| pybool.is_true())
                     })
             );
         });
@@ -2255,9 +2259,7 @@ def threaded_func():
                 py_test_module
                     .getattr(intern!(py, "called"))
                     .is_ok_and(|called| {
-                        called
-                            .downcast::<PyBool>()
-                            .is_ok_and(|pybool| pybool.is_true())
+                        called.cast::<PyBool>().is_ok_and(|pybool| pybool.is_true())
                     })
             );
         });
@@ -2696,7 +2698,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
     let plugin_class = module.getattr(&plugin_pystring)?;
     let plugin_type = py.get_type::<Plugin>();
     if !plugin_class
-        .downcast::<PyType>()?
+        .cast::<PyType>()?
         .is_subclass(&plugin_type)
         .unwrap_or(false)
     {
@@ -2711,7 +2713,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
             .get_type::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))?;
         loaded_plugins
-            .downcast::<PyDict>()?
+            .cast::<PyDict>()?
             .set_item(plugin, loaded_plugin)
     })
 }
@@ -2758,7 +2760,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 .get_type::<Plugin>()
                 .getattr(intern!(py, "_loaded_plugins"))?;
 
-            if loaded_plugins.downcast::<PyDict>()?.contains(plugin)? {
+            if loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
                 return reload_plugin(py, plugin);
             }
 
@@ -2788,7 +2790,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
             },
             |unload_dispatcher| {
                 UnloadDispatcherMethods::dispatch(
-                    unload_dispatcher.downcast()?,
+                    unload_dispatcher.cast()?,
                     PyString::intern(py, plugin).as_any(),
                 )
             },
@@ -2799,7 +2801,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         .getattr(intern!(py, "_loaded_plugins"))?;
 
     loaded_plugins
-        .downcast::<PyDict>()?
+        .cast::<PyDict>()?
         .get_item(plugin)?
         .map_or_else(
             || {
@@ -2815,7 +2817,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                     .flatten()
                     .for_each(|hook| {
                         let _ = hook
-                            .downcast_into::<PyTuple>()
+                            .cast_into::<PyTuple>()
                             .map_err(PyErr::from)
                             .and_then(|hook_tuple| {
                                 let event_name = hook_tuple.get_item(0)?;
@@ -2865,7 +2867,7 @@ fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                                         "could not get access to commands",
                                     ))
                                 },
-                                |commands| commands.bind(py).remove_command(cmd.downcast()?),
+                                |commands| commands.bind(py).remove_command(cmd.cast()?),
                             )
                             .tap_err(|err| {
                                 log_exception(py, err);
@@ -2904,7 +2906,7 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugins = py
         .get_type::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?;
-    if !loaded_plugins.downcast::<PyDict>()?.contains(plugin)? {
+    if !loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
         cold_path();
         let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
         return Err(PluginUnloadError::new_err(error_msg));

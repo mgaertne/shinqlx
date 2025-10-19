@@ -75,7 +75,7 @@ mod round_end_dispatcher_tests {
             let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -114,7 +114,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -154,7 +154,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -195,7 +195,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -236,7 +236,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -277,7 +277,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -318,7 +318,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -358,7 +358,7 @@ mod round_end_dispatcher_tests {
                     let result = dispatcher.dispatch(PyString::intern(py, "asdf").as_any());
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });

@@ -69,7 +69,7 @@ mod frame_event_dispatcher_tests {
             let result = dispatcher.dispatch();
             assert!(result.is_ok_and(|value| {
                 value
-                    .downcast::<PyBool>()
+                    .cast::<PyBool>()
                     .is_ok_and(|bool_value| bool_value.is_true())
             }));
         });
@@ -108,7 +108,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -149,7 +149,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -190,7 +190,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -231,7 +231,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
@@ -272,7 +272,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -313,7 +313,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| !bool_value.is_true())
                     }));
                 });
@@ -353,7 +353,7 @@ mod frame_event_dispatcher_tests {
                     let result = dispatcher.dispatch();
                     assert!(result.is_ok_and(|value| {
                         value
-                            .downcast::<PyBool>()
+                            .cast::<PyBool>()
                             .is_ok_and(|bool_value| bool_value.is_true())
                     }));
                 });
