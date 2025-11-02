@@ -9,13 +9,13 @@ edition = "2024"
 authors = ["Markus 'ShiN0' Gaertner"]
 
 [workspace.dependencies]
-arzmq = { version = ">=0.5.6", default-features = false, features = ["futures", "builder", "draft-api"] }
+arzmq = { version = ">=0.5.7", default-features = false, features = ["futures", "builder", "draft-api"] }
 regex = { version = ">=1.12", default-features = false, features = ["perf", "unicode"] }
 serde_json = { version = ">=1.0.145", default-features = false, features = ["alloc"] }
 
 [package]
 name = "shinqlx"
-version = "0.6.4-alpha.1"
+version = "0.6.4"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -65,7 +65,7 @@ rayon = { version = ">=1.11", default-features = false }
 derive_more = { version = ">=2.0", default-features = false, features = ["display", "try_from"]}
 derive-new = { version = ">=0.7", default-features = false }
 log = { version = ">=0.4", default-features = false }
-log4rs = { version = ">=1.4.0", default-features = false, features = ["console_appender", "config_parsing", ] }
+log4rs = { version = ">=1.4", default-features = false, features = ["console_appender", "config_parsing", ] }
 signal-hook = { version = ">=0.3", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
 chrono = { version = ">=0.4.41", default-features = false }
