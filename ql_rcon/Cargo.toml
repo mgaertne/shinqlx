@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "ql_rcon"
-version = "0.0.2"
+version = "0.0.3-alpha.1"
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
