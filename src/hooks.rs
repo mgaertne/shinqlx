@@ -132,7 +132,7 @@ where
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
     fmt: *const c_char,
-    mut fmt_args: ...
+    fmt_args: ...
 ) {
     unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
@@ -144,7 +144,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
             buffer.as_mut_ptr() as *mut c_char,
             buffer.len(),
             fmt,
-            fmt_args.as_va_list(),
+            fmt_args,
         )
     };
     if result < 0 {
@@ -281,7 +281,7 @@ where
 
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
+pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
     }
@@ -292,7 +292,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
             buffer.as_mut_ptr() as *mut c_char,
             buffer.len(),
             fmt,
-            fmt_args.as_va_list(),
+            fmt_args,
         )
     };
     if result < 0 {
@@ -701,7 +701,7 @@ mod hooks_tests {
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
-                    .withf(|&offset| offset == dummy_function as usize)
+                    .withf(|&offset| offset == dummy_function as *const () as usize)
                     .returning(|_offset| Ok(()))
                     .times(1);
             })
@@ -727,7 +727,7 @@ mod hooks_tests {
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
-                    .withf(|&func| func == dummy_function as usize)
+                    .withf(|&func| func == dummy_function as *const () as usize)
                     .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
                     .times(1);
             })

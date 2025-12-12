@@ -53,7 +53,9 @@ mod add_console_command_tests {
             .configure(|mock_engine| {
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| cmd == "asdf" && func as usize == cmd_py_command as usize)
+                    .withf(|cmd, &func| {
+                        cmd == "asdf" && func as usize == cmd_py_command as *const () as usize
+                    })
                     .times(1);
             })
             .run(|| {
