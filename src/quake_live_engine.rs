@@ -282,19 +282,22 @@ impl VmFunctions {
         unsafe {
             ptr::write(
                 (vm_call_table + 0x18) as *mut usize,
-                shinqlx_g_initgame as usize,
+                shinqlx_g_initgame as *const () as usize,
             );
         }
 
         unsafe {
             ptr::write(
                 (vm_call_table + 0x8) as *mut usize,
-                shinqlx_g_runframe as usize,
+                shinqlx_g_runframe as *const () as usize,
             );
         }
 
         unsafe {
-            ptr::write(vm_call_table as *mut usize, shinqlx_g_shutdowngame as usize);
+            ptr::write(
+                vm_call_table as *mut usize,
+                shinqlx_g_shutdowngame as *const () as usize,
+            );
         }
 
         let client_connect_orig = self.client_connect_orig.load(Ordering::Acquire);
@@ -563,18 +566,18 @@ mod vm_functions_tests {
     fn unhook_with_functions_set_before_but_no_detours() {
         let vm_functions = VmFunctions {
             vm_call_table: AtomicUsize::new(42),
-            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
-            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
-            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
-            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
-            g_damage_orig: AtomicUsize::new(G_Damage as usize),
-            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
-            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
-            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
-            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
-            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
-            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
-            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as *const () as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as *const () as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as *const () as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as *const () as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as *const () as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as *const () as usize),
             ..default_vm_functions()
         };
 
@@ -611,18 +614,18 @@ mod vm_functions_tests {
     fn unhook_with_functions_and_disabled_detours_set_before() {
         let vm_functions = VmFunctions {
             vm_call_table: AtomicUsize::new(42),
-            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
-            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
-            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
-            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
-            g_damage_orig: AtomicUsize::new(G_Damage as usize),
-            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
-            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
-            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
-            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
-            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
-            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
-            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as *const () as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as *const () as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as *const () as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as *const () as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as *const () as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as *const () as usize),
             ..default_vm_functions()
         };
 
@@ -683,18 +686,18 @@ mod vm_functions_tests {
     fn unhook_with_functions_and_enabled_detours_set_before() {
         let vm_functions = VmFunctions {
             vm_call_table: AtomicUsize::new(42),
-            g_addevent_orig: AtomicUsize::new(G_AddEvent as usize),
-            check_privileges_orig: AtomicUsize::new(CheckPrivileges as usize),
-            client_connect_orig: AtomicUsize::new(ClientConnect as usize),
-            client_spawn_orig: AtomicUsize::new(ClientSpawn as usize),
-            g_damage_orig: AtomicUsize::new(G_Damage as usize),
-            touch_item_orig: AtomicUsize::new(Touch_Item as usize),
-            launch_item_orig: AtomicUsize::new(LaunchItem as usize),
-            drop_item_orig: AtomicUsize::new(Drop_Item as usize),
-            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as usize),
-            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as usize),
-            g_init_game_orig: AtomicUsize::new(G_InitGame as usize),
-            g_run_frame_orig: AtomicUsize::new(G_RunFrame as usize),
+            g_addevent_orig: AtomicUsize::new(G_AddEvent as *const () as usize),
+            check_privileges_orig: AtomicUsize::new(CheckPrivileges as *const () as usize),
+            client_connect_orig: AtomicUsize::new(ClientConnect as *const () as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
+            drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
+            g_free_entity_orig: AtomicUsize::new(G_FreeEntity as *const () as usize),
+            g_init_game_orig: AtomicUsize::new(G_InitGame as *const () as usize),
+            g_run_frame_orig: AtomicUsize::new(G_RunFrame as *const () as usize),
             ..default_vm_functions()
         };
 
@@ -2183,7 +2186,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::Release);
+            .store(G_InitGame as *const () as usize, Ordering::Release);
 
         quake_engine.unhook_vm(true);
         assert!(
@@ -2198,7 +2201,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::Release);
+            .store(G_InitGame as *const () as usize, Ordering::Release);
 
         quake_engine.unhook_vm(false);
         assert!(
@@ -3021,7 +3024,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::Release);
+            .store(G_InitGame as *const () as usize, Ordering::Release);
 
         let result = quake_engine.g_init_game_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -3046,7 +3049,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_shutdown_game_orig
-            .store(G_ShutdownGame as usize, Ordering::Release);
+            .store(G_ShutdownGame as *const () as usize, Ordering::Release);
 
         let result = quake_engine.g_shutdown_game_orig();
         assert!(
@@ -3072,7 +3075,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_run_frame_orig
-            .store(G_RunFrame as usize, Ordering::Release);
+            .store(G_RunFrame as *const () as usize, Ordering::Release);
 
         let result = quake_engine.g_run_frame_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(func, G_RunFrame as extern "C" fn(c_int))));
@@ -3096,7 +3099,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_addevent_orig
-            .store(G_AddEvent as usize, Ordering::Release);
+            .store(G_AddEvent as *const () as usize, Ordering::Release);
 
         let result = quake_engine.g_addevent_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -3123,7 +3126,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_free_entity_orig
-            .store(G_FreeEntity as usize, Ordering::Release);
+            .store(G_FreeEntity as *const () as usize, Ordering::Release);
 
         let result = quake_engine.g_free_entity_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -3150,7 +3153,7 @@ mod quake_live_engine_tests {
         quake_engine
             .vm_functions
             .launch_item_orig
-            .store(LaunchItem as usize, Ordering::Release);
+            .store(LaunchItem as *const () as usize, Ordering::Release);
 
         let result = quake_engine.launch_item_orig();
         assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
@@ -3511,7 +3514,7 @@ mod init_game_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_init_game_orig
-            .store(G_InitGame as usize, Ordering::Release);
+            .store(G_InitGame as *const () as usize, Ordering::Release);
 
         quake_engine.init_game(42, 21, 1);
     }
@@ -3565,7 +3568,7 @@ mod shutdown_game_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_shutdown_game_orig
-            .store(G_ShutdownGame as usize, Ordering::Release);
+            .store(G_ShutdownGame as *const () as usize, Ordering::Release);
 
         quake_engine.shutdown_game(1);
     }
@@ -4036,7 +4039,7 @@ mod run_frame_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_run_frame_orig
-            .store(G_RunFrame as usize, Ordering::Release);
+            .store(G_RunFrame as *const () as usize, Ordering::Release);
 
         quake_engine.run_frame(42);
     }
@@ -4481,7 +4484,7 @@ mod game_add_event_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_addevent_orig
-            .store(G_AddEvent as usize, Ordering::Release);
+            .store(G_AddEvent as *const () as usize, Ordering::Release);
 
         quake_engine.game_add_event(mock_game_entity, entity_event_t::EV_KAMIKAZE, 42);
     }
@@ -5163,7 +5166,7 @@ mod free_entity_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .g_free_entity_orig
-            .store(G_FreeEntity as usize, Ordering::Release);
+            .store(G_FreeEntity as *const () as usize, Ordering::Release);
 
         quake_engine.free_entity(mock_gentity.borrow_mut());
     }
@@ -5261,7 +5264,7 @@ mod try_launch_item_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .launch_item_orig
-            .store(LaunchItem as usize, Ordering::Release);
+            .store(LaunchItem as *const () as usize, Ordering::Release);
 
         let result =
             quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
@@ -5311,7 +5314,7 @@ mod try_launch_item_quake_live_engine_tests {
         quake_engine
             .vm_functions
             .launch_item_orig
-            .store(LaunchItem as usize, Ordering::Release);
+            .store(LaunchItem as *const () as usize, Ordering::Release);
 
         let result =
             quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
@@ -5687,11 +5690,11 @@ mod quake_functions {
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, ...) {}
+    pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, _: ...) {}
 
     #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) unsafe extern "C" fn detoured_Com_Printf(_fmt: *const c_char, ...) {}
+    pub(crate) unsafe extern "C" fn detoured_Com_Printf(_fmt: *const c_char, _: ...) {}
 
     #[allow(unused_attributes, non_snake_case)]
     #[cfg(not(tarpaulin_include))]
@@ -5770,7 +5773,7 @@ mod quake_functions {
     pub(crate) unsafe extern "C" fn SV_SendServerCommand(
         _cl: *mut client_t,
         _fmt: *const c_char,
-        ...
+        _: ...
     ) {
     }
 
@@ -5779,7 +5782,7 @@ mod quake_functions {
     pub(crate) unsafe extern "C" fn detoured_SV_SendServerCommand(
         _cl: *mut client_t,
         _fmt: *const c_char,
-        ...
+        _: ...
     ) {
     }
 
