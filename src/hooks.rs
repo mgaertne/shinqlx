@@ -129,6 +129,45 @@ where
 
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
+#[rustversion::before(1.94)]
+pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
+    client: *mut client_t,
+    fmt: *const c_char,
+    mut fmt_args: ...
+) {
+    unsafe extern "C" {
+        fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
+    }
+
+    let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
+    let result = unsafe {
+        vsnprintf(
+            buffer.as_mut_ptr() as *mut c_char,
+            buffer.len(),
+            fmt,
+            fmt_args.as_va_list(),
+        )
+    };
+    if result < 0 {
+        cold_path();
+        warn!(target: "shinqlx", "some formatting problem occurred");
+    }
+
+    let cmd = CStr::from_bytes_until_nul(&buffer)
+        .unwrap()
+        .to_string_lossy();
+    if client.is_null() {
+        shinqlx_send_server_command(None, cmd);
+    } else {
+        let _ = client.try_conv::<Client>().map(|safe_client| {
+            shinqlx_send_server_command(Some(safe_client), cmd);
+        });
+    }
+}
+
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+#[rustversion::since(1.94)]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
     fmt: *const c_char,
@@ -281,6 +320,37 @@ where
 
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
+#[rustversion::before(1.94)]
+pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
+    unsafe extern "C" {
+        fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
+    }
+
+    let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
+    let result = unsafe {
+        vsnprintf(
+            buffer.as_mut_ptr() as *mut c_char,
+            buffer.len(),
+            fmt,
+            fmt_args.as_va_list(),
+        )
+    };
+    if result < 0 {
+        cold_path();
+        warn!(target: "shinqlx", "some formatting problem occurred");
+    }
+
+    let rust_msg = CStr::from_bytes_until_nul(&buffer)
+        .unwrap()
+        .to_string_lossy();
+    if !rust_msg.is_empty() {
+        shinqlx_com_printf(rust_msg);
+    }
+}
+
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+#[rustversion::since(1.94)]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
