@@ -15,7 +15,8 @@ use super::prelude::*;
     get_all,
     sequence,
     eq,
-    str
+    str,
+    from_py_object
 )]
 #[derive(PartialEq, Debug, Clone, Copy, Display)]
 #[display(

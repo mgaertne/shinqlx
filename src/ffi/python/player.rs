@@ -83,7 +83,14 @@ impl TryFrom<&str> for weapon_t {
 ///    To update it, use :meth:`~.Player.update`. Note that if you update it
 ///    and the player has disconnected, it will raise a
 ///    :exc:`shinqlx.NonexistentPlayerError` exception.
-#[pyclass(module = "_player", name = "Player", subclass, frozen, str)]
+#[pyclass(
+    module = "_player",
+    name = "Player",
+    subclass,
+    frozen,
+    str,
+    from_py_object
+)]
 #[derive(Debug, Display)]
 #[display("{}", name.read())]
 pub(crate) struct Player {
@@ -7930,7 +7937,7 @@ impl AbstractDummyPlayer {
             .add_subclass(AbstractDummyPlayer {})
     }
 
-    #[pyo3(name = "__init__", signature = (name = "DummyPlayer"), text_signature = "(name = \"DummyPlayer\")")]
+    #[pyo3(name = "__init__", signature = (name = "DummyPlayer"))]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str) {
         let player = slf.as_super();
         *player.get().name.write() = name.into();
@@ -8149,6 +8156,12 @@ impl RconDummyPlayer {
     ) -> PyClassInitializer<Self> {
         AbstractDummyPlayer::py_new("RconDummyPlayer", py.None().bind(py), None)
             .add_subclass(Self {})
+    }
+
+    #[pyo3(name = "__init__")]
+    pub(crate) fn initialize(slf: &Bound<'_, Self>) {
+        let player = slf.as_super().as_super();
+        *player.get().name.write() = "RconDummyPlayer".into();
     }
 
     #[getter(steam_id)]

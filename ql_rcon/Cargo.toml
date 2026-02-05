@@ -9,10 +9,10 @@ authors.workspace = true
 
 [dependencies]
 arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
-tokio = { version = ">=1.48", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync"] }
+tokio = { version = ">=1.49", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync"] }
 anyhow = { version = ">=1.0", default-features = false }
 clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
-uuid = { version = ">=1.19", default-features = false, features = ["v4"] }
+uuid = { version = ">=1.20", default-features = false, features = ["v4"] }
 
 directories = { version = ">=6.0", default-features = false }
 linefeed = { version = ">=0.6", default-features = false }

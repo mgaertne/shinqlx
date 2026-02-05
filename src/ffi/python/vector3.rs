@@ -30,7 +30,8 @@ impl Vector3Iter {
     get_all,
     sequence,
     eq,
-    str
+    str,
+    from_py_object
 )]
 #[derive(PartialEq, Debug, Clone, Copy, Default, Display)]
 #[display("Vector3(x={_0}, y={_1}, z={_2})")]
