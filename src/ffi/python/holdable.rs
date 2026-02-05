@@ -2,7 +2,15 @@ use derive_more::Display;
 
 use super::prelude::*;
 
-#[pyclass(module = "_shinqlx", name = "Holdable", frozen, eq, eq_int, str)]
+#[pyclass(
+    module = "_shinqlx",
+    name = "Holdable",
+    frozen,
+    eq,
+    eq_int,
+    str,
+    skip_from_py_object
+)]
 #[derive(PartialEq, Debug, Clone, Copy, Display)]
 #[repr(i32)]
 pub(crate) enum Holdable {

@@ -527,7 +527,7 @@ impl ChatChannel {
             })
     }
 
-    #[pyo3(name = "__init__", signature = (name = "chat", fmt = "print \"{}\n\"\n"), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")"
+    #[pyo3(name = "__init__", signature = (name = "chat", fmt = "print \"{}\n\"\n")
     )]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, name: &str, fmt: &str) {
         *slf.get().fmt.write() = fmt.into();
@@ -1232,7 +1232,7 @@ impl TeamChatChannel {
             })
     }
 
-    #[pyo3(name = "__init__", signature = (team="all", name="chat", fmt="print \"{}\n\"\n"), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")"
+    #[pyo3(name = "__init__", signature = (team="all", name="chat", fmt="print \"{}\n\"\n")
     )]
     pub(crate) fn initialize(slf: &Bound<'_, Self>, team: &str, name: &str, fmt: &str) {
         *slf.get().team.write() = team.to_string();

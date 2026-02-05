@@ -3535,11 +3535,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                     event_dispatcher
                         .add_dispatcher(&py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
-                    EVENT_DISPATCHERS.store(Some(
-                        Py::new(py, event_dispatcher)
-                            .expect("could not create event dispatcher manager in python")
-                            .into(),
-                    ));
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.clone().unbind().into()));
 
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {

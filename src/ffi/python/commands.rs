@@ -2032,7 +2032,7 @@ def remove_command(cmd):
 
             let dispatcher_result = CommandDispatcherMethods::dispatch(
                 command_dispatcher.cast()?,
-                &Bound::new(self.py(), player.to_owned())?,
+                &player.clone(),
                 &Bound::new(self.py(), cmd_copy)?,
                 msg,
             )?;

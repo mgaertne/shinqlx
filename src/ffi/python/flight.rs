@@ -14,7 +14,8 @@ use super::prelude::*;
     get_all,
     sequence,
     eq,
-    str
+    str,
+    from_py_object
 )]
 #[derive(PartialEq, Debug, Clone, Copy, Display)]
 #[display("Flight(fuel={_0}, max_fuel={_1}, thrust={_2}, refuel={_3})")]

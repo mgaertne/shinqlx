@@ -11,7 +11,8 @@ use crate::ffi::c::prelude::*;
     frozen,
     get_all,
     sequence,
-    str
+    str,
+    from_py_object
 )]
 #[derive(Debug, PartialEq, Clone, Display)]
 #[display(
