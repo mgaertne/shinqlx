@@ -436,12 +436,11 @@ pub(crate) extern "C" fn shinqlx_client_connect(
     first_time: qboolean,
     is_bot: qboolean,
 ) -> *const c_char {
-    if first_time.conv::<bool>() {
-        if let Some(res) = client_connect_dispatcher(client_num, is_bot.conv::<bool>()) {
-            if !is_bot.conv::<bool>() {
-                return to_return_string(client_num, res);
-            }
-        }
+    if first_time.conv::<bool>()
+        && let Some(res) = client_connect_dispatcher(client_num, is_bot.conv::<bool>())
+        && !is_bot.conv::<bool>()
+    {
+        return to_return_string(client_num, res);
     }
 
     MAIN_ENGINE
