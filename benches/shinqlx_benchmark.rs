@@ -1,4 +1,4 @@
-#![feature(c_variadic, cold_path, custom_test_frameworks)]
+#![feature(c_variadic, custom_test_frameworks)]
 #![test_runner(criterion::runner)]
 #![allow(missing_docs)]
 
