@@ -4,7 +4,7 @@ cargo-features = ["profile-rustflags"]
 members = ["ql_rcon", "ql_stats"]
 
 [workspace.package]
-rust-version = "1.87"
+rust-version = "1.95"
 edition = "2024"
 authors = ["Markus 'ShiN0' Gaertner"]
 
@@ -15,7 +15,7 @@ serde_json = { version = ">=1.0.145", default-features = false, features = ["all
 
 [package]
 name = "shinqlx"
-version = "0.7.0-alpha.1"
+version = "0.7.0-alpha.2"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
