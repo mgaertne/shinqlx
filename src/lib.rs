@@ -24,8 +24,7 @@
     c_variadic,
     auto_traits,
     negative_impls,
-    stmt_expr_attributes,
-    cold_path
+    stmt_expr_attributes
 )]
 
 extern crate alloc;
