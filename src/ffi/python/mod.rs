@@ -2918,20 +2918,20 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 }
 
 fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
-    if let Some(loaded_modules) = MODULES.load().as_ref() {
-        if loaded_modules.bind(py).contains(plugin)? {
-            loaded_modules
-                .bind(py)
-                .get_item(plugin)
-                .and_then(|loaded_plugin_module| {
-                    py.import(intern!(py, "importlib"))
-                        .and_then(|importlib_module| {
-                            importlib_module
-                                .call_method1(intern!(py, "reload"), (loaded_plugin_module,))
-                        })
-                        .and_then(|module| loaded_modules.bind(py).set_item(plugin, module))
-                })?;
-        }
+    if let Some(loaded_modules) = MODULES.load().as_ref()
+        && loaded_modules.bind(py).contains(plugin)?
+    {
+        loaded_modules
+            .bind(py)
+            .get_item(plugin)
+            .and_then(|loaded_plugin_module| {
+                py.import(intern!(py, "importlib"))
+                    .and_then(|importlib_module| {
+                        importlib_module
+                            .call_method1(intern!(py, "reload"), (loaded_plugin_module,))
+                    })
+                    .and_then(|module| loaded_modules.bind(py).set_item(plugin, module))
+            })?;
     };
     load_plugin(py, plugin)
 }

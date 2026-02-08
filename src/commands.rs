@@ -1,7 +1,7 @@
 use core::{borrow::BorrowMut, hint::cold_path};
 
 use pyo3::types::PyBool;
-use rand::Rng;
+use rand::RngExt;
 use tap::{TapOptional, TryConv};
 
 use crate::{
