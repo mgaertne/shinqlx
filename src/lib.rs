@@ -19,13 +19,8 @@
 //! and provides a Python API for interacting with the game.
 
 #![cfg_attr(not(test), no_main)]
-#![feature(
-    arbitrary_self_types,
-    c_variadic,
-    auto_traits,
-    negative_impls,
-    stmt_expr_attributes
-)]
+#![feature(arbitrary_self_types, c_variadic)]
+#![cfg_attr(test, feature(stmt_expr_attributes))]
 
 extern crate alloc;
 extern crate core;

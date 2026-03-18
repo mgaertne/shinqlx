@@ -1,4 +1,4 @@
-#![feature(c_variadic, custom_test_frameworks)]
+#![feature(custom_test_frameworks)]
 #![test_runner(criterion::runner)]
 #![allow(missing_docs)]
 
