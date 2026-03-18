@@ -9,13 +9,13 @@ edition = "2024"
 authors = ["Markus 'ShiN0' Gaertner"]
 
 [workspace.dependencies]
-arzmq = { version = ">=0.5.7", default-features = false, features = ["futures", "builder", "draft-api"] }
+arzmq = { version = ">=0.6", default-features = false, features = ["futures", "builder", "draft-api"] }
 regex = { version = ">=1.12", default-features = false, features = ["perf", "unicode"] }
 serde_json = { version = ">=1.0.145", default-features = false, features = ["alloc"] }
 
 [package]
 name = "shinqlx"
-version = "0.7.0-alpha.2"
+version = "0.7.0"
 authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
