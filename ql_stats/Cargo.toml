@@ -2,16 +2,16 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "ql_stats"
-version = "0.0.3-alpha.1"
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 
 [dependencies]
 arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
-tokio = { version = ">=1.49", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
+tokio = { version = ">=1.52", default-features = false, features = ["default", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 anyhow = { version = ">=1.0", default-features = false }
-clap = { version = ">=4.5", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
+clap = { version = ">=4.6", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 

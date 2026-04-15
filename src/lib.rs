@@ -110,7 +110,7 @@ fn initialize_logging() {
     }
 }
 
-#[cfg_attr(not(test), ctor)]
+#[cfg_attr(not(test), ctor(unsafe))]
 #[cfg_attr(test, allow(dead_code))]
 fn initialize() {
     if env::args()
