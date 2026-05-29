@@ -2540,7 +2540,7 @@ fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
                 branch
                     .shorthand()
                     .map_or(Ok(plugins_version.to_owned()), |branch_name| {
-                        let returned = format!("{}-{}", &plugins_version, branch_name);
+                        let returned = format!("{}-{}", plugins_version, branch_name);
                         Ok(returned)
                     })
             })
@@ -2676,7 +2676,7 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
         ));
     };
 
-    let plugin_import_path = format!("{}.{}", plugins_dir, &plugin);
+    let plugin_import_path = format!("{}.{}", plugins_dir, plugin);
     let module = py
         .import(intern!(py, "importlib"))
         .and_then(|importlib_module| {
