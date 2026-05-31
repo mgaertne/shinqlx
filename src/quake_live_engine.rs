@@ -766,11 +766,11 @@ fn try_find_static_function<FuncType>(
     pattern_search_module(maps, func).map_or_else(
         || {
             cold_path();
-            error!(target: "shinqlx", "Function {} not found", &func);
+            error!(target: "shinqlx", "Function {} not found", func);
             Err(QuakeLiveEngineError::StaticFunctionNotFound(func))
         },
         |result| {
-            debug!(target: "shinqlx", "{}: {:#X}", &func, result);
+            debug!(target: "shinqlx", "{}: {:#X}", func, result);
             Ok(unsafe { mem::transmute_copy::<usize, FuncType>(&result) })
         },
     )
