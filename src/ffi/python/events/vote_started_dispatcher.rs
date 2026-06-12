@@ -1,6 +1,6 @@
 use pyo3::types::{PyString, PyTuple};
 
-use super::prelude::*;
+use super::{EventDispatcher, prelude::*};
 
 /// Event that goes off whenever a vote starts. A vote started with Plugin.callvote()
 /// will have the caller set to None.
@@ -19,13 +19,10 @@ impl VoteStartedDispatcher {
     const need_zmq_stats_enabled: bool = false;
 
     #[new]
-    fn py_new(py: Python<'_>) -> (Self, EventDispatcher) {
-        (
-            Self {
-                player: py.None().into(),
-            },
-            EventDispatcher::default(),
-        )
+    fn py_new(py: Python<'_>) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(EventDispatcher::default()).add_subclass(Self {
+            player: py.None().into(),
+        })
     }
 
     fn dispatch<'py>(
