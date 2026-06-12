@@ -16,8 +16,8 @@ impl MapDispatcher {
     const need_zmq_stats_enabled: bool = false;
 
     #[new]
-    fn py_new(_py: Python<'_>) -> (Self, EventDispatcher) {
-        (Self {}, EventDispatcher::default())
+    fn py_new(_py: Python<'_>) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(EventDispatcher::default()).add_subclass(Self {})
     }
 
     fn dispatch<'py>(

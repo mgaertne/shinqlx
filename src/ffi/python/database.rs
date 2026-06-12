@@ -8,7 +8,7 @@ use pyo3::{
     },
     intern,
     prelude::*,
-    types::{IntoPyDict, PyBool, PyDict, PyInt, PyString, PyTuple},
+    types::{IntoPyDict, PyBool, PyDict, PyInt, PyNone, PyString, PyTuple},
 };
 
 use super::{owner, prelude::*, pyshinqlx_get_logger};
@@ -488,7 +488,7 @@ pub(crate) struct Redis {}
 #[pymethods]
 impl Redis {
     #[new]
-    fn py_new(py: Python<'_>, plugin: &Bound<'_, PyAny>) -> (Self, AbstractDatabase) {
+    fn py_new(py: Python<'_>, plugin: &Bound<'_, PyAny>) -> PyClassInitializer<Self> {
         let redis_type = py.get_type::<Self>();
         let counter = redis_type
             .getattr(intern!(py, "_counter"))
@@ -496,12 +496,10 @@ impl Redis {
             .unwrap_or(0);
         let _ = redis_type.setattr(intern!(py, "_counter"), counter + 1);
 
-        (
-            Self {},
-            AbstractDatabase {
-                plugin: plugin.to_owned().unbind(),
-            },
-        )
+        PyClassInitializer::from(AbstractDatabase {
+            plugin: plugin.to_owned().unbind(),
+        })
+        .add_subclass(Self {})
     }
 
     fn __del__(slf_: &Bound<'_, Self>) -> PyResult<()> {
@@ -807,8 +805,9 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                 {
                     Ok(class_connection) if !class_connection.is_none() => Ok(class_connection),
                     _ => {
-                        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
-                        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
+                        let py_redis_module = self.py().import(intern!(self.py(), "redis"))?;
+                        let py_redis_client =
+                            py_redis_module.getattr(intern!(self.py(), "Redis"))?;
 
                         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
                             cold_path();
@@ -851,7 +850,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                         };
 
                         let class_connection = if unix_socket_cvar {
-                            strict_redis.call(
+                            py_redis_client.call(
                                 PyTuple::empty(self.py()),
                                 Some(
                                     &[
@@ -873,6 +872,11 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                                             "decode_responses",
                                             PyBool::new(self.py(), true).to_owned().into_any(),
                                         ),
+                                        (
+                                            "socket_timeout",
+                                            PyNone::get(self.py()).to_owned().into_any(),
+                                        ),
+                                        ("protocol", PyInt::new(self.py(), 2).into_any()),
                                     ]
                                     .into_py_dict(self.py())?,
                                 ),
@@ -884,7 +888,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                                 .unwrap_or((hostname.as_ref(), "6379"));
                             let redis_port = if port.is_empty() { "6379" } else { port };
                             let connection_pool =
-                                py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
+                                py_redis_module.getattr(intern!(self.py(), "ConnectionPool"))?;
 
                             let redis_pool = connection_pool.call(
                                 PyTuple::empty(self.py()),
@@ -918,7 +922,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
                             self.py()
                                 .get_type::<Redis>()
                                 .setattr(intern!(self.py(), "_pool"), &redis_pool)?;
-                            strict_redis.call(
+                            py_redis_client.call(
                                 PyTuple::empty(self.py()),
                                 Some(
                                     &[
@@ -1048,10 +1052,11 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                 {
                     Ok(class_connection) if !class_connection.is_none() => Ok(class_connection),
                     _ => {
-                        let py_redis = self.py().import(intern!(self.py(), "redis"))?;
-                        let strict_redis = py_redis.getattr(intern!(self.py(), "StrictRedis"))?;
+                        let py_redis_module = self.py().import(intern!(self.py(), "redis"))?;
+                        let py_redis_client =
+                            py_redis_module.getattr(intern!(self.py(), "Redis"))?;
                         let instance_connection = if unix_socket {
-                            strict_redis.call(
+                            py_redis_client.call(
                                 PyTuple::empty(self.py()),
                                 Some(
                                     &[
@@ -1065,6 +1070,11 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                                             "decode_responses",
                                             PyBool::new(self.py(), true).to_owned().into_any(),
                                         ),
+                                        (
+                                            "socket_timeout",
+                                            PyNone::get(self.py()).to_owned().into_any(),
+                                        ),
+                                        ("protocol", PyInt::new(self.py(), 2).into_any()),
                                     ]
                                     .into_py_dict(self.py())?,
                                 ),
@@ -1074,7 +1084,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                                 host.split_once(':').unwrap_or((host, "6379"));
                             let redis_port = if port.is_empty() { "6379" } else { port };
                             let connection_pool =
-                                py_redis.getattr(intern!(self.py(), "ConnectionPool"))?;
+                                py_redis_module.getattr(intern!(self.py(), "ConnectionPool"))?;
 
                             let redis_pool = connection_pool.call(
                                 PyTuple::empty(self.py()),
@@ -1099,7 +1109,7 @@ impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
                                 ),
                             )?;
                             self.setattr(intern!(self.py(), "_pool"), &redis_pool)?;
-                            strict_redis.call(
+                            py_redis_client.call(
                                 PyTuple::empty(self.py()),
                                 Some(
                                     &[
