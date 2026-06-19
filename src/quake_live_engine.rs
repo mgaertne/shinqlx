@@ -5480,6 +5480,7 @@ mockall::mock! {
         fn register_damage(&self, target: *mut gentity_t, inflictor: *mut gentity_t, attacker: *mut gentity_t, dir: *mut vec3_t, pos: *mut vec3_t, damage: c_int, dflags: c_int, means_of_death: c_int);
     }
     impl TryLaunchItem<&mut crate::ffi::c::game_item::GameItem> for QuakeEngine {
+        #[allow(clippy::extra_unused_lifetimes)]
         fn try_launch_item<'a>(&self, gitem: &'a mut crate::ffi::c::game_item::GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
     }
     impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {

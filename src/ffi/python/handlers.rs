@@ -8910,13 +8910,13 @@ mod register_handlers_tests {
 pub(crate) mod handlers {
     use pyo3::prelude::*;
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_rcon<'a>(_py: Python<'a>, _cmd: &str) -> Option<bool> {
         None
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_client_command<'a>(
         py: Python<'a>,
@@ -8926,7 +8926,7 @@ pub(crate) mod handlers {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_server_command<'a>(
         py: Python<'a>,
@@ -8936,19 +8936,19 @@ pub(crate) mod handlers {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_frame<'a>(_py: Python<'a>) -> Option<bool> {
         None
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_new_game<'a>(_py: Python<'a>, _is_restart: bool) -> Option<bool> {
         None
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_set_configstring<'a>(
         py: Python<'a>,
@@ -8958,7 +8958,7 @@ pub(crate) mod handlers {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_connect<'a>(
         py: Python<'a>,
@@ -8968,13 +8968,13 @@ pub(crate) mod handlers {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_loaded<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_disconnect<'a>(
         py: Python<'a>,
@@ -8984,19 +8984,19 @@ pub(crate) mod handlers {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_player_spawn<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_kamikaze_use<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_kamikaze_explode<'a>(
         py: Python<'a>,
@@ -9006,7 +9006,7 @@ pub(crate) mod handlers {
         py.None()
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_damage<'a>(
         _py: Python<'a>,
@@ -9019,7 +9019,7 @@ pub(crate) mod handlers {
         None
     }
 
-    #[allow(clippy::needless_lifetimes)]
+    #[allow(clippy::needless_lifetimes, clippy::extra_unused_lifetimes)]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: &str) -> Py<PyAny> {
         py.None()
