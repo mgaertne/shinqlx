@@ -19,7 +19,7 @@ pub(crate) fn pyshinqlx_set_powerups(
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
             .tap_some_mut(|game_client| {
-                game_client.set_powerups((*powerups).into());
+                game_client.set_powerups(powerups.clone().into());
             })
             .is_some())
     })

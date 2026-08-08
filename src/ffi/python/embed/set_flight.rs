@@ -19,7 +19,7 @@ pub(crate) fn pyshinqlx_set_flight(
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
             .tap_some_mut(|game_client| {
-                game_client.set_flight::<[i32; 4]>((*flight).into());
+                game_client.set_flight::<[i32; 4]>(flight.clone().into());
             })
             .is_some())
     })

@@ -19,7 +19,7 @@ pub(crate) fn pyshinqlx_set_ammo(
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
             .tap_some_mut(|game_client| {
-                game_client.set_ammos((*ammos).into());
+                game_client.set_ammos(ammos.clone().into());
             })
             .is_some())
     })

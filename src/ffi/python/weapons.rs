@@ -18,7 +18,7 @@ use super::prelude::*;
     str,
     from_py_object
 )]
-#[derive(PartialEq, Eq, Debug, Clone, Copy, Display)]
+#[derive(PartialEq, Eq, Debug, Clone, Display)]
 #[display(
     "Weapons(g={_0}, mg={_1}, sg={_2}, gl={_3}, rl={_4}, lg={_5}, rg={_6}, pg={_7}, bfg={_8}, gh={_9}, ng={_10}, pl={_11}, cg={_12}, hmg={_13}, hands={_14})"
 )]
