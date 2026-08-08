@@ -18,7 +18,7 @@ use super::prelude::*;
     str,
     from_py_object
 )]
-#[derive(PartialEq, Debug, Clone, Copy, Display)]
+#[derive(PartialEq, Debug, Clone, Display)]
 #[display(
     "Powerups(quad={_0}, battlesuit={_1}, haste={_2}, invisibility={_3}, regeneration={_4}, invulnerability={_5})"
 )]

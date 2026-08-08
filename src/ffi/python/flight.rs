@@ -17,7 +17,7 @@ use super::prelude::*;
     str,
     from_py_object
 )]
-#[derive(PartialEq, Debug, Clone, Copy, Display)]
+#[derive(PartialEq, Debug, Clone, Display)]
 #[display("Flight(fuel={_0}, max_fuel={_1}, thrust={_2}, refuel={_3})")]
 pub(crate) struct Flight(
     #[pyo3(name = "fuel")] pub(crate) i32,

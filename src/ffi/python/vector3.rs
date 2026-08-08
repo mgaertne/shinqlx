@@ -33,7 +33,7 @@ impl Vector3Iter {
     str,
     from_py_object
 )]
-#[derive(PartialEq, Debug, Clone, Copy, Default, Display)]
+#[derive(PartialEq, Debug, Clone, Default, Display)]
 #[display("Vector3(x={_0}, y={_1}, z={_2})")]
 pub(crate) struct Vector3(
     #[pyo3(name = "x")] pub(crate) i32,
