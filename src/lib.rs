@@ -19,6 +19,7 @@
 //! and provides a Python API for interacting with the game.
 
 #![cfg_attr(not(test), no_main)]
+#![allow(stable_features)]
 #![feature(arbitrary_self_types, c_variadic)]
 #![cfg_attr(test, feature(stmt_expr_attributes))]
 
