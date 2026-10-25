@@ -10,12 +10,17 @@ use pyo3::{
 
 use super::{
     EVENT_DISPATCHERS, clean_text as clean_text_impl,
-    events::{EventDispatcherManager, EventDispatcherManagerMethods, FrameEventDispatcher},
-    handlers::handle_frame as handle_frame_impl,
+    events::{
+        EventDispatcherManager, EventDispatcherManagerMethods, FrameEventDispatcher,
+        SetConfigstringDispatcher,
+    },
+    handlers::{
+        handle_frame as handle_frame_impl, handle_set_configstring as handle_set_configstring_impl,
+    },
     pyshinqlx_module,
 };
 
-/// Starts the embedded interpreter with the shinqlx module and a frame event dispatcher.
+/// Starts the embedded interpreter with the shinqlx module and some event dispatchers.
 pub fn prepare_python() {
     if unsafe { Py_IsInitialized() } == 0 {
         append_to_inittab!(pyshinqlx_module);
@@ -28,6 +33,9 @@ pub fn prepare_python() {
         dispatchers
             .add_dispatcher(&py.get_type::<FrameEventDispatcher>())
             .expect("could not add frame dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
+            .expect("could not add set configstring dispatcher");
         EVENT_DISPATCHERS.store(Some(dispatchers.unbind().into()));
 
         py.import(intern!(py, "shinqlx"))
@@ -44,6 +52,13 @@ pub fn clean_text(text: &str) -> String {
 pub fn handle_frame() {
     Python::attach(|py| {
         handle_frame_impl(py);
+    });
+}
+
+/// Runs the handler that is called by the server whenever a configstring is set.
+pub fn handle_set_configstring(index: u32, value: &str) {
+    Python::attach(|py| {
+        handle_set_configstring_impl(py, index, value);
     });
 }
 

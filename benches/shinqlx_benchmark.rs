@@ -65,6 +65,16 @@ fn constructor_benchmark(c: &mut Criterion) {
 
 #[cfg(feature = "bench-support")]
 #[criterion]
+fn handle_set_configstring_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    c.bench_function("handle_set_configstring::unobserved_index", |b| {
+        b.iter(|| bench_support::handle_set_configstring(black_box(700), black_box("some value")))
+    });
+}
+
+#[cfg(feature = "bench-support")]
+#[criterion]
 fn handle_frame_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 
