@@ -9,6 +9,10 @@ fn main() {
 
     if let Some(lib_dir) = &python_config.lib_dir() {
         println!("cargo::rustc-link-search={lib_dir}");
+        println!("cargo::rustc-link-arg-benches=-Wl,-rpath,{lib_dir}");
+        if std::env::var("PROFILE").is_ok_and(|profile| profile != "release") {
+            println!("cargo::rustc-link-arg=-Wl,-rpath,{lib_dir}");
+        }
     }
 
     if let Some(library) = &python_config.lib_name() {
