@@ -18,7 +18,6 @@ use pyo3::{
     intern,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyType},
 };
-use rayon::prelude::*;
 use tap::{TapOptional, TryConv};
 
 use super::{
@@ -650,7 +649,7 @@ impl Player {
         let players_info = pyshinqlx_players_info(cls.py())?;
         cls.py().detach(|| {
             Ok(players_info
-                .par_iter()
+                .iter()
                 .filter_map(|opt_player_info| {
                     opt_player_info.as_ref().map(|player_info| Player {
                         valid: true.into(),

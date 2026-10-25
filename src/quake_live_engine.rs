@@ -446,7 +446,7 @@ impl VmFunctions {
             #[cfg(feature = "patches")]
             &self.cmd_callvote_f_orig,
         ]
-        .par_iter()
+        .iter()
         .for_each(|field| {
             field.store(0, Ordering::Release);
         });

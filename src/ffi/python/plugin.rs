@@ -8,7 +8,6 @@ use pyo3::{
     prelude::*,
     types::{PyBool, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple, PyType},
 };
-use rayon::prelude::*;
 use tap::TapOptional;
 
 use super::{
@@ -470,13 +469,13 @@ impl Plugin {
                         player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
                     match name.extract::<i64>() {
                         Ok(player_steam_id) => Ok(players
-                            .par_iter()
-                            .find_any(|player| player.steam_id == player_steam_id)
+                            .iter()
+                            .find(|player| player.steam_id == player_steam_id)
                             .cloned()),
                         _ => match client_id(cls.py(), name, Some(players.to_owned())) {
                             Some(client_id) => Ok(players
-                                .par_iter()
-                                .find_any(|player| player.id == client_id)
+                                .iter()
+                                .find(|player| player.id == client_id)
                                 .cloned()),
                             _ => Ok(None),
                         },
@@ -620,8 +619,8 @@ impl Plugin {
                     let clean_name = clean_text(&searched_name.to_string()).to_lowercase();
 
                     players
-                        .par_iter()
-                        .find_any(|&player| {
+                        .iter()
+                        .find(|&player| {
                             clean_text(&(&*player.name.read())).to_lowercase() == clean_name
                         })
                         .map(|found_player| found_player.name.read().to_owned())
@@ -661,7 +660,7 @@ impl Plugin {
 
             let cleaned_text = clean_text(&name).to_lowercase();
             players
-                .par_iter()
+                .iter()
                 .filter(|player| {
                     let player_name = &*player.name.read();
                     clean_text(player_name)
@@ -1321,7 +1320,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                         .bind(self.py())
                         .get()
                         .name
-                        .par_iter()
+                        .iter()
                         .all(|name| names.contains(name))
                     && existing_command
                         .bind(self.py())
@@ -1353,7 +1352,7 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                     .bind(self.py())
                     .get()
                     .name
-                    .par_iter()
+                    .iter()
                     .all(|name| names.contains(name))
                 || existing_command
                     .bind(self.py())

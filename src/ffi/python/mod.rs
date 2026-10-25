@@ -148,7 +148,6 @@ use pyo3::{
     intern,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFloat, PyInt, PyString, PyTuple, PyType},
 };
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
 #[cfg(test)]
@@ -675,10 +674,9 @@ impl From<ParsedVariables> for String {
     fn from(value: ParsedVariables) -> Self {
         value
             .items
-            .par_iter()
+            .iter()
             .map(|(key, value)| format!(r"\{key}\{value}"))
-            .collect::<Vec<_>>()
-            .join("")
+            .collect::<String>()
     }
 }
 
@@ -699,20 +697,18 @@ impl Deref for ParsedVariables {
 impl ParsedVariables {
     pub(crate) fn contains<T>(&self, item: T) -> bool
     where
-        T: AsRef<str> + Send + Sync,
+        T: AsRef<str>,
     {
-        self.items
-            .par_iter()
-            .any(|(key, _value)| *key == item.as_ref())
+        self.items.iter().any(|(key, _value)| *key == item.as_ref())
     }
 
     pub fn get<T>(&self, item: T) -> Option<String>
     where
-        T: AsRef<str> + Send + Sync,
+        T: AsRef<str>,
     {
         self.items
-            .par_iter()
-            .find_any(|(key, _value)| *key == item.as_ref())
+            .iter()
+            .find(|(key, _value)| *key == item.as_ref())
             .map(|(_key, value)| value)
             .cloned()
     }
@@ -720,7 +716,7 @@ impl ParsedVariables {
     pub fn set(&mut self, item: &str, value: &str) {
         let mut new_items = self
             .items
-            .par_iter()
+            .iter()
             .filter(|(key, _value)| key != item)
             .cloned()
             .collect::<Vec<_>>();
@@ -768,15 +764,15 @@ pub(crate) fn client_id(
 
                 match name.to_string().parse::<i64>() {
                     Ok(steam_id) => all_players
-                        .par_iter()
-                        .find_any(|&player| player.steam_id == steam_id)
+                        .iter()
+                        .find(|&player| player.steam_id == steam_id)
                         .map(|player| player.id),
                     _ => match name.extract::<String>() {
                         Ok(player_name) => {
                             let clean_name = clean_text(&player_name).to_lowercase();
                             all_players
-                                .par_iter()
-                                .find_any(|&player| {
+                                .iter()
+                                .find(|&player| {
                                     let player_name = &*player.name.read();
                                     clean_text(player_name).to_lowercase() == clean_name
                                 })
