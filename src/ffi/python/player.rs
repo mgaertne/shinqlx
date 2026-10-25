@@ -1,6 +1,7 @@
 use core::{
     borrow::BorrowMut,
     hint::cold_path,
+    str::FromStr,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -32,10 +33,10 @@ use crate::{
 
 create_exception!(pyshinqlx_module, NonexistentPlayerError, PyException);
 
-impl TryFrom<&str> for privileges_t {
-    type Error = &'static str;
+impl FromStr for privileges_t {
+    type Err = &'static str;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "none" => Ok(privileges_t::PRIV_NONE),
             "mod" => Ok(privileges_t::PRIV_MOD),
@@ -48,10 +49,10 @@ impl TryFrom<&str> for privileges_t {
     }
 }
 
-impl TryFrom<&str> for weapon_t {
-    type Error = String;
+impl FromStr for weapon_t {
+    type Err = String;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "g" => Ok(weapon_t::WP_GAUNTLET),
             "mg" => Ok(weapon_t::WP_MACHINEGUN),
@@ -1133,7 +1134,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn set_privileges(&self, value: Option<&str>) -> PyResult<()> {
         let new_privileges = self
             .py()
-            .detach(|| privileges_t::try_from(value.unwrap_or("none")));
+            .detach(|| value.unwrap_or("none").parse::<privileges_t>());
 
         new_privileges.map_or(
             {
@@ -1318,7 +1319,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                                 cold_path();
                                 Err("invalid weapon".to_string())
                             },
-                            |py_string| weapon_t::try_from(py_string.as_str()),
+                            |py_string| py_string.parse::<weapon_t>(),
                         ),
                         weapon_t::try_from,
                     )

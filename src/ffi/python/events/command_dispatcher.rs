@@ -5,7 +5,7 @@ use crate::ffi::python::{Command, Player};
 
 /// Event that goes off when a command is executed. This can be used
 /// to for instance keep a log of all the commands admins have used.
-#[pyclass(module = "_events", name = "CommandDispatcher", extends = EventDispatcher, frozen, skip_from_py_object)]
+#[pyclass(module = "_events", name = "CommandDispatcher", extends = EventDispatcher, frozen)]
 #[derive(Clone)]
 pub(crate) struct CommandDispatcher {}
 
