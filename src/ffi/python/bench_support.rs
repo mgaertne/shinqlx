@@ -47,6 +47,29 @@ pub fn handle_frame() {
     });
 }
 
+/// Creates a `shinqlx.Powerups` object from six integers the way a plugin does.
+pub fn create_powerups() {
+    Python::attach(|py| {
+        py.import(intern!(py, "shinqlx"))
+            .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "Powerups")))
+            .and_then(|powerups_class| powerups_class.call1(((0, 0, 0, 0, 0, 0),)))
+            .expect("could not create powerups");
+    });
+}
+
+/// Creates a `shinqlx.Weapons` object from fifteen booleans the way a plugin does.
+pub fn create_weapons() {
+    Python::attach(|py| {
+        py.import(intern!(py, "shinqlx"))
+            .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "Weapons")))
+            .and_then(|weapons_class| {
+                let values = PyTuple::new(py, [false; 15])?;
+                weapons_class.call1((values,))
+            })
+            .expect("could not create weapons");
+    });
+}
+
 /// Queues `count` tasks for the next frame the same way `shinqlx.next_frame` does.
 pub fn queue_next_frame_tasks(count: usize) {
     Python::attach(|py| {

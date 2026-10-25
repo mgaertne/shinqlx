@@ -54,6 +54,17 @@ fn clean_text_benchmark(c: &mut Criterion) {
 
 #[cfg(feature = "bench-support")]
 #[criterion]
+fn constructor_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group("constructor");
+    group.bench_function("powerups", |b| b.iter(bench_support::create_powerups));
+    group.bench_function("weapons", |b| b.iter(bench_support::create_weapons));
+    group.finish();
+}
+
+#[cfg(feature = "bench-support")]
+#[criterion]
 fn handle_frame_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 

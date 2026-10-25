@@ -16,7 +16,6 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
 };
-use rayon::prelude::*;
 use serde_json::{Value, from_str};
 use tap::TapFallible;
 
@@ -188,52 +187,32 @@ fn handle_player_death_event(py: Python<'_>, stats: Value) -> PyResult<()> {
     Ok(())
 }
 
-fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
+fn player_matching<F>(py: Python<'_>, predicate: F) -> Option<Player>
+where
+    F: Fn(&PlayerInfo) -> bool,
+{
     pyshinqlx_players_info(py).ok().and_then(|players_info| {
-        players_info.par_iter().find_map_first(|opt_player_info| {
-            opt_player_info
-                .as_ref()
-                .par_iter()
-                .find_map_first(|&player_info| {
-                    if player_info.steam_id != *steam_id {
-                        None
-                    } else {
-                        Some(Player {
-                            valid: true.into(),
-                            id: player_info.client_id,
-                            user_info: player_info.userinfo.to_owned(),
-                            steam_id: player_info.steam_id,
-                            name: player_info.name.to_owned().into(),
-                            player_info: player_info.to_owned().into(),
-                        })
-                    }
-                })
-        })
+        players_info
+            .iter()
+            .flatten()
+            .find(|player_info| predicate(player_info))
+            .map(|player_info| Player {
+                valid: true.into(),
+                id: player_info.client_id,
+                user_info: player_info.userinfo.to_owned(),
+                steam_id: player_info.steam_id,
+                name: player_info.name.to_owned().into(),
+                player_info: player_info.to_owned().into(),
+            })
     })
 }
 
+fn player_by_steam_id(py: Python<'_>, steam_id: &i64) -> Option<Player> {
+    player_matching(py, |player_info| player_info.steam_id == *steam_id)
+}
+
 fn player_by_name(py: Python<'_>, name: &str) -> Option<Player> {
-    pyshinqlx_players_info(py).ok().and_then(|players_info| {
-        players_info.par_iter().find_map_first(|opt_player_info| {
-            opt_player_info
-                .as_ref()
-                .par_iter()
-                .find_map_first(|&player_info| {
-                    if player_info.name != *name {
-                        None
-                    } else {
-                        Some(Player {
-                            valid: true.into(),
-                            id: player_info.client_id,
-                            user_info: player_info.userinfo.to_owned(),
-                            steam_id: player_info.steam_id,
-                            name: player_info.name.to_owned().into(),
-                            player_info: player_info.to_owned().into(),
-                        })
-                    }
-                })
-        })
-    })
+    player_matching(py, |player_info| player_info.name == *name)
 }
 
 fn dispatch_player_death_events(

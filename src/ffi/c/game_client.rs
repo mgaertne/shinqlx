@@ -2,7 +2,6 @@ use alloc::borrow::Cow;
 use core::ffi::{CStr, c_int};
 
 use arrayvec::ArrayVec;
-use rayon::prelude::*;
 
 use super::prelude::*;
 use crate::prelude::*;
@@ -136,7 +135,7 @@ impl GameClient {
 
     pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]) {
         let weapon_flags = weapons
-            .par_iter()
+            .iter()
             .enumerate()
             .filter(|&(_, &item)| item > 0)
             .map(|(i, _)| 1 << (i + 1))
@@ -145,12 +144,7 @@ impl GameClient {
     }
 
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
-        self.game_client.ps.ammo[1..16]
-            .par_iter()
-            .copied()
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap()
+        self.game_client.ps.ammo[1..16].try_into().unwrap()
     }
 
     pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]) {

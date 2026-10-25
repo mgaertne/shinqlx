@@ -6,7 +6,6 @@ use pyo3::{
     intern,
     types::{PyBool, PyDict, PyNotImplemented, PyString, PyType},
 };
-use rayon::prelude::*;
 
 use super::{Teams, last_color_tag, prelude::*};
 
@@ -1253,7 +1252,7 @@ impl ChatChannelMethods for Bound<'_, TeamChatChannel> {
         let players_info = pyshinqlx_players_info(self.py())?;
         Ok(Some(
             players_info
-                .par_iter()
+                .iter()
                 .filter_map(|opt_player_info| match opt_player_info.as_ref() {
                     Some(player_info) if player_info.team == filtered_team => {
                         Some(player_info.client_id)

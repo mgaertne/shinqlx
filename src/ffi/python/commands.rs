@@ -7,7 +7,6 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
 };
-use rayon::prelude::*;
 use tap::TapOptional;
 
 use super::{
@@ -1749,7 +1748,7 @@ impl CommandInvoker {
     }
 
     fn __clear__(&self) {
-        self.commands.write().par_iter_mut().for_each(|prio_cmds| {
+        self.commands.write().iter_mut().for_each(|prio_cmds| {
             prio_cmds.clear();
         });
     }

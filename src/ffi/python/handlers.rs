@@ -14,7 +14,6 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyString},
 };
-use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
 use tap::{TapFallible, TapOptional};
 
@@ -537,7 +536,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
         let changed = new_info
             .items
-            .par_iter()
+            .iter()
             .filter(|(key, new_value)| {
                 let opt_old_value = old_info.get(key);
                 opt_old_value.is_none()
