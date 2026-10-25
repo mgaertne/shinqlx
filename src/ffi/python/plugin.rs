@@ -1473,8 +1473,11 @@ mod plugin_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_db_when_no_db_type_set(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
+            let _restore_database =
+                RestoredAttribute::capture(py.get_type::<Plugin>().as_any(), "database");
             let extended_plugin = test_plugin(py);
             py.get_type::<Plugin>()
                 .delattr("database")
@@ -1492,8 +1495,11 @@ mod plugin_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_db_when_no_db_set(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
+            let _restore_database =
+                RestoredAttribute::capture(py.get_type::<Plugin>().as_any(), "database");
             let extended_plugin = test_plugin(py);
             py.get_type::<Plugin>()
                 .setattr("database", py.None())
@@ -1511,8 +1517,11 @@ mod plugin_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
+            let _restore_database =
+                RestoredAttribute::capture(py.get_type::<Plugin>().as_any(), "database");
             let extended_plugin = test_plugin(py);
             let redis_type = py.get_type::<Redis>();
             py.get_type::<Plugin>()
@@ -1546,8 +1555,11 @@ mod plugin_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
+            let _restore_loaded_plugins =
+                RestoredAttribute::capture(py.get_type::<Plugin>().as_any(), "_loaded_plugins");
             let extended_plugin = test_plugin(py);
 
             let loaded_plugins = PyDict::new(py);

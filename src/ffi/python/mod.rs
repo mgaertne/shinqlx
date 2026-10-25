@@ -2720,6 +2720,10 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
 
 #[pyfunction(name = "load_plugin")]
 fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
+    load_plugin_with(py, plugin, true)
+}
+
+fn load_plugin_with(py: Python<'_>, plugin: &str, reload_if_loaded: bool) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let info_level = py
             .import(intern!(py, "logging"))
@@ -2760,7 +2764,7 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                 .get_type::<Plugin>()
                 .getattr(intern!(py, "_loaded_plugins"))?;
 
-            if loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
+            if reload_if_loaded && loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
                 return reload_plugin(py, plugin);
             }
 
@@ -2933,7 +2937,7 @@ fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
                     .and_then(|module| loaded_modules.bind(py).set_item(plugin, module))
             })?;
     };
-    load_plugin(py, plugin)
+    load_plugin_with(py, plugin, false)
 }
 
 #[pyfunction(name = "reload_plugin")]
@@ -3493,6 +3497,55 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
                     load_plugin(py, "test_plugin").expect("this should not happen");
 
+                    let result = load_plugin(py, "test_plugin");
+                    assert!(result.is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_with_failing_unload_does_not_recurse_endlessly(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
+        let mut raw_pluginspath_cvar = CVarBuilder::default()
+            .string(cvar_tempdir_str.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_pluginsPath",
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    py.import(intern!(py, "shinqlx"))
+                        .expect("this should not happen");
+                    py.import(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    load_plugin(py, "test_plugin").expect("this should not happen");
+
+                    EVENT_DISPATCHERS.store(None);
                     let result = load_plugin(py, "test_plugin");
                     assert!(result.is_ok());
                 });
@@ -4971,6 +5024,31 @@ pub(crate) mod pyshinqlx_test_support {
     };
     use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, weapon_t};
 
+    pub(crate) struct RestoredAttribute<'py> {
+        owner: Bound<'py, PyAny>,
+        name: &'static str,
+        original: Option<Bound<'py, PyAny>>,
+    }
+
+    impl<'py> RestoredAttribute<'py> {
+        pub(crate) fn capture(owner: &Bound<'py, PyAny>, name: &'static str) -> Self {
+            Self {
+                owner: owner.clone(),
+                name,
+                original: owner.getattr(name).ok(),
+            }
+        }
+    }
+
+    impl Drop for RestoredAttribute<'_> {
+        fn drop(&mut self) {
+            let _ = match self.original.take() {
+                Some(original) => self.owner.setattr(self.name, original),
+                None => self.owner.delattr(self.name),
+            };
+        }
+    }
+
     pub(crate) fn run_all_frame_tasks(py: Python<'_>) -> PyResult<()> {
         py.run(
             cr#"
@@ -5217,5 +5295,8 @@ pub(crate) mod pyshinqlx_setup_fixture {
             append_to_inittab!(pyshinqlx_module);
             Python::initialize();
         }
+        Python::attach(|py| {
+            py.import("shinqlx").expect("this should not happen");
+        });
     }
 }
