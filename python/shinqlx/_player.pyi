@@ -1,99 +1,79 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal, TypedDict, Iterable
-
     import sys
+    from collections.abc import Iterable
+    from typing import Literal, TypedDict
 
     if sys.version_info >= (3, 11):
-        from typing import Unpack, NotRequired
+        from typing import NotRequired, Unpack
     else:
-        from typing_extensions import Unpack, NotRequired
+        from typing_extensions import NotRequired, Unpack
 
     from shinqlx import (
+        AbstractChannel,
+        Flight,
         PlayerInfo,
         PlayerState,
         PlayerStats,
-        AbstractChannel,
-        Flight,
-        Weapons,
         Powerups,
-        Vector3,
         UserInfo,
+        Vector3,
+        Weapons,
     )
 
-Vector3Kwargs = TypedDict(
-    "Vector3Kwargs",
-    {
-        "x": NotRequired[int | float],
-        "y": NotRequired[int | float],
-        "z": NotRequired[int | float],
-    },
-)
+class Vector3Kwargs(TypedDict):
+    x: NotRequired[int | float]
+    y: NotRequired[int | float]
+    z: NotRequired[int | float]
 
-WeaponsKwargs = TypedDict(
-    "WeaponsKwargs",
-    {
-        "g": NotRequired[bool | int],
-        "mg": NotRequired[bool | int],
-        "sg": NotRequired[bool | int],
-        "gl": NotRequired[bool | int],
-        "rl": NotRequired[bool | int],
-        "lg": NotRequired[bool | int],
-        "rg": NotRequired[bool | int],
-        "pg": NotRequired[bool | int],
-        "bfg": NotRequired[bool | int],
-        "gh": NotRequired[bool | int],
-        "ng": NotRequired[bool | int],
-        "pl": NotRequired[bool | int],
-        "cg": NotRequired[bool | int],
-        "hmg": NotRequired[bool | int],
-        "hands": NotRequired[bool | int],
-    },
-)
+class WeaponsKwargs(TypedDict):
+    g: NotRequired[bool | int]
+    mg: NotRequired[bool | int]
+    sg: NotRequired[bool | int]
+    gl: NotRequired[bool | int]
+    rl: NotRequired[bool | int]
+    lg: NotRequired[bool | int]
+    rg: NotRequired[bool | int]
+    pg: NotRequired[bool | int]
+    bfg: NotRequired[bool | int]
+    gh: NotRequired[bool | int]
+    ng: NotRequired[bool | int]
+    pl: NotRequired[bool | int]
+    cg: NotRequired[bool | int]
+    hmg: NotRequired[bool | int]
+    hands: NotRequired[bool | int]
 
-AmmoKwargs = TypedDict(
-    "AmmoKwargs",
-    {
-        "g": NotRequired[int],
-        "mg": NotRequired[int],
-        "sg": NotRequired[int],
-        "gl": NotRequired[int],
-        "rl": NotRequired[int],
-        "lg": NotRequired[int],
-        "rg": NotRequired[int],
-        "pg": NotRequired[int],
-        "bfg": NotRequired[int],
-        "gh": NotRequired[int],
-        "ng": NotRequired[int],
-        "pl": NotRequired[int],
-        "cg": NotRequired[int],
-        "hmg": NotRequired[int],
-        "hands": NotRequired[int],
-    },
-)
+class AmmoKwargs(TypedDict):
+    g: NotRequired[int]
+    mg: NotRequired[int]
+    sg: NotRequired[int]
+    gl: NotRequired[int]
+    rl: NotRequired[int]
+    lg: NotRequired[int]
+    rg: NotRequired[int]
+    pg: NotRequired[int]
+    bfg: NotRequired[int]
+    gh: NotRequired[int]
+    ng: NotRequired[int]
+    pl: NotRequired[int]
+    cg: NotRequired[int]
+    hmg: NotRequired[int]
+    hands: NotRequired[int]
 
-PowerupsKwargs = TypedDict(
-    "PowerupsKwargs",
-    {
-        "quad": NotRequired[str | float],
-        "battlesuit": NotRequired[str | float],
-        "haste": NotRequired[str | float],
-        "invisibility": NotRequired[str | float],
-        "regeneration": NotRequired[str | float],
-        "invulnerability": NotRequired[str | float],
-    },
-)
+class PowerupsKwargs(TypedDict):
+    quad: NotRequired[str | float]
+    battlesuit: NotRequired[str | float]
+    haste: NotRequired[str | float]
+    invisibility: NotRequired[str | float]
+    regeneration: NotRequired[str | float]
+    invulnerability: NotRequired[str | float]
 
-FlightKwargs = TypedDict(
-    "FlightKwargs",
-    {
-        "fuel": NotRequired[int],
-        "max_fuel": NotRequired[int],
-        "thrust": NotRequired[int],
-        "refuel": NotRequired[int],
-    },
-)
+class FlightKwargs(TypedDict):
+    fuel: NotRequired[int]
+    max_fuel: NotRequired[int]
+    thrust: NotRequired[int]
+    refuel: NotRequired[int]
 
 class NonexistentPlayerError(Exception): ...
 
@@ -180,7 +160,7 @@ class Player:
     @property
     def privileges(self) -> Literal["mod", "admin", "root", "banned"]: ...
     @privileges.setter
-    def privileges(self, value: None | Literal["none", "mod", "admin"]) -> None: ...
+    def privileges(self, value: Literal["none", "mod", "admin"] | None) -> None: ...
     @property
     def country(self) -> str: ...
     @country.setter
@@ -223,13 +203,12 @@ class Player:
     @property
     def holdable(
         self,
-    ) -> None | Literal["teleporter", "medkit", "flight", "kamikaze", "portal", "invulnerability"]: ...
+    ) -> Literal["teleporter", "medkit", "flight", "kamikaze", "portal", "invulnerability"] | None: ...
     @holdable.setter
     def holdable(
         self,
         value: (
-            None
-            | Literal[
+            Literal[
                 "teleporter",
                 "medkit",
                 "flight",
@@ -238,6 +217,7 @@ class Player:
                 "invulnerability",
                 "none",
             ]
+            | None
         ),
     ) -> None: ...
     def drop_holdable(self) -> None: ...

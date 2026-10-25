@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Callable, Iterable
-
+    from collections.abc import Iterable
     from re import Pattern
+    from typing import Callable
 
     from shinqlx import Player, Plugin
 

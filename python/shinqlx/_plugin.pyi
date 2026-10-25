@@ -1,53 +1,53 @@
 from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import ClassVar, Type, Callable, Iterable, Mapping, Literal
-
+    from collections.abc import Iterable, Mapping
     from logging import Logger
+    from typing import Callable, ClassVar, Literal
 
     from shinqlx import (
-        Command,
-        Player,
-        Game,
-        CancellableEventReturn,
-        UncancellableEventReturn,
         AbstractChannel,
-        StatsData,
-        GameStartData,
-        GameEndData,
-        RoundEndData,
-        KillData,
+        CancellableEventReturn,
+        Command,
         DeathData,
-        UserinfoEventInput,
+        Game,
+        GameEndData,
+        GameStartData,
+        KillData,
+        Player,
+        RoundEndData,
+        StatsData,
+        UncancellableEventReturn,
         UserInfo,
+        UserinfoEventInput,
     )
     from shinqlx.database import Redis
 
 class Plugin:
     _loaded_plugins: ClassVar[dict[str, Plugin]] = ...
-    database: ClassVar[Type[Redis] | None] = ...
+    database: ClassVar[type[Redis] | None] = ...
 
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[str] = ...) -> str | None: ...
+    def get_cvar(cls, name: str, return_type: type[str] = ...) -> str | None: ...
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[bool]) -> bool | None: ...
+    def get_cvar(cls, name: str, return_type: type[bool]) -> bool | None: ...
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[int]) -> int | None: ...
+    def get_cvar(cls, name: str, return_type: type[int]) -> int | None: ...
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[float]) -> float | None: ...
+    def get_cvar(cls, name: str, return_type: type[float]) -> float | None: ...
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[list]) -> list[str] | None: ...
+    def get_cvar(cls, name: str, return_type: type[list]) -> list[str] | None: ...
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[set]) -> set[str] | None: ...
+    def get_cvar(cls, name: str, return_type: type[set]) -> set[str] | None: ...
     @classmethod
     @overload
-    def get_cvar(cls, name: str, return_type: Type[tuple]) -> tuple[str, ...] | None: ...
+    def get_cvar(cls, name: str, return_type: type[tuple]) -> tuple[str, ...] | None: ...
     @classmethod
     def set_cvar(
         cls,
@@ -176,12 +176,11 @@ class Plugin:
     def addteamscore(cls, team: str, score: int) -> None: ...
     @classmethod
     def setmatchtime(cls, time: int) -> None: ...
-    def __init__(self) -> None:
-        self._hooks: list[tuple[str, Callable, int]] = ...
-        self._commands: list[Command] = ...
-        self._db_instance: Redis | None = ...
-        ...
+    _hooks: list[tuple[str, Callable, int]]
+    _commands: list[Command]
+    _db_instance: Redis | None
 
+    def __init__(self) -> None: ...
     def __str__(self) -> str: ...
     @property
     def db(self) -> Redis | None: ...
