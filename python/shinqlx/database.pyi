@@ -1,15 +1,14 @@
-from typing import TYPE_CHECKING, overload
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
-    from typing import ClassVar, Mapping
-
+    from collections.abc import Mapping
     from datetime import timedelta
     from logging import Logger
+    from typing import ClassVar
 
-    from shinqlx import Plugin, Player
-
-    from redis import StrictRedis, ConnectionPool
+    from redis import ConnectionPool, StrictRedis
+    from shinqlx import Player, Plugin
 
 class AbstractDatabase(ABC):
     plugin: Plugin

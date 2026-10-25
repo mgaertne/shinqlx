@@ -1,11 +1,10 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Type, Protocol, Callable
-    from types import TracebackType, ModuleType
-
     from datetime import timedelta
     from logging import Logger
+    from types import ModuleType, TracebackType
+    from typing import Callable, Protocol
 
     from shinqlx import Plugin, StatsListener
 
@@ -22,14 +21,14 @@ def get_logger(plugin: Plugin | str | None = ...) -> Logger: ...
 def _configure_logger() -> None: ...
 def log_exception(plugin: Plugin | str | None = ...) -> None: ...
 def handle_exception(
-    exc_type: Type[BaseException],
+    exc_type: type[BaseException],
     exc_value: BaseException,
     exc_traceback: TracebackType | None,
 ) -> None: ...
 
 class ExceptHookArgs(Protocol):
     exc_traceback: TracebackType
-    exc_type: Type[BaseException]
+    exc_type: type[BaseException]
     exc_value: BaseException
 
 def threading_excepthook(args: ExceptHookArgs) -> None: ...

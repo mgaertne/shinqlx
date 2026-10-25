@@ -1,265 +1,264 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Literal, TypedDict
     import sys
+    from typing import Literal, TypedDict
 
     if sys.version_info >= (3, 11):
         from typing import NotRequired
     else:
         from typing_extensions import NotRequired
 
+from . import database
 from ._commands import (
-    MAX_MSG_LENGTH,
-    re_color_tag,
-    AbstractChannel,
-    ConsoleChannel,
-    ChatChannel,
-    TellChannel,
-    ClientCommandChannel,
-    TeamChatChannel,
-    CHAT_CHANNEL,
-    RED_TEAM_CHAT_CHANNEL,
     BLUE_TEAM_CHAT_CHANNEL,
-    FREE_CHAT_CHANNEL,
-    SPECTATOR_CHAT_CHANNEL,
+    CHAT_CHANNEL,
+    COMMANDS,
     CONSOLE_CHANNEL,
+    FREE_CHAT_CHANNEL,
+    MAX_MSG_LENGTH,
+    RED_TEAM_CHAT_CHANNEL,
+    SPECTATOR_CHAT_CHANNEL,
+    AbstractChannel,
+    ChatChannel,
+    ClientCommandChannel,
     Command,
     CommandInvoker,
-    COMMANDS,
+    ConsoleChannel,
+    TeamChatChannel,
+    TellChannel,
+    re_color_tag,
 )
 from ._core import (
-    _thread_name,
-    _thread_count,
     DEFAULT_PLUGINS,
-    set_plugins_version,
-    set_map_subtitles,
-    parse_variables,
-    get_logger,
-    _configure_logger,
-    handle_exception,
-    log_exception,
-    threading_excepthook,
-    next_frame,
-    delay,
-    thread,
-    uptime,
-    owner,
-    _stats,
-    stats_listener,
-    _modules,
-    load_preset_plugins,
-    load_plugin,
-    unload_plugin,
-    reload_plugin,
-    initialize_cvars,
-    initialize,
-    late_init,
     PluginLoadError,
     PluginUnloadError,
+    _configure_logger,
+    _modules,
+    _stats,
+    _thread_count,
+    _thread_name,
+    delay,
+    get_logger,
+    handle_exception,
+    initialize,
+    initialize_cvars,
+    late_init,
+    load_plugin,
+    load_preset_plugins,
+    log_exception,
+    next_frame,
+    owner,
+    parse_variables,
+    reload_plugin,
+    set_map_subtitles,
+    set_plugins_version,
+    stats_listener,
+    thread,
+    threading_excepthook,
+    unload_plugin,
+    uptime,
 )
 from ._events import (
-    _re_vote,
-    EventDispatcher,
-    ConsolePrintDispatcher,
-    CommandDispatcher,
-    ClientCommandDispatcher,
-    ServerCommandDispatcher,
-    FrameEventDispatcher,
-    SetConfigstringDispatcher,
+    EVENT_DISPATCHERS,
     ChatEventDispatcher,
-    UnloadDispatcher,
-    PlayerConnectDispatcher,
-    PlayerLoadedDispatcher,
-    PlayerDisconnectDispatcher,
-    PlayerSpawnDispatcher,
-    StatsDispatcher,
-    VoteCalledDispatcher,
-    VoteStartedDispatcher,
-    VoteEndedDispatcher,
-    VoteDispatcher,
+    ClientCommandDispatcher,
+    CommandDispatcher,
+    ConsolePrintDispatcher,
+    DamageDispatcher,
+    DeathDispatcher,
+    EventDispatcher,
+    EventDispatcherManager,
+    FrameEventDispatcher,
     GameCountdownDispatcher,
-    GameStartDispatcher,
     GameEndDispatcher,
-    RoundCountdownDispatcher,
-    RoundStartDispatcher,
-    RoundEndDispatcher,
-    TeamSwitchDispatcher,
-    TeamSwitchAttemptDispatcher,
+    GameStartDispatcher,
+    KamikazeExplodeDispatcher,
+    KamikazeUseDispatcher,
+    KillDispatcher,
     MapDispatcher,
     NewGameDispatcher,
-    KillDispatcher,
-    DeathDispatcher,
+    PlayerConnectDispatcher,
+    PlayerDisconnectDispatcher,
+    PlayerLoadedDispatcher,
+    PlayerSpawnDispatcher,
+    RoundCountdownDispatcher,
+    RoundEndDispatcher,
+    RoundStartDispatcher,
+    ServerCommandDispatcher,
+    SetConfigstringDispatcher,
+    StatsDispatcher,
+    TeamSwitchAttemptDispatcher,
+    TeamSwitchDispatcher,
+    UnloadDispatcher,
     UserinfoDispatcher,
-    KamikazeUseDispatcher,
-    KamikazeExplodeDispatcher,
-    DamageDispatcher,
-    EventDispatcherManager,
-    EVENT_DISPATCHERS,
+    VoteCalledDispatcher,
+    VoteDispatcher,
+    VoteEndedDispatcher,
+    VoteStartedDispatcher,
+    _re_vote,
 )
 from ._game import (
-    NonexistentGameError,
     Game,
+    NonexistentGameError,
 )
 from ._handlers import (
     frame_tasks,
-    next_frame_tasks,
-    handle_rcon,
     handle_client_command,
-    handle_server_command,
+    handle_console_print,
+    handle_damage,
     handle_frame,
+    handle_kamikaze_explode,
+    handle_kamikaze_use,
     handle_new_game,
-    handle_set_configstring,
     handle_player_connect,
+    handle_player_disconnect,
     handle_player_loaded,
     handle_player_spawn,
-    handle_player_disconnect,
-    handle_kamikaze_use,
-    handle_kamikaze_explode,
-    handle_damage,
-    handle_console_print,
+    handle_rcon,
+    handle_server_command,
+    handle_set_configstring,
+    next_frame_tasks,
     redirect_print,
     register_handlers,
 )
 from ._player import (
-    Player,
-    NonexistentPlayerError,
     AbstractDummyPlayer,
+    NonexistentPlayerError,
+    Player,
     RconDummyPlayer,
 )
 from ._plugin import Plugin
 from ._shinqlx import (
-    RET_NONE,
-    RET_STOP,
-    RET_STOP_EVENT,
-    RET_STOP_ALL,
-    RET_USAGE,
-    PRI_HIGHEST,
-    PRI_HIGH,
-    PRI_NORMAL,
-    PRI_LOW,
-    PRI_LOWEST,
+    CS_ACTIVE,
+    CS_CONNECTED,
+    CS_FREE,
+    CS_PRIMED,
+    CS_ZOMBIE,
     CVAR_ARCHIVE,
-    CVAR_USERINFO,
-    CVAR_SERVERINFO,
-    CVAR_SYSTEMINFO,
+    CVAR_CHEAT,
     CVAR_INIT,
     CVAR_LATCH,
-    CVAR_ROM,
-    CVAR_USER_CREATED,
-    CVAR_TEMP,
-    CVAR_CHEAT,
     CVAR_NORESTART,
-    PRIV_NONE,
-    PRIV_MOD,
-    PRIV_ADMIN,
-    PRIV_ROOT,
-    PRIV_BANNED,
-    CS_FREE,
-    CS_ZOMBIE,
-    CS_CONNECTED,
-    CS_PRIMED,
-    CS_ACTIVE,
-    TEAM_FREE,
-    TEAM_RED,
-    TEAM_BLUE,
-    TEAM_SPECTATOR,
-    MOD_UNKNOWN,
-    MOD_SHOTGUN,
-    MOD_GAUNTLET,
-    MOD_MACHINEGUN,
-    MOD_GRENADE,
-    MOD_GRENADE_SPLASH,
-    MOD_ROCKET,
-    MOD_ROCKET_SPLASH,
-    MOD_PLASMA,
-    MOD_PLASMA_SPLASH,
-    MOD_RAILGUN,
-    MOD_LIGHTNING,
-    MOD_BFG,
-    MOD_BFG_SPLASH,
-    MOD_WATER,
-    MOD_SLIME,
-    MOD_LAVA,
-    MOD_CRUSH,
-    MOD_TELEFRAG,
-    MOD_FALLING,
-    MOD_SUICIDE,
-    MOD_TARGET_LASER,
-    MOD_TRIGGER_HURT,
-    MOD_NAIL,
-    MOD_CHAINGUN,
-    MOD_PROXIMITY_MINE,
-    MOD_KAMIKAZE,
-    MOD_JUICED,
-    MOD_GRAPPLE,
-    MOD_SWITCH_TEAMS,
-    MOD_THAW,
-    MOD_LIGHTNING_DISCHARGE,
-    MOD_HMG,
-    MOD_RAILGUN_HEADSHOT,
-    DAMAGE_RADIUS,
+    CVAR_ROM,
+    CVAR_SERVERINFO,
+    CVAR_SYSTEMINFO,
+    CVAR_TEMP,
+    CVAR_USER_CREATED,
+    CVAR_USERINFO,
     DAMAGE_NO_ARMOR,
     DAMAGE_NO_KNOCKBACK,
     DAMAGE_NO_PROTECTION,
     DAMAGE_NO_TEAM_PROTECTION,
-    Vector3,
+    DAMAGE_RADIUS,
+    MOD_BFG,
+    MOD_BFG_SPLASH,
+    MOD_CHAINGUN,
+    MOD_CRUSH,
+    MOD_FALLING,
+    MOD_GAUNTLET,
+    MOD_GRAPPLE,
+    MOD_GRENADE,
+    MOD_GRENADE_SPLASH,
+    MOD_HMG,
+    MOD_JUICED,
+    MOD_KAMIKAZE,
+    MOD_LAVA,
+    MOD_LIGHTNING,
+    MOD_LIGHTNING_DISCHARGE,
+    MOD_MACHINEGUN,
+    MOD_NAIL,
+    MOD_PLASMA,
+    MOD_PLASMA_SPLASH,
+    MOD_PROXIMITY_MINE,
+    MOD_RAILGUN,
+    MOD_RAILGUN_HEADSHOT,
+    MOD_ROCKET,
+    MOD_ROCKET_SPLASH,
+    MOD_SHOTGUN,
+    MOD_SLIME,
+    MOD_SUICIDE,
+    MOD_SWITCH_TEAMS,
+    MOD_TARGET_LASER,
+    MOD_TELEFRAG,
+    MOD_THAW,
+    MOD_TRIGGER_HURT,
+    MOD_UNKNOWN,
+    MOD_WATER,
+    PRI_HIGH,
+    PRI_HIGHEST,
+    PRI_LOW,
+    PRI_LOWEST,
+    PRI_NORMAL,
+    PRIV_ADMIN,
+    PRIV_BANNED,
+    PRIV_MOD,
+    PRIV_NONE,
+    PRIV_ROOT,
+    RET_NONE,
+    RET_STOP,
+    RET_STOP_ALL,
+    RET_STOP_EVENT,
+    RET_USAGE,
+    TEAM_BLUE,
+    TEAM_FREE,
+    TEAM_RED,
+    TEAM_SPECTATOR,
     Flight,
-    Powerups,
-    Weapons,
     PlayerInfo,
     PlayerState,
     PlayerStats,
-    player_info,
-    players_info,
-    get_userinfo,
-    send_server_command,
+    Powerups,
+    Vector3,
+    Weapons,
+    add_console_command,
+    allow_single_player,
+    callvote,
     client_command,
     console_command,
-    get_cvar,
-    set_cvar,
-    set_cvar_limit,
-    kick,
     console_print,
-    get_configstring,
-    set_configstring,
+    destroy_kamikaze_timers,
+    dev_print_items,
+    drop_holdable,
     force_vote,
-    add_console_command,
+    force_weapon_respawn_time,
+    get_configstring,
+    get_cvar,
+    get_targetting_entities,
+    get_userinfo,
+    kick,
+    noclip,
+    player_info,
+    player_spawn,
     player_state,
     player_stats,
-    set_position,
-    set_velocity,
-    noclip,
-    set_health,
-    set_armor,
-    set_weapons,
-    set_weapon,
-    set_ammo,
-    set_powerups,
-    set_holdable,
-    drop_holdable,
-    set_flight,
-    set_invulnerability,
-    set_score,
-    callvote,
-    allow_single_player,
-    player_spawn,
-    set_privileges,
-    destroy_kamikaze_timers,
-    spawn_item,
-    remove_dropped_items,
-    slay_with_mod,
-    replace_items,
-    dev_print_items,
-    force_weapon_respawn_time,
+    players_info,
     register_handler,
-    get_targetting_entities,
-    set_cvar_once,
+    remove_dropped_items,
+    replace_items,
+    send_server_command,
+    set_ammo,
+    set_armor,
+    set_configstring,
+    set_cvar,
+    set_cvar_limit,
     set_cvar_limit_once,
+    set_cvar_once,
+    set_flight,
+    set_health,
+    set_holdable,
+    set_invulnerability,
+    set_position,
+    set_powerups,
+    set_privileges,
+    set_score,
+    set_velocity,
+    set_weapon,
+    set_weapons,
+    slay_with_mod,
+    spawn_item,
 )
 from ._zmq import StatsListener
-
-import database
 
 _map_title: str | None
 _map_subtitle1: str | None
@@ -279,104 +278,92 @@ GAMETYPES_SHORT: dict[int, str]
 CONNECTION_STATES: dict[int, str]
 WEAPONS: dict[int, str]
 
-UserInfo = TypedDict(
-    "UserInfo",
-    {
-        "ip": str,
-        "ui_singlePlayerActive": str,
-        "cg_autoAction": str,
-        "cg_autoHop": str,
-        "cg_predictItems": str,
-        "model": str,
-        "headmodel": str,
-        "cl_anonymous": str,
-        "country": str,
-        "color1": str,
-        "rate": str,
-        "color2": str,
-        "sex": str,
-        "teamtask": str,
-        "name": str,
-        "handicap": str,
-        "password": NotRequired[str],
-    },
-)
+class UserInfo(TypedDict):
+    ip: str
+    ui_singlePlayerActive: str
+    cg_autoAction: str
+    cg_autoHop: str
+    cg_predictItems: str
+    model: str
+    headmodel: str
+    cl_anonymous: str
+    country: str
+    color1: str
+    rate: str
+    color2: str
+    sex: str
+    teamtask: str
+    name: str
+    handicap: str
+    password: NotRequired[str]
 
 UncancellableEventReturn = Literal[0] | None
 CancellableEventReturn = Literal[0, 1, 2, 3] | None
 
-PlayerSummaryData = TypedDict(
-    "PlayerSummaryData",
-    {
-        "NAME": str,
-        "STEAM_ID": str,
-        "TEAM": int,
-    },
-)
-GameStartData = TypedDict(
-    "GameStartData",
-    {
-        "CAPTURE_LIMIT": int,
-        "FACTORY": str,
-        "FACTORY_TITLE": str,
-        "FRAG_LIMIT": int,
-        "GAME_TYPE": str,
-        "INFECTED": int,
-        "INSTAGIB": int,
-        "MAP": str,
-        "MATCH_GUID": str,
-        "MERCY_LIMIT": int,
-        "PLAYERS": list[PlayerSummaryData],
-        "QUADHOG": int,
-        "ROUND_LIMIT": int,
-        "SCORE_LIMIT": int,
-        "SERVER_TITLE": str,
-        "TIME_LIMIT": int,
-        "TRAINING": int,
-    },
-)
-GameEndData = TypedDict(
-    "GameEndData",
-    {
-        "ABORTED": bool,
-        "CAPTURE_LIMIT": int,
-        "EXIT_MSG": str,
-        "FACTORY": str,
-        "FACTORY_TITLE": str,
-        "FIRST_SCORER": str,
-        "FRAG_LIMIT": int,
-        "GAME_LENGTH": int,
-        "GAME_TYPE": str,
-        "INFECTED": int,
-        "INSTAGIB": int,
-        "LAST_LEAD_CHANGE_TIME": int,
-        "LAST_SCORER": str,
-        "LAST_TEAMSCORER": str,
-        "MAP": str,
-        "MATCH_GUID": str,
-        "MERCY_LIMIT": int,
-        "QUADHOG": int,
-        "RESTARTED": int,
-        "ROUND_LIMIT": int,
-        "SCORE_LIMIT": int,
-        "SERVER_TITLE": str,
-        "TIME_LIMIT": int,
-        "TRAINING": int,
-        "TSCORE0": int,
-        "TSCORE1": int,
-    },
-)
-RoundEndData = TypedDict(
-    "RoundEndData",
-    {
-        "MATCH_GUID": str,
-        "ROUND": int,
-        "TEAM_WON": Literal["RED", "BLUE", "DRAW"],
-        "TIME": int,
-        "WARMUP": bool,
-    },
-)
-Vector = TypedDict("Vector", {"x": float, "y": float, "z": float})
+class PlayerSummaryData(TypedDict):
+    NAME: str
+    STEAM_ID: str
+    TEAM: int
+
+class GameStartData(TypedDict):
+    CAPTURE_LIMIT: int
+    FACTORY: str
+    FACTORY_TITLE: str
+    FRAG_LIMIT: int
+    GAME_TYPE: str
+    INFECTED: int
+    INSTAGIB: int
+    MAP: str
+    MATCH_GUID: str
+    MERCY_LIMIT: int
+    PLAYERS: list[PlayerSummaryData]
+    QUADHOG: int
+    ROUND_LIMIT: int
+    SCORE_LIMIT: int
+    SERVER_TITLE: str
+    TIME_LIMIT: int
+    TRAINING: int
+
+class GameEndData(TypedDict):
+    ABORTED: bool
+    CAPTURE_LIMIT: int
+    EXIT_MSG: str
+    FACTORY: str
+    FACTORY_TITLE: str
+    FIRST_SCORER: str
+    FRAG_LIMIT: int
+    GAME_LENGTH: int
+    GAME_TYPE: str
+    INFECTED: int
+    INSTAGIB: int
+    LAST_LEAD_CHANGE_TIME: int
+    LAST_SCORER: str
+    LAST_TEAMSCORER: str
+    MAP: str
+    MATCH_GUID: str
+    MERCY_LIMIT: int
+    QUADHOG: int
+    RESTARTED: int
+    ROUND_LIMIT: int
+    SCORE_LIMIT: int
+    SERVER_TITLE: str
+    TIME_LIMIT: int
+    TRAINING: int
+    TSCORE0: int
+    TSCORE1: int
+
+class RoundEndData(TypedDict):
+    MATCH_GUID: str
+    ROUND: int
+    TEAM_WON: Literal["RED", "BLUE", "DRAW"]
+    TIME: int
+    WARMUP: bool
+
+class Vector(TypedDict):
+    x: float
+    y: float
+    z: float
+
 PowerUps = Literal["QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"]
 Holdable = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
 Weapon = Literal[
@@ -396,27 +383,25 @@ Weapon = Literal[
     "HMG",
     "HANDS",
 ]
-PlayerData = TypedDict(
-    "PlayerData",
-    {
-        "AIRBORNE": bool,
-        "AMMO": int,
-        "ARMOR": int,
-        "BOT": bool,
-        "BOT_SKILL": int | None,
-        "HEALTH": int,
-        "HOLDABLE": Holdable | None,
-        "NAME": str,
-        "POSITION": Vector,
-        "POWERUPS": list[PowerUps] | None,
-        "SPEED": float,
-        "STEAM_ID": str,
-        "SUBMERGED": bool,
-        "TEAM": int,
-        "VIEW": Vector,
-        "WEAPON": Weapon,
-    },
-)
+
+class PlayerData(TypedDict):
+    AIRBORNE: bool
+    AMMO: int
+    ARMOR: int
+    BOT: bool
+    BOT_SKILL: int | None
+    HEALTH: int
+    HOLDABLE: Holdable | None
+    NAME: str
+    POSITION: Vector
+    POWERUPS: list[PowerUps] | None
+    SPEED: float
+    STEAM_ID: str
+    SUBMERGED: bool
+    TEAM: int
+    VIEW: Vector
+    WEAPON: Weapon
+
 MeansOfDeath = Literal[
     "UNKNOWN",
     "SHOTGUN",
@@ -453,42 +438,37 @@ MeansOfDeath = Literal[
     "HMG",
     "RAILGUN_HEADSHOT",
 ]
-KillData = TypedDict(
-    "KillData",
-    {
-        "KILLER": PlayerData,
-        "VICTIM": PlayerData,
-        "MATCH_GUID": str,
-        "MOD": MeansOfDeath,
-        "OTHER_TEAM_ALIVE": int,
-        "OTHER_TEAM_DEAD": int,
-        "ROUND": int,
-        "SUICIDE": bool,
-        "TEAMKILL": bool,
-        "TEAM_ALIVE": int,
-        "TEAM_DEAD": int,
-        "TIME": int,
-        "WARMUP": bool,
-    },
-)
-DeathData = TypedDict(
-    "DeathData",
-    {
-        "KILLER": PlayerData | None,
-        "VICTIM": PlayerData,
-        "MATCH_GUID": str,
-        "MOD": MeansOfDeath,
-        "OTHER_TEAM_ALIVE": int,
-        "OTHER_TEAM_DEAD": int,
-        "ROUND": int,
-        "SUICIDE": bool,
-        "TEAMKILL": bool,
-        "TEAM_ALIVE": int,
-        "TEAM_DEAD": int,
-        "TIME": int,
-        "WARMUP": bool,
-    },
-)
+
+class KillData(TypedDict):
+    KILLER: PlayerData
+    VICTIM: PlayerData
+    MATCH_GUID: str
+    MOD: MeansOfDeath
+    OTHER_TEAM_ALIVE: int
+    OTHER_TEAM_DEAD: int
+    ROUND: int
+    SUICIDE: bool
+    TEAMKILL: bool
+    TEAM_ALIVE: int
+    TEAM_DEAD: int
+    TIME: int
+    WARMUP: bool
+
+class DeathData(TypedDict):
+    KILLER: PlayerData | None
+    VICTIM: PlayerData
+    MATCH_GUID: str
+    MOD: MeansOfDeath
+    OTHER_TEAM_ALIVE: int
+    OTHER_TEAM_DEAD: int
+    ROUND: int
+    SUICIDE: bool
+    TEAMKILL: bool
+    TEAM_ALIVE: int
+    TEAM_DEAD: int
+    TIME: int
+    WARMUP: bool
+
 UserinfoEventInput = TypedDict(
     "UserinfoEventInput",
     {
@@ -512,167 +492,196 @@ UserinfoEventInput = TypedDict(
     },
     total=False,
 )
-PlayerKillStats = TypedDict("PlayerKillStats", {"DATA": KillData, "TYPE": Literal["PLAYER_KILL"]})
-PlayerDeathStats = TypedDict("PlayerDeathStats", {"DATA": DeathData, "TYPE": Literal["PLAYER_DEATH"]})
-MedalData = TypedDict(
-    "MedalData",
-    {
-        "MATCH_GUID": str,
-        "MEDAL": Literal[
-            "ACCURACY",
-            "ASSISTS",
-            "CAPTURES",
-            "COMBOKILL",
-            "DEFENDS",
-            "EXCELLENT",
-            "FIRSTFRAG",
-            "HEADSHOT",
-            "HUMILIATION",
-            "IMPRESSIVE",
-            "MIDAIR",
-            "PERFECT",
-            "PERFORATED",
-            "QUADGOD",
-            "RAMPAGE",
-            "REVENGE",
-        ],
-        "NAME": str,
-        "STEAM_ID": str,
-        "TIME": int,
-        "TOTAL": int,
-        "WARMUP": bool,
-    },
-)
-PlayerMedalStats = TypedDict("PlayerMedalStats", {"DATA": MedalData, "TYPE": Literal["PLAYER_MEDAL"]})
-RoundOverStats = TypedDict("RoundOverStats", {"DATA": RoundEndData, "TYPE": Literal["ROUND_OVER"]})
-PlayerGameData = TypedDict(
-    "PlayerGameData",
-    {"MATCH_GUID": str, "NAME": str, "STEAM_ID": str, "TIME": int, "WARMUP": bool},
-)
-PlayerConnectStats = TypedDict("PlayerConnectStats", {"DATA": PlayerGameData, "TYPE": Literal["PLAYER_CONNECT"]})
-PlayerDisconnectStats = TypedDict(
-    "PlayerDisconnectStats",
-    {"DATA": PlayerGameData, "TYPE": Literal["PLAYER_DICCONNECT"]},
-)
-TeamSwitchEvent = TypedDict("TeamSwitchEvent", {"NAME": str, "OLD_TEAM": str, "STEAM_ID": str, "TEAM": str})
-TeamSwitchGameData = TypedDict(
-    "TeamSwitchGameData",
-    {"KILLER": TeamSwitchEvent, "MATCH_GUID": str, "TIME": int, "WARMUP": bool},
-)
-PlayerSwitchTeamStats = TypedDict(
-    "PlayerSwitchTeamStats",
-    {"DATA": TeamSwitchGameData, "TYPE": Literal["PLAYER_SWITCHTEAM"]},
-)
-MatchStartedStats = TypedDict("MatchStartedStats", {"DATA": GameStartData, "TYPE": Literal["MATCH_STARTED"]})
-MatchReportStats = TypedDict("MatchReportStats", {"DATA": GameEndData, "TYPE": Literal["MATCH_REPORT"]})
-DamageEntry = TypedDict("DamageEntry", {"DEALT": int, "TAKEN": int})
-MedalsEntry = TypedDict(
-    "MedalsEntry",
-    {
-        "ACCURACY": int,
-        "ASSISTS": int,
-        "CAPTURES": int,
-        "COMBOKILL": int,
-        "DEFENDS": int,
-        "EXCELLENT": int,
-        "FIRSTFRAG": int,
-        "HEADSHOT": int,
-        "HUMILIATION": int,
-        "IMPRESSIVE": int,
-        "MIDAIR": int,
-        "PERFECT": int,
-        "PERFORATED": int,
-        "QUADGOD": int,
-        "RAMPAGE": int,
-        "REVENGE": int,
-    },
-)
-PickupsEntry = TypedDict(
-    "PickupsEntry",
-    {
-        "AMMO": int,
-        "ARMOR": int,
-        "ARMOR_REGEN": int,
-        "BATTLESUIT": int,
-        "DOUBLER": int,
-        "FLIGHT": int,
-        "GREEN_ARMOR": int,
-        "GUARD": int,
-        "HASTE": int,
-        "HEALTH": int,
-        "INVIS": int,
-        "INVULNERABILITY": int,
-        "KAMIKAZE": int,
-        "MEDKIT": int,
-        "MEGA_HEALTH": int,
-        "OTHER_HOLDABLE": int,
-        "OTHER_POWERUP": int,
-        "PORTAL": int,
-        "QUAD": int,
-        "RED_ARMOR": int,
-        "REGEN": int,
-        "SCOUT": int,
-        "TELEPORTER": int,
-        "YELLOW_ARMOR": int,
-    },
-)
-SingleWeaponStatsEntry = TypedDict(
-    "SingleWeaponStatsEntry",
-    {"D": int, "DG": int, "DR": int, "H": int, "K": int, "P": int, "S": int, "T": int},
-)
-WeaponsStatsEntry = TypedDict(
-    "WeaponsStatsEntry",
-    {
-        "BFG": SingleWeaponStatsEntry,
-        "CHAINGUN": SingleWeaponStatsEntry,
-        "GAUNTLET": SingleWeaponStatsEntry,
-        "GRENADE": SingleWeaponStatsEntry,
-        "HMG": SingleWeaponStatsEntry,
-        "LIGHTNING": SingleWeaponStatsEntry,
-        "MACHINEGUN": SingleWeaponStatsEntry,
-        "NAILGUN": SingleWeaponStatsEntry,
-        "OTHER_WEAPON": SingleWeaponStatsEntry,
-        "PLASMA": SingleWeaponStatsEntry,
-        "PROXMINE": SingleWeaponStatsEntry,
-        "RAILGUN": SingleWeaponStatsEntry,
-        "ROCKET": SingleWeaponStatsEntry,
-        "SHOTGUN": SingleWeaponStatsEntry,
-    },
-)
-PlayerStatsEntry = TypedDict(
-    "PlayerStatsEntry",
-    {
-        "ABORTED": bool,
-        "BLUE_FLAG_PICKUPS": int,
-        "DAMAGE": DamageEntry,
-        "DEATHS": int,
-        "HOLY_SHITS": int,
-        "KILLS": int,
-        "LOSE": int,
-        "MATCH_GUID": str,
-        "MAX_STREAK": int,
-        "MEDALS": MedalsEntry,
-        "MODEL": str,
-        "NAME": str,
-        "NEUTRAL_FLAG_PICKUPS": int,
-        "PICKUPS": PickupsEntry,
-        "PLAY_TIME": int,
-        "QUIT": int,
-        "RANK": int,
-        "RED_FLAG_PICKUPS": int,
-        "SCORE": int,
-        "STEAM_ID": str,
-        "TEAM": int,
-        "TEAM_JOIN_TIME": int,
-        "TEAM_RANK": int,
-        "TIED_RANK": int,
-        "TIED_TEAM_RANK": int,
-        "WARMUP": bool,
-        "WEAPONS": WeaponsStatsEntry,
-        "WIN": int,
-    },
-)
-PlayerStatsStats = TypedDict("PlayerStatsStats", {"DATA": PlayerStatsEntry, "TYPE": Literal["PLAYER_STATS"]})
+
+class PlayerKillStats(TypedDict):
+    DATA: KillData
+    TYPE: Literal["PLAYER_KILL"]
+
+class PlayerDeathStats(TypedDict):
+    DATA: DeathData
+    TYPE: Literal["PLAYER_DEATH"]
+
+class MedalData(TypedDict):
+    MATCH_GUID: str
+    MEDAL: Literal[
+        "ACCURACY",
+        "ASSISTS",
+        "CAPTURES",
+        "COMBOKILL",
+        "DEFENDS",
+        "EXCELLENT",
+        "FIRSTFRAG",
+        "HEADSHOT",
+        "HUMILIATION",
+        "IMPRESSIVE",
+        "MIDAIR",
+        "PERFECT",
+        "PERFORATED",
+        "QUADGOD",
+        "RAMPAGE",
+        "REVENGE",
+    ]
+    NAME: str
+    STEAM_ID: str
+    TIME: int
+    TOTAL: int
+    WARMUP: bool
+
+class PlayerMedalStats(TypedDict):
+    DATA: MedalData
+    TYPE: Literal["PLAYER_MEDAL"]
+
+class RoundOverStats(TypedDict):
+    DATA: RoundEndData
+    TYPE: Literal["ROUND_OVER"]
+
+class PlayerGameData(TypedDict):
+    MATCH_GUID: str
+    NAME: str
+    STEAM_ID: str
+    TIME: int
+    WARMUP: bool
+
+class PlayerConnectStats(TypedDict):
+    DATA: PlayerGameData
+    TYPE: Literal["PLAYER_CONNECT"]
+
+class PlayerDisconnectStats(TypedDict):
+    DATA: PlayerGameData
+    TYPE: Literal["PLAYER_DICCONNECT"]
+
+class TeamSwitchEvent(TypedDict):
+    NAME: str
+    OLD_TEAM: str
+    STEAM_ID: str
+    TEAM: str
+
+class TeamSwitchGameData(TypedDict):
+    KILLER: TeamSwitchEvent
+    MATCH_GUID: str
+    TIME: int
+    WARMUP: bool
+
+class PlayerSwitchTeamStats(TypedDict):
+    DATA: TeamSwitchGameData
+    TYPE: Literal["PLAYER_SWITCHTEAM"]
+
+class MatchStartedStats(TypedDict):
+    DATA: GameStartData
+    TYPE: Literal["MATCH_STARTED"]
+
+class MatchReportStats(TypedDict):
+    DATA: GameEndData
+    TYPE: Literal["MATCH_REPORT"]
+
+class DamageEntry(TypedDict):
+    DEALT: int
+    TAKEN: int
+
+class MedalsEntry(TypedDict):
+    ACCURACY: int
+    ASSISTS: int
+    CAPTURES: int
+    COMBOKILL: int
+    DEFENDS: int
+    EXCELLENT: int
+    FIRSTFRAG: int
+    HEADSHOT: int
+    HUMILIATION: int
+    IMPRESSIVE: int
+    MIDAIR: int
+    PERFECT: int
+    PERFORATED: int
+    QUADGOD: int
+    RAMPAGE: int
+    REVENGE: int
+
+class PickupsEntry(TypedDict):
+    AMMO: int
+    ARMOR: int
+    ARMOR_REGEN: int
+    BATTLESUIT: int
+    DOUBLER: int
+    FLIGHT: int
+    GREEN_ARMOR: int
+    GUARD: int
+    HASTE: int
+    HEALTH: int
+    INVIS: int
+    INVULNERABILITY: int
+    KAMIKAZE: int
+    MEDKIT: int
+    MEGA_HEALTH: int
+    OTHER_HOLDABLE: int
+    OTHER_POWERUP: int
+    PORTAL: int
+    QUAD: int
+    RED_ARMOR: int
+    REGEN: int
+    SCOUT: int
+    TELEPORTER: int
+    YELLOW_ARMOR: int
+
+class SingleWeaponStatsEntry(TypedDict):
+    D: int
+    DG: int
+    DR: int
+    H: int
+    K: int
+    P: int
+    S: int
+    T: int
+
+class WeaponsStatsEntry(TypedDict):
+    BFG: SingleWeaponStatsEntry
+    CHAINGUN: SingleWeaponStatsEntry
+    GAUNTLET: SingleWeaponStatsEntry
+    GRENADE: SingleWeaponStatsEntry
+    HMG: SingleWeaponStatsEntry
+    LIGHTNING: SingleWeaponStatsEntry
+    MACHINEGUN: SingleWeaponStatsEntry
+    NAILGUN: SingleWeaponStatsEntry
+    OTHER_WEAPON: SingleWeaponStatsEntry
+    PLASMA: SingleWeaponStatsEntry
+    PROXMINE: SingleWeaponStatsEntry
+    RAILGUN: SingleWeaponStatsEntry
+    ROCKET: SingleWeaponStatsEntry
+    SHOTGUN: SingleWeaponStatsEntry
+
+class PlayerStatsEntry(TypedDict):
+    ABORTED: bool
+    BLUE_FLAG_PICKUPS: int
+    DAMAGE: DamageEntry
+    DEATHS: int
+    HOLY_SHITS: int
+    KILLS: int
+    LOSE: int
+    MATCH_GUID: str
+    MAX_STREAK: int
+    MEDALS: MedalsEntry
+    MODEL: str
+    NAME: str
+    NEUTRAL_FLAG_PICKUPS: int
+    PICKUPS: PickupsEntry
+    PLAY_TIME: int
+    QUIT: int
+    RANK: int
+    RED_FLAG_PICKUPS: int
+    SCORE: int
+    STEAM_ID: str
+    TEAM: int
+    TEAM_JOIN_TIME: int
+    TEAM_RANK: int
+    TIED_RANK: int
+    TIED_TEAM_RANK: int
+    WARMUP: bool
+    WEAPONS: WeaponsStatsEntry
+    WIN: int
+
+class PlayerStatsStats(TypedDict):
+    DATA: PlayerStatsEntry
+    TYPE: Literal["PLAYER_STATS"]
+
 StatsData = (
     PlayerKillStats
     | PlayerDeathStats
@@ -687,298 +696,288 @@ StatsData = (
 )
 
 __all__ = [
-    "__version__",
-    "__version_info__",
-    "__plugins_version__",
-    "_map_title",
-    "_map_subtitle1",
-    "_map_subtitle2",
-    "UncancellableEventReturn",
-    "CancellableEventReturn",
-    "GameStartData",
-    "GameEndData",
-    "RoundEndData",
-    "DeathData",
-    "KillData",
-    "UserinfoEventInput",
-    "Weapon",
-    "PowerUps",
-    "MeansOfDeath",
-    "PlayerSummaryData",
-    "Vector",
-    "Holdable",
-    "PlayerData",
-    "PlayerKillStats",
-    "PlayerDeathStats",
-    "PlayerMedalStats",
-    "MedalData",
-    "RoundOverStats",
-    "PlayerConnectStats",
-    "PlayerDisconnectStats",
-    "PlayerGameData",
-    "PlayerSwitchTeamStats",
-    "TeamSwitchGameData",
-    "MatchStartedStats",
-    "MatchReportStats",
-    "PlayerStatsStats",
-    "PlayerStatsEntry",
-    "WeaponsStatsEntry",
-    "PickupsEntry",
-    "MedalsEntry",
-    "DamageEntry",
-    "SingleWeaponStatsEntry",
-    "StatsData",
-    "UserInfo",
-    # from _commands.pyi
-    "MAX_MSG_LENGTH",
-    "re_color_tag",
-    "AbstractChannel",
-    "ConsoleChannel",
-    "ChatChannel",
-    "TellChannel",
-    "ClientCommandChannel",
-    "TeamChatChannel",
-    "CHAT_CHANNEL",
-    "RED_TEAM_CHAT_CHANNEL",
     "BLUE_TEAM_CHAT_CHANNEL",
-    "FREE_CHAT_CHANNEL",
-    "SPECTATOR_CHAT_CHANNEL",
-    "CONSOLE_CHANNEL",
-    "Command",
-    "CommandInvoker",
+    "CHAT_CHANNEL",
     "COMMANDS",
-    # from _core.pyi
-    "_thread_name",
-    "_thread_count",
-    "DEFAULT_PLUGINS",
-    "set_cvar_once",
-    "set_cvar_limit_once",
-    "set_plugins_version",
-    "set_map_subtitles",
-    "parse_variables",
-    "get_logger",
-    "_configure_logger",
-    "log_exception",
-    "handle_exception",
-    "threading_excepthook",
-    "next_frame",
-    "delay",
-    "thread",
-    "uptime",
-    "owner",
-    "_stats",
-    "stats_listener",
-    "_modules",
-    "load_preset_plugins",
-    "load_plugin",
-    "unload_plugin",
-    "reload_plugin",
-    "initialize_cvars",
-    "initialize",
-    "late_init",
-    "PluginLoadError",
-    "PluginUnloadError",
-    # from _events.pyi
-    "_re_vote",
-    "EventDispatcher",
-    "ConsolePrintDispatcher",
-    "CommandDispatcher",
-    "ClientCommandDispatcher",
-    "ServerCommandDispatcher",
-    "FrameEventDispatcher",
-    "SetConfigstringDispatcher",
-    "ChatEventDispatcher",
-    "UnloadDispatcher",
-    "PlayerConnectDispatcher",
-    "PlayerLoadedDispatcher",
-    "PlayerDisconnectDispatcher",
-    "PlayerSpawnDispatcher",
-    "StatsDispatcher",
-    "VoteCalledDispatcher",
-    "VoteStartedDispatcher",
-    "VoteEndedDispatcher",
-    "VoteDispatcher",
-    "GameCountdownDispatcher",
-    "GameStartDispatcher",
-    "GameEndDispatcher",
-    "RoundCountdownDispatcher",
-    "RoundStartDispatcher",
-    "RoundEndDispatcher",
-    "TeamSwitchDispatcher",
-    "TeamSwitchAttemptDispatcher",
-    "MapDispatcher",
-    "NewGameDispatcher",
-    "KillDispatcher",
-    "DeathDispatcher",
-    "UserinfoDispatcher",
-    "KamikazeUseDispatcher",
-    "KamikazeExplodeDispatcher",
-    "DamageDispatcher",
-    "EventDispatcherManager",
-    "EVENT_DISPATCHERS",
-    # from _game.pyi
-    "Game",
-    "NonexistentGameError",
-    # from _handlers.pyi
-    "frame_tasks",
-    "next_frame_tasks",
-    "handle_rcon",
-    "handle_client_command",
-    "handle_server_command",
-    "handle_frame",
-    "handle_new_game",
-    "handle_set_configstring",
-    "handle_player_connect",
-    "handle_player_loaded",
-    "handle_player_spawn",
-    "handle_player_disconnect",
-    "handle_kamikaze_use",
-    "handle_kamikaze_explode",
-    "handle_damage",
-    "handle_console_print",
-    "redirect_print",
-    "register_handlers",
-    # from _player.pyi
-    "Player",
-    "NonexistentPlayerError",
-    "AbstractDummyPlayer",
-    "RconDummyPlayer",
-    # from _plugin.pyi
-    "Plugin",
-    # _shinqlx
-    "DEBUG",
-    "RET_NONE",
-    "RET_STOP",
-    "RET_STOP_EVENT",
-    "RET_STOP_ALL",
-    "RET_USAGE",
-    "PRI_HIGHEST",
-    "PRI_HIGH",
-    "PRI_NORMAL",
-    "PRI_LOW",
-    "PRI_LOWEST",
+    "CONNECTION_STATES",
+    "CONSOLE_CHANNEL",
+    "CS_ACTIVE",
+    "CS_CONNECTED",
+    "CS_FREE",
+    "CS_PRIMED",
+    "CS_ZOMBIE",
     "CVAR_ARCHIVE",
-    "CVAR_USERINFO",
-    "CVAR_SERVERINFO",
-    "CVAR_SYSTEMINFO",
+    "CVAR_CHEAT",
     "CVAR_INIT",
     "CVAR_LATCH",
-    "CVAR_ROM",
-    "CVAR_USER_CREATED",
-    "CVAR_TEMP",
-    "CVAR_CHEAT",
     "CVAR_NORESTART",
-    "GAMETYPES",
-    "GAMETYPES_SHORT",
-    "PRIV_NONE",
-    "PRIV_MOD",
-    "PRIV_ADMIN",
-    "PRIV_ROOT",
-    "PRIV_BANNED",
-    "CS_FREE",
-    "CS_ZOMBIE",
-    "CS_CONNECTED",
-    "CS_PRIMED",
-    "CS_ACTIVE",
-    "CONNECTION_STATES",
-    "TEAM_FREE",
-    "TEAM_RED",
-    "TEAM_BLUE",
-    "TEAM_SPECTATOR",
-    "TEAMS",
-    "MOD_UNKNOWN",
-    "MOD_SHOTGUN",
-    "MOD_GAUNTLET",
-    "MOD_MACHINEGUN",
-    "MOD_GRENADE",
-    "MOD_GRENADE_SPLASH",
-    "MOD_ROCKET",
-    "MOD_ROCKET_SPLASH",
-    "MOD_PLASMA",
-    "MOD_PLASMA_SPLASH",
-    "MOD_RAILGUN",
-    "MOD_LIGHTNING",
-    "MOD_BFG",
-    "MOD_BFG_SPLASH",
-    "MOD_WATER",
-    "MOD_SLIME",
-    "MOD_LAVA",
-    "MOD_CRUSH",
-    "MOD_TELEFRAG",
-    "MOD_FALLING",
-    "MOD_SUICIDE",
-    "MOD_TARGET_LASER",
-    "MOD_TRIGGER_HURT",
-    "MOD_NAIL",
-    "MOD_CHAINGUN",
-    "MOD_PROXIMITY_MINE",
-    "MOD_KAMIKAZE",
-    "MOD_JUICED",
-    "MOD_GRAPPLE",
-    "MOD_SWITCH_TEAMS",
-    "MOD_THAW",
-    "MOD_LIGHTNING_DISCHARGE",
-    "MOD_HMG",
-    "MOD_RAILGUN_HEADSHOT",
-    "WEAPONS",
-    "DAMAGE_RADIUS",
+    "CVAR_ROM",
+    "CVAR_SERVERINFO",
+    "CVAR_SYSTEMINFO",
+    "CVAR_TEMP",
+    "CVAR_USERINFO",
+    "CVAR_USER_CREATED",
     "DAMAGE_NO_ARMOR",
     "DAMAGE_NO_KNOCKBACK",
     "DAMAGE_NO_PROTECTION",
     "DAMAGE_NO_TEAM_PROTECTION",
-    "Vector3",
+    "DAMAGE_RADIUS",
+    "DEBUG",
+    "DEFAULT_PLUGINS",
+    "EVENT_DISPATCHERS",
+    "FREE_CHAT_CHANNEL",
+    "GAMETYPES",
+    "GAMETYPES_SHORT",
+    "MAX_MSG_LENGTH",
+    "MOD_BFG",
+    "MOD_BFG_SPLASH",
+    "MOD_CHAINGUN",
+    "MOD_CRUSH",
+    "MOD_FALLING",
+    "MOD_GAUNTLET",
+    "MOD_GRAPPLE",
+    "MOD_GRENADE",
+    "MOD_GRENADE_SPLASH",
+    "MOD_HMG",
+    "MOD_JUICED",
+    "MOD_KAMIKAZE",
+    "MOD_LAVA",
+    "MOD_LIGHTNING",
+    "MOD_LIGHTNING_DISCHARGE",
+    "MOD_MACHINEGUN",
+    "MOD_NAIL",
+    "MOD_PLASMA",
+    "MOD_PLASMA_SPLASH",
+    "MOD_PROXIMITY_MINE",
+    "MOD_RAILGUN",
+    "MOD_RAILGUN_HEADSHOT",
+    "MOD_ROCKET",
+    "MOD_ROCKET_SPLASH",
+    "MOD_SHOTGUN",
+    "MOD_SLIME",
+    "MOD_SUICIDE",
+    "MOD_SWITCH_TEAMS",
+    "MOD_TARGET_LASER",
+    "MOD_TELEFRAG",
+    "MOD_THAW",
+    "MOD_TRIGGER_HURT",
+    "MOD_UNKNOWN",
+    "MOD_WATER",
+    "PRIV_ADMIN",
+    "PRIV_BANNED",
+    "PRIV_MOD",
+    "PRIV_NONE",
+    "PRIV_ROOT",
+    "PRI_HIGH",
+    "PRI_HIGHEST",
+    "PRI_LOW",
+    "PRI_LOWEST",
+    "PRI_NORMAL",
+    "RED_TEAM_CHAT_CHANNEL",
+    "RET_NONE",
+    "RET_STOP",
+    "RET_STOP_ALL",
+    "RET_STOP_EVENT",
+    "RET_USAGE",
+    "SPECTATOR_CHAT_CHANNEL",
+    "TEAMS",
+    "TEAM_BLUE",
+    "TEAM_FREE",
+    "TEAM_RED",
+    "TEAM_SPECTATOR",
+    "WEAPONS",
+    "AbstractChannel",
+    "AbstractDummyPlayer",
+    "CancellableEventReturn",
+    "ChatChannel",
+    "ChatEventDispatcher",
+    "ClientCommandChannel",
+    "ClientCommandDispatcher",
+    "Command",
+    "CommandDispatcher",
+    "CommandInvoker",
+    "ConsoleChannel",
+    "ConsolePrintDispatcher",
+    "DamageDispatcher",
+    "DamageEntry",
+    "DeathData",
+    "DeathDispatcher",
+    "EventDispatcher",
+    "EventDispatcherManager",
     "Flight",
-    "Powerups",
-    "Weapons",
+    "FrameEventDispatcher",
+    "Game",
+    "GameCountdownDispatcher",
+    "GameEndData",
+    "GameEndDispatcher",
+    "GameStartData",
+    "GameStartDispatcher",
+    "Holdable",
+    "KamikazeExplodeDispatcher",
+    "KamikazeUseDispatcher",
+    "KillData",
+    "KillDispatcher",
+    "MapDispatcher",
+    "MatchReportStats",
+    "MatchStartedStats",
+    "MeansOfDeath",
+    "MedalData",
+    "MedalsEntry",
+    "NewGameDispatcher",
+    "NonexistentGameError",
+    "NonexistentPlayerError",
+    "PickupsEntry",
+    "Player",
+    "PlayerConnectDispatcher",
+    "PlayerConnectStats",
+    "PlayerData",
+    "PlayerDeathStats",
+    "PlayerDisconnectDispatcher",
+    "PlayerDisconnectStats",
+    "PlayerGameData",
     "PlayerInfo",
+    "PlayerKillStats",
+    "PlayerLoadedDispatcher",
+    "PlayerMedalStats",
+    "PlayerSpawnDispatcher",
     "PlayerState",
     "PlayerStats",
-    "player_info",
-    "players_info",
-    "get_userinfo",
-    "send_server_command",
+    "PlayerStatsEntry",
+    "PlayerStatsStats",
+    "PlayerSummaryData",
+    "PlayerSwitchTeamStats",
+    "Plugin",
+    "PluginLoadError",
+    "PluginUnloadError",
+    "PowerUps",
+    "Powerups",
+    "RconDummyPlayer",
+    "RoundCountdownDispatcher",
+    "RoundEndData",
+    "RoundEndDispatcher",
+    "RoundOverStats",
+    "RoundStartDispatcher",
+    "ServerCommandDispatcher",
+    "SetConfigstringDispatcher",
+    "SingleWeaponStatsEntry",
+    "StatsData",
+    "StatsDispatcher",
+    "StatsListener",
+    "TeamChatChannel",
+    "TeamSwitchAttemptDispatcher",
+    "TeamSwitchDispatcher",
+    "TeamSwitchGameData",
+    "TellChannel",
+    "UncancellableEventReturn",
+    "UnloadDispatcher",
+    "UserInfo",
+    "UserinfoDispatcher",
+    "UserinfoEventInput",
+    "Vector",
+    "Vector3",
+    "VoteCalledDispatcher",
+    "VoteDispatcher",
+    "VoteEndedDispatcher",
+    "VoteStartedDispatcher",
+    "Weapon",
+    "Weapons",
+    "WeaponsStatsEntry",
+    "__plugins_version__",
+    "__version__",
+    "__version_info__",
+    "_configure_logger",
+    "_map_subtitle1",
+    "_map_subtitle2",
+    "_map_title",
+    "_modules",
+    "_re_vote",
+    "_stats",
+    "_thread_count",
+    "_thread_name",
+    "add_console_command",
+    "allow_single_player",
+    "callvote",
     "client_command",
     "console_command",
-    "get_cvar",
-    "set_cvar",
-    "set_cvar_limit",
-    "kick",
     "console_print",
-    "get_configstring",
-    "set_configstring",
+    "database",
+    "delay",
+    "destroy_kamikaze_timers",
+    "dev_print_items",
+    "drop_holdable",
     "force_vote",
-    "add_console_command",
+    "force_weapon_respawn_time",
+    "frame_tasks",
+    "get_configstring",
+    "get_cvar",
+    "get_logger",
+    "get_targetting_entities",
+    "get_userinfo",
+    "handle_client_command",
+    "handle_console_print",
+    "handle_damage",
+    "handle_exception",
+    "handle_frame",
+    "handle_kamikaze_explode",
+    "handle_kamikaze_use",
+    "handle_new_game",
+    "handle_player_connect",
+    "handle_player_disconnect",
+    "handle_player_loaded",
+    "handle_player_spawn",
+    "handle_rcon",
+    "handle_server_command",
+    "handle_set_configstring",
+    "initialize",
+    "initialize_cvars",
+    "kick",
+    "late_init",
+    "load_plugin",
+    "load_preset_plugins",
+    "log_exception",
+    "next_frame",
+    "next_frame_tasks",
+    "noclip",
+    "owner",
+    "parse_variables",
+    "player_info",
+    "player_spawn",
     "player_state",
     "player_stats",
-    "set_position",
-    "set_velocity",
-    "noclip",
-    "set_health",
-    "set_armor",
-    "set_weapons",
-    "set_weapon",
-    "set_ammo",
-    "set_powerups",
-    "set_holdable",
-    "drop_holdable",
-    "set_flight",
-    "set_invulnerability",
-    "set_score",
-    "callvote",
-    "allow_single_player",
-    "player_spawn",
-    "set_privileges",
-    "destroy_kamikaze_timers",
-    "spawn_item",
-    "remove_dropped_items",
-    "slay_with_mod",
-    "replace_items",
-    "dev_print_items",
-    "force_weapon_respawn_time",
+    "players_info",
+    "re_color_tag",
+    "redirect_print",
     "register_handler",
-    "get_targetting_entities",
-    # from _zmq.pyi
-    "StatsListener",
-    # from database.pyi
-    "database",
+    "register_handlers",
+    "reload_plugin",
+    "remove_dropped_items",
+    "replace_items",
+    "send_server_command",
+    "set_ammo",
+    "set_armor",
+    "set_configstring",
+    "set_cvar",
+    "set_cvar_limit",
+    "set_cvar_limit_once",
+    "set_cvar_once",
+    "set_flight",
+    "set_health",
+    "set_holdable",
+    "set_invulnerability",
+    "set_map_subtitles",
+    "set_plugins_version",
+    "set_position",
+    "set_powerups",
+    "set_privileges",
+    "set_score",
+    "set_velocity",
+    "set_weapon",
+    "set_weapons",
+    "slay_with_mod",
+    "spawn_item",
+    "stats_listener",
+    "thread",
+    "threading_excepthook",
+    "unload_plugin",
+    "uptime",
 ]

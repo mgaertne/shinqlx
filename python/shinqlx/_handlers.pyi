@@ -1,11 +1,9 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import Type
-    from types import TracebackType
-
-    from sched import scheduler
     from queue import Queue
+    from sched import scheduler
+    from types import TracebackType
 
     from shinqlx import AbstractChannel
 
@@ -36,7 +34,7 @@ class PrintRedirector:
     def __enter__(self) -> None: ...
     def __exit__(
         self,
-        exc_type: Type[BaseException],
+        exc_type: type[BaseException],
         exc_value: BaseException,
         exc_traceback: TracebackType | None,
     ) -> None: ...

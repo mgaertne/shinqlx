@@ -1,21 +1,21 @@
-from typing import TYPE_CHECKING, overload, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar, overload
 
 if TYPE_CHECKING:
-    from typing import Iterable, Callable, Literal, Type
-
+    from collections.abc import Iterable
     from re import Pattern
+    from typing import Any, Callable, Literal
 
     from shinqlx import (
-        Plugin,
-        Player,
-        Command,
         AbstractChannel,
-        StatsData,
-        GameStartData,
-        GameEndData,
-        RoundEndData,
-        KillData,
+        Command,
         DeathData,
+        GameEndData,
+        GameStartData,
+        KillData,
+        Player,
+        Plugin,
+        RoundEndData,
+        StatsData,
         UserinfoEventInput,
     )
 
@@ -122,7 +122,8 @@ class EventDispatcher(Generic[E]):
         dflags: int,
         means_of_death: int,
     ) -> bool: ...
-    def dispatch(self, *args, **kwargs) -> str | bool | Iterable | None: ...  # type: ignore
+    @overload
+    def dispatch(self, *args: Any, **kwargs: Any) -> str | bool | Iterable | None: ...
     def add_hook(self, plugin: str, handler: Callable, priority: int = ...) -> None: ...
     def remove_hook(self, plugin: str, handler: Callable, priority: int = ...) -> None: ...
 
@@ -168,6 +169,8 @@ class DamageDispatcher(EventDispatcher[DamageDispatcher]): ...
 
 class EventDispatcherManager:
     def __init__(self) -> None: ...
+    @property
+    def _dispatchers(self) -> dict[str, EventDispatcher]: ...
     @overload
     def __getitem__(self, key: Literal["console_print"]) -> ConsolePrintDispatcher: ...
     @overload
@@ -235,8 +238,8 @@ class EventDispatcherManager:
     @overload
     def __getitem__(self, key: Literal["damage"]) -> DamageDispatcher: ...
     def __contains__(self, key: str) -> bool: ...
-    def add_dispatcher(self, dispatcher: Type[EventDispatcher]) -> None: ...
-    def remove_dispatcher(self, dispatcher: Type[EventDispatcher]) -> None: ...
+    def add_dispatcher(self, dispatcher: type[EventDispatcher]) -> None: ...
+    def remove_dispatcher(self, dispatcher: type[EventDispatcher]) -> None: ...
     def remove_dispatcher_by_name(self, event_name: str) -> None: ...
 
 EVENT_DISPATCHERS: EventDispatcherManager
