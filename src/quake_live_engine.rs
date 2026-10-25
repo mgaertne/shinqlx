@@ -499,10 +499,14 @@ mod vm_functions_tests {
         ClientConnectDetourType, ClientSpawnDetourType, GDamageDetourType,
         GStartKamikazeDetourType, VmFunctions,
     };
-    use crate::quake_live_engine::mock_quake_functions::{
-        CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage, G_FreeEntity,
-        G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item, detoured_ClientConnect,
-        detoured_ClientSpawn, detoured_G_Damage, detoured_G_StartKamikaze,
+    use crate::{
+        prelude::serial,
+        quake_live_engine::mock_quake_functions::{
+            CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage,
+            G_FreeEntity, G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item,
+            detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage,
+            detoured_G_StartKamikaze,
+        },
     };
 
     fn default_vm_functions() -> VmFunctions {
@@ -611,6 +615,7 @@ mod vm_functions_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unhook_with_functions_and_disabled_detours_set_before() {
         let vm_functions = VmFunctions {
             vm_call_table: AtomicUsize::new(42),
@@ -683,6 +688,7 @@ mod vm_functions_tests {
 
     #[test]
     #[cfg_attr(any(miri, target_os = "macos"), ignore)]
+    #[serial]
     fn unhook_with_functions_and_enabled_detours_set_before() {
         let vm_functions = VmFunctions {
             vm_call_table: AtomicUsize::new(42),
