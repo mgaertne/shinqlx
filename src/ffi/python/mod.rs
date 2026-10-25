@@ -1,3 +1,5 @@
+#[cfg(feature = "bench-support")]
+pub mod bench_support;
 mod channels;
 mod commands;
 mod database;
@@ -147,7 +149,6 @@ use pyo3::{
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFloat, PyInt, PyString, PyTuple, PyType},
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use regex::Regex;
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
 #[cfg(test)]
@@ -552,12 +553,88 @@ impl From<weapon_t> for Weapon {
 create_exception!(pyshinqlx_module, PluginLoadError, PyException);
 create_exception!(pyshinqlx_module, PluginUnloadError, PyException);
 
+fn is_color_tag_digit(byte: Option<&u8>) -> bool {
+    byte.is_some_and(|digit| (b'0'..=b'7').contains(digit))
+}
+
+/// Removes all color tags (a caret followed by a digit from 0 to 7) from a text.
 pub(crate) fn clean_text<T>(text: &T) -> String
 where
     T: AsRef<str>,
 {
-    let re = Regex::new(r#"\^[0-7]"#).unwrap();
-    re.replace_all(text.as_ref(), "").to_string()
+    let mut rest = text.as_ref();
+    let mut cleaned = String::with_capacity(rest.len());
+    while let Some(caret) = rest.find('^') {
+        cleaned.push_str(&rest[..caret]);
+        let after_caret = &rest[caret + 1..];
+        if is_color_tag_digit(after_caret.as_bytes().first()) {
+            rest = &after_caret[1..];
+        } else {
+            cleaned.push('^');
+            rest = after_caret;
+        }
+    }
+    cleaned.push_str(rest);
+    cleaned
+}
+
+/// Returns the last color tag (a caret followed by a digit from 0 to 7) of a text.
+pub(crate) fn last_color_tag(text: &str) -> Option<&str> {
+    text.rmatch_indices('^').find_map(|(caret, _)| {
+        is_color_tag_digit(text.as_bytes().get(caret + 1)).then(|| &text[caret..caret + 2])
+    })
+}
+
+#[cfg(test)]
+mod color_tag_tests {
+    use pretty_assertions::assert_eq;
+    use regex::Regex;
+    use rstest::rstest;
+
+    use super::{clean_text, last_color_tag};
+
+    #[rstest]
+    #[case("", "")]
+    #[case("PlayerName", "PlayerName")]
+    #[case("^1Red^7Player^4Name", "RedPlayerName")]
+    #[case("^^1a", "^a")]
+    #[case("a^", "a^")]
+    #[case("^", "^")]
+    #[case("^8x^9y", "^8x^9y")]
+    #[case("^7^7", "")]
+    #[case("^a^1", "^a")]
+    #[case("ä^1ö^2ü", "äöü")]
+    #[case("^^^0^", "^^^")]
+    fn clean_text_removes_color_tags(#[case] text: &str, #[case] expected: &str) {
+        let color_tag_regex = Regex::new(r"\^[0-7]").unwrap();
+
+        assert_eq!(clean_text(&text), expected);
+        assert_eq!(clean_text(&text), color_tag_regex.replace_all(text, ""));
+    }
+
+    #[rstest]
+    #[case("", None)]
+    #[case("no tags", None)]
+    #[case("^1red", Some("^1"))]
+    #[case("^1red ^2green", Some("^2"))]
+    #[case("^1red ^", Some("^1"))]
+    #[case("^1red ^9", Some("^1"))]
+    #[case("^^3x", Some("^3"))]
+    #[case("ä^4ö", Some("^4"))]
+    #[case("^", None)]
+    #[case("^8", None)]
+    fn last_color_tag_finds_the_last_tag(#[case] text: &str, #[case] expected: Option<&str>) {
+        let color_tag_regex = Regex::new(r"\^[0-7]").unwrap();
+
+        assert_eq!(last_color_tag(text), expected);
+        assert_eq!(
+            last_color_tag(text),
+            color_tag_regex
+                .find_iter(text)
+                .last()
+                .map(|color_tag| color_tag.as_str())
+        );
+    }
 }
 
 pub(crate) fn parse_variables(varstr: &str) -> ParsedVariables {

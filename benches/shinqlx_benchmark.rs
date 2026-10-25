@@ -6,6 +6,8 @@ use core::hint::black_box;
 
 use criterion::Criterion;
 use criterion_macro::criterion;
+#[cfg(feature = "bench-support")]
+use shinqlx::bench_support;
 use shinqlx::quake_live_functions::QuakeLiveFunction;
 
 fn original_test_func() -> String {
@@ -29,4 +31,39 @@ fn create_and_enable_generic_detour_benchmark(c: &mut Criterion) {
             })
         },
     );
+}
+
+#[cfg(feature = "bench-support")]
+#[criterion]
+fn clean_text_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("clean_text");
+    for (name, text) in [
+        ("plain", "PlayerName"),
+        ("colored", "^1Red^7Player^4Name"),
+        (
+            "long_colored",
+            "^1This ^2is ^3a ^4rather ^5long ^6chat ^7message ^1with ^2many ^3color ^4tags ^5in ^6it",
+        ),
+    ] {
+        group.bench_function(name, |b| {
+            b.iter(|| bench_support::clean_text(black_box(text)))
+        });
+    }
+    group.finish();
+}
+
+#[cfg(feature = "bench-support")]
+#[criterion]
+fn handle_frame_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group("handle_frame");
+    group.bench_function("idle", |b| b.iter(bench_support::handle_frame));
+    group.bench_function("with_three_tasks", |b| {
+        b.iter(|| {
+            bench_support::queue_next_frame_tasks(black_box(3));
+            bench_support::handle_frame();
+        })
+    });
+    group.finish();
 }
