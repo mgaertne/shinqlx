@@ -4,13 +4,11 @@ use pyo3::{
     basic::CompareOp,
     exceptions::PyNotImplementedError,
     intern,
-    types::{IntoPyDict, PyBool, PyDict, PyNotImplemented, PyType},
+    types::{PyBool, PyDict, PyNotImplemented, PyString, PyType},
 };
 use rayon::prelude::*;
-use regex::Regex;
-use tap::TapOptional;
 
-use super::{Teams, prelude::*};
+use super::{Teams, last_color_tag, prelude::*};
 
 /// An abstract class of a chat channel. A chat channel being a source of a message.
 ///
@@ -561,7 +559,6 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
     }
 
     fn reply(&self, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
-        let re_color_tag = Regex::new(r"\^[0-7]").unwrap();
         let fmt = self.get().fmt.read().to_owned();
         let cleaned_msg = msg.replace('"', "'");
         let targets: Option<Vec<i32>> = self
@@ -591,29 +588,19 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
             }
         }
 
+        let next_frame_tasks = self
+            .py()
+            .import(intern!(self.py(), "shinqlx"))?
+            .getattr(intern!(self.py(), "next_frame_tasks"))?;
+        let called_func = wrap_pyfunction!(pyshinqlx_send_server_command, self.py())?;
+
         let mut last_color = "".to_string();
         for s in joined_msgs {
             let message = format!("{last_color}{s}");
-            let server_command = self
-                .py()
-                .eval(
-                    c"fmt.format(message)",
-                    None,
-                    Some(
-                        &[
-                            (intern!(self.py(), "fmt"), fmt.to_owned()),
-                            (intern!(self.py(), "message"), message.to_owned()),
-                        ]
-                        .into_py_dict(self.py())?,
-                    ),
-                )?
+            let server_command = PyString::new(self.py(), &fmt)
+                .call_method1(intern!(self.py(), "format"), (&message,))?
                 .extract::<String>()?;
 
-            let next_frame_tasks = self
-                .py()
-                .import(intern!(self.py(), "shinqlx"))?
-                .getattr(intern!(self.py(), "next_frame_tasks"))?;
-            let called_func = wrap_pyfunction!(pyshinqlx_send_server_command, self.py())?;
             match targets {
                 None => {
                     next_frame_tasks.call_method1(
@@ -637,12 +624,9 @@ impl AbstractChannelMethods for Bound<'_, ChatChannel> {
                 }
             }
 
-            re_color_tag
-                .find_iter(&message)
-                .last()
-                .tap_some(|color_tag| {
-                    last_color = color_tag.as_str().to_string();
-                });
+            if let Some(color_tag) = last_color_tag(&message) {
+                last_color = color_tag.to_string();
+            }
         }
 
         Ok(())

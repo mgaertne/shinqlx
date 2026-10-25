@@ -110,6 +110,7 @@ criterion-macro = { version = ">=0.4", default-features = false }
 default = ["alloc"]
 patches = ["dep:region"]
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
+bench-support = []
 
 [lints.rust]
 missing_docs = "warn"

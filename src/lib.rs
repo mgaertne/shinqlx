@@ -40,6 +40,9 @@ cfg_if::cfg_if! {
 mod commands;
 mod ffi;
 mod hooks;
+#[cfg(feature = "bench-support")]
+#[doc(hidden)]
+pub use ffi::python::bench_support;
 #[cfg(feature = "patches")]
 mod patches;
 mod quake_live_engine;

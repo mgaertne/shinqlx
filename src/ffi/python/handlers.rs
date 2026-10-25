@@ -3845,25 +3845,26 @@ fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
         )?
 }
 
-fn transfer_next_frame_tasks(py: Python<'_>) {
-    PyModule::from_code(
-        py,
-        cr#"
-from shinqlx import next_frame_tasks, frame_tasks
+fn try_transfer_next_frame_tasks(py: Python<'_>) -> PyResult<()> {
+    let shinqlx_module = py.import(intern!(py, "shinqlx"))?;
+    let next_frame_tasks = shinqlx_module.getattr(intern!(py, "next_frame_tasks"))?;
+    let frame_tasks = shinqlx_module.getattr(intern!(py, "frame_tasks"))?;
 
-def next_frame_tasks_runner():
-    while not next_frame_tasks.empty():
-        func, args, kwargs = next_frame_tasks.get_nowait()
-        frame_tasks.enter(0, 1, func, args, kwargs)
-"#,
-        c"",
-        c"",
-    )
-    .and_then(|next_frame_tasks_runner| {
-        next_frame_tasks_runner.call_method0(intern!(py, "next_frame_tasks_runner"))?;
-        Ok(())
-    })
-    .unwrap_or_else(|e| log_exception(py, &e));
+    while !next_frame_tasks
+        .call_method0(intern!(py, "empty"))?
+        .is_truthy()?
+    {
+        let (func, args, kwargs) = next_frame_tasks
+            .call_method0(intern!(py, "get_nowait"))?
+            .extract::<(Bound<'_, PyAny>, Bound<'_, PyAny>, Bound<'_, PyAny>)>()?;
+        frame_tasks.call_method1(intern!(py, "enter"), (0, 1, func, args, kwargs))?;
+    }
+
+    Ok(())
+}
+
+fn transfer_next_frame_tasks(py: Python<'_>) {
+    try_transfer_next_frame_tasks(py).unwrap_or_else(|e| log_exception(py, &e));
 }
 
 /// This will be called every frame. To allow threads to call stuff from the
