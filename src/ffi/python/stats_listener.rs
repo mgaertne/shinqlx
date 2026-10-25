@@ -534,6 +534,10 @@ def run_zmq_thread(poller):
     }
 
     fn _poll_zmq(&self) -> PyResult<()> {
+        if self.get_done() {
+            return Ok(());
+        }
+
         let socket = get_zmq_socket(&self.get().address, &self.get().password).map_err(
             |err: ZmqError| {
                 let error_msg = format!("zmq error: {err:?}");
@@ -541,7 +545,7 @@ def run_zmq_thread(poller):
             },
         )?;
 
-        loop {
+        while !self.get_done() {
             if !self.py().detach(|| {
                 socket
                     .poll(PollEvents::POLL_IN, 125)
@@ -557,6 +561,8 @@ def run_zmq_thread(poller):
                     handle_zmq_msg(self.py(), &zmq_msg.to_string());
                 });
         }
+
+        Ok(())
     }
 }
 
@@ -568,15 +574,19 @@ fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
         .build()?;
 
     let socket_builder = SocketBuilder::default()
-        .security_mechanism(SecurityMechanism::Plain {
-            username: "stats".into(),
-            password: password.into(),
-        })
         .receive_timeout(0)
         .receive_highwater_mark(0)
         .send_timeout(0)
-        .receive_highwater_mark(0)
+        .send_highwater_mark(0)
         .zap_domain("stats");
+    let socket_builder = if password.is_empty() {
+        socket_builder
+    } else {
+        socket_builder.security_mechanism(SecurityMechanism::Plain {
+            username: "stats".into(),
+            password: password.into(),
+        })
+    };
 
     let config = SubscribeBuilder::default()
         .socket_builder(socket_builder)
@@ -597,7 +607,7 @@ mod stats_listener_tests {
     use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::*;
 
-    use super::{StatsListener, StatsListenerMethods};
+    use super::{StatsListener, StatsListenerMethods, get_zmq_socket};
     use crate::{
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
@@ -605,6 +615,17 @@ mod stats_listener_tests {
         },
         prelude::*,
     };
+
+    #[rstest]
+    #[case::without_password("")]
+    #[case::with_password("p4ssw0rd")]
+    #[cfg_attr(miri, ignore)]
+    #[ignore = "hangs with arzmq 0.6.3, which drops the context before the socket"]
+    fn get_zmq_socket_creates_socket_with_and_without_password(#[case] password: &str) {
+        let result = get_zmq_socket("tcp://127.0.0.1:1", password);
+
+        assert!(result.is_ok());
+    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -781,6 +802,58 @@ mod stats_listener_tests {
 
             assert_eq!(listener.get_done(), true);
         });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn poll_zmq_returns_right_away_when_already_done(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let listener = Bound::new(
+                py,
+                StatsListener {
+                    done: true.into(),
+                    address: "".into(),
+                    password: "".into(),
+                },
+            )
+            .expect("this should not happen");
+
+            let result = listener._poll_zmq();
+
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[ignore = "hangs with arzmq 0.6.3, which drops the context before the socket"]
+    fn poll_zmq_returns_after_stop(_pyshinqlx_setup: ()) {
+        let listener = Python::attach(|py| {
+            Bound::new(
+                py,
+                StatsListener {
+                    done: false.into(),
+                    address: "tcp://127.0.0.1:1".into(),
+                    password: "".into(),
+                },
+            )
+            .expect("this should not happen")
+            .unbind()
+        });
+        let polling_listener = Python::attach(|py| listener.clone_ref(py));
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let result = Python::attach(|py| polling_listener.bind(py)._poll_zmq());
+            let _ = sender.send(result.map_err(|err| err.to_string()));
+        });
+
+        std::thread::sleep(core::time::Duration::from_millis(300));
+        Python::attach(|py| listener.bind(py).stop());
+
+        assert_eq!(
+            receiver.recv_timeout(core::time::Duration::from_secs(10)),
+            Ok(Ok(()))
+        );
     }
 }
 
