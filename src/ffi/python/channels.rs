@@ -699,7 +699,7 @@ chat_channel = shinqlx.ChatChannel()
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
-    fn receipients_is_not_implemented(_pyshinqlx_setup: ()) {
+    fn recipients_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let chat_channel = Bound::new(
                 py,
