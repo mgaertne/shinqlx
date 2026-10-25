@@ -18,8 +18,9 @@ classifiers = [
 dependencies = [ "setuptools>=61.2", "redis>=5.0", "hiredis>=3.0", "pyzmq>=23" ]
 
 [project.optional-dependencies]
-ruff = [ "ruff>=0.2" ]
+ruff = [ "ruff>=0.17" ]
 mypy = [ "mypy>=0.990", "types-redis>=4.3" ]
+ty = [ "ty>=0.0.91" ]
 docs = [ "sphinx>=7" ]
 
 [project.urls]
@@ -67,9 +68,12 @@ line-length = 120
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["C40", "E", "F", "SIM", "TCH"]
+select = ["B", "C4", "C40", "E", "F", "I", "PERF", "PIE", "RUF", "SIM", "TCH", "UP"]
 ignore = []
-fixable = ["A", "B", "C", "D", "E", "F"]
+fixable = [
+    "B", "C", "COM", "E", "F", "FA", "FAST", "FLY", "I", "ICN", "ISC", "NPY",
+    "PD", "PERF", "PIE", "PT", "Q", "RET", "RSE", "SIM", "TC", "TID", "UP",
+]
 unfixable = []
 per-file-ignores = { }
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
@@ -80,6 +84,14 @@ docstring-code-format = true
 indent-style = "space"
 line-ending = "auto"
 quote-style = "double"
+skip-magic-trailing-comma = false
+
+[tool.ty.environment]
+python-version = "3.9"
+root = ["python"]
+
+[tool.ty.src]
+include = ["python"]
 
 [tool.mypy]
 mypy_path = "$MYPY_CONFIG_FILE_DIR/python"
@@ -96,7 +108,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [tool.tox]
-env_list = ["ruff", "mypy", "docs"]
+env_list = ["ruff", "mypy", "ty", "docs"]
 
 [tool.tox.env_run_base]
 package = "editable"
@@ -104,12 +116,20 @@ package = "editable"
 [tool.tox.env.ruff]
 package = "deps-only"
 extras = [ "ruff" ]
-commands = [[ "ruff", "check", { replace = "posargs", default = [], extend = true }]]
+commands = [
+    [ "ruff", "check", { replace = "posargs", default = ["python"], extend = true }],
+    [ "ruff", "format", "--check", { replace = "posargs", default = ["python"], extend = true }],
+]
 
 [tool.tox.env.mypy]
 package = "deps-only"
 extras = [ "mypy" ]
 commands = [[ "mypy", { replace = "posargs", default = [], extend = true } ]]
+
+[tool.tox.env.ty]
+package = "deps-only"
+extras = [ "ty" ]
+commands = [[ "ty", "check", { replace = "posargs", default = [], extend = true }]]
 
 [tool.tox.env.docs]
 package = "deps-only"
