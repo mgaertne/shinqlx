@@ -144,7 +144,7 @@ async fn check_monitor(
 
         Some(MonitorSocketEvent::HandshakeSucceeded) => {
             FIRST_TIME.store(true, Ordering::Release);
-            sender.send(format!("ZMQ connected to {}.", &endpoint))?;
+            sender.send(format!("ZMQ connected to {}.", endpoint))?;
         }
 
         Some(
@@ -182,7 +182,7 @@ pub(crate) async fn run_zmq(
     mut zmq_receiver: UnboundedReceiver<String>,
     display_sender: UnboundedSender<String>,
 ) -> Result<()> {
-    display_sender.send(format!("ZMQ connecting to {}...", &args.host))?;
+    display_sender.send(format!("ZMQ connecting to {}...", args.host))?;
 
     let monitored_dealer = MonitoredDealer::new()?;
     monitored_dealer
