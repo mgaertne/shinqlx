@@ -1936,3 +1936,317 @@ mod event_dispatcher_manager_tests {
         });
     }
 }
+
+#[cfg(test)]
+mod event_dispatchers_python_interface_tests {
+    use core::borrow::BorrowMut;
+
+    use pyo3::{
+        exceptions::{PyKeyError, PyValueError},
+        intern,
+        prelude::*,
+        types::PyDict,
+    };
+    use rstest::rstest;
+
+    use super::{EventDispatcher, EventDispatcherManager};
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                commands::CommandPriorities,
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::{
+                    RestoredAttribute, python_function_returning, run_all_frame_tasks,
+                },
+            },
+        },
+        prelude::*,
+    };
+
+    fn with_zmq_stats_disabled<F>(test: F)
+    where
+        F: FnOnce(),
+    {
+        let cvar_string = c"0";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        let mut engine = MockEngineBuilder::default().with_find_cvar(
+            |cmd| cmd == "zmq_stats_enable",
+            move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+            0..,
+        );
+        engine.run(test);
+    }
+
+    fn custom_dispatcher_type(py: Python<'_>) -> Bound<'_, PyAny> {
+        PyModule::from_code(
+            py,
+            c"
+import shinqlx
+
+class CustomDispatcher(shinqlx.EventDispatcher):
+    name = 'custom_event'
+    need_zmq_stats_enabled = False
+
+    def __init__(self):
+        super().__init__()
+",
+            c"",
+            c"",
+        )
+        .and_then(|module| module.getattr("CustomDispatcher"))
+        .expect("could not create the custom dispatcher")
+    }
+
+    fn registered_hooks(dispatcher: &Bound<'_, PyAny>) -> usize {
+        dispatcher
+            .getattr("plugins")
+            .and_then(|plugins| plugins.cast_into::<PyDict>().map_err(PyErr::from))
+            .map(|plugins| {
+                plugins
+                    .values()
+                    .iter()
+                    .map(|priorities| {
+                        priorities
+                            .try_iter()
+                            .map(|lists| {
+                                lists
+                                    .flatten()
+                                    .map(|list| list.len().unwrap_or(0))
+                                    .sum::<usize>()
+                            })
+                            .unwrap_or(0)
+                    })
+                    .sum()
+            })
+            .expect("could not count the hooks")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn the_hooks_of_a_dispatcher_are_exposed_and_cleared(_pyshinqlx_setup: ()) {
+        with_zmq_stats_disabled(|| {
+            Python::attach(|py| {
+                let dispatcher = custom_dispatcher_type(py)
+                    .call0()
+                    .expect("could not create the dispatcher");
+                let hook = python_function_returning(py, &py.None().into_bound(py));
+                dispatcher
+                    .call_method1(
+                        intern!(py, "add_hook"),
+                        ("test_plugin", &hook, CommandPriorities::PRI_NORMAL as i32),
+                    )
+                    .expect("could not add the hook");
+
+                assert!(
+                    dispatcher
+                        .getattr("plugins")
+                        .is_ok_and(|plugins| plugins.contains("test_plugin").unwrap_or(false))
+                );
+                assert_eq!(registered_hooks(&dispatcher), 1);
+
+                dispatcher
+                    .cast::<EventDispatcher>()
+                    .expect("not an event dispatcher")
+                    .get()
+                    .__clear__();
+
+                assert_eq!(registered_hooks(&dispatcher), 0);
+            })
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn adding_a_hook_while_the_hooks_are_in_use_defers_it_to_the_next_frame(_pyshinqlx_setup: ()) {
+        with_zmq_stats_disabled(|| {
+            Python::attach(|py| {
+                let shinqlx = py
+                    .import(intern!(py, "shinqlx"))
+                    .expect("no shinqlx module");
+                let _restore = RestoredAttribute::capture(shinqlx.as_any(), "EVENT_DISPATCHERS");
+                let dispatcher = custom_dispatcher_type(py)
+                    .call0()
+                    .expect("could not create the dispatcher");
+                let registry = PyDict::new(py);
+                registry
+                    .set_item("custom_event", &dispatcher)
+                    .expect("could not register the dispatcher");
+                shinqlx
+                    .setattr(intern!(py, "EVENT_DISPATCHERS"), registry)
+                    .expect("could not set the registry");
+                let hook = python_function_returning(py, &py.None().into_bound(py));
+
+                let result = {
+                    let _in_use = dispatcher
+                        .cast::<EventDispatcher>()
+                        .expect("not an event dispatcher")
+                        .get()
+                        .plugins
+                        .read();
+                    dispatcher.call_method1(
+                        intern!(py, "add_hook"),
+                        ("test_plugin", &hook, CommandPriorities::PRI_NORMAL as i32),
+                    )
+                };
+
+                assert!(result.is_ok());
+                assert_eq!(registered_hooks(&dispatcher), 0);
+                run_all_frame_tasks(py).expect("could not run the frame tasks");
+                assert_eq!(registered_hooks(&dispatcher), 1);
+            })
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn removing_a_hook_while_the_hooks_are_in_use_defers_it_to_the_next_frame(
+        _pyshinqlx_setup: (),
+    ) {
+        with_zmq_stats_disabled(|| {
+            Python::attach(|py| {
+                let shinqlx = py
+                    .import(intern!(py, "shinqlx"))
+                    .expect("no shinqlx module");
+                let _restore = RestoredAttribute::capture(shinqlx.as_any(), "EVENT_DISPATCHERS");
+                let dispatcher = custom_dispatcher_type(py)
+                    .call0()
+                    .expect("could not create the dispatcher");
+                let registry = PyDict::new(py);
+                registry
+                    .set_item("custom_event", &dispatcher)
+                    .expect("could not register the dispatcher");
+                shinqlx
+                    .setattr(intern!(py, "EVENT_DISPATCHERS"), registry)
+                    .expect("could not set the registry");
+                let hook = python_function_returning(py, &py.None().into_bound(py));
+                dispatcher
+                    .call_method1(
+                        intern!(py, "add_hook"),
+                        ("test_plugin", &hook, CommandPriorities::PRI_NORMAL as i32),
+                    )
+                    .expect("could not add the hook");
+
+                let result = {
+                    let _in_use = dispatcher
+                        .cast::<EventDispatcher>()
+                        .expect("not an event dispatcher")
+                        .get()
+                        .plugins
+                        .read();
+                    dispatcher.call_method1(
+                        intern!(py, "remove_hook"),
+                        ("test_plugin", &hook, CommandPriorities::PRI_NORMAL as i32),
+                    )
+                };
+
+                assert!(result.is_ok());
+                assert_eq!(registered_hooks(&dispatcher), 1);
+                run_all_frame_tasks(py).expect("could not run the frame tasks");
+                assert_eq!(registered_hooks(&dispatcher), 0);
+            })
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn the_dispatcher_manager_is_managed_through_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let manager =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            let dispatcher_type = custom_dispatcher_type(py);
+
+            manager
+                .call_method1("add_dispatcher", (&dispatcher_type,))
+                .expect("could not add the dispatcher");
+
+            assert!(manager.contains("custom_event").unwrap_or(false));
+            assert!(!manager.contains("other_event").unwrap_or(true));
+            assert!(manager.get_item("custom_event").is_ok());
+            assert!(
+                manager
+                    .get_item("other_event")
+                    .is_err_and(|err| err.is_instance_of::<PyKeyError>(py))
+            );
+            assert!(
+                manager
+                    .getattr("_dispatchers")
+                    .and_then(|dispatchers| dispatchers.len())
+                    .is_ok_and(|count| count == 1)
+            );
+            assert!(
+                manager
+                    .call_method1("add_dispatcher", (&dispatcher_type,))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
+
+            manager
+                .call_method1("remove_dispatcher", (&dispatcher_type,))
+                .expect("could not remove the dispatcher");
+            assert!(!manager.contains("custom_event").unwrap_or(true));
+
+            manager
+                .call_method1("add_dispatcher", (&dispatcher_type,))
+                .expect("could not add the dispatcher");
+            manager
+                .call_method1("remove_dispatcher_by_name", ("custom_event",))
+                .expect("could not remove the dispatcher by name");
+            assert!(!manager.contains("custom_event").unwrap_or(true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn clearing_the_dispatcher_manager_drops_its_dispatchers(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let manager =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            manager
+                .call_method1("add_dispatcher", (custom_dispatcher_type(py),))
+                .expect("could not add the dispatcher");
+
+            manager.get().__clear__();
+
+            assert!(!manager.contains("custom_event").unwrap_or(true));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn removing_a_dispatcher_while_the_dispatchers_are_in_use_defers_it_to_the_next_frame(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let shinqlx = py
+                .import(intern!(py, "shinqlx"))
+                .expect("no shinqlx module");
+            let _restore = RestoredAttribute::capture(shinqlx.as_any(), "EVENT_DISPATCHERS");
+            let manager =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            shinqlx
+                .setattr(intern!(py, "EVENT_DISPATCHERS"), &manager)
+                .expect("could not set the registry");
+            manager
+                .call_method1("add_dispatcher", (custom_dispatcher_type(py),))
+                .expect("could not add the dispatcher");
+
+            let result = {
+                let _in_use = manager.get().dispatchers.read();
+                manager.call_method1("remove_dispatcher_by_name", ("custom_event",))
+            };
+
+            assert!(result.is_ok());
+            assert!(manager.contains("custom_event").unwrap_or(false));
+            run_all_frame_tasks(py).expect("could not run the frame tasks");
+            assert!(!manager.contains("custom_event").unwrap_or(true));
+        });
+    }
+}
