@@ -3,6 +3,7 @@ pub mod bench_support;
 mod channels;
 mod commands;
 mod database;
+mod decorators;
 mod dispatchers;
 mod embed;
 mod events;
@@ -2848,6 +2849,8 @@ fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path) -> PyResul
     }
 
     plugin_class.call0().and_then(|loaded_plugin| {
+        decorators::register_decorated_handlers(&loaded_plugin)?;
+
         let loaded_plugins = py
             .get_type::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))?;
@@ -3154,6 +3157,27 @@ import shinqlx
 
 class test_plugin(shinqlx.Plugin):
     pass
+        "#,
+                )
+                .expect("this should not happen");
+        }
+
+        let mut test_decorated_plugin_path = PathBuf::from(&plugins_dir);
+        test_decorated_plugin_path.push("test_decorated_plugin");
+        test_decorated_plugin_path.set_extension("py");
+
+        if !test_decorated_plugin_path.exists() {
+            let mut test_plugin =
+                File::create(test_decorated_plugin_path).expect("this should not happen");
+            test_plugin
+                .write_all(
+                    br#"
+import shinqlx
+
+class test_decorated_plugin(shinqlx.Plugin):
+    @shinqlx.hook("team_switch_attempt")
+    def on_team_switch_attempt(self, player, old_team, new_team):
+        pass
         "#,
                 )
                 .expect("this should not happen");
@@ -3576,6 +3600,73 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
 
                     let result = load_plugin(py, "test_plugin");
                     assert!(result.is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_registers_decorated_methods(_pyshinqlx_setup: (), plugins_dir: String) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
+        let mut raw_pluginspath_cvar = CVarBuilder::default()
+            .string(cvar_tempdir_str.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let zmq_stats_enable = c"0";
+        let mut raw_zmq_cvar = CVarBuilder::default()
+            .string(zmq_stats_enable.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_pluginsPath",
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                |cmd| cmd == "zmq_stats_enable",
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                0..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    py.import(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    let event_dispatchers = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
+                    event_dispatchers
+                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
+                        .expect("could not add team switch attempt dispatcher");
+                    EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
+
+                    let result = load_plugin(py, "test_decorated_plugin");
+                    assert!(result.is_ok());
+
+                    let hooks = py
+                        .get_type::<Plugin>()
+                        .getattr(intern!(py, "_loaded_plugins"))
+                        .and_then(|loaded_plugins| loaded_plugins.get_item("test_decorated_plugin"))
+                        .and_then(|plugin| plugin.getattr(intern!(py, "hooks")))
+                        .and_then(|hooks| hooks.len())
+                        .expect("could not get the hooks of the loaded plugin");
+                    assert_eq!(hooks, 1);
                 });
             });
     }
@@ -4866,6 +4957,7 @@ fn register_commands_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             .map(|channel| channel.as_ref().bind(m.py())),
     )?;
     m.add_class::<Command>()?;
+    decorators::register_decorators(m)?;
     m.add_class::<CommandInvoker>()?;
     COMMANDS.store(Some(Py::new(m.py(), CommandInvoker::py_new())?.into()));
     m.add(

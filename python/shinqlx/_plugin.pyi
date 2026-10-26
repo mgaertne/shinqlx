@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -22,6 +22,22 @@ if TYPE_CHECKING:
         UserinfoEventInput,
     )
     from shinqlx.database import Redis
+
+_Handler = TypeVar("_Handler", bound=Callable[..., Any])
+
+def hook(event: str, priority: int | None = ...) -> Callable[[_Handler], _Handler]: ...
+def command(
+    name: str | Iterable[str],
+    *,
+    permission: int = ...,
+    channels: Iterable[AbstractChannel] | None = ...,
+    exclude_channels: Iterable[AbstractChannel] = ...,
+    priority: int = ...,
+    client_cmd_pass: bool = ...,
+    client_cmd_perm: int = ...,
+    prefix: bool = ...,
+    usage: str = ...,
+) -> Callable[[_Handler], _Handler]: ...
 
 class Plugin:
     _loaded_plugins: ClassVar[dict[str, Plugin]] = ...
