@@ -1,3 +1,4 @@
+mod chat_log;
 mod permission;
 mod workshop;
 
@@ -10,10 +11,20 @@ use super::{
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 2] = [
+static NATIVE_PLUGINS: [(&str, Constructor); 3] = [
+    ("log", chat_log::create),
     ("permission", permission::create),
     ("workshop", workshop::create),
 ];
+
+fn register_hook(
+    plugin: &Bound<'_, Plugin>,
+    event: &str,
+    handler: &str,
+    priority: CommandPriorities,
+) -> PyResult<()> {
+    plugin.add_hook(event, &plugin.getattr(handler)?, priority as i32)
+}
 
 fn register_command(
     plugin: &Bound<'_, Plugin>,
@@ -70,6 +81,8 @@ mod native_plugins_tests {
 
     #[rstest]
     #[case("workshop", true)]
+    #[case("log", true)]
+    #[case("permission", true)]
     #[case("balance", false)]
     #[case("r!workshop", false)]
     #[case("", false)]
