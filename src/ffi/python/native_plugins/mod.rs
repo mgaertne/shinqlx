@@ -1,10 +1,42 @@
+mod permission;
 mod workshop;
 
 use pyo3::{intern, prelude::*};
 
+use super::{
+    commands::CommandPriorities,
+    plugin::{Plugin, PluginMethods},
+};
+
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 1] = [("workshop", workshop::create)];
+static NATIVE_PLUGINS: [(&str, Constructor); 2] = [
+    ("permission", permission::create),
+    ("workshop", workshop::create),
+];
+
+fn register_command(
+    plugin: &Bound<'_, Plugin>,
+    name: &str,
+    handler: &str,
+    permission: i32,
+    usage: &str,
+    channels: Option<Bound<'_, PyAny>>,
+) -> PyResult<()> {
+    let py = plugin.py();
+    plugin.add_command(
+        &pyo3::types::PyString::new(py, name),
+        &plugin.getattr(handler)?,
+        permission,
+        channels,
+        None,
+        CommandPriorities::PRI_NORMAL as u32,
+        false,
+        5,
+        true,
+        usage,
+    )
+}
 
 pub(super) fn has_native_plugin(name: &str) -> bool {
     NATIVE_PLUGINS.iter().any(|(plugin, _)| *plugin == name)
