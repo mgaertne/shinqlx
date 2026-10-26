@@ -5,11 +5,11 @@ use pyo3::{
     ffi::Py_IsInitialized,
     intern,
     prelude::*,
-    types::{PyDict, PyString, PyTuple},
+    types::{PyDict, PyInt, PyString, PyTuple},
 };
 
 use super::{
-    EVENT_DISPATCHERS, clean_text as clean_text_impl,
+    EVENT_DISPATCHERS, PythonReturnCodes, clean_text as clean_text_impl,
     events::{
         ClientCommandDispatcher, DamageDispatcher, DeathDispatcher, EventDispatcherManager,
         EventDispatcherManagerMethods, FrameEventDispatcher, KillDispatcher,
@@ -76,6 +76,52 @@ pub fn handle_frame() {
     Python::attach(|py| {
         handle_frame_impl(py);
     });
+}
+
+/// A Python handler that does as little as the set_configstring hook of the clan plugin does for
+/// an index that does not belong to a player. It is called the way the event dispatchers call the
+/// handlers that are hooked to them.
+pub struct ClanLikeHandler(Py<PyAny>);
+
+impl Default for ClanLikeHandler {
+    fn default() -> Self {
+        Python::attach(|py| {
+            PyModule::from_code(
+                py,
+                c"
+def handler(index, value):
+    if not value:
+        return
+    elif 529 <= index < 529 + 64:
+        return value
+",
+                c"",
+                c"",
+            )
+            .and_then(|module| module.getattr(intern!(py, "handler")))
+            .map(Bound::unbind)
+            .map(Self)
+            .expect("could not create handler")
+        })
+    }
+}
+
+impl ClanLikeHandler {
+    /// Calls the handler with the arguments of a set_configstring event.
+    pub fn call(&self, index: u32, value: &str) {
+        Python::attach(|py| {
+            let args = PyTuple::new(
+                py,
+                [
+                    PyInt::new(py, index).into_any(),
+                    PyString::new(py, value).into_any(),
+                ],
+            )
+            .expect("could not create arguments");
+            let result = self.0.call1(py, &args).expect("could not call handler");
+            let _ = result.extract::<PythonReturnCodes>(py);
+        });
+    }
 }
 
 /// Runs the handler that is called by the server whenever a configstring is set.
