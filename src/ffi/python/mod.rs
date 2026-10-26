@@ -189,6 +189,13 @@ pub(crate) static COMMANDS: LazyLock<ArcSwapOption<Py<CommandInvoker>>> =
 pub(crate) static EVENT_DISPATCHERS: LazyLock<ArcSwapOption<Py<EventDispatcherManager>>> =
     LazyLock::new(ArcSwapOption::empty);
 
+/// Whether the value is the Python `False`, which is how handlers cancel an event.
+pub(crate) fn is_false(value: &Bound<'_, PyAny>) -> bool {
+    value
+        .cast::<PyBool>()
+        .is_ok_and(|python_bool| !python_bool.is_true())
+}
+
 /// Returns the event dispatcher registered under the given event name, or an environment error
 /// carrying `error_msg` if there is none.
 pub(crate) fn event_dispatcher<'py>(

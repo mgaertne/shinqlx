@@ -6,7 +6,7 @@ use pyo3::{
 };
 
 use super::{
-    super::{COMMANDS, CommandInvokerMethods, Player, channels::ClientCommandChannel},
+    super::{COMMANDS, CommandInvokerMethods, Player, channels::ClientCommandChannel, is_false},
     prelude::*,
 };
 
@@ -99,11 +99,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
             }
         }
 
-        if return_value
-            .bind(self.py())
-            .cast::<PyBool>()
-            .is_ok_and(|value| !value.is_true())
-        {
+        if is_false(return_value.bind(self.py())) {
             return Ok(PyBool::new(self.py(), false).to_owned().into_any());
         }
 
@@ -158,9 +154,12 @@ mod client_command_dispatcher_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                COMMANDS, PythonReturnCodes,
+                COMMANDS, EVENT_DISPATCHERS, PythonReturnCodes,
                 commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
-                events::EventDispatcherMethods,
+                events::{
+                    CommandDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods,
+                },
                 pyshinqlx_setup,
                 pyshinqlx_test_support::{
                     default_test_player, python_function_raising_exception,
@@ -607,6 +606,13 @@ def returns_string_hook(*args, **kwargs):
                         .add_command(&py_command, CommandPriorities::PRI_NORMAL as usize)
                         .expect("could not add command to command invoker");
                     COMMANDS.store(Some(command_invoker.unbind().into()));
+
+                    let event_dispatchers = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
+                    event_dispatchers
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
+                        .expect("could not add command dispatcher");
+                    EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
 
                     let dispatcher = Bound::new(py, ClientCommandDispatcher::py_new(py))
                         .expect("this should not happen");
