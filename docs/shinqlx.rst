@@ -801,7 +801,15 @@ Functions
 
    Load a plugin.
 
-   :param str plugin: The name of the plugin to load.
+   Plugins written in Rust are built into shinqlx. A prefix selects where the plugin comes from: ``p!name`` loads
+   the Python plugin ``name`` from the plugins directory, ``r!name`` the built-in Rust plugin. Without a prefix, the
+   Python plugin is loaded, and the built-in plugin only if there is no Python file of that name. Either way the
+   plugin is known by ``name`` alone, so :func:`unload_plugin`, :func:`reload_plugin` and ``Plugin.plugins`` do
+   not take the prefix. The prefixes also work in the ``qlx_plugins`` cvar and for the ``!load`` command.
+
+   Built-in Rust plugins: ``workshop``.
+
+   :param str plugin: The name of the plugin to load, optionally with a prefix.
    :raises PluginLoadError: if the plugin could not be loaded.
 
 .. exception:: PluginUnloadError

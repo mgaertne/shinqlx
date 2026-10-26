@@ -56,7 +56,7 @@ pub(crate) struct Plugin {
 #[pymethods]
 impl Plugin {
     #[new]
-    fn py_new(py: Python<'_>) -> Self {
+    pub(crate) fn py_new(py: Python<'_>) -> Self {
         Self {
             hooks: vec![].into(),
             commands: vec![].into(),

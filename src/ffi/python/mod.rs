@@ -11,6 +11,7 @@ mod flight;
 mod game;
 mod handlers;
 mod holdable;
+mod native_plugins;
 mod player;
 mod player_info;
 mod player_state;
@@ -2865,7 +2866,48 @@ fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     load_plugin_with(py, plugin, true)
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum PluginSource {
+    Unspecified,
+    Python,
+    Native,
+}
+
+fn split_plugin_source(plugin: &str) -> Result<(PluginSource, &str), String> {
+    match plugin.split_once('!') {
+        None => Ok((PluginSource::Unspecified, plugin)),
+        Some(("p", name)) => Ok((PluginSource::Python, name)),
+        Some(("r", name)) => Ok((PluginSource::Native, name)),
+        Some((prefix, _)) => Err(format!(
+            "Unknown plugin source '{prefix}!', use 'p!' for Python or 'r!' for Rust plugins."
+        )),
+    }
+}
+
+fn python_plugin_file_exists(plugin: &str) -> bool {
+    try_get_plugins_path().is_ok_and(|plugins_path| {
+        let mut joined_path = plugins_path;
+        joined_path.push(plugin);
+        joined_path.set_extension("py");
+        joined_path.is_file()
+    })
+}
+
+fn try_load_native_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
+    let loaded_plugin = native_plugins::create_native_plugin(py, plugin).unwrap_or_else(|| {
+        cold_path();
+        Err(PluginLoadError::new_err("No such plugin exists."))
+    })?;
+
+    py.get_type::<Plugin>()
+        .getattr(intern!(py, "_loaded_plugins"))?
+        .cast::<PyDict>()?
+        .set_item(plugin, loaded_plugin)
+}
+
 fn load_plugin_with(py: Python<'_>, plugin: &str, reload_if_loaded: bool) -> PyResult<()> {
+    let (source, plugin) = split_plugin_source(plugin).map_err(PluginLoadError::new_err)?;
+
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let info_level = py
             .import(intern!(py, "logging"))
@@ -2886,6 +2928,27 @@ fn load_plugin_with(py: Python<'_>, plugin: &str, reload_if_loaded: bool) -> PyR
             )
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
+
+    let use_native = match source {
+        PluginSource::Native => true,
+        PluginSource::Python => false,
+        PluginSource::Unspecified => {
+            native_plugins::has_native_plugin(plugin) && !python_plugin_file_exists(plugin)
+        }
+    };
+    if use_native {
+        let loaded_plugins = py
+            .get_type::<Plugin>()
+            .getattr(intern!(py, "_loaded_plugins"))?;
+
+        if reload_if_loaded && loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
+            return reload_plugin(py, plugin);
+        }
+
+        return try_load_native_plugin(py, plugin).tap_err(|e| {
+            log_exception(py, e);
+        });
+    }
 
     try_get_plugins_path().map_or_else(
         |err| {
@@ -3051,6 +3114,13 @@ fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     })
 }
 
+fn is_loaded_native_plugin(py: Python<'_>, plugin: &str) -> bool {
+    py.get_type::<Plugin>()
+        .getattr(intern!(py, "_loaded_plugins"))
+        .and_then(|loaded_plugins| loaded_plugins.get_item(plugin))
+        .is_ok_and(|loaded_plugin| native_plugins::is_native_plugin(&loaded_plugin))
+}
+
 fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
     if let Some(loaded_modules) = MODULES.load().as_ref()
         && loaded_modules.bind(py).contains(plugin)?
@@ -3072,11 +3142,205 @@ fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
 
 #[pyfunction(name = "reload_plugin")]
 fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
+    let reload_target = if is_loaded_native_plugin(py, plugin) {
+        format!("r!{plugin}")
+    } else {
+        plugin.to_owned()
+    };
     let _ = unload_plugin(py, plugin);
 
-    try_reload_plugin(py, plugin).tap_err(|e| {
+    try_reload_plugin(py, &reload_target).tap_err(|e| {
         log_exception(py, e);
     })
+}
+
+#[cfg(test)]
+mod plugin_source_tests {
+    use rstest::rstest;
+
+    use super::{PluginSource, split_plugin_source};
+
+    #[rstest]
+    #[case("balance", PluginSource::Unspecified, "balance")]
+    #[case("p!balance", PluginSource::Python, "balance")]
+    #[case("r!balance", PluginSource::Native, "balance")]
+    fn split_plugin_source_recognizes_prefixes(
+        #[case] plugin: &str,
+        #[case] source: PluginSource,
+        #[case] name: &str,
+    ) {
+        assert_eq!(split_plugin_source(plugin), Ok((source, name)));
+    }
+
+    #[rstest]
+    #[case("x!balance")]
+    #[case("R!balance")]
+    #[case("!balance")]
+    fn split_plugin_source_rejects_unknown_prefixes(#[case] plugin: &str) {
+        assert!(split_plugin_source(plugin).is_err());
+    }
+}
+
+#[cfg(test)]
+mod native_plugin_loading_tests {
+    use core::borrow::BorrowMut;
+
+    use mockall::predicate;
+    use pyo3::{intern, types::PyDict};
+    use rstest::rstest;
+
+    use super::{
+        EVENT_DISPATCHERS, PluginLoadError, load_plugin, prelude::*, pyshinqlx_test_support::*,
+        reload_plugin, unload_plugin,
+    };
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::{
+                events::{
+                    EventDispatcherManager, EventDispatcherManagerMethods, MapDispatcher,
+                    UnloadDispatcher,
+                },
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+            },
+        },
+        prelude::*,
+    };
+
+    fn with_native_workshop_engine<F>(times: usize, test: F)
+    where
+        F: FnOnce(Python<'_>),
+    {
+        let zmq_stats_enable = c"0";
+        let mut raw_zmq_cvar = CVarBuilder::default()
+            .string(zmq_stats_enable.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 0..)
+            .with_find_cvar(
+                |cmd| cmd == "zmq_stats_enable",
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                0..,
+            )
+            .with_find_cvar(|cmd| cmd == "qlx_workshopReferences", |_| None, times)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_cvar()
+                    .with(
+                        predicate::eq("qlx_workshopReferences"),
+                        predicate::eq(""),
+                        predicate::eq(Some(0)),
+                    )
+                    .times(times);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = py.get_type::<Plugin>();
+                    let _restore_loaded_plugins =
+                        RestoredAttribute::capture(plugin_class.as_any(), "_loaded_plugins");
+                    plugin_class
+                        .setattr(intern!(py, "_loaded_plugins"), PyDict::new(py))
+                        .expect("could not set loaded plugins");
+
+                    let event_dispatchers = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
+                    event_dispatchers
+                        .add_dispatcher(&py.get_type::<MapDispatcher>())
+                        .expect("could not add map dispatcher");
+                    event_dispatchers
+                        .add_dispatcher(&py.get_type::<UnloadDispatcher>())
+                        .expect("could not add unload dispatcher");
+                    EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
+
+                    test(py);
+                });
+            });
+    }
+
+    fn loaded_hooks(py: Python<'_>, plugin: &str) -> usize {
+        py.get_type::<Plugin>()
+            .getattr(intern!(py, "_loaded_plugins"))
+            .and_then(|loaded_plugins| loaded_plugins.get_item(plugin))
+            .and_then(|plugin| plugin.getattr(intern!(py, "hooks")))
+            .and_then(|hooks| hooks.len())
+            .expect("could not get the hooks of the loaded plugin")
+    }
+
+    fn assert_native_workshop_loads(py: Python<'_>, plugin: &str) {
+        assert!(load_plugin(py, plugin).is_ok());
+        assert_eq!(loaded_hooks(py, "workshop"), 1);
+    }
+
+    fn assert_load_fails(py: Python<'_>, plugin: &str) {
+        let result = load_plugin(py, plugin);
+        assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_loads_native_plugin_with_prefix(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(1, |py| assert_native_workshop_loads(py, "r!workshop"));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_loads_native_plugin_without_python_file(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(1, |py| assert_native_workshop_loads(py, "workshop"));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_with_unknown_native_plugin_fails(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| assert_load_fails(py, "r!no_such_plugin"));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_with_unknown_prefix_fails(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| assert_load_fails(py, "x!workshop"));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_forcing_python_without_python_file_fails(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| assert_load_fails(py, "p!workshop"));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn unload_plugin_unloads_native_plugin(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(1, |py| {
+            load_plugin(py, "r!workshop").expect("could not load native plugin");
+
+            assert!(unload_plugin(py, "workshop").is_ok());
+            assert!(
+                py.get_type::<Plugin>()
+                    .getattr(intern!(py, "_loaded_plugins"))
+                    .and_then(|loaded_plugins| loaded_plugins.contains("workshop"))
+                    .is_ok_and(|contained| !contained)
+            );
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn reload_plugin_keeps_native_plugin_native(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(2, |py| {
+            load_plugin(py, "r!workshop").expect("could not load native plugin");
+
+            assert!(reload_plugin(py, "workshop").is_ok());
+            assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
+    }
 }
 
 #[cfg(test)]
