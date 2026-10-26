@@ -113,6 +113,13 @@ class Plugin:
     @classmethod
     def find_player(cls, name: str, player_list: Iterable[Player] | None = ...) -> list[Player]: ...
     @classmethod
+    def find_by_name_or_id(
+        cls,
+        player: Player | None,
+        target: str,
+        player_list: Iterable[Player] | None = ...,
+    ) -> Player | None: ...
+    @classmethod
     def teams(cls, player_list: Iterable[Player] | None = ...) -> Mapping[str, list[Player]]: ...
     @classmethod
     def center_print(cls, msg: str, recipient: str | int | Player | None = ...) -> None: ...
