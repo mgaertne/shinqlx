@@ -2842,3 +2842,261 @@ mod command_invoker_tests {
             });
     }
 }
+
+#[cfg(test)]
+mod command_python_interface_tests {
+    use pyo3::{intern, prelude::*, types::PyString};
+    use rstest::rstest;
+
+    use super::{Command, CommandInvoker, CommandPriorities};
+    use crate::{
+        ffi::python::{
+            prelude::*,
+            pyshinqlx_test_support::{
+                RestoredAttribute, default_command, default_test_player, run_all_frame_tasks,
+            },
+        },
+        prelude::*,
+    };
+
+    fn silent_command(py: Python<'_>) -> Bound<'_, Command> {
+        Bound::new(
+            py,
+            Command {
+                prefix: false,
+                ..default_command(py)
+            },
+        )
+        .expect("this should not happen")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn command_exposes_its_channels(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let command = Bound::new(
+                py,
+                Command {
+                    channels: vec![PyString::new(py, "chat").into_any().unbind()].into(),
+                    exclude_channels: vec![
+                        PyString::new(py, "red_team_chat").into_any().unbind(),
+                        PyString::new(py, "blue_team_chat").into_any().unbind(),
+                    ]
+                    .into(),
+                    ..default_command(py)
+                },
+            )
+            .expect("this should not happen");
+
+            assert!(
+                command
+                    .getattr("channels")
+                    .and_then(|channels| channels.len())
+                    .is_ok_and(|count| count == 1)
+            );
+            assert!(
+                command
+                    .getattr("exclude_channels")
+                    .and_then(|channels| channels.len())
+                    .is_ok_and(|count| count == 2)
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn command_clear_drops_its_channels(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let command = Bound::new(
+                py,
+                Command {
+                    channels: vec![PyString::new(py, "chat").into_any().unbind()].into(),
+                    exclude_channels: vec![PyString::new(py, "console").into_any().unbind()].into(),
+                    ..default_command(py)
+                },
+            )
+            .expect("this should not happen");
+
+            command.get().__clear__();
+
+            assert!(
+                command
+                    .getattr("channels")
+                    .and_then(|channels| channels.len())
+                    .is_ok_and(|count| count == 0)
+            );
+            assert!(
+                command
+                    .getattr("exclude_channels")
+                    .and_then(|channels| channels.len())
+                    .is_ok_and(|count| count == 0)
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn command_checks_eligibility_through_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let command = silent_command(py);
+
+            assert!(
+                command
+                    .call_method1("is_eligible_name", ("cmd_name",))
+                    .is_ok_and(|eligible| eligible.is_truthy().unwrap_or(false))
+            );
+            assert!(
+                command
+                    .call_method1("is_eligible_name", ("other",))
+                    .is_ok_and(|eligible| !eligible.is_truthy().unwrap_or(true))
+            );
+            assert!(
+                command
+                    .call_method1("is_eligible_channel", (py.None(),))
+                    .is_ok_and(|eligible| eligible.is_truthy().unwrap_or(false))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn command_executes_through_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let command = silent_command(py);
+            let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+            let result = command.call_method1("execute", (player, "cmd_name", py.None()));
+
+            assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn command_invoker_is_managed_through_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let invoker = Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
+            let command = Bound::new(py, default_command(py)).expect("this should not happen");
+
+            assert!(
+                invoker
+                    .getattr("commands")
+                    .and_then(|commands| commands.len())
+                    .is_ok_and(|count| count == 0)
+            );
+            assert!(
+                invoker
+                    .call_method1("is_registered", (&command,))
+                    .is_ok_and(|registered| !registered.is_truthy().unwrap_or(true))
+            );
+
+            invoker
+                .call_method1(
+                    "add_command",
+                    (&command, CommandPriorities::PRI_NORMAL as usize),
+                )
+                .expect("could not add command");
+            assert!(
+                invoker
+                    .call_method1("is_registered", (&command,))
+                    .is_ok_and(|registered| registered.is_truthy().unwrap_or(false))
+            );
+            assert!(
+                invoker
+                    .getattr("commands")
+                    .and_then(|commands| commands.len())
+                    .is_ok_and(|count| count == 1)
+            );
+
+            invoker
+                .call_method1("remove_command", (&command,))
+                .expect("could not remove command");
+            assert!(
+                invoker
+                    .call_method1("is_registered", (&command,))
+                    .is_ok_and(|registered| !registered.is_truthy().unwrap_or(true))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn command_invoker_clear_drops_all_commands(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let invoker = Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
+            let command = Bound::new(py, default_command(py)).expect("this should not happen");
+            invoker
+                .call_method1(
+                    "add_command",
+                    (&command, CommandPriorities::PRI_NORMAL as usize),
+                )
+                .expect("could not add command");
+
+            invoker.get().__clear__();
+
+            assert!(
+                invoker
+                    .getattr("commands")
+                    .and_then(|commands| commands.len())
+                    .is_ok_and(|count| count == 0)
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn adding_a_command_while_the_list_is_in_use_defers_it_to_the_next_frame(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let shinqlx = py
+                .import(intern!(py, "shinqlx"))
+                .expect("no shinqlx module");
+            let _restore_commands = RestoredAttribute::capture(shinqlx.as_any(), "COMMANDS");
+            let invoker = Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
+            shinqlx
+                .setattr(intern!(py, "COMMANDS"), &invoker)
+                .expect("could not set COMMANDS");
+            let command = Bound::new(py, default_command(py)).expect("this should not happen");
+
+            let in_use = invoker.get().commands.read();
+            let result = invoker.add_command(&command, CommandPriorities::PRI_NORMAL as usize);
+            drop(in_use);
+
+            assert!(result.is_ok());
+            assert!(!invoker.is_registered(&command));
+            run_all_frame_tasks(py).expect("could not run the frame tasks");
+            assert!(invoker.is_registered(&command));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn removing_a_command_while_the_list_is_in_use_defers_it_to_the_next_frame(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let shinqlx = py
+                .import(intern!(py, "shinqlx"))
+                .expect("no shinqlx module");
+            let _restore_commands = RestoredAttribute::capture(shinqlx.as_any(), "COMMANDS");
+            let invoker = Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
+            shinqlx
+                .setattr(intern!(py, "COMMANDS"), &invoker)
+                .expect("could not set COMMANDS");
+            let command = Bound::new(py, default_command(py)).expect("this should not happen");
+            invoker
+                .add_command(&command, CommandPriorities::PRI_NORMAL as usize)
+                .expect("could not add command");
+
+            let in_use = invoker.get().commands.read();
+            let result = invoker.remove_command(&command);
+            drop(in_use);
+
+            assert!(result.is_ok());
+            assert!(invoker.is_registered(&command));
+            run_all_frame_tasks(py).expect("could not run the frame tasks");
+            assert!(!invoker.is_registered(&command));
+        });
+    }
+}

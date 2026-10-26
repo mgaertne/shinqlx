@@ -3170,9 +3170,28 @@ mod python_signature_tests {
             let broken = PyModule::from_code(
                 py,
                 cr#"
+import ast
+import builtins
 import inspect
+import re
 
 import shinqlx
+
+
+def problem_of(text):
+    text = re.sub(r"^\(\$", "(", text)
+    try:
+        arguments = ast.parse(f"def f{text}: pass").body[0].args
+    except SyntaxError as error:
+        return f"{error.msg} in {text}"
+    defaults = [*arguments.defaults, *(d for d in arguments.kw_defaults if d is not None)]
+    for default in defaults:
+        for node in ast.walk(default):
+            if isinstance(node, ast.Name) and not (
+                hasattr(shinqlx, node.id) or hasattr(builtins, node.id)
+            ):
+                return f"unknown name {node.id} in {text}"
+    return None
 
 
 def broken_signatures():
@@ -3187,12 +3206,12 @@ def broken_signatures():
                 if not attr.startswith("__") or attr in ("__init__", "__new__")
             ]
         for label, target in targets:
-            if getattr(target, "__text_signature__", None) is None:
+            text = getattr(target, "__text_signature__", None)
+            if text is None:
                 continue
-            try:
-                inspect.signature(target)
-            except Exception as error:
-                found.append(f"{label}: {type(error).__name__}: {error}")
+            problem = problem_of(text)
+            if problem is not None:
+                found.append(f"{label}: {problem}")
     return found
 "#,
                 c"",
@@ -3280,6 +3299,96 @@ def missing_members(stub_directory):
 }
 
 #[cfg(test)]
+mod conversion_tests {
+    use rstest::rstest;
+
+    use super::{Teams, Weapon, parse_variables};
+    use crate::ffi::c::prelude::{team_t, weapon_t};
+
+    #[rstest]
+    #[case(team_t::TEAM_FREE, Teams::Free)]
+    #[case(team_t::TEAM_RED, Teams::Red)]
+    #[case(team_t::TEAM_BLUE, Teams::Blue)]
+    #[case(team_t::TEAM_SPECTATOR, Teams::Spectator)]
+    #[case(team_t::TEAM_NUM_TEAMS, Teams::Invalid)]
+    fn teams_are_converted_from_the_engine_teams(#[case] team: team_t, #[case] expected: Teams) {
+        assert_eq!(Teams::from(team) as i32, expected as i32);
+    }
+
+    #[rstest]
+    #[case(weapon_t::WP_GAUNTLET, Weapon::Gauntlet)]
+    #[case(weapon_t::WP_MACHINEGUN, Weapon::Machinegun)]
+    #[case(weapon_t::WP_SHOTGUN, Weapon::Shotgun)]
+    #[case(weapon_t::WP_GRENADE_LAUNCHER, Weapon::GrenadeLauncher)]
+    #[case(weapon_t::WP_ROCKET_LAUNCHER, Weapon::RocketLauncher)]
+    #[case(weapon_t::WP_LIGHTNING, Weapon::Lightning)]
+    #[case(weapon_t::WP_RAILGUN, Weapon::Railgun)]
+    #[case(weapon_t::WP_PLASMAGUN, Weapon::PlasmaGun)]
+    #[case(weapon_t::WP_BFG, Weapon::Bfg)]
+    #[case(weapon_t::WP_GRAPPLING_HOOK, Weapon::GrapplingHook)]
+    #[case(weapon_t::WP_NAILGUN, Weapon::NailGun)]
+    #[case(weapon_t::WP_PROX_LAUNCHER, Weapon::ProximityMainLauncher)]
+    #[case(weapon_t::WP_CHAINGUN, Weapon::ChainGun)]
+    #[case(weapon_t::WP_HMG, Weapon::HeavyMachinegun)]
+    #[case(weapon_t::WP_HANDS, Weapon::Hands)]
+    #[case(weapon_t::WP_NONE, Weapon::Hands)]
+    fn weapons_are_converted_from_the_engine_weapons(
+        #[case] weapon: weapon_t,
+        #[case] expected: Weapon,
+    ) {
+        assert_eq!(Weapon::from(weapon) as i32, expected as i32);
+    }
+
+    #[rstest]
+    fn parsed_variables_return_the_value_of_a_known_key() {
+        let variables = parse_variables("\\map\\campgrounds\\g_gametype\\4");
+
+        assert_eq!(variables.get("map"), Some("campgrounds".to_string()));
+        assert_eq!(variables.get("g_gametype"), Some("4".to_string()));
+        assert_eq!(variables.get("unknown"), None);
+        assert!(variables.contains("map"));
+        assert!(!variables.contains("unknown"));
+    }
+}
+
+#[cfg(test)]
+mod callable_guard_tests {
+    use pyo3::{exceptions::PyValueError, prelude::*, types::PyInt};
+    use rstest::rstest;
+
+    use super::{next_frame, prelude::pyshinqlx_setup, thread};
+    use crate::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn next_frame_rejects_an_object_that_is_not_callable(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = next_frame(py, PyInt::new(py, 1).as_any());
+
+            assert!(
+                result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)
+                    && err.value(py).to_string() == "func has to be a callable Python function")
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn thread_rejects_an_object_that_is_not_callable(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = thread(py, PyInt::new(py, 1).as_any());
+
+            assert!(
+                result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)
+                    && err.value(py).to_string() == "func has to be a callable Python function")
+            );
+        });
+    }
+}
+
+#[cfg(test)]
 mod plugin_source_tests {
     use rstest::rstest;
 
@@ -3315,8 +3424,8 @@ mod native_plugin_loading_tests {
     use rstest::rstest;
 
     use super::{
-        EVENT_DISPATCHERS, PluginLoadError, load_plugin, prelude::*, pyshinqlx_test_support::*,
-        reload_plugin, unload_plugin,
+        EVENT_DISPATCHERS, PluginLoadError, PluginUnloadError, load_plugin, prelude::*,
+        pyshinqlx_test_support::*, reload_plugin, try_load_plugin, unload_plugin,
     };
     use crate::{
         ffi::{
@@ -3444,6 +3553,59 @@ mod native_plugin_loading_tests {
 
             assert!(reload_plugin(py, "workshop").is_ok());
             assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn load_plugin_reloads_an_already_loaded_native_plugin(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(2, |py| {
+            load_plugin(py, "r!workshop").expect("could not load native plugin");
+
+            assert!(load_plugin(py, "r!workshop").is_ok());
+            assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn unload_plugin_that_is_not_loaded_fails(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| {
+            let result = unload_plugin(py, "not_loaded");
+
+            assert!(
+                result.is_err_and(|err| err.is_instance_of::<PluginUnloadError>(py)
+                    && err.value(py).to_string()
+                        == "Attempted to unload a plugin 'not_loaded' that is not loaded.")
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn reload_plugin_that_cannot_be_loaded_fails(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| {
+            let result = reload_plugin(py, "no_such_plugin");
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_load_plugin_requires_a_plugins_directory_name(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = try_load_plugin(py, "any_plugin", std::path::Path::new("/"));
+
+            assert!(
+                result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)
+                    && err.value(py).to_string()
+                        == "qlx_pluginsPath is not pointing to an existing directory")
+            );
         });
     }
 }
