@@ -1567,8 +1567,8 @@ impl EventDispatcherManager {
         slf.remove_dispatcher(dispatcher)
     }
 
-    fn remove_dispatcher_by_name(slf: &Bound<'_, Self>, dispatcher_name: &str) -> PyResult<()> {
-        slf.remove_dispatcher_by_name(dispatcher_name)
+    fn remove_dispatcher_by_name(slf: &Bound<'_, Self>, event_name: &str) -> PyResult<()> {
+        slf.remove_dispatcher_by_name(event_name)
     }
 }
 
