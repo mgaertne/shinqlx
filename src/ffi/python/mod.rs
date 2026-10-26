@@ -3268,49 +3268,29 @@ mod native_plugin_loading_tests {
             .expect("could not get the hooks of the loaded plugin")
     }
 
-    fn assert_native_workshop_loads(py: Python<'_>, plugin: &str) {
-        assert!(load_plugin(py, plugin).is_ok());
-        assert_eq!(loaded_hooks(py, "workshop"), 1);
-    }
-
-    fn assert_load_fails(py: Python<'_>, plugin: &str) {
-        let result = load_plugin(py, plugin);
-        assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+    #[rstest]
+    #[case("r!workshop")]
+    #[case("workshop")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn load_plugin_loads_native_plugin(_pyshinqlx_setup: (), #[case] plugin: &str) {
+        with_native_workshop_engine(1, |py| {
+            assert!(load_plugin(py, plugin).is_ok());
+            assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
     }
 
     #[rstest]
-    #[serial]
+    #[case("r!no_such_plugin")]
+    #[case("x!workshop")]
+    #[case("p!workshop")]
     #[cfg_attr(miri, ignore)]
-    fn load_plugin_loads_native_plugin_with_prefix(_pyshinqlx_setup: ()) {
-        with_native_workshop_engine(1, |py| assert_native_workshop_loads(py, "r!workshop"));
-    }
-
-    #[rstest]
     #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn load_plugin_loads_native_plugin_without_python_file(_pyshinqlx_setup: ()) {
-        with_native_workshop_engine(1, |py| assert_native_workshop_loads(py, "workshop"));
-    }
-
-    #[rstest]
-    #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn load_plugin_with_unknown_native_plugin_fails(_pyshinqlx_setup: ()) {
-        with_native_workshop_engine(0, |py| assert_load_fails(py, "r!no_such_plugin"));
-    }
-
-    #[rstest]
-    #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn load_plugin_with_unknown_prefix_fails(_pyshinqlx_setup: ()) {
-        with_native_workshop_engine(0, |py| assert_load_fails(py, "x!workshop"));
-    }
-
-    #[rstest]
-    #[serial]
-    #[cfg_attr(miri, ignore)]
-    fn load_plugin_forcing_python_without_python_file_fails(_pyshinqlx_setup: ()) {
-        with_native_workshop_engine(0, |py| assert_load_fails(py, "p!workshop"));
+    fn load_plugin_with_unavailable_source_fails(_pyshinqlx_setup: (), #[case] plugin: &str) {
+        with_native_workshop_engine(0, |py| {
+            let result = load_plugin(py, plugin);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+        });
     }
 
     #[rstest]
