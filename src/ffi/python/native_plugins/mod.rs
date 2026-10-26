@@ -1,4 +1,5 @@
 mod chat_log;
+mod motd;
 mod permission;
 mod workshop;
 
@@ -11,8 +12,9 @@ use super::{
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 3] = [
+static NATIVE_PLUGINS: [(&str, Constructor); 4] = [
     ("log", chat_log::create),
+    ("motd", motd::create),
     ("permission", permission::create),
     ("workshop", workshop::create),
 ];
@@ -34,15 +36,19 @@ fn register_hook(
 
 fn register_command(
     plugin: &Bound<'_, Plugin>,
-    name: &str,
+    names: &[&str],
     handler: &str,
     permission: i32,
     usage: &str,
     channels: Option<Bound<'_, PyAny>>,
 ) -> PyResult<()> {
     let py = plugin.py();
+    let name = match names {
+        [single] => pyo3::types::PyString::new(py, single).into_any(),
+        several => pyo3::types::PyTuple::new(py, several)?.into_any(),
+    };
     plugin.add_command(
-        &pyo3::types::PyString::new(py, name),
+        &name,
         &plugin.getattr(handler)?,
         permission,
         channels,
@@ -99,6 +105,7 @@ mod native_plugins_tests {
     #[rstest]
     #[case("workshop", true)]
     #[case("log", true)]
+    #[case("motd", true)]
     #[case("permission", true)]
     #[case("balance", false)]
     #[case("r!workshop", false)]

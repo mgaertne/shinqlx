@@ -6032,10 +6032,14 @@ pub(crate) mod pyshinqlx_test_support {
 
     impl<'py> RestoredAttribute<'py> {
         pub(crate) fn capture(owner: &Bound<'py, PyAny>, name: &'static str) -> Self {
+            let original = owner
+                .getattr(intern!(owner.py(), "__dict__"))
+                .and_then(|attributes| attributes.get_item(name))
+                .ok();
             Self {
                 owner: owner.clone(),
                 name,
-                original: owner.getattr(name).ok(),
+                original,
             }
         }
     }
