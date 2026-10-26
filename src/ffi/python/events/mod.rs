@@ -330,6 +330,9 @@ impl EventDispatcher {
 
 pub(crate) trait EventDispatcherMethods<'py> {
     fn get_plugins(&self) -> Bound<'py, PyDict>;
+    /// Whether at least one handler is hooked to this dispatcher. Events that are not logged
+    /// can skip building their arguments if nobody is listening.
+    fn has_hooks(&self) -> bool;
     fn dispatch(&self, args: &Bound<'py, PyTuple>) -> Bound<'py, PyAny>;
     fn handle_return(
         &self,
@@ -368,6 +371,14 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                     .ok()
             })
             .unwrap_or(PyDict::new(self.py()))
+    }
+
+    fn has_hooks(&self) -> bool {
+        self.get().plugins.read().iter().any(|(_, hooks)| {
+            hooks
+                .iter()
+                .any(|priority_hooks| !priority_hooks.is_empty())
+        })
     }
 
     fn dispatch(&self, args: &Bound<'py, PyTuple>) -> Bound<'py, PyAny> {
@@ -604,6 +615,7 @@ mod event_dispatcher_tests {
     };
     use rstest::*;
 
+    use super::{EventDispatcher, EventDispatcherMethods};
     use crate::{
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
@@ -640,6 +652,62 @@ class CustomDispatcher(shinqlx.EventDispatcher):
         .expect("this should not happen")
         .call0()
         .expect("this should not happen")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn has_hooks_when_none_are_registered(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let dispatcher = custom_dispatcher(py);
+
+            assert!(
+                !dispatcher
+                    .cast::<EventDispatcher>()
+                    .expect("this should not happen")
+                    .has_hooks()
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn has_hooks_with_a_hook_registered(_pyshinqlx_setup: ()) {
+        let cvar_string = c"0";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "zmq_stats_enable",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let dispatcher = custom_dispatcher(py);
+                    dispatcher
+                        .call_method1(
+                            intern!(py, "add_hook"),
+                            (
+                                "plugin",
+                                python_function_returning(py, &py.None().into_bound(py)),
+                                CommandPriorities::PRI_LOWEST as i32,
+                            ),
+                        )
+                        .expect("this should not happen");
+
+                    assert!(
+                        dispatcher
+                            .cast::<EventDispatcher>()
+                            .expect("this should not happen")
+                            .has_hooks()
+                    );
+                });
+            });
     }
 
     #[rstest]

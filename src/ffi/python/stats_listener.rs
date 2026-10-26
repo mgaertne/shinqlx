@@ -15,6 +15,7 @@ use arzmq::{
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
+    sync::PyOnceLock,
 };
 use serde_json::{Value, from_str};
 use tap::TapFallible;
@@ -27,10 +28,15 @@ fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, 
         .and_then(|json_module| json_module.call_method1(intern!(py, "loads"), (json_str,)))
 }
 
+static THREAD_SAFE_DISPATCH: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+static THREAD_SAFE_TEAM_SWITCH_DISPATCH: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+
 fn dispatch_thread_safe(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    PyModule::from_code(
-        py,
-        cr#"
+    THREAD_SAFE_DISPATCH
+        .get_or_try_init(py, || {
+            PyModule::from_code(
+                py,
+                cr#"
 import shinqlx
 
 
@@ -38,14 +44,31 @@ import shinqlx
 def thread_safe_dispatch(dispatcher, *args):
     dispatcher.dispatch(*args)
     "#,
-        c"",
-        c"",
-    )
-    .and_then(|module| module.getattr(intern!(py, "thread_safe_dispatch")))
+                c"",
+                c"",
+            )
+            .and_then(|module| module.getattr(intern!(py, "thread_safe_dispatch")))
+            .map(Bound::unbind)
+        })
+        .map(|thread_safe_dispatch| thread_safe_dispatch.bind(py).to_owned())
+}
+
+/// Whether the dispatcher for the event exists and nobody is listening to it.
+fn dispatcher_without_hooks(py: Python<'_>, event: &str) -> bool {
+    EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
+        .and_then(|dispatcher| {
+            dispatcher
+                .cast::<EventDispatcher>()
+                .ok()
+                .map(|dispatcher| !dispatcher.has_hooks())
+        })
+        .unwrap_or(false)
 }
 
 fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
-    let json_data = to_py_json_data(py, stats)?;
     EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -63,6 +86,11 @@ fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
                 ))
             },
             |stats_dispatcher| {
+                if !stats_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
+                    return Ok(());
+                }
+
+                let json_data = to_py_json_data(py, stats)?;
                 dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
                     thread_safe_dispatcher.call1((stats_dispatcher, json_data))
                 })?;
@@ -223,6 +251,10 @@ fn dispatch_player_death_events(
     opt_killer_name: Option<String>,
     stats: &str,
 ) -> PyResult<()> {
+    if dispatcher_without_hooks(py, "death") && dispatcher_without_hooks(py, "kill") {
+        return Ok(());
+    }
+
     let Some(victim) = (match opt_victim_steam_id {
         Some(victim_steam_id) => player_by_steam_id(py, &victim_steam_id),
         None => player_by_name(py, victim_name),
@@ -339,9 +371,11 @@ fn dispatch_team_switch_event(
         return Ok(());
     };
 
-    let thread_safe_team_switch_dispatcher = PyModule::from_code(
-        py,
-        cr#"
+    let thread_safe_team_switch_dispatcher = THREAD_SAFE_TEAM_SWITCH_DISPATCH
+        .get_or_try_init(py, || {
+            PyModule::from_code(
+                py,
+                cr#"
 import shinqlx
 
 
@@ -351,10 +385,13 @@ def thread_safe_team_switch_dispatch(dispatcher, player, old_team, new_team):
     if res is False:
         player.put(old_team)
         "#,
-        c"",
-        c"",
-    )?
-    .getattr(intern!(py, "thread_safe_team_switch_dispatch"))?;
+                c"",
+                c"",
+            )
+            .and_then(|module| module.getattr(intern!(py, "thread_safe_team_switch_dispatch")))
+            .map(Bound::unbind)
+        })?
+        .bind(py);
 
     EVENT_DISPATCHERS
         .load()
@@ -844,7 +881,7 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
         })
     })?;
 
-    dispatch_stats_event(py, &stats.to_string())?;
+    dispatch_stats_event(py, zmq_msg)?;
     match stats["TYPE"].as_str() {
         Some("MATCH_STARTED") => {
             IN_PROGRESS.store(true, Ordering::Release);
@@ -864,7 +901,7 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
     }
 }
 
-fn handle_zmq_msg(py: Python<'_>, zmq_msg: &str) {
+pub(crate) fn handle_zmq_msg(py: Python<'_>, zmq_msg: &str) {
     let _ = try_handle_zmq_msg(py, zmq_msg).tap_err(|e| {
         log_exception(py, e);
     });

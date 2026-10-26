@@ -11,13 +11,17 @@ use pyo3::{
 use super::{
     EVENT_DISPATCHERS, clean_text as clean_text_impl,
     events::{
-        EventDispatcherManager, EventDispatcherManagerMethods, FrameEventDispatcher,
-        SetConfigstringDispatcher,
+        ClientCommandDispatcher, DamageDispatcher, DeathDispatcher, EventDispatcherManager,
+        EventDispatcherManagerMethods, FrameEventDispatcher, KillDispatcher,
+        ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher,
     },
     handlers::{
-        handle_frame as handle_frame_impl, handle_set_configstring as handle_set_configstring_impl,
+        handle_client_command as handle_client_command_impl, handle_damage as handle_damage_impl,
+        handle_frame as handle_frame_impl, handle_server_command as handle_server_command_impl,
+        handle_set_configstring as handle_set_configstring_impl,
     },
     pyshinqlx_module,
+    stats_listener::handle_zmq_msg,
 };
 
 /// Starts the embedded interpreter with the shinqlx module and some event dispatchers.
@@ -36,6 +40,24 @@ pub fn prepare_python() {
         dispatchers
             .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
             .expect("could not add set configstring dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<ClientCommandDispatcher>())
+            .expect("could not add client command dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<ServerCommandDispatcher>())
+            .expect("could not add server command dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<DamageDispatcher>())
+            .expect("could not add damage dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<StatsDispatcher>())
+            .expect("could not add stats dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<DeathDispatcher>())
+            .expect("could not add death dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<KillDispatcher>())
+            .expect("could not add kill dispatcher");
         EVENT_DISPATCHERS.store(Some(dispatchers.unbind().into()));
 
         py.import(intern!(py, "shinqlx"))
@@ -59,6 +81,34 @@ pub fn handle_frame() {
 pub fn handle_set_configstring(index: u32, value: &str) {
     Python::attach(|py| {
         handle_set_configstring_impl(py, index, value);
+    });
+}
+
+/// Handles a message of the ZMQ stats protocol the way the stats listener does.
+pub fn handle_stats_message(message: &str) {
+    Python::attach(|py| {
+        handle_zmq_msg(py, message);
+    });
+}
+
+/// Runs the handler that is called by the server for every command of a client.
+pub fn handle_client_command(client_id: i32, command: &str) {
+    Python::attach(|py| {
+        handle_client_command_impl(py, client_id, command);
+    });
+}
+
+/// Runs the handler that is called by the server for every command sent to a client.
+pub fn handle_server_command(client_id: i32, command: &str) {
+    Python::attach(|py| {
+        handle_server_command_impl(py, client_id, command);
+    });
+}
+
+/// Runs the handler that is called by the server whenever damage is dealt.
+pub fn handle_damage(target_id: i32, attacker_id: Option<i32>, damage: i32) {
+    Python::attach(|py| {
+        handle_damage_impl(py, target_id, attacker_id, damage, 0, 5);
     });
 }
 
