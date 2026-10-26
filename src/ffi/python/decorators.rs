@@ -1,145 +1,243 @@
-use pyo3::{intern, prelude::*, sync::PyOnceLock};
+use pyo3::{
+    exceptions::{PyAttributeError, PyTypeError},
+    intern,
+    prelude::*,
+    types::{PyCFunction, PyDict, PyTuple},
+};
 
-static DECORATORS: PyOnceLock<Py<PyModule>> = PyOnceLock::new();
+use super::{
+    commands::CommandPriorities,
+    plugin::{Plugin, PluginMethods},
+};
 
-fn decorators_module(py: Python<'_>) -> PyResult<&Bound<'_, PyModule>> {
-    DECORATORS
-        .get_or_try_init(py, || {
-            PyModule::from_code(
-                py,
-                cr#"
-import inspect
+const HOOKS_MARKER: &str = "_shinqlx_hooks";
+const COMMANDS_MARKER: &str = "_shinqlx_commands";
+const COMMAND_PARAMETERS: [&str; 3] = ["player", "msg", "channel"];
 
-import shinqlx
+fn only_handler<'py>(arguments: &Bound<'py, PyTuple>) -> PyResult<Bound<'py, PyAny>> {
+    match arguments.len() {
+        1 => arguments.get_item(0),
+        count => Err(PyTypeError::new_err(format!(
+            "a decorator takes exactly one handler, but {count} were given"
+        ))),
+    }
+}
 
-COMMAND_PARAMETERS = ("player", "msg", "channel")
-POSITIONAL = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
-
-
-def _hook_parameters(event):
-    """Names of the arguments the dispatcher of an event passes to its hooks, or ``None`` if
-    the event or its arguments are not known."""
-    try:
-        signature = inspect.signature(shinqlx.EVENT_DISPATCHERS[event].dispatch)
-    except (AttributeError, KeyError, TypeError, ValueError):
-        return None
-
-    parameters = signature.parameters.values()
-    if any(parameter.kind is inspect.Parameter.VAR_POSITIONAL for parameter in parameters):
-        return None
-    return [parameter.name for parameter in parameters if parameter.kind in POSITIONAL]
-
-
-def _check_accepts(handler, names, purpose, receivers):
-    try:
-        signature = inspect.signature(handler)
-    except (TypeError, ValueError):
-        return
-
-    try:
-        signature.bind(*([None] * (len(names) + receivers)))
-    except TypeError as error:
-        name = getattr(handler, "__qualname__", repr(handler))
-        raise TypeError(
-            f"{name} is {purpose} and has to accept ({', '.join(names)}): {error}"
-        ) from None
-
-
-def hook(event, priority=None):
-    """Hooks the decorated method of a plugin to an event. The hook is registered
-    automatically when the plugin is loaded, so the plugin does not need to call
-    :meth:`Plugin.add_hook` itself.
-
-    :param event: The name of the event to hook the method to.
-    :param priority: The priority of the hook, one of the ``PRI_*`` constants.
-        Defaults to :data:`PRI_NORMAL`.
-    """
-
-    def decorator(handler):
-        names = _hook_parameters(event)
-        if names is not None:
-            _check_accepts(handler, names, f"hooked to '{event}'", 1)
-
-        handler._shinqlx_hooks = (
-            *getattr(handler, "_shinqlx_hooks", ()),
-            (event, priority),
-        )
-        return handler
-
-    return decorator
-
-
-def command(name, **options):
-    """Makes the decorated method of a plugin a command. The command is registered
-    automatically when the plugin is loaded, so the plugin does not need to call
-    :meth:`Plugin.add_command` itself.
-
-    :param name: The name of the command, or a list of names.
-    :param options: The optional arguments of :meth:`Plugin.add_command`, such as
-        ``permission``, ``channels``, ``exclude_channels``, ``priority``,
-        ``client_cmd_pass``, ``client_cmd_perm``, ``prefix`` and ``usage``.
-    """
-
-    def decorator(handler):
-        _check_accepts(handler, COMMAND_PARAMETERS, "a command handler", 1)
-
-        handler._shinqlx_commands = (
-            *getattr(handler, "_shinqlx_commands", ()),
-            (name, options),
-        )
-        return handler
-
-    return decorator
-
-
-def register_decorated_handlers(plugin):
-    plugin_class = type(plugin)
-    for attribute_name in dir(plugin_class):
-        declared = getattr(plugin_class, attribute_name, None)
-        hooks = getattr(declared, "_shinqlx_hooks", ())
-        commands = getattr(declared, "_shinqlx_commands", ())
-        if not hooks and not commands:
-            continue
-
-        handler = getattr(plugin, attribute_name)
-        for event, _ in hooks:
-            names = _hook_parameters(event)
-            if names is not None:
-                _check_accepts(handler, names, f"hooked to '{event}'", 0)
-        if commands:
-            _check_accepts(handler, COMMAND_PARAMETERS, "a command handler", 0)
-
-        for event, priority in hooks:
-            if priority is None:
-                plugin.add_hook(event, handler)
-            else:
-                plugin.add_hook(event, handler, priority)
-        for command_name, options in commands:
-            plugin.add_command(command_name, handler, **options)
-"#,
-                c"_decorators.py",
-                c"_decorators",
-            )
-            .map(Bound::unbind)
+fn dispatcher_parameters(py: Python<'_>, event: &str) -> Option<Vec<String>> {
+    let dispatcher = py
+        .import(intern!(py, "shinqlx"))
+        .and_then(|shinqlx| shinqlx.getattr(intern!(py, "EVENT_DISPATCHERS")))
+        .and_then(|dispatchers| dispatchers.get_item(event))
+        .ok()?;
+    let signature = py
+        .import(intern!(py, "inspect"))
+        .and_then(|inspect| {
+            inspect.call_method1(intern!(py, "signature"), (dispatcher.getattr("dispatch")?,))
         })
-        .map(|decorators| decorators.bind(py))
+        .ok()?;
+
+    let mut names = vec![];
+    for parameter in signature
+        .getattr(intern!(py, "parameters"))
+        .and_then(|parameters| parameters.call_method0(intern!(py, "values")))
+        .ok()?
+        .try_iter()
+        .ok()?
+    {
+        let parameter = parameter.ok()?;
+        let kind = parameter
+            .getattr(intern!(py, "kind"))
+            .and_then(|kind| kind.getattr(intern!(py, "name")))
+            .ok()?
+            .to_string();
+        match kind.as_str() {
+            "VAR_POSITIONAL" => return None,
+            "POSITIONAL_ONLY" | "POSITIONAL_OR_KEYWORD" => {
+                names.push(parameter.getattr(intern!(py, "name")).ok()?.to_string());
+            }
+            _ => (),
+        }
+    }
+    Some(names)
+}
+
+fn check_accepts<S: AsRef<str>>(
+    handler: &Bound<'_, PyAny>,
+    names: &[S],
+    purpose: &str,
+    receivers: usize,
+) -> PyResult<()> {
+    let py = handler.py();
+    let Some(signature) = py
+        .import(intern!(py, "inspect"))
+        .and_then(|inspect| inspect.call_method1(intern!(py, "signature"), (handler,)))
+        .ok()
+    else {
+        return Ok(());
+    };
+
+    let placeholders = PyTuple::new(py, (0..names.len() + receivers).map(|_| py.None()))?;
+    signature
+        .call_method1(intern!(py, "bind"), placeholders)
+        .map(|_| ())
+        .map_err(|error| {
+            if !error.is_instance_of::<PyTypeError>(py) {
+                return error;
+            }
+            let handler_name = handler
+                .getattr(intern!(py, "__qualname__"))
+                .map_or_else(|_| format!("{handler:?}"), |name| name.to_string());
+            let expected = names
+                .iter()
+                .map(AsRef::as_ref)
+                .collect::<Vec<_>>()
+                .join(", ");
+            PyTypeError::new_err(format!(
+                "{handler_name} is {purpose} and has to accept ({expected}): {}",
+                error.value(py)
+            ))
+        })
+}
+
+fn mark(handler: &Bound<'_, PyAny>, marker: &str, entry: Bound<'_, PyAny>) -> PyResult<()> {
+    let py = handler.py();
+    let mut entries = match handler.getattr(marker) {
+        Ok(existing) => existing.try_iter()?.collect::<PyResult<Vec<_>>>()?,
+        Err(error) if error.is_instance_of::<PyAttributeError>(py) => vec![],
+        Err(error) => return Err(error),
+    };
+    entries.push(entry);
+
+    handler.setattr(marker, PyTuple::new(py, entries)?)
+}
+
+fn markers<'py>(declared: &Bound<'py, PyAny>, marker: &str) -> Vec<Bound<'py, PyAny>> {
+    declared
+        .getattr(marker)
+        .and_then(|entries| entries.try_iter())
+        .map(|entries| entries.flatten().collect())
+        .unwrap_or_default()
+}
+
+/// Hooks the decorated method of a plugin to an event. The hook is registered automatically when
+/// the plugin is loaded, so the plugin does not need to call :meth:`Plugin.add_hook` itself.
+///
+/// :param event: The name of the event to hook the method to.
+/// :param priority: The priority of the hook, one of the ``PRI_*`` constants. Defaults to
+///     :data:`PRI_NORMAL`.
+#[pyfunction]
+#[pyo3(signature = (event, priority = None), text_signature = "(event, priority=None)")]
+fn hook(py: Python<'_>, event: String, priority: Option<i32>) -> PyResult<Bound<'_, PyCFunction>> {
+    PyCFunction::new_closure(
+        py,
+        Some(c"hook_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let handler = only_handler(arguments)?;
+            if let Some(names) = dispatcher_parameters(handler.py(), &event) {
+                check_accepts(&handler, &names, &format!("hooked to '{event}'"), 1)?;
+            }
+
+            let entry = (event.as_str(), priority).into_pyobject(handler.py())?;
+            mark(&handler, HOOKS_MARKER, entry.into_any())?;
+            Ok::<_, PyErr>(handler.unbind())
+        },
+    )
+}
+
+/// Makes the decorated method of a plugin a command. The command is registered automatically when
+/// the plugin is loaded, so the plugin does not need to call :meth:`Plugin.add_command` itself.
+///
+/// :param name: The name of the command, or a list of names.
+/// :param options: The optional arguments of :meth:`Plugin.add_command`, such as ``permission``,
+///     ``channels``, ``exclude_channels``, ``priority``, ``client_cmd_pass``, ``client_cmd_perm``,
+///     ``prefix`` and ``usage``.
+#[pyfunction]
+#[pyo3(
+    signature = (name, **options),
+    text_signature = "(name, *, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 0, prefix = True, usage = \"\")"
+)]
+fn command<'py>(
+    py: Python<'py>,
+    name: Bound<'py, PyAny>,
+    options: Option<Bound<'py, PyDict>>,
+) -> PyResult<Bound<'py, PyCFunction>> {
+    let name = name.unbind();
+    let options = options.map_or_else(|| Ok(PyDict::new(py)), |options| options.copy())?;
+    let options = options.unbind();
+
+    PyCFunction::new_closure(
+        py,
+        Some(c"command_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let handler = only_handler(arguments)?;
+            let py = handler.py();
+            check_accepts(&handler, &COMMAND_PARAMETERS, "a command handler", 1)?;
+
+            let entry = (name.bind(py), options.bind(py)).into_pyobject(py)?;
+            mark(&handler, COMMANDS_MARKER, entry.into_any())?;
+            Ok::<_, PyErr>(handler.unbind())
+        },
+    )
 }
 
 /// Adds the `hook` and `command` decorators to the shinqlx module.
 pub(crate) fn register_decorators(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    let decorators = decorators_module(m.py())?;
-    m.add("hook", decorators.getattr(intern!(m.py(), "hook"))?)?;
-    m.add("command", decorators.getattr(intern!(m.py(), "command"))?)
+    m.add_function(wrap_pyfunction!(hook, m)?)?;
+    m.add_function(wrap_pyfunction!(command, m)?)
 }
 
 /// Registers the hooks and commands that were declared by decorating methods of the plugin.
 pub(crate) fn register_decorated_handlers(plugin: &Bound<'_, PyAny>) -> PyResult<()> {
-    decorators_module(plugin.py())?
-        .call_method1(
-            intern!(plugin.py(), "register_decorated_handlers"),
-            (plugin,),
-        )
-        .map(|_| ())
+    let py = plugin.py();
+    let plugin_class = plugin.get_type();
+
+    for attribute_name in plugin_class.dir()?.iter() {
+        let attribute_name = attribute_name.extract::<String>()?;
+        let Ok(declared) = plugin_class.getattr(attribute_name.as_str()) else {
+            continue;
+        };
+        let hooks = markers(&declared, HOOKS_MARKER)
+            .iter()
+            .map(|entry| entry.extract::<(String, Option<i32>)>())
+            .collect::<PyResult<Vec<_>>>()?;
+        let commands = markers(&declared, COMMANDS_MARKER)
+            .iter()
+            .map(|entry| entry.extract::<(Bound<'_, PyAny>, Bound<'_, PyDict>)>())
+            .collect::<PyResult<Vec<_>>>()?;
+        if hooks.is_empty() && commands.is_empty() {
+            continue;
+        }
+
+        let handler = plugin.getattr(attribute_name.as_str())?;
+        for (event, _) in &hooks {
+            if let Some(names) = dispatcher_parameters(py, event) {
+                check_accepts(&handler, &names, &format!("hooked to '{event}'"), 0)?;
+            }
+        }
+        if !commands.is_empty() {
+            check_accepts(&handler, &COMMAND_PARAMETERS, "a command handler", 0)?;
+        }
+
+        let plugin_methods = plugin.cast::<Plugin>()?;
+        for (event, priority) in &hooks {
+            plugin_methods.add_hook(
+                event,
+                &handler,
+                priority.unwrap_or(CommandPriorities::PRI_NORMAL as i32),
+            )?;
+        }
+        for (command_name, options) in &commands {
+            plugin.call_method(
+                intern!(py, "add_command"),
+                (command_name, &handler),
+                Some(options),
+            )?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
