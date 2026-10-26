@@ -41,6 +41,10 @@ crate-type = ["cdylib", "rlib"]
 [[bench]]
 name = "shinqlx_benchmark"
 
+[[bench]]
+name = "shinqlx_python_benchmark"
+required-features = ["bench-support"]
+
 [profile.release]
 strip = "symbols"
 opt-level = "z"
