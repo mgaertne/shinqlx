@@ -189,6 +189,23 @@ pub(crate) static COMMANDS: LazyLock<ArcSwapOption<Py<CommandInvoker>>> =
 pub(crate) static EVENT_DISPATCHERS: LazyLock<ArcSwapOption<Py<EventDispatcherManager>>> =
     LazyLock::new(ArcSwapOption::empty);
 
+/// Returns the event dispatcher registered under the given event name, or an environment error
+/// carrying `error_msg` if there is none.
+pub(crate) fn event_dispatcher<'py>(
+    py: Python<'py>,
+    event: &Bound<'py, PyString>,
+    error_msg: &'static str,
+) -> PyResult<Bound<'py, PyAny>> {
+    EVENT_DISPATCHERS
+        .load()
+        .as_ref()
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
+        .ok_or_else(|| {
+            cold_path();
+            PyEnvironmentError::new_err(error_msg)
+        })
+}
+
 // Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
 #[allow(non_camel_case_types)]
 #[derive(PartialEq, Clone, Copy)]
@@ -2891,29 +2908,17 @@ fn load_plugin_with(py: Python<'_>, plugin: &str, reload_if_loaded: bool) -> PyR
 }
 
 fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "unload"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to unload dispatcher",
-                ))
-            },
-            |unload_dispatcher| {
-                UnloadDispatcherMethods::dispatch(
-                    unload_dispatcher.cast()?,
-                    PyString::intern(py, plugin).as_any(),
-                )
-            },
-        )?;
+    event_dispatcher(
+        py,
+        intern!(py, "unload"),
+        "could not get access to unload dispatcher",
+    )
+    .and_then(|unload_dispatcher| {
+        UnloadDispatcherMethods::dispatch(
+            unload_dispatcher.cast()?,
+            PyString::intern(py, plugin).as_any(),
+        )
+    })?;
 
     let loaded_plugins = py
         .get_type::<Plugin>()

@@ -19,8 +19,9 @@ use tap::{TapFallible, TapOptional};
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, get_cvar, is_vote_active,
-    late_init, log_debug, log_exception, prelude::*, pyshinqlx_get_logger, set_map_subtitles,
+    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, event_dispatcher, get_cvar,
+    is_vote_active, late_init, log_debug, log_exception, prelude::*, pyshinqlx_get_logger,
+    set_map_subtitles,
 };
 use crate::{
     MAIN_ENGINE,
@@ -216,43 +217,9 @@ static RE_USERINFO: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
-fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
-    let player = Player::py_new(client_id, None)?;
-
-    let return_value = EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "client_command"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to client command dispatcher",
-                ))
-            },
-            |client_command_dispatcher| {
-                ClientCommandDispatcherMethods::dispatch(
-                    client_command_dispatcher.cast()?,
-                    &Bound::new(py, player.to_owned())?,
-                    cmd,
-                )
-            },
-        )?;
-    if return_value
-        .cast::<PyBool>()
-        .is_ok_and(|value| !value.is_true())
-    {
-        return Ok(PyBool::new(py, false).into_any().unbind());
-    };
-
-    let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
-
-    if let Some(reformatted_msg) = RE_SAY.captures(updated_cmd).and_then(|captures| {
+/// Extracts the message of a say or say_team command and makes it safe to be put in quotes again.
+fn chat_message(command_regex: &Regex, command: &str) -> Option<String> {
+    command_regex.captures(command).and_then(|captures| {
         captures.name("msg").map(|msg| {
             captures
                 .name("quote")
@@ -265,39 +232,54 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
                 .unwrap_or(msg.as_str())
                 .replace('"', "'")
         })
-    }) {
-        let result = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "chat"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to chat dispatcher",
-                    ))
-                },
-                |chat_dispatcher| {
-                    let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
-                        cold_path();
-                        return Err(PyEnvironmentError::new_err(
-                            "could not get access to main chat channel",
-                        ));
-                    };
+    })
+}
 
-                    ChatEventDispatcherMethods::dispatch(
-                        chat_dispatcher.cast()?,
-                        &Bound::new(py, player)?,
-                        &reformatted_msg,
-                        main_chat_channel.bind(py),
-                    )
-                },
-            )?;
+fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
+    let player = Player::py_new(client_id, None)?;
+
+    let return_value = event_dispatcher(
+        py,
+        intern!(py, "client_command"),
+        "could not get access to client command dispatcher",
+    )
+    .and_then(|client_command_dispatcher| {
+        ClientCommandDispatcherMethods::dispatch(
+            client_command_dispatcher.cast()?,
+            &Bound::new(py, player.to_owned())?,
+            cmd,
+        )
+    })?;
+    if return_value
+        .cast::<PyBool>()
+        .is_ok_and(|value| !value.is_true())
+    {
+        return Ok(PyBool::new(py, false).into_any().unbind());
+    };
+
+    let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
+
+    if let Some(reformatted_msg) = chat_message(&RE_SAY, updated_cmd) {
+        let result = event_dispatcher(
+            py,
+            intern!(py, "chat"),
+            "could not get access to chat dispatcher",
+        )
+        .and_then(|chat_dispatcher| {
+            let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
+                cold_path();
+                return Err(PyEnvironmentError::new_err(
+                    "could not get access to main chat channel",
+                ));
+            };
+
+            ChatEventDispatcherMethods::dispatch(
+                chat_dispatcher.cast()?,
+                &Bound::new(py, player)?,
+                &reformatted_msg,
+                main_chat_channel.bind(py),
+            )
+        })?;
 
         return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
@@ -308,57 +290,32 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         };
     }
 
-    if let Some(reformatted_msg) = RE_SAY_TEAM.captures(updated_cmd).and_then(|captures| {
-        captures.name("msg").map(|msg| {
-            captures
-                .name("quote")
-                .filter(|value| !value.as_str().is_empty())
-                .map(|quote| {
-                    msg.as_str()
-                        .strip_suffix(quote.as_str())
-                        .unwrap_or(msg.as_str())
-                })
-                .unwrap_or(msg.as_str())
-                .replace('"', "'")
-        })
-    }) {
-        let result = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "chat"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to chat dispatcher",
-                    ))
-                },
-                |chat_dispatcher| {
-                    let channel = match player.get_team(py)?.as_str() {
-                        "free" => &FREE_CHAT_CHANNEL,
-                        "red" => &RED_TEAM_CHAT_CHANNEL,
-                        "blue" => &BLUE_TEAM_CHAT_CHANNEL,
-                        _ => &SPECTATOR_CHAT_CHANNEL,
-                    };
-                    let Some(ref chat_channel) = *channel.load() else {
-                        cold_path();
-                        return Err(PyEnvironmentError::new_err(
-                            "could not get access to team chat channel",
-                        ));
-                    };
-                    ChatEventDispatcherMethods::dispatch(
-                        chat_dispatcher.cast()?,
-                        &Bound::new(py, player)?,
-                        &reformatted_msg,
-                        chat_channel.bind(py),
-                    )
-                },
-            )?;
+    if let Some(reformatted_msg) = chat_message(&RE_SAY_TEAM, updated_cmd) {
+        let result = event_dispatcher(
+            py,
+            intern!(py, "chat"),
+            "could not get access to chat dispatcher",
+        )
+        .and_then(|chat_dispatcher| {
+            let channel = match player.get_team(py)?.as_str() {
+                "free" => &FREE_CHAT_CHANNEL,
+                "red" => &RED_TEAM_CHAT_CHANNEL,
+                "blue" => &BLUE_TEAM_CHAT_CHANNEL,
+                _ => &SPECTATOR_CHAT_CHANNEL,
+            };
+            let Some(ref chat_channel) = *channel.load() else {
+                cold_path();
+                return Err(PyEnvironmentError::new_err(
+                    "could not get access to team chat channel",
+                ));
+            };
+            ChatEventDispatcherMethods::dispatch(
+                chat_dispatcher.cast()?,
+                &Bound::new(py, player)?,
+                &reformatted_msg,
+                chat_channel.bind(py),
+            )
+        })?;
 
         return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
@@ -382,55 +339,31 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         if is_vote_active() {
             return Ok(PyString::new(py, updated_cmd).into_any().unbind());
         }
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "vote_started"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to vote started dispatcher",
-                    ))
-                },
-                |vote_started_dispatcher| {
-                    VoteStartedDispatcherMethods::caller(
-                        vote_started_dispatcher.cast()?,
-                        Bound::new(py, player.to_owned())?.as_any(),
-                    );
-                    Ok(())
-                },
-            )?;
-        let result = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "vote_called"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to vote called dispatcher",
-                    ))
-                },
-                |vote_called_dispatcher| {
-                    VoteCalledDispatcherMethods::dispatch(
-                        vote_called_dispatcher.cast()?,
-                        &Bound::new(py, player.to_owned())?,
-                        vote.as_str(),
-                        PyString::new(py, args).as_any(),
-                    )
-                },
-            )?;
+        event_dispatcher(
+            py,
+            intern!(py, "vote_started"),
+            "could not get access to vote started dispatcher",
+        )
+        .and_then(|vote_started_dispatcher| {
+            VoteStartedDispatcherMethods::caller(
+                vote_started_dispatcher.cast()?,
+                Bound::new(py, player.to_owned())?.as_any(),
+            );
+            Ok(())
+        })?;
+        let result = event_dispatcher(
+            py,
+            intern!(py, "vote_called"),
+            "could not get access to vote called dispatcher",
+        )
+        .and_then(|vote_called_dispatcher| {
+            VoteCalledDispatcherMethods::dispatch(
+                vote_called_dispatcher.cast()?,
+                &Bound::new(py, player.to_owned())?,
+                vote.as_str(),
+                PyString::new(py, args).as_any(),
+            )
+        })?;
 
         return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
@@ -446,30 +379,18 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             return Ok(PyString::new(py, updated_cmd).into_any().unbind());
         }
         let vote = ["y", "Y", "1"].contains(&arg.as_str());
-        let result = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "vote"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to vote dispatcher",
-                    ))
-                },
-                |vote_dispatcher| {
-                    VoteDispatcherMethods::dispatch(
-                        vote_dispatcher.cast()?,
-                        &Bound::new(py, player.to_owned())?,
-                        vote,
-                    )
-                },
-            )?;
+        let result = event_dispatcher(
+            py,
+            intern!(py, "vote"),
+            "could not get access to vote dispatcher",
+        )
+        .and_then(|vote_dispatcher| {
+            VoteDispatcherMethods::dispatch(
+                vote_dispatcher.cast()?,
+                &Bound::new(py, player.to_owned())?,
+                vote,
+            )
+        })?;
 
         return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
@@ -495,31 +416,19 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             "s" => "spectator",
             _ => "any",
         };
-        let result = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "team_switch_attempt"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to team switch attempt dispatcher",
-                    ))
-                },
-                |team_switch_attempt_dispatcher| {
-                    TeamSwitchAttemptDispatcherMethods::dispatch(
-                        team_switch_attempt_dispatcher.cast()?,
-                        &Bound::new(py, player)?,
-                        &current_team,
-                        target_team,
-                    )
-                },
-            )?;
+        let result = event_dispatcher(
+            py,
+            intern!(py, "team_switch_attempt"),
+            "could not get access to team switch attempt dispatcher",
+        )
+        .and_then(|team_switch_attempt_dispatcher| {
+            TeamSwitchAttemptDispatcherMethods::dispatch(
+                team_switch_attempt_dispatcher.cast()?,
+                &Bound::new(py, player)?,
+                &current_team,
+                target_team,
+            )
+        })?;
 
         return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
@@ -547,30 +456,18 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         if changed.is_empty() {
             return Ok(PyString::new(py, updated_cmd).into_any().unbind());
         }
-        let result = EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "userinfo"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to userinfo dispatcher",
-                    ))
-                },
-                |userinfo_dispatcher| {
-                    UserinfoDispatcherMethods::dispatch(
-                        userinfo_dispatcher.cast()?,
-                        &Bound::new(py, player.to_owned())?,
-                        &changed.into_py_dict(py)?,
-                    )
-                },
-            )?;
+        let result = event_dispatcher(
+            py,
+            intern!(py, "userinfo"),
+            "could not get access to userinfo dispatcher",
+        )
+        .and_then(|userinfo_dispatcher| {
+            UserinfoDispatcherMethods::dispatch(
+                userinfo_dispatcher.cast()?,
+                &Bound::new(py, player.to_owned())?,
+                &changed.into_py_dict(py)?,
+            )
+        })?;
 
         return match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
@@ -3327,32 +3224,17 @@ fn try_handle_server_command<'py>(
     RE_VOTE_ENDED.captures(updated_cmd).map_or(
         Ok(PyString::new(py, updated_cmd).into_any()),
         |captures| {
-            EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| {
-                    event_dispatchers
-                        .bind(py)
-                        .get_item(intern!(py, "vote_ended"))
-                        .ok()
-                })
-                .map_or(
-                    {
-                        cold_path();
-                        Err(PyEnvironmentError::new_err(
-                            "could not get access to vote ended dispatcher",
-                        ))
-                    },
-                    |vote_ended_dispatcher| {
-                        let vote_passed = captures
-                            .name("result")
-                            .is_some_and(|value| value.as_str() == "passed");
-                        VoteEndedDispatcherMethods::dispatch(
-                            vote_ended_dispatcher.cast()?,
-                            vote_passed,
-                        )
-                    },
-                )?;
+            event_dispatcher(
+                py,
+                intern!(py, "vote_ended"),
+                "could not get access to vote ended dispatcher",
+            )
+            .and_then(|vote_ended_dispatcher| {
+                let vote_passed = captures
+                    .name("result")
+                    .is_some_and(|value| value.as_str() == "passed");
+                VoteEndedDispatcherMethods::dispatch(vote_ended_dispatcher.cast()?, vote_passed)
+            })?;
             Ok(PyString::new(py, updated_cmd).into_any())
         },
     )
@@ -3850,30 +3732,18 @@ fn try_run_frame_tasks(py: Python<'_>) -> PyResult<()> {
 }
 
 fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "frame"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to frame dispatcher",
-                ))
-            },
-            |frame_dispatcher| {
-                if !frame_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
-                    return Ok(Ok(()));
-                }
+    event_dispatcher(
+        py,
+        intern!(py, "frame"),
+        "could not get access to frame dispatcher",
+    )
+    .and_then(|frame_dispatcher| {
+        if !frame_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
+            return Ok(Ok(()));
+        }
 
-                FrameEventDispatcherMethods::dispatch(frame_dispatcher.cast()?).map(|_| Ok(()))
-            },
-        )?
+        FrameEventDispatcherMethods::dispatch(frame_dispatcher.cast()?).map(|_| Ok(()))
+    })?
 }
 
 fn try_transfer_next_frame_tasks(py: Python<'_>) -> PyResult<()> {
@@ -4418,47 +4288,28 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
     if !is_restart {
         let map_name = get_cvar("mapname")?;
         let factory_name = get_cvar("g_factory")?;
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers.bind(py).get_item(intern!(py, "map")).ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to map dispatcher",
-                    ))
-                },
-                |map_dispatcher| {
-                    MapDispatcherMethods::dispatch(
-                        map_dispatcher.cast()?,
-                        &map_name.unwrap_or_default(),
-                        &factory_name.unwrap_or_default(),
-                    )
-                },
-            )?;
+        event_dispatcher(
+            py,
+            intern!(py, "map"),
+            "could not get access to map dispatcher",
+        )
+        .and_then(|map_dispatcher| {
+            MapDispatcherMethods::dispatch(
+                map_dispatcher.cast()?,
+                &map_name.unwrap_or_default(),
+                &factory_name.unwrap_or_default(),
+            )
+        })?;
     }
 
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "new_game"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to new game dispatcher",
-                ))
-            },
-            |new_game_dispatcher| NewGameDispatcherMethods::dispatch(new_game_dispatcher.cast()?),
-        )?;
+    event_dispatcher(
+        py,
+        intern!(py, "new_game"),
+        "could not get access to new game dispatcher",
+    )
+    .and_then(|new_game_dispatcher| {
+        NewGameDispatcherMethods::dispatch(new_game_dispatcher.cast()?)
+    })?;
 
     Ok(())
 }
@@ -5159,38 +5010,26 @@ mod handle_new_game_tests {
 static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
 
 fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<Py<PyAny>> {
-    let result = EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "set_configstring"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to set configstring dispatcher",
-                ))
-            },
-            |set_configstring_dispatcher| {
-                if !set_configstring_dispatcher
-                    .cast::<EventDispatcher>()?
-                    .has_hooks()
-                {
-                    return Ok(None);
-                }
+    let result = event_dispatcher(
+        py,
+        intern!(py, "set_configstring"),
+        "could not get access to set configstring dispatcher",
+    )
+    .and_then(|set_configstring_dispatcher| {
+        if !set_configstring_dispatcher
+            .cast::<EventDispatcher>()?
+            .has_hooks()
+        {
+            return Ok(None);
+        }
 
-                SetConfigstringDispatcherMethods::dispatch(
-                    set_configstring_dispatcher.cast()?,
-                    index,
-                    value,
-                )
-                .map(Some)
-            },
-        )?;
+        SetConfigstringDispatcherMethods::dispatch(
+            set_configstring_dispatcher.cast()?,
+            index,
+            value,
+        )
+        .map(Some)
+    })?;
 
     if result.as_ref().is_some_and(|result_value| {
         result_value
@@ -5208,32 +5047,20 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             let (vote, args) = configstring_value
                 .split_once(' ')
                 .unwrap_or((configstring_value.as_str(), ""));
-            EVENT_DISPATCHERS
-                .load()
-                .as_ref()
-                .and_then(|event_dispatchers| {
-                    event_dispatchers
-                        .bind(py)
-                        .get_item(intern!(py, "vote_started"))
-                        .ok()
-                })
-                .map_or(
-                    {
-                        cold_path();
-                        Err(PyEnvironmentError::new_err(
-                            "could not get access to vote started dispatcher",
-                        ))
-                    },
-                    |vote_started_dispatcher| {
-                        VoteStartedDispatcherMethods::dispatch(
-                            vote_started_dispatcher.cast()?,
-                            vote,
-                            PyString::new(py, args).as_any(),
-                        )?;
+            event_dispatcher(
+                py,
+                intern!(py, "vote_started"),
+                "could not get access to vote started dispatcher",
+            )
+            .and_then(|vote_started_dispatcher| {
+                VoteStartedDispatcherMethods::dispatch(
+                    vote_started_dispatcher.cast()?,
+                    vote,
+                    PyString::new(py, args).as_any(),
+                )?;
 
-                        Ok(py.None())
-                    },
-                )
+                Ok(py.None())
+            })
         }
         CS_SERVERINFO => {
             let Some(ref main_engine) = *MAIN_ENGINE.load() else {
@@ -5257,29 +5084,15 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             }
             if (old_state, new_state) == ("PRE_GAME", "COUNT_DOWN") {
                 AD_ROUND_NUMBER.store(1, Ordering::Release);
-                EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| {
-                        event_dispatchers
-                            .bind(py)
-                            .get_item(intern!(py, "game_countdown"))
-                            .ok()
-                    })
-                    .map_or(
-                        {
-                            cold_path();
-                            Err(PyEnvironmentError::new_err(
-                                "could not get access to game countdown dispatcher",
-                            ))
-                        },
-                        |game_countdown_dispatcher| {
-                            GameCountdownDispatcherMethods::dispatch(
-                                game_countdown_dispatcher.cast()?,
-                            )
-                            .map(|_| ())
-                        },
-                    )?;
+                event_dispatcher(
+                    py,
+                    intern!(py, "game_countdown"),
+                    "could not get access to game countdown dispatcher",
+                )
+                .and_then(|game_countdown_dispatcher| {
+                    GameCountdownDispatcherMethods::dispatch(game_countdown_dispatcher.cast()?)
+                        .map(|_| ())
+                })?;
             }
             if ![
                 ("PRE_GAME", "IN_PROGRESS"),
@@ -5384,55 +5197,28 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
             };
 
             if cvars.contains("time") {
-                EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| {
-                        event_dispatchers
-                            .bind(py)
-                            .get_item(intern!(py, "round_countdown"))
-                            .ok()
-                    })
-                    .map_or(
-                        {
-                            cold_path();
-                            Err(PyEnvironmentError::new_err(
-                                "could not get access to round countdown dispatcher",
-                            ))
-                        },
-                        |round_dispatcher| {
-                            RoundCountdownDispatcherMethods::dispatch(
-                                round_dispatcher.cast()?,
-                                round_number,
-                            )
-                            .map(|_| py.None())
-                        },
+                event_dispatcher(
+                    py,
+                    intern!(py, "round_countdown"),
+                    "could not get access to round countdown dispatcher",
+                )
+                .and_then(|round_dispatcher| {
+                    RoundCountdownDispatcherMethods::dispatch(
+                        round_dispatcher.cast()?,
+                        round_number,
                     )
+                    .map(|_| py.None())
+                })
             } else {
-                EVENT_DISPATCHERS
-                    .load()
-                    .as_ref()
-                    .and_then(|event_dispatchers| {
-                        event_dispatchers
-                            .bind(py)
-                            .get_item(intern!(py, "round_start"))
-                            .ok()
-                    })
-                    .map_or(
-                        {
-                            cold_path();
-                            Err(PyEnvironmentError::new_err(
-                                "could not get access to round start dispatcher",
-                            ))
-                        },
-                        |round_dispatcher| {
-                            RoundStartDispatcherMethods::dispatch(
-                                round_dispatcher.cast()?,
-                                round_number,
-                            )
-                            .map(|_| py.None())
-                        },
-                    )
+                event_dispatcher(
+                    py,
+                    intern!(py, "round_start"),
+                    "could not get access to round start dispatcher",
+                )
+                .and_then(|round_dispatcher| {
+                    RoundStartDispatcherMethods::dispatch(round_dispatcher.cast()?, round_number)
+                        .map(|_| py.None())
+                })
             }
         }
         _ => Ok(PyString::new(py, &configstring_value).into_any().unbind()),
@@ -6561,32 +6347,20 @@ mod handle_set_configstring_tests {
 }
 
 fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<Py<PyAny>> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "player_connect"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to player connect dispatcher",
-                ))
-            },
-            |player_connect_dispatcher| {
-                let player = Player::py_new(client_id, None)?;
+    event_dispatcher(
+        py,
+        intern!(py, "player_connect"),
+        "could not get access to player connect dispatcher",
+    )
+    .and_then(|player_connect_dispatcher| {
+        let player = Player::py_new(client_id, None)?;
 
-                PlayerConnectDispatcherMethods::dispatch(
-                    player_connect_dispatcher.cast()?,
-                    &Bound::new(py, player)?,
-                )
-                .map(|value| value.unbind())
-            },
+        PlayerConnectDispatcherMethods::dispatch(
+            player_connect_dispatcher.cast()?,
+            &Bound::new(py, player)?,
         )
+        .map(|value| value.unbind())
+    })
 }
 
 /// This will be called whenever a player tries to connect. If the dispatcher
@@ -6824,32 +6598,20 @@ mod handle_player_connect_tests {
 }
 
 fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "player_loaded"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to player loaded dispatcher",
-                ))
-            },
-            |player_loaded_dispatcher| {
-                let player = Player::py_new(client_id, None)?;
+    event_dispatcher(
+        py,
+        intern!(py, "player_loaded"),
+        "could not get access to player loaded dispatcher",
+    )
+    .and_then(|player_loaded_dispatcher| {
+        let player = Player::py_new(client_id, None)?;
 
-                PlayerLoadedDispatcherMethods::dispatch(
-                    player_loaded_dispatcher.cast()?,
-                    &Bound::new(py, player)?,
-                )
-                .map(|value| value.unbind())
-            },
+        PlayerLoadedDispatcherMethods::dispatch(
+            player_loaded_dispatcher.cast()?,
+            &Bound::new(py, player)?,
         )
+        .map(|value| value.unbind())
+    })
 }
 
 /// This will be called whenever a player has connected and finished loading,
@@ -7019,33 +6781,21 @@ fn try_handle_player_disconnect(
     client_id: i32,
     reason: Option<String>,
 ) -> PyResult<Py<PyAny>> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "player_disconnect"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to player disconnect dispatcher",
-                ))
-            },
-            |player_disconnect_dispatcher| {
-                let player = Player::py_new(client_id, None)?;
+    event_dispatcher(
+        py,
+        intern!(py, "player_disconnect"),
+        "could not get access to player disconnect dispatcher",
+    )
+    .and_then(|player_disconnect_dispatcher| {
+        let player = Player::py_new(client_id, None)?;
 
-                PlayerDisconnectDispatcherMethods::dispatch(
-                    player_disconnect_dispatcher.cast()?,
-                    &Bound::new(py, player)?,
-                    &reason.into_bound_py_any(py)?,
-                )
-                .map(|value| value.unbind())
-            },
+        PlayerDisconnectDispatcherMethods::dispatch(
+            player_disconnect_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            &reason.into_bound_py_any(py)?,
         )
+        .map(|value| value.unbind())
+    })
 }
 
 /// This will be called whenever a player disconnects.
@@ -7214,32 +6964,20 @@ mod handle_player_disconnect_tests {
 }
 
 fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "player_spawn"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to player spawn dispatcher",
-                ))
-            },
-            |player_spawn_dispatcher| {
-                let player = Player::py_new(client_id, None)?;
+    event_dispatcher(
+        py,
+        intern!(py, "player_spawn"),
+        "could not get access to player spawn dispatcher",
+    )
+    .and_then(|player_spawn_dispatcher| {
+        let player = Player::py_new(client_id, None)?;
 
-                PlayerSpawnDispatcherMethods::dispatch(
-                    player_spawn_dispatcher.cast()?,
-                    &Bound::new(py, player)?,
-                )
-                .map(|value| value.unbind())
-            },
+        PlayerSpawnDispatcherMethods::dispatch(
+            player_spawn_dispatcher.cast()?,
+            &Bound::new(py, player)?,
         )
+        .map(|value| value.unbind())
+    })
 }
 
 /// Called when a player spawns. Note that a spectator going in free spectate mode
@@ -7405,32 +7143,20 @@ mod handle_player_spawn_tests {
 }
 
 fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "kamikaze_use"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to kamikaze use dispatcher",
-                ))
-            },
-            |kamikaze_use_dispatcher| {
-                let player = Player::py_new(client_id, None)?;
+    event_dispatcher(
+        py,
+        intern!(py, "kamikaze_use"),
+        "could not get access to kamikaze use dispatcher",
+    )
+    .and_then(|kamikaze_use_dispatcher| {
+        let player = Player::py_new(client_id, None)?;
 
-                KamikazeUseDispatcherMethods::dispatch(
-                    kamikaze_use_dispatcher.cast()?,
-                    &Bound::new(py, player)?,
-                )
-                .map(|value| value.unbind())
-            },
+        KamikazeUseDispatcherMethods::dispatch(
+            kamikaze_use_dispatcher.cast()?,
+            &Bound::new(py, player)?,
         )
+        .map(|value| value.unbind())
+    })
 }
 
 /// This will be called whenever player uses kamikaze item.
@@ -7921,56 +7647,42 @@ fn try_handle_damage(
     dflags: i32,
     means_of_death: i32,
 ) -> PyResult<Option<bool>> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "damage"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to damage dispatcher",
-                ))
-            },
-            |damage_dispatcher| {
-                if !damage_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
-                    return Ok(None);
-                }
+    event_dispatcher(
+        py,
+        intern!(py, "damage"),
+        "could not get access to damage dispatcher",
+    )
+    .and_then(|damage_dispatcher| {
+        if !damage_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
+            return Ok(None);
+        }
 
-                let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
-                    Bound::new(py, Player::py_new(target_id, None)?)?.into_any()
-                } else {
-                    PyInt::new(py, target_id).into_any()
-                };
+        let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
+            Bound::new(py, Player::py_new(target_id, None)?)?.into_any()
+        } else {
+            PyInt::new(py, target_id).into_any()
+        };
 
-                let attacker_player = attacker_id.and_then(|attacker_id| {
-                    if (0..MAX_CLIENTS as i32).contains(&attacker_id) {
-                        Player::py_new(attacker_id, None)
-                            .and_then(|player| {
-                                Bound::new(py, player).map(|py_player| py_player.into_any())
-                            })
-                            .ok()
-                    } else {
-                        attacker_id.into_bound_py_any(py).ok()
-                    }
-                });
+        let attacker_player = attacker_id.and_then(|attacker_id| {
+            if (0..MAX_CLIENTS as i32).contains(&attacker_id) {
+                Player::py_new(attacker_id, None)
+                    .and_then(|player| Bound::new(py, player).map(|py_player| py_player.into_any()))
+                    .ok()
+            } else {
+                attacker_id.into_bound_py_any(py).ok()
+            }
+        });
 
-                DamageDispatcherMethods::dispatch(
-                    damage_dispatcher.cast()?,
-                    &target_player,
-                    &attacker_player.unwrap_or(py.None().bind(py).to_owned()),
-                    damage,
-                    dflags,
-                    means_of_death,
-                )
-                .map(|_| None)
-            },
+        DamageDispatcherMethods::dispatch(
+            damage_dispatcher.cast()?,
+            &target_player,
+            &attacker_player.unwrap_or(py.None().bind(py).to_owned()),
+            damage,
+            dflags,
+            means_of_death,
         )
+        .map(|_| None)
+    })
 }
 
 #[pyfunction]
@@ -8365,34 +8077,21 @@ static PRINT_REDIRECTION: LazyLock<ArcSwapOption<Py<PrintRedirector>>> =
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
     log_debug(py, "handle_console_print", text.trim_end_matches('\n'))?;
 
-    let result = EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "console_print"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to console print dispatcher",
-                ))
-            },
-            |console_print_dispatcher| {
-                if !console_print_dispatcher
-                    .cast::<EventDispatcher>()?
-                    .has_hooks()
-                {
-                    return Ok(None);
-                }
+    let result = event_dispatcher(
+        py,
+        intern!(py, "console_print"),
+        "could not get access to console print dispatcher",
+    )
+    .and_then(|console_print_dispatcher| {
+        if !console_print_dispatcher
+            .cast::<EventDispatcher>()?
+            .has_hooks()
+        {
+            return Ok(None);
+        }
 
-                ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.cast()?, text)
-                    .map(Some)
-            },
-        )?;
+        ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.cast()?, text).map(Some)
+    })?;
     if result
         .as_ref()
         .is_some_and(|result| result.cast::<PyBool>().is_ok_and(|value| !value.is_true()))
