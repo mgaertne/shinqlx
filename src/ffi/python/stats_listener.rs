@@ -16,11 +16,12 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
     sync::PyOnceLock,
+    types::PyString,
 };
 use serde_json::{Value, from_str};
 use tap::TapFallible;
 
-use super::{EVENT_DISPATCHERS, log_exception, prelude::*};
+use super::{EVENT_DISPATCHERS, event_dispatcher, log_exception, prelude::*};
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
@@ -69,115 +70,65 @@ fn dispatcher_without_hooks(py: Python<'_>, event: &str) -> bool {
 }
 
 fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "stats"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to stats dispatcher",
-                ))
-            },
-            |stats_dispatcher| {
-                if !stats_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
-                    return Ok(());
-                }
+    event_dispatcher(
+        py,
+        intern!(py, "stats"),
+        "could not get access to stats dispatcher",
+    )
+    .and_then(|stats_dispatcher| {
+        if !stats_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
+            return Ok(());
+        }
 
-                let json_data = to_py_json_data(py, stats)?;
-                dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
-                    thread_safe_dispatcher.call1((stats_dispatcher, json_data))
-                })?;
-                Ok(())
-            },
-        )
+        let json_data = to_py_json_data(py, stats)?;
+        dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
+            thread_safe_dispatcher.call1((stats_dispatcher, json_data))
+        })?;
+        Ok(())
+    })
+}
+
+fn dispatch_json_event(
+    py: Python<'_>,
+    event: &Bound<'_, PyString>,
+    error_msg: &'static str,
+    stats: &str,
+) -> PyResult<()> {
+    let json_data = to_py_json_data(py, stats)?;
+    event_dispatcher(py, event, error_msg).and_then(|dispatcher| {
+        dispatch_thread_safe(py)
+            .and_then(|thread_safe_dispatcher| {
+                thread_safe_dispatcher.call1((dispatcher, json_data))
+            })
+            .map(|_| ())
+    })
 }
 
 fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
-    let json_data = to_py_json_data(py, stats)?;
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "game_start"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to game_start dispatcher",
-                ))
-            },
-            |game_start_dispatcher| {
-                dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
-                    thread_safe_dispatcher.call1((game_start_dispatcher, json_data))
-                })?;
-                Ok(())
-            },
-        )
+    dispatch_json_event(
+        py,
+        intern!(py, "game_start"),
+        "could not get access to game_start dispatcher",
+        stats,
+    )
 }
 
 fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
-    let json_data = to_py_json_data(py, stats)?;
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "round_end"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to round_end dispatcher",
-                ))
-            },
-            |rount_end_dispatcher| {
-                dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
-                    thread_safe_dispatcher.call1((rount_end_dispatcher, json_data))
-                })?;
-                Ok(())
-            },
-        )
+    dispatch_json_event(
+        py,
+        intern!(py, "round_end"),
+        "could not get access to round_end dispatcher",
+        stats,
+    )
 }
 
 fn dispatch_game_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
-    let json_data = to_py_json_data(py, stats)?;
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "game_end"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to game_end dispatcher",
-                ))
-            },
-            |game_end_dispatcher| {
-                dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
-                    thread_safe_dispatcher.call1((game_end_dispatcher, json_data))
-                })?;
-                Ok(())
-            },
-        )
+    dispatch_json_event(
+        py,
+        intern!(py, "game_end"),
+        "could not get access to game_end dispatcher",
+        stats,
+    )
 }
 
 fn handle_player_death_event(py: Python<'_>, stats: Value) -> PyResult<()> {
@@ -269,60 +220,31 @@ fn dispatch_player_death_events(
 
     let json_data = to_py_json_data(py, stats)?;
     let thread_safe_dispatcher = dispatch_thread_safe(py)?;
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "death"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to death dispatcher",
-                ))
-            },
-            |death_dispatcher| {
-                thread_safe_dispatcher.call1((
-                    death_dispatcher,
-                    victim.to_owned(),
-                    opt_killer.to_owned(),
-                    json_data.to_owned(),
-                ))?;
-                Ok(())
-            },
-        )?;
+    event_dispatcher(
+        py,
+        intern!(py, "death"),
+        "could not get access to death dispatcher",
+    )
+    .and_then(|death_dispatcher| {
+        thread_safe_dispatcher.call1((
+            death_dispatcher,
+            victim.to_owned(),
+            opt_killer.to_owned(),
+            json_data.to_owned(),
+        ))?;
+        Ok(())
+    })?;
 
     if opt_killer.is_some() {
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| {
-                event_dispatchers
-                    .bind(py)
-                    .get_item(intern!(py, "kill"))
-                    .ok()
-            })
-            .map_or(
-                {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to kill dispatcher",
-                    ))
-                },
-                |kill_dispatcher| {
-                    thread_safe_dispatcher.call1((
-                        kill_dispatcher,
-                        victim,
-                        opt_killer,
-                        json_data,
-                    ))?;
-                    Ok(())
-                },
-            )?;
+        event_dispatcher(
+            py,
+            intern!(py, "kill"),
+            "could not get access to kill dispatcher",
+        )
+        .and_then(|kill_dispatcher| {
+            thread_safe_dispatcher.call1((kill_dispatcher, victim, opt_killer, json_data))?;
+            Ok(())
+        })?;
     }
 
     Ok(())
@@ -393,32 +315,20 @@ def thread_safe_team_switch_dispatch(dispatcher, player, old_team, new_team):
         })?
         .bind(py);
 
-    EVENT_DISPATCHERS
-        .load()
-        .as_ref()
-        .and_then(|event_dispatchers| {
-            event_dispatchers
-                .bind(py)
-                .get_item(intern!(py, "team_switch"))
-                .ok()
-        })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to team_switch dispatcher",
-                ))
-            },
-            |team_switch_dispatcher| {
-                thread_safe_team_switch_dispatcher.call1((
-                    team_switch_dispatcher,
-                    player,
-                    old_team,
-                    new_team,
-                ))?;
-                Ok(())
-            },
-        )?;
+    event_dispatcher(
+        py,
+        intern!(py, "team_switch"),
+        "could not get access to team_switch dispatcher",
+    )
+    .and_then(|team_switch_dispatcher| {
+        thread_safe_team_switch_dispatcher.call1((
+            team_switch_dispatcher,
+            player,
+            old_team,
+            new_team,
+        ))?;
+        Ok(())
+    })?;
 
     Ok(())
 }
