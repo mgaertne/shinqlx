@@ -700,7 +700,7 @@ impl Redis {
         slf.setex(name, value, time)
     }
 
-    #[pyo3(name = "lrem", signature = (name, value, count = 0), text_signature = "(name, value, count = 0)")]
+    #[pyo3(name = "lrem", signature = (name, *, value, count = 0), text_signature = "(name, *, value, count = 0)")]
     fn lrem<'py>(
         slf: &Bound<'py, Self>,
         name: &str,
@@ -1310,7 +1310,7 @@ mod redis_tests {
     use core::{borrow::BorrowMut, ffi::CStr};
 
     use pyo3::{
-        exceptions::{PyEnvironmentError, PyKeyError, PyRuntimeError, PyValueError},
+        exceptions::{PyEnvironmentError, PyKeyError, PyRuntimeError, PyTypeError, PyValueError},
         intern,
         prelude::*,
         types::{PyDict, PyInt, PyString, PyTuple},
@@ -2305,21 +2305,51 @@ class Redis:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn lrem_accepts_value_and_an_optional_count(_pyshinqlx_setup: ()) {
-        with_fake_redis(|_, redis| {
+    fn lrem_takes_value_and_an_optional_count_by_name(_pyshinqlx_setup: ()) {
+        with_fake_redis(|py, redis| {
             let connection = connected(&redis);
+            let only_value = PyDict::new(py);
+            only_value
+                .set_item("value", "v")
+                .expect("this should not happen");
+            let with_count = PyDict::new(py);
+            with_count
+                .set_item("value", "w")
+                .expect("this should not happen");
+            with_count
+                .set_item("count", 2)
+                .expect("this should not happen");
 
             redis
-                .call_method1("lrem", ("l", "v"))
+                .call_method("lrem", ("l",), Some(&only_value))
                 .expect("could not lrem");
             redis
-                .call_method1("lrem", ("l", "w", 2))
+                .call_method("lrem", ("l",), Some(&with_count))
                 .expect("could not lrem");
 
             assert_eq!(
                 calls(&connection),
                 "[('lrem', 'l', 0, 'v'), ('lrem', 'l', 2, 'w')]"
             );
+        });
+    }
+
+    #[rstest]
+    #[case("lrem", ("l", 2, "v"))]
+    #[case("setex", ("k", 60, "v"))]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn positional_calls_are_rejected_to_keep_the_calls_unambiguous(
+        _pyshinqlx_setup: (),
+        #[case] method: &str,
+        #[case] arguments: (&str, i32, &str),
+    ) {
+        with_fake_redis(|py, redis| {
+            connected(&redis);
+
+            let result = redis.call_method1(method, arguments);
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
         });
     }
 
