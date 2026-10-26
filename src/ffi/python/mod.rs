@@ -3571,17 +3571,8 @@ def differences(stub_directory):
         });
     }
 
-    const KNOWN_DIFFERENCES: [&str; 9] = [
-        "_events.pyi: EventDispatcherManager.remove_dispatcher_by_name: parameter name stub=event_name runtime=dispatcher_name",
-        "_handlers.pyi: handle_damage: parameter name stub=mod runtime=means_of_death",
-        "_handlers.pyi: handle_player_disconnect: parameter reason default stub=False runtime=True",
-        "_player.pyi: Player.slay_with_mod: parameter name stub=mod runtime=means_of_death",
-        "_shinqlx.pyi: set_cvar_limit: parameter _flags default stub=False runtime=True",
-        "_shinqlx.pyi: set_cvar_limit_once: parameter name stub=maximum runtime=max",
-        "_shinqlx.pyi: set_cvar_limit_once: parameter name stub=minimum runtime=min",
-        "_shinqlx.pyi: set_cvar_limit_once: parameter name stub=name runtime=cvar",
-        "_shinqlx.pyi: set_cvar_once: parameter name stub=name runtime=cvar",
-    ];
+    const KNOWN_DIFFERENCES: [&str; 1] =
+        ["_player.pyi: Player.slay_with_mod: parameter name stub=mod runtime=means_of_death"];
 }
 
 #[cfg(test)]
