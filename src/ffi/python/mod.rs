@@ -3389,6 +3389,202 @@ mod callable_guard_tests {
 }
 
 #[cfg(test)]
+mod python_stub_signature_tests {
+    use pyo3::{intern, prelude::*};
+    use rstest::rstest;
+
+    use super::prelude::pyshinqlx_setup;
+    use crate::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn stub_signatures_match_the_runtime(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let differences = PyModule::from_code(
+                py,
+                cr#"
+import ast
+import inspect
+import pathlib
+import re
+import types
+
+import shinqlx
+
+TYPING_ONLY = {"NamedTuple", "Protocol", "TypedDict"}
+SELF_NAMES = {"self", "cls", "_cls", "type", "module"}
+
+
+def resolve(class_name):
+    for holder in (shinqlx, shinqlx.database):
+        found = getattr(holder, class_name, None)
+        if found is not None:
+            return found
+    return None
+
+
+def shape(arguments, drop_first):
+    positional = [a.arg for a in [*arguments.posonlyargs, *arguments.args]]
+    first_default = len(positional) - len(arguments.defaults)
+    positional = [(name, index >= first_default) for index, name in enumerate(positional)]
+    if drop_first and positional:
+        positional = positional[1:]
+    return {
+        "positional": positional,
+        "keyword_only": {
+            a.arg: d is not None for a, d in zip(arguments.kwonlyargs, arguments.kw_defaults)
+        },
+        "var_positional": arguments.vararg is not None,
+        "var_keyword": arguments.kwarg is not None,
+    }
+
+
+def runtime_shape(target):
+    text = getattr(target, "__text_signature__", None)
+    if text is None:
+        return None
+    has_receiver = text.startswith("($")
+    text = re.sub(r"^\(\$", "(", text)
+    return shape(ast.parse(f"def f{text}: pass").body[0].args, has_receiver)
+
+
+def decorator_names(node):
+    names = set()
+    for decorator in node.decorator_list:
+        if isinstance(decorator, ast.Name):
+            names.add(decorator.id)
+        elif isinstance(decorator, ast.Attribute):
+            names.add(decorator.attr)
+    return names
+
+
+def differences_of(label, stub_shape, runtime):
+    if runtime is None:
+        return [f"{label}: runtime has no signature"]
+    found = []
+    stub_positional, runtime_positional = stub_shape["positional"], runtime["positional"]
+    if len(stub_positional) != len(runtime_positional):
+        found.append(
+            f"{label}: positional stub={[n for n, _ in stub_positional]}"
+            f" runtime={[n for n, _ in runtime_positional]}"
+        )
+    else:
+        for (stub_name, stub_default), (runtime_name, runtime_default) in zip(
+            stub_positional, runtime_positional
+        ):
+            if not stub_name.startswith("_") and stub_name != runtime_name:
+                found.append(f"{label}: parameter name stub={stub_name} runtime={runtime_name}")
+            if stub_default != runtime_default:
+                found.append(
+                    f"{label}: parameter {stub_name or runtime_name}"
+                    f" default stub={stub_default} runtime={runtime_default}"
+                )
+    for key in ("keyword_only", "var_positional", "var_keyword"):
+        if stub_shape[key] != runtime[key]:
+            found.append(f"{label}: {key} stub={stub_shape[key]} runtime={runtime[key]}")
+    return found
+
+
+def compare_class(stub_name, node, runtime_class):
+    found = []
+    members = {}
+    for member in node.body:
+        if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            members.setdefault(member.name, []).append(member)
+    for name, definitions in members.items():
+        label = f"{stub_name}: {node.name}.{name}"
+        if name.startswith("__") and name != "__init__":
+            continue
+        if name == "__init__":
+            if len(definitions) == 1:
+                found += differences_of(
+                    label, shape(definitions[0].args, True), runtime_shape(runtime_class)
+                )
+            continue
+        if not hasattr(runtime_class, name):
+            continue
+        static = inspect.getattr_static(runtime_class, name)
+        decorators = set().union(*(decorator_names(d) for d in definitions))
+        is_property = "property" in decorators
+        runtime_is_property = isinstance(
+            static, (property, types.GetSetDescriptorType, types.MemberDescriptorType)
+        )
+        if is_property != runtime_is_property:
+            found.append(f"{label}: stub property={is_property} runtime property={runtime_is_property}")
+            continue
+        if is_property:
+            continue
+        runtime_is_class = isinstance(static, (classmethod, types.ClassMethodDescriptorType))
+        runtime_is_static = isinstance(static, (staticmethod, types.BuiltinFunctionType))
+        if ("classmethod" in decorators) != runtime_is_class:
+            found.append(f"{label}: stub classmethod={'classmethod' in decorators} runtime={runtime_is_class}")
+        if ("staticmethod" in decorators) != runtime_is_static:
+            found.append(f"{label}: stub staticmethod={'staticmethod' in decorators} runtime={runtime_is_static}")
+        if len(definitions) != 1:
+            continue
+        drop_first = "staticmethod" not in decorators
+        found += differences_of(
+            label,
+            shape(definitions[0].args, drop_first),
+            runtime_shape(getattr(runtime_class, name)),
+        )
+    return found
+
+
+def differences(stub_directory):
+    found = []
+    for stub in sorted(pathlib.Path(stub_directory).glob("*.pyi")):
+        for node in ast.parse(stub.read_text()).body:
+            if isinstance(node, ast.FunctionDef) and hasattr(shinqlx, node.name):
+                if inspect.isfunction(getattr(shinqlx, node.name)):
+                    continue
+                found += differences_of(
+                    f"{stub.name}: {node.name}",
+                    shape(node.args, False),
+                    runtime_shape(getattr(shinqlx, node.name)),
+                )
+            elif isinstance(node, ast.ClassDef):
+                if TYPING_ONLY & {getattr(base, "id", None) for base in node.bases}:
+                    continue
+                runtime_class = resolve(node.name)
+                if runtime_class is not None:
+                    found += compare_class(stub.name, node, runtime_class)
+    return sorted(set(found))
+"#,
+                c"",
+                c"",
+            )
+            .and_then(|module| {
+                module.call_method1(
+                    intern!(py, "differences"),
+                    (concat!(env!("CARGO_MANIFEST_DIR"), "/python/shinqlx"),),
+                )
+            })
+            .and_then(|found| found.extract::<Vec<String>>())
+            .expect("could not compare the stub signatures with the runtime");
+
+            assert_eq!(
+                differences, KNOWN_DIFFERENCES,
+                "the differences between stubs and runtime changed"
+            );
+        });
+    }
+
+    const KNOWN_DIFFERENCES: [&str; 9] = [
+        "_events.pyi: EventDispatcherManager.remove_dispatcher_by_name: parameter name stub=event_name runtime=dispatcher_name",
+        "_handlers.pyi: handle_damage: parameter name stub=mod runtime=means_of_death",
+        "_handlers.pyi: handle_player_disconnect: parameter reason default stub=False runtime=True",
+        "_player.pyi: Player.slay_with_mod: parameter name stub=mod runtime=means_of_death",
+        "_shinqlx.pyi: set_cvar_limit: parameter _flags default stub=False runtime=True",
+        "_shinqlx.pyi: set_cvar_limit_once: parameter name stub=maximum runtime=max",
+        "_shinqlx.pyi: set_cvar_limit_once: parameter name stub=minimum runtime=min",
+        "_shinqlx.pyi: set_cvar_limit_once: parameter name stub=name runtime=cvar",
+        "_shinqlx.pyi: set_cvar_once: parameter name stub=name runtime=cvar",
+    ];
+}
+
+#[cfg(test)]
 mod plugin_source_tests {
     use rstest::rstest;
 
