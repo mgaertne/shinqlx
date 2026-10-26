@@ -221,16 +221,23 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     register_command(
         plugin.as_super(),
-        "setperm",
+        &["setperm"],
         "cmd_setperm",
         5,
         "<id> <level>",
         None,
     )?;
-    register_command(plugin.as_super(), "getperm", "cmd_getperm", 5, "<id>", None)?;
     register_command(
         plugin.as_super(),
-        "myperm",
+        &["getperm"],
+        "cmd_getperm",
+        5,
+        "<id>",
+        None,
+    )?;
+    register_command(
+        plugin.as_super(),
+        &["myperm"],
         "cmd_myperm",
         0,
         "",
