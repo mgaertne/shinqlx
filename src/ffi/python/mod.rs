@@ -3242,6 +3242,142 @@ def missing_members(stub_directory):
 }
 
 #[cfg(test)]
+mod python_stub_hook_tests {
+    use pyo3::{intern, prelude::*};
+    use rstest::rstest;
+
+    use super::prelude::pyshinqlx_setup;
+    use crate::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn the_hook_stubs_match_the_event_dispatchers(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let differences = PyModule::from_code(
+                py,
+                cr#"
+import ast
+import inspect
+import pathlib
+
+import shinqlx
+
+POSITIONAL = (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+
+
+def literal_event(function):
+    for argument in function.args.args:
+        if argument.arg == "event":
+            annotation = argument.annotation
+            if getattr(annotation.value, "id", None) == "Literal":
+                return annotation.slice.value
+    return None
+
+
+def parameter_count(alias):
+    return len(alias.slice.elts[0].elts)
+
+
+def aliased(annotation, aliases):
+    return aliases[getattr(annotation, "value", annotation).id]
+
+
+def stub_events(stub):
+    tree = ast.parse(pathlib.Path(stub).read_text())
+    aliases = {
+        node.targets[0].id: node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Subscript)
+    }
+    plugin = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Plugin"
+    )
+
+    families = {"add_hook": {}, "remove_hook": {}, "hook": {}}
+    for function in plugin.body:
+        if isinstance(function, ast.FunctionDef) and function.name in ("add_hook", "remove_hook"):
+            handler = next(a for a in function.args.args if a.arg == "handler")
+            families[function.name][literal_event(function)] = parameter_count(
+                aliased(handler.annotation, aliases)
+            )
+    for function in tree.body:
+        if isinstance(function, ast.FunctionDef) and function.name == "hook":
+            decorator_argument = function.returns.slice.elts[0].elts[0]
+            families["hook"][literal_event(function)] = (
+                parameter_count(aliased(decorator_argument, aliases)) - 1
+            )
+    return families
+
+
+def runtime_events():
+    return {
+        member
+        for member in vars(shinqlx).values()
+        if isinstance(member, type)
+        and issubclass(member, shinqlx.EventDispatcher)
+        and member is not shinqlx.EventDispatcher
+    }
+
+
+HOOK_ARITY = {"vote_started": 3, "vote_ended": 4}
+
+
+def dispatcher_arity(event):
+    if event in HOOK_ARITY:
+        return HOOK_ARITY[event]
+    parameters = inspect.signature(shinqlx.EVENT_DISPATCHERS[event].dispatch).parameters.values()
+    if any(parameter.kind is inspect.Parameter.VAR_POSITIONAL for parameter in parameters):
+        return None
+    return len([parameter for parameter in parameters if parameter.kind in POSITIONAL])
+
+
+def differences(stub):
+    families = stub_events(stub)
+    found = []
+    declared = set(families["add_hook"])
+    for family, events in families.items():
+        if set(events) != declared:
+            found.append(f"{family}: {sorted(set(events) ^ declared)} differs from add_hook")
+
+    available = {
+        member.name for member in runtime_events() if isinstance(getattr(member, "name", None), str)
+    }
+    for event in sorted(declared - available):
+        found.append(f"{event}: declared in the stubs, but no dispatcher exists")
+    for event in sorted(available - declared):
+        found.append(f"{event}: dispatcher exists, but the stubs do not declare it")
+
+    for event in sorted(declared & available):
+        expected = dispatcher_arity(event)
+        for family, events in families.items():
+            if expected is not None and events.get(event) != expected:
+                found.append(
+                    f"{family}({event}): stub takes {events.get(event)}, dispatcher passes {expected}"
+                )
+    return found
+"#,
+                c"",
+                c"",
+            )
+            .and_then(|module| {
+                module.call_method1(
+                    intern!(py, "differences"),
+                    (concat!(env!("CARGO_MANIFEST_DIR"), "/python/shinqlx/_plugin.pyi"),),
+                )
+            })
+            .and_then(|found| found.extract::<Vec<String>>())
+            .expect("could not compare the hook stubs with the dispatchers");
+
+            assert!(
+                differences.is_empty(),
+                "hook stubs and dispatchers differ: {differences:#?}"
+            );
+        });
+    }
+}
+
+#[cfg(test)]
 mod conversion_tests {
     use rstest::rstest;
 
