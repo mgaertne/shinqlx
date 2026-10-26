@@ -10,6 +10,9 @@ use criterion_macro::criterion;
 use shinqlx::bench_support;
 use shinqlx::quake_live_functions::QuakeLiveFunction;
 
+#[cfg(feature = "bench-support")]
+const STATS_MESSAGE: &str = r#"{"DATA":{"AIRBORNE":false,"AMMO":100,"ARMOR":50,"BOT":false,"BOT_SKILL":null,"HEALTH":125,"HOLDABLE":null,"MATCH_GUID":"8d2b5e0f-0000-0000-0000-000000000000","NAME":"Player","POSITION":{"X":1.0,"Y":2.0,"Z":3.0},"POWERUPS":null,"SPEED":0.0,"VIEW":{"X":0.0,"Y":0.0,"Z":0.0},"WARMUP":false,"WEAPON":"ROCKET"},"TYPE":"PLAYER_STATS"}"#;
+
 fn original_test_func() -> String {
     "original".into()
 }
@@ -71,6 +74,27 @@ fn handle_set_configstring_benchmark(c: &mut Criterion) {
     c.bench_function("handle_set_configstring::unobserved_index", |b| {
         b.iter(|| bench_support::handle_set_configstring(black_box(700), black_box("some value")))
     });
+}
+
+#[cfg(feature = "bench-support")]
+#[criterion]
+fn handle_event_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group("handle_event");
+    group.bench_function("client_command_scores", |b| {
+        b.iter(|| bench_support::handle_client_command(black_box(3), black_box("scores")))
+    });
+    group.bench_function("server_command_cs", |b| {
+        b.iter(|| bench_support::handle_server_command(black_box(3), black_box("cs 700 \"value\"")))
+    });
+    group.bench_function("stats_message", |b| {
+        b.iter(|| bench_support::handle_stats_message(black_box(STATS_MESSAGE)))
+    });
+    group.bench_function("damage", |b| {
+        b.iter(|| bench_support::handle_damage(black_box(3), black_box(Some(4)), black_box(25)))
+    });
+    group.finish();
 }
 
 #[cfg(feature = "bench-support")]

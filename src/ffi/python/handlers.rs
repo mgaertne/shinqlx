@@ -3275,17 +3275,7 @@ fn try_handle_server_command<'py>(
     client_id: i32,
     cmd: &str,
 ) -> PyResult<Bound<'py, PyAny>> {
-    let Ok(player) = (0..MAX_CLIENTS as i32)
-        .find(|&id| id == client_id)
-        .map_or(Ok(py.None().bind(py).to_owned()), |id| {
-            Player::py_new(id, None).and_then(|player| Ok(Bound::new(py, player)?.into_any()))
-        })
-    else {
-        cold_path();
-        return Ok(PyBool::new(py, true).to_owned().into_any());
-    };
-
-    let return_value = EVENT_DISPATCHERS
+    let server_command_dispatcher = EVENT_DISPATCHERS
         .load()
         .as_ref()
         .and_then(|event_dispatchers| {
@@ -3294,29 +3284,45 @@ fn try_handle_server_command<'py>(
                 .get_item(intern!(py, "server_command"))
                 .ok()
         })
-        .map_or(
-            {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "could not get access to server command dispatcher",
-                ))
-            },
-            |server_command_dispatcher| {
-                ServerCommandDispatcherMethods::dispatch(
-                    server_command_dispatcher.cast()?,
-                    &player,
-                    cmd,
-                )
-            },
-        )?;
-    if return_value
-        .cast::<PyBool>()
-        .is_ok_and(|value| !value.is_true())
+        .ok_or_else(|| {
+            cold_path();
+            PyEnvironmentError::new_err("could not get access to server command dispatcher")
+        })?;
+
+    let return_value = if server_command_dispatcher
+        .cast::<EventDispatcher>()?
+        .has_hooks()
     {
+        let Ok(player) = (0..MAX_CLIENTS as i32)
+            .find(|&id| id == client_id)
+            .map_or(Ok(py.None().bind(py).to_owned()), |id| {
+                Player::py_new(id, None).and_then(|player| Ok(Bound::new(py, player)?.into_any()))
+            })
+        else {
+            cold_path();
+            return Ok(PyBool::new(py, true).to_owned().into_any());
+        };
+
+        Some(ServerCommandDispatcherMethods::dispatch(
+            server_command_dispatcher.cast()?,
+            &player,
+            cmd,
+        )?)
+    } else {
+        None
+    };
+    if return_value.as_ref().is_some_and(|return_value| {
+        return_value
+            .cast::<PyBool>()
+            .is_ok_and(|value| !value.is_true())
+    }) {
         return Ok(PyBool::new(py, false).to_owned().into_any());
     };
 
-    let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
+    let updated_cmd = return_value
+        .as_ref()
+        .and_then(|return_value| return_value.extract::<&str>().ok())
+        .unwrap_or(cmd);
 
     RE_VOTE_ENDED.captures(updated_cmd).map_or(
         Ok(PyString::new(py, updated_cmd).into_any()),
@@ -3394,6 +3400,28 @@ mod handle_server_command_tests {
         },
         prelude::*,
     };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_server_command_without_hooks_does_not_build_player(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            event_dispatcher
+                .add_dispatcher(&py.get_type::<ServerCommandDispatcher>())
+                .expect("could not add server command dispatcher");
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+
+            let result = try_handle_server_command(py, 42, "cs 700 \"value\"");
+
+            assert!(result.is_ok_and(|value| {
+                value
+                    .extract::<String>()
+                    .is_ok_and(|command| command == "cs 700 \"value\"")
+            }));
+        });
+    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -3839,6 +3867,10 @@ fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
                 ))
             },
             |frame_dispatcher| {
+                if !frame_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
+                    return Ok(Ok(()));
+                }
+
                 FrameEventDispatcherMethods::dispatch(frame_dispatcher.cast()?).map(|_| Ok(()))
             },
         )?
@@ -5144,22 +5176,33 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
                 ))
             },
             |set_configstring_dispatcher| {
+                if !set_configstring_dispatcher
+                    .cast::<EventDispatcher>()?
+                    .has_hooks()
+                {
+                    return Ok(None);
+                }
+
                 SetConfigstringDispatcherMethods::dispatch(
                     set_configstring_dispatcher.cast()?,
                     index,
                     value,
                 )
+                .map(Some)
             },
         )?;
 
-    if result
-        .cast::<PyBool>()
-        .is_ok_and(|result_value| !result_value.is_true())
-    {
+    if result.as_ref().is_some_and(|result_value| {
+        result_value
+            .cast::<PyBool>()
+            .is_ok_and(|result_value| !result_value.is_true())
+    }) {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
-    let configstring_value = result.extract::<String>().unwrap_or(value.to_string());
+    let configstring_value = result
+        .and_then(|result_value| result_value.extract::<String>().ok())
+        .unwrap_or_else(|| value.to_string());
     match index {
         CS_VOTE_STRING if !configstring_value.is_empty() => {
             let (vote, args) = configstring_value
@@ -7895,6 +7938,10 @@ fn try_handle_damage(
                 ))
             },
             |damage_dispatcher| {
+                if !damage_dispatcher.cast::<EventDispatcher>()?.has_hooks() {
+                    return Ok(None);
+                }
+
                 let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
                     Bound::new(py, Player::py_new(target_id, None)?)?.into_any()
                 } else {
@@ -7974,6 +8021,31 @@ mod handle_damage_tests {
         },
         prelude::*,
     };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_damage_without_hooks_does_not_build_players(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            event_dispatcher
+                .add_dispatcher(&py.get_type::<DamageDispatcher>())
+                .expect("could not add damage dispatcher");
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+
+            let result = try_handle_damage(
+                py,
+                42,
+                Some(43),
+                42,
+                DAMAGE_NO_PROTECTION as i32,
+                MOD_ROCKET as i32,
+            );
+
+            assert!(result.is_ok_and(|value| value.is_none()));
+        });
+    }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8332,10 +8404,21 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
                 ))
             },
             |console_print_dispatcher| {
+                if !console_print_dispatcher
+                    .cast::<EventDispatcher>()?
+                    .has_hooks()
+                {
+                    return Ok(None);
+                }
+
                 ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.cast()?, text)
+                    .map(Some)
             },
         )?;
-    if result.cast::<PyBool>().is_ok_and(|value| !value.is_true()) {
+    if result
+        .as_ref()
+        .is_some_and(|result| result.cast::<PyBool>().is_ok_and(|value| !value.is_true()))
+    {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
@@ -8346,7 +8429,9 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
             print_redirector.bind(py).append(text);
         });
 
-    let returned = result.extract::<String>().unwrap_or(text.to_string());
+    let returned = result
+        .and_then(|result| result.extract::<String>().ok())
+        .unwrap_or_else(|| text.to_string());
     Ok(PyString::new(py, &returned).into_any().unbind())
 }
 
