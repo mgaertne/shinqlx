@@ -166,6 +166,12 @@ impl Game {
         slf.get_gametype()
     }
 
+    #[getter]
+    #[pyo3(name = "type")]
+    fn get_type(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_gametype()
+    }
+
     #[getter(type_short)]
     fn get_gametype_short(slf: &Bound<'_, Self>) -> PyResult<String> {
         slf.get_gametype_short()
@@ -3045,5 +3051,180 @@ shinqlx._map_subtitle2 = "Awesome map!"
                 let result = Python::attach(|py| Game::setmatchtime(&py.get_type::<Game>(), 42));
                 assert!(result.is_ok());
             });
+    }
+}
+
+#[cfg(test)]
+mod game_property_tests {
+    use pyo3::{
+        exceptions::PyEnvironmentError,
+        prelude::*,
+        types::{PyBool, PyInt, PyList, PyString},
+    };
+    use rstest::rstest;
+
+    use super::{super::prelude::pyshinqlx_setup, Game};
+    use crate::prelude::*;
+
+    fn game(py: Python<'_>) -> Bound<'_, Game> {
+        Bound::new(
+            py,
+            Game {
+                valid: true.into(),
+                cached: false.into(),
+            },
+        )
+        .expect("this should not happen")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn cached_and_valid_do_not_need_the_engine(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let game = game(py);
+
+            assert!(
+                game.getattr("cached")
+                    .is_ok_and(|cached| cached.to_string() == "False")
+            );
+            assert!(
+                game.getattr("_valid")
+                    .is_ok_and(|valid| valid.to_string() == "True")
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("map_title")]
+    #[case("map_subtitle1")]
+    #[case("map_subtitle2")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn map_titles_do_not_need_the_engine(_pyshinqlx_setup: (), #[case] property: &str) {
+        Python::attach(|py| {
+            let result = game(py).getattr(property);
+
+            assert!(
+                result
+                    .as_ref()
+                    .is_ok_and(|value| value.is_instance_of::<PyString>()),
+                "{property}: {result:?}"
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("cvars")]
+    #[case("type")]
+    #[case("gametype")]
+    #[case("type_short")]
+    #[case("map")]
+    #[case("red_score")]
+    #[case("blue_score")]
+    #[case("state")]
+    #[case("factory")]
+    #[case("factory_title")]
+    #[case("hostname")]
+    #[case("instagib")]
+    #[case("loadout")]
+    #[case("maxclients")]
+    #[case("timelimit")]
+    #[case("fraglimit")]
+    #[case("roundlimit")]
+    #[case("roundtimelimit")]
+    #[case("scorelimit")]
+    #[case("capturelimit")]
+    #[case("teamsize")]
+    #[case("tags")]
+    #[case("workshop_items")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn reading_a_property_without_the_engine_raises_an_environment_error(
+        _pyshinqlx_setup: (),
+        #[case] property: &str,
+    ) {
+        Python::attach(|py| {
+            let result = game(py).getattr(property);
+
+            let is_environment_error = result
+                .as_ref()
+                .is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py));
+            assert!(is_environment_error, "{property}: {result:?}");
+        });
+    }
+
+    #[rstest]
+    #[case("map", "campgrounds")]
+    #[case("factory", "ca")]
+    #[case("hostname", "My Server")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn writing_a_string_property_without_the_engine_raises_an_environment_error(
+        _pyshinqlx_setup: (),
+        #[case] property: &str,
+        #[case] value: &str,
+    ) {
+        Python::attach(|py| {
+            let result = game(py).setattr(property, PyString::new(py, value));
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("maxclients")]
+    #[case("timelimit")]
+    #[case("fraglimit")]
+    #[case("roundlimit")]
+    #[case("roundtimelimit")]
+    #[case("scorelimit")]
+    #[case("capturelimit")]
+    #[case("teamsize")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn writing_a_numeric_property_without_the_engine_raises_an_environment_error(
+        _pyshinqlx_setup: (),
+        #[case] property: &str,
+    ) {
+        Python::attach(|py| {
+            let result = game(py).setattr(property, PyInt::new(py, 8));
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("instagib")]
+    #[case("loadout")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn writing_a_switch_property_without_the_engine_raises_an_environment_error(
+        _pyshinqlx_setup: (),
+        #[case] property: &str,
+    ) {
+        Python::attach(|py| {
+            let result = game(py).setattr(property, PyBool::new(py, true));
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[case("tags", "ca")]
+    #[case("workshop_items", "1234")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn writing_a_list_property_without_the_engine_raises_an_environment_error(
+        _pyshinqlx_setup: (),
+        #[case] property: &str,
+        #[case] item: &str,
+    ) {
+        Python::attach(|py| {
+            let list = PyList::new(py, [item]).expect("this should not happen");
+
+            let result = game(py).setattr(property, list);
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
     }
 }

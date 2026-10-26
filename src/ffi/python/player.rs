@@ -430,6 +430,11 @@ impl Player {
         slf.get_valid()
     }
 
+    #[getter(valid)]
+    fn is_valid(slf: &Bound<'_, Self>) -> bool {
+        slf.get_valid()
+    }
+
     #[getter(stats)]
     fn get_stats(slf: &Bound<'_, Self>) -> PyResult<Option<PlayerStats>> {
         slf.get_stats()
