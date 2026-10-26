@@ -1,8 +1,6 @@
 use alloc::borrow::Cow;
 use core::ffi::{CStr, c_int};
 
-use arrayvec::ArrayVec;
-
 use super::prelude::*;
 use crate::prelude::*;
 
@@ -123,14 +121,10 @@ impl GameClient {
 
     pub(crate) fn get_weapons(&self) -> [i32; 15] {
         let weapon_stats = self.game_client.ps.stats[statIndex_t::STAT_WEAPONS as usize];
-        (0..15)
-            .map(|i| match weapon_stats & (1 << (i + 1)) {
-                0 => 0,
-                _ => 1,
-            })
-            .collect::<ArrayVec<i32, 15>>()
-            .into_inner()
-            .unwrap()
+        core::array::from_fn(|i| match weapon_stats & (1 << (i + 1)) {
+            0 => 0,
+            _ => 1,
+        })
     }
 
     pub(crate) fn set_weapons(&mut self, weapons: [i32; 15]) {
@@ -144,7 +138,8 @@ impl GameClient {
     }
 
     pub(crate) fn get_ammos(&self) -> [i32; 15] {
-        self.game_client.ps.ammo[1..16].try_into().unwrap()
+        let [_, ammos @ ..] = self.game_client.ps.ammo;
+        ammos
     }
 
     pub(crate) fn set_ammos(&mut self, ammos: [i32; 15]) {
@@ -159,16 +154,13 @@ impl GameClient {
             .map(|current_level| current_level.get_leveltime())
             .unwrap_or_default();
 
-        (0..6)
-            .map(|powerup| powerup_t::try_from(powerup).unwrap_or(powerup_t::PW_NONE))
-            .map(|powerup_index| self.game_client.ps.powerups[powerup_index as usize])
-            .map(|powerup_time| match powerup_time {
+        core::array::from_fn(|powerup| {
+            let powerup_index = powerup_t::try_from(powerup).unwrap_or(powerup_t::PW_NONE);
+            match self.game_client.ps.powerups[powerup_index as usize] {
                 0 => 0,
-                _ => powerup_time - level_time,
-            })
-            .collect::<ArrayVec<i32, 6>>()
-            .into_inner()
-            .unwrap()
+                powerup_time => powerup_time - level_time,
+            }
+        })
     }
 
     pub(crate) fn set_powerups(&mut self, powerups: [i32; 6]) {

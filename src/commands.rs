@@ -1,12 +1,14 @@
 use core::{borrow::BorrowMut, hint::cold_path};
 
-use pyo3::types::PyBool;
 use rand::RngExt;
 use tap::{TapOptional, TryConv};
 
 use crate::{
     MAIN_ENGINE,
-    ffi::{c::prelude::*, python::prelude::*},
+    ffi::{
+        c::prelude::*,
+        python::{is_false, prelude::*},
+    },
     prelude::*,
     quake_live_engine::{CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand},
 };
@@ -241,14 +243,7 @@ pub extern "C" fn cmd_py_command() {
                         Some(args) => custom_command_handler.call1(py, (args,)),
                     };
 
-                    if result.is_err()
-                        || result.is_ok_and(|value| {
-                            value
-                                .bind(py)
-                                .cast::<PyBool>()
-                                .is_ok_and(|bool_value| !bool_value.is_true())
-                        })
-                    {
+                    if result.is_err() || result.is_ok_and(|value| is_false(value.bind(py))) {
                         main_engine.com_printf(
                             "The command failed to be executed. pyshinqlx found no handler.\n",
                         );

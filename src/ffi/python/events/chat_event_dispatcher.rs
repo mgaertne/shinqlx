@@ -115,10 +115,13 @@ mod chat_event_dispatcher_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                COMMANDS, PythonReturnCodes,
+                COMMANDS, EVENT_DISPATCHERS, PythonReturnCodes,
                 channels::TeamChatChannel,
                 commands::{Command, CommandInvoker, CommandInvokerMethods, CommandPriorities},
-                events::EventDispatcherMethods,
+                events::{
+                    CommandDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    EventDispatcherMethods,
+                },
                 pyshinqlx_setup,
                 pyshinqlx_test_support::{
                     default_test_player, python_function_raising_exception,
@@ -538,6 +541,13 @@ mod chat_event_dispatcher_tests {
                         .add_command(&py_command, CommandPriorities::PRI_NORMAL as usize)
                         .expect("could not add command to command invoker");
                     COMMANDS.store(Some(command_invoker.unbind().into()));
+
+                    let event_dispatchers = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
+                    event_dispatchers
+                        .add_dispatcher(&py.get_type::<CommandDispatcher>())
+                        .expect("could not add command dispatcher");
+                    EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
 
                     let dispatcher = Bound::new(py, ChatEventDispatcher::py_new(py))
                         .expect("this should not happen");

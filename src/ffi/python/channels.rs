@@ -1062,7 +1062,7 @@ pub(crate) trait TellChannelMethods {
 
 impl TellChannelMethods for Bound<'_, TellChannel> {
     fn get_recipient(&self) -> PyResult<Player> {
-        Player::py_new(*self.get().client_id.read(), None)
+        Ok(Player::from_client_id(*self.get().client_id.read(), None))
     }
 }
 
@@ -1514,7 +1514,7 @@ impl AbstractChannelMethods for Bound<'_, ClientCommandChannel> {
 
 impl TellChannelMethods for Bound<'_, ClientCommandChannel> {
     fn get_recipient(&self) -> PyResult<Player> {
-        Player::py_new(*self.get().client_id.read(), None)
+        Ok(Player::from_client_id(*self.get().client_id.read(), None))
     }
 }
 pub(crate) trait ClientCommandChannelMethods {

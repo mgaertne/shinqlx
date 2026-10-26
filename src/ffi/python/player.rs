@@ -129,11 +129,10 @@ impl PartialEq for Player {
     }
 }
 
-#[pymethods]
 impl Player {
-    #[new]
-    #[pyo3(signature = (client_id, info = None), text_signature = "(client_id, info = None)")]
-    pub(crate) fn py_new(client_id: i32, info: Option<PlayerInfo>) -> PyResult<Self> {
+    /// Creates a player for the client id. Without further information the player data is
+    /// read from the engine. Unlike `py_new` this cannot fail.
+    pub(crate) fn from_client_id(client_id: i32, info: Option<PlayerInfo>) -> Self {
         let player_info = info.unwrap_or_else(|| PlayerInfo::from(client_id));
 
         // When a player connects, the name field in the client struct has yet to be initialized,
@@ -145,14 +144,23 @@ impl Player {
             player_info.name.to_owned()
         };
 
-        Ok(Player {
+        Player {
             valid: true.into(),
             id: client_id,
             user_info: player_info.userinfo.to_owned(),
             steam_id: player_info.steam_id,
             player_info: player_info.into(),
             name: name.into(),
-        })
+        }
+    }
+}
+
+#[pymethods]
+impl Player {
+    #[new]
+    #[pyo3(signature = (client_id, info = None), text_signature = "(client_id, info = None)")]
+    pub(crate) fn py_new(client_id: i32, info: Option<PlayerInfo>) -> PyResult<Self> {
+        Ok(Self::from_client_id(client_id, info))
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> String {
@@ -7945,7 +7953,7 @@ impl AbstractDummyPlayer {
             team: team_t::TEAM_SPECTATOR as i32,
             privileges: privileges_t::PRIV_NONE as i32,
         };
-        PyClassInitializer::from(Player::py_new(-1, Some(player_info)).unwrap())
+        PyClassInitializer::from(Player::from_client_id(-1, Some(player_info)))
             .add_subclass(AbstractDummyPlayer {})
     }
 

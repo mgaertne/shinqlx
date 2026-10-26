@@ -93,11 +93,8 @@ pub fn dispatcher_debug_log(message: &str) {
 /// Formats the arguments of a client command event the way the event dispatchers do for logging.
 pub fn format_client_command_arguments() -> String {
     Python::attach(|py| {
-        let player = Bound::new(
-            py,
-            super::player::Player::py_new(3, None).expect("could not create player"),
-        )
-        .expect("could not create player object");
+        let player = Bound::new(py, super::player::Player::from_client_id(3, None))
+            .expect("could not create player object");
         let args = PyTuple::new(
             py,
             [player.into_any(), PyString::new(py, "scores").into_any()],

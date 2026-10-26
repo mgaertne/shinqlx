@@ -462,7 +462,7 @@ impl Plugin {
             Ok(player) => Ok(Some(player)),
             _ => match name.extract::<i32>() {
                 Ok(player_id) if (0..64).contains(&player_id) => {
-                    Player::py_new(player_id, None).map(Some)
+                    Ok(Some(Player::from_client_id(player_id, None)))
                 }
                 _ => {
                     let players =
@@ -725,7 +725,7 @@ impl Plugin {
             cold_path();
             return Err(PyValueError::new_err("could not find recipient"));
         };
-        let recipient_player = Player::py_new(recipient_client_id, None)?;
+        let recipient_player = Player::from_client_id(recipient_client_id, None);
         let tell_channel = Bound::new(
             cls.py(),
             TellChannel::py_new(

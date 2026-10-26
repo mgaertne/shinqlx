@@ -20,8 +20,8 @@ use tap::{TapFallible, TapOptional};
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
     FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, event_dispatcher, get_cvar,
-    is_vote_active, late_init, log_debug, log_exception, prelude::*, pyshinqlx_get_logger,
-    set_map_subtitles,
+    is_false, is_vote_active, late_init, log_debug, log_exception, prelude::*,
+    pyshinqlx_get_logger, set_map_subtitles,
 };
 use crate::{
     MAIN_ENGINE,
@@ -236,7 +236,7 @@ fn chat_message(command_regex: &Regex, command: &str) -> Option<String> {
 }
 
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
-    let player = Player::py_new(client_id, None)?;
+    let player = Player::from_client_id(client_id, None);
 
     let return_value = event_dispatcher(
         py,
@@ -250,10 +250,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
             cmd,
         )
     })?;
-    if return_value
-        .cast::<PyBool>()
-        .is_ok_and(|value| !value.is_true())
-    {
+    if is_false(&return_value) {
         return Ok(PyBool::new(py, false).into_any().unbind());
     };
 
@@ -3193,7 +3190,7 @@ fn try_handle_server_command<'py>(
         let Ok(player) = (0..MAX_CLIENTS as i32)
             .find(|&id| id == client_id)
             .map_or(Ok(py.None().bind(py).to_owned()), |id| {
-                Player::py_new(id, None).and_then(|player| Ok(Bound::new(py, player)?.into_any()))
+                Bound::new(py, Player::from_client_id(id, None)).map(Bound::into_any)
             })
         else {
             cold_path();
@@ -3208,11 +3205,10 @@ fn try_handle_server_command<'py>(
     } else {
         None
     };
-    if return_value.as_ref().is_some_and(|return_value| {
-        return_value
-            .cast::<PyBool>()
-            .is_ok_and(|value| !value.is_true())
-    }) {
+    if return_value
+        .as_ref()
+        .is_some_and(|return_value| is_false(return_value))
+    {
         return Ok(PyBool::new(py, false).to_owned().into_any());
     };
 
@@ -5031,11 +5027,10 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         .map(Some)
     })?;
 
-    if result.as_ref().is_some_and(|result_value| {
-        result_value
-            .cast::<PyBool>()
-            .is_ok_and(|result_value| !result_value.is_true())
-    }) {
+    if result
+        .as_ref()
+        .is_some_and(|result_value| is_false(result_value))
+    {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 
@@ -6353,7 +6348,7 @@ fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> P
         "could not get access to player connect dispatcher",
     )
     .and_then(|player_connect_dispatcher| {
-        let player = Player::py_new(client_id, None)?;
+        let player = Player::from_client_id(client_id, None);
 
         PlayerConnectDispatcherMethods::dispatch(
             player_connect_dispatcher.cast()?,
@@ -6604,7 +6599,7 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny
         "could not get access to player loaded dispatcher",
     )
     .and_then(|player_loaded_dispatcher| {
-        let player = Player::py_new(client_id, None)?;
+        let player = Player::from_client_id(client_id, None);
 
         PlayerLoadedDispatcherMethods::dispatch(
             player_loaded_dispatcher.cast()?,
@@ -6787,7 +6782,7 @@ fn try_handle_player_disconnect(
         "could not get access to player disconnect dispatcher",
     )
     .and_then(|player_disconnect_dispatcher| {
-        let player = Player::py_new(client_id, None)?;
+        let player = Player::from_client_id(client_id, None);
 
         PlayerDisconnectDispatcherMethods::dispatch(
             player_disconnect_dispatcher.cast()?,
@@ -6970,7 +6965,7 @@ fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>
         "could not get access to player spawn dispatcher",
     )
     .and_then(|player_spawn_dispatcher| {
-        let player = Player::py_new(client_id, None)?;
+        let player = Player::from_client_id(client_id, None);
 
         PlayerSpawnDispatcherMethods::dispatch(
             player_spawn_dispatcher.cast()?,
@@ -7149,7 +7144,7 @@ fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>
         "could not get access to kamikaze use dispatcher",
     )
     .and_then(|kamikaze_use_dispatcher| {
-        let player = Player::py_new(client_id, None)?;
+        let player = Player::from_client_id(client_id, None);
 
         KamikazeUseDispatcherMethods::dispatch(
             kamikaze_use_dispatcher.cast()?,
@@ -7324,7 +7319,7 @@ fn try_handle_kamikaze_explode(
     client_id: i32,
     is_used_on_demand: bool,
 ) -> PyResult<Py<PyAny>> {
-    let player = Player::py_new(client_id, None)?;
+    let player = Player::from_client_id(client_id, None);
 
     let Some(kamikaze_explode_dispatcher) =
         EVENT_DISPATCHERS
@@ -7658,15 +7653,15 @@ fn try_handle_damage(
         }
 
         let target_player = if (0..MAX_CLIENTS as i32).contains(&target_id) {
-            Bound::new(py, Player::py_new(target_id, None)?)?.into_any()
+            Bound::new(py, Player::from_client_id(target_id, None))?.into_any()
         } else {
             PyInt::new(py, target_id).into_any()
         };
 
         let attacker_player = attacker_id.and_then(|attacker_id| {
             if (0..MAX_CLIENTS as i32).contains(&attacker_id) {
-                Player::py_new(attacker_id, None)
-                    .and_then(|player| Bound::new(py, player).map(|py_player| py_player.into_any()))
+                Bound::new(py, Player::from_client_id(attacker_id, None))
+                    .map(|py_player| py_player.into_any())
                     .ok()
             } else {
                 attacker_id.into_bound_py_any(py).ok()
@@ -8092,10 +8087,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
 
         ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.cast()?, text).map(Some)
     })?;
-    if result
-        .as_ref()
-        .is_some_and(|result| result.cast::<PyBool>().is_ok_and(|value| !value.is_true()))
-    {
+    if result.as_ref().is_some_and(|result| is_false(result)) {
         return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
     }
 

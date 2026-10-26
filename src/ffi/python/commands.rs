@@ -5,12 +5,13 @@ use pyo3::{
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     prelude::*,
-    types::{IntoPyDict, PyBool, PyList, PyString, PyTuple},
+    types::{IntoPyDict, PyList, PyString, PyTuple},
 };
 use tap::TapOptional;
 
 use super::{
-    EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, owner, prelude::*, pyshinqlx_get_logger,
+    EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, is_false, owner, prelude::*,
+    pyshinqlx_get_logger,
 };
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
@@ -2035,10 +2036,7 @@ def remove_command(cmd):
                 &Bound::new(self.py(), cmd_copy)?,
                 msg,
             )?;
-            if dispatcher_result
-                .cast::<PyBool>()
-                .is_ok_and(|value| !value.is_true())
-            {
+            if is_false(&dispatcher_result) {
                 return Ok(true);
             }
 
