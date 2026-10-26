@@ -23,7 +23,17 @@ pub(super) fn only_handler<'py>(arguments: &Bound<'py, PyTuple>) -> PyResult<Bou
     }
 }
 
+// dispatch() of these takes fewer arguments than their hooks receive
+const HOOK_PARAMETERS: [(&str, &[&str]); 2] = [
+    ("vote_started", &["player", "vote", "args"]),
+    ("vote_ended", &["votes", "vote", "args", "passed"]),
+];
+
 fn dispatcher_parameters(py: Python<'_>, event: &str) -> Option<Vec<String>> {
+    if let Some((_, names)) = HOOK_PARAMETERS.iter().find(|(name, _)| *name == event) {
+        return Some(names.iter().map(ToString::to_string).collect());
+    }
+
     let dispatcher = py
         .import(intern!(py, "shinqlx"))
         .and_then(|shinqlx| shinqlx.getattr(intern!(py, "EVENT_DISPATCHERS")))
@@ -557,6 +567,10 @@ mod decorator_signature_tests {
     #[case("team_switch_attempt", "self, player", false)]
     #[case("chat", "self, player, msg, channel", true)]
     #[case("chat", "self, player, msg", false)]
+    #[case("vote_started", "self, player, vote, args", true)]
+    #[case("vote_started", "self, vote, args", false)]
+    #[case("vote_ended", "self, votes, vote, args, passed", true)]
+    #[case("vote_ended", "self, passed", false)]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn hook_handlers_have_to_accept_the_arguments_of_their_event(
