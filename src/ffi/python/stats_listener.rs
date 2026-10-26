@@ -546,7 +546,6 @@ mod stats_listener_tests {
     #[case::without_password("")]
     #[case::with_password("p4ssw0rd")]
     #[cfg_attr(miri, ignore)]
-    #[ignore = "hangs with arzmq 0.6.3, which drops the context before the socket"]
     fn get_zmq_socket_creates_socket_with_and_without_password(#[case] password: &str) {
         let result = get_zmq_socket("tcp://127.0.0.1:1", password);
 
@@ -752,7 +751,6 @@ mod stats_listener_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
-    #[ignore = "hangs with arzmq 0.6.3, which drops the context before the socket"]
     fn poll_zmq_returns_after_stop(_pyshinqlx_setup: ()) {
         let listener = Python::attach(|py| {
             Bound::new(
