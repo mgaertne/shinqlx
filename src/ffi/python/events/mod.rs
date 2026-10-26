@@ -111,36 +111,18 @@ pub(crate) use vote_dispatcher::{VoteDispatcher, VoteDispatcherMethods};
 pub(crate) use vote_ended_dispatcher::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
-use super::{commands::CommandPriorities, get_cvar};
+use super::{commands::CommandPriorities, get_cvar, log_debug};
 
 fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
-    pyshinqlx_get_logger(py, None).and_then(|logger| {
-        let debug_level = py
-            .import(intern!(py, "logging"))
-            .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
-
-        let mut dbgstr = debug_str.to_string();
-        if dbgstr.len() > 100 {
-            dbgstr = format!("{})", dbgstr.graphemes(true).take(99).collect::<String>());
-        }
-        logger
-            .call_method(
-                intern!(py, "makeRecord"),
-                (
-                    intern!(py, "shinqlx"),
-                    debug_level,
-                    intern!(py, ""),
-                    -1,
-                    dbgstr,
-                    py.None(),
-                    py.None(),
-                ),
-                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict(py)?),
-            )
-            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-    })?;
-
-    Ok(())
+    if debug_str.len() > 100 {
+        let dbgstr = format!(
+            "{})",
+            debug_str.graphemes(true).take(99).collect::<String>()
+        );
+        log_debug(py, "dispatch", &dbgstr)
+    } else {
+        log_debug(py, "dispatch", debug_str)
+    }
 }
 
 pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: &str) {
