@@ -4,6 +4,7 @@ mod channels;
 mod commands;
 mod database;
 mod decorators;
+mod deferred;
 mod dispatchers;
 mod embed;
 mod events;
@@ -139,6 +140,8 @@ use std::{
 use arc_swap::ArcSwapOption;
 use chrono::Utc;
 use commands::CommandPriorities;
+use decorators::only_handler;
+use deferred::{Deferral, DeferredCall};
 use derive_more::Display;
 use itertools::Itertools;
 use log::*;
@@ -149,7 +152,7 @@ use pyo3::{
     ffi::Py_IsInitialized,
     intern,
     sync::PyOnceLock,
-    types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFloat, PyInt, PyString, PyTuple, PyType},
+    types::{IntoPyDict, PyBool, PyCFunction, PyDelta, PyDict, PyInt, PyString, PyTuple, PyType},
 };
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
@@ -1972,7 +1975,7 @@ fn try_log_messages(
 }
 
 #[pyfunction]
-fn next_frame<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn next_frame<'py>(func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     if !func.is_callable() {
         cold_path();
         return Err(PyValueError::new_err(
@@ -1980,26 +1983,7 @@ fn next_frame<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<
         ));
     }
 
-    PyModule::from_code(
-        py,
-        cr#"
-from functools import wraps
-
-import shinqlx
-
-
-def next_frame(func):
-    @wraps(func)
-    def f(*args, **kwargs):
-        shinqlx.next_frame_tasks.put_nowait((func, args, kwargs))
-
-    return f
-        "#,
-        c"",
-        c"",
-    )
-    .and_then(|next_frame_def| next_frame_def.getattr(intern!(py, "next_frame")))
-    .and_then(|next_frame_func| next_frame_func.call1((func,)))
+    DeferredCall::wrap(func, Deferral::NextFrame)
 }
 
 #[cfg(test)]
@@ -2106,32 +2090,21 @@ TestClass().test_func()
 ///         you can expect it to be called practically as soon as it expires.
 #[pyfunction]
 fn delay<'py>(py: Python<'py>, time: f64) -> PyResult<Bound<'py, PyAny>> {
-    PyModule::from_code(
+    PyCFunction::new_closure(
         py,
-        cr#"
-from functools import wraps
+        Some(c"delay_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let func = only_handler(arguments)?;
+            if !func.is_callable() {
+                cold_path();
+                return Err(PyValueError::new_err("'func' must be callable"));
+            }
 
-import shinqlx
-
-
-def delay(time):
-    def wrap(func):
-        @wraps(func)
-        def f(*args, **kwargs):
-            shinqlx.frame_tasks.enter(time, 1, func, args, kwargs)
-
-        if not callable(func):
-            raise ValueError("'func' must be callable")
-
-        return f
-
-    return wrap
-    "#,
-        c"",
-        c"",
+            DeferredCall::wrap(&func, Deferral::Delay(time)).map(Bound::unbind)
+        },
     )
-    .and_then(|delay_def| delay_def.getattr(intern!(py, "delay")))
-    .and_then(|delay_func| delay_func.call1((PyFloat::new(py, time),)))
+    .map(Bound::into_any)
 }
 
 #[cfg(test)]
@@ -2283,7 +2256,7 @@ TestClass().test_func()
 /// with this is called within a function also decorated, it will **not** create a second
 /// thread unless told to do so with the *force* keyword.
 #[pyfunction]
-fn thread<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn thread<'py>(func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     if !func.is_callable() {
         cold_path();
         return Err(PyValueError::new_err(
@@ -2291,37 +2264,7 @@ fn thread<'py>(py: Python<'py>, func: &Bound<'py, PyAny>) -> PyResult<Bound<'py,
         ));
     }
 
-    PyModule::from_code(
-        py,
-        cr#"
-import threading
-from functools import wraps
-
-import shinqlx
-
-
-def thread(func):
-    @wraps(func)
-    def f(*args, **kwargs):
-        if threading.current_thread().name.endswith(shinqlx._thread_name):
-            func(*args, **kwargs)
-        else:
-            name = f"{func.__name__}-{str(shinqlx._thread_count)}-{shinqlx._thread_name}"
-            t = threading.Thread(
-                target=func, name=name, args=args, kwargs=kwargs, daemon=True
-            )
-            t.start()
-            shinqlx._thread_count += 1
-
-            return t
-
-    return f
-        "#,
-        c"",
-        c"",
-    )
-    .and_then(|thread_def| thread_def.getattr(intern!(py, "thread")))
-    .and_then(|thread_func| thread_func.call1((func,)))
+    DeferredCall::wrap(func, Deferral::Thread)
 }
 
 #[cfg(test)]
@@ -3364,7 +3307,7 @@ mod callable_guard_tests {
     #[serial]
     fn next_frame_rejects_an_object_that_is_not_callable(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            let result = next_frame(py, PyInt::new(py, 1).as_any());
+            let result = next_frame(PyInt::new(py, 1).as_any());
 
             assert!(
                 result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)
@@ -3378,7 +3321,7 @@ mod callable_guard_tests {
     #[serial]
     fn thread_rejects_an_object_that_is_not_callable(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            let result = thread(py, PyInt::new(py, 1).as_any());
+            let result = thread(PyInt::new(py, 1).as_any());
 
             assert!(
                 result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)

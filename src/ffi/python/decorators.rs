@@ -14,7 +14,7 @@ const HOOKS_MARKER: &str = "_shinqlx_hooks";
 const COMMANDS_MARKER: &str = "_shinqlx_commands";
 const COMMAND_PARAMETERS: [&str; 3] = ["player", "msg", "channel"];
 
-fn only_handler<'py>(arguments: &Bound<'py, PyTuple>) -> PyResult<Bound<'py, PyAny>> {
+pub(super) fn only_handler<'py>(arguments: &Bound<'py, PyTuple>) -> PyResult<Bound<'py, PyAny>> {
     match arguments.len() {
         1 => arguments.get_item(0),
         count => Err(PyTypeError::new_err(format!(
