@@ -9,9 +9,11 @@ fn main() {
 
     if let Some(lib_dir) = &python_config.lib_dir() {
         println!("cargo::rustc-link-search={lib_dir}");
-        println!("cargo::rustc-link-arg-benches=-Wl,-rpath,{lib_dir}");
+        println!("cargo::rustc-link-arg-benches=-Wl,--disable-new-dtags,-rpath,{lib_dir}");
         if std::env::var("PROFILE").is_ok_and(|profile| profile != "release") {
-            println!("cargo::rustc-link-arg=-Wl,-rpath,{lib_dir}");
+            // An RPATH beats the system libpython that cargo-tarpaulin would otherwise load.
+            println!("cargo::rustc-link-arg=-Wl,--disable-new-dtags");
+            pyo3_build_config::add_libpython_rpath_link_args();
         }
     }
 
