@@ -848,3 +848,10 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
       ``exclude_channels``, ``priority``, ``client_cmd_pass``, ``client_cmd_perm``, ``prefix`` and ``usage``.
 
    The decorated method has the same prototype as the ``handler`` of :meth:`Plugin.add_command`.
+
+The signature of the decorated method is checked against what is passed to it, as soon as the class is defined:
+a command handler has to accept ``(player, msg, channel)``, and a hook has to accept the arguments of its event, which
+differ from event to event, e.g. ``(player, old_team, new_team)`` for ``team_switch_attempt``. A method that cannot
+be called that way, for example one that takes too few arguments, raises a :class:`TypeError` naming the method and the
+expected arguments. Methods that take ``*args`` pass for any event. If the event is not yet known while the class is
+defined, the check is made again when the hooks and commands are registered.
