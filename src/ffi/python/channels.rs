@@ -1720,3 +1720,216 @@ shinqlx.ClientCommandChannel(player)
         });
     }
 }
+
+#[cfg(test)]
+mod channel_python_interface_tests {
+    use pyo3::{exceptions::PyNotImplementedError, prelude::*, types::PyDict};
+    use rstest::rstest;
+
+    use super::{
+        AbstractChannelMethods, ChatChannel, ClientCommandChannel, ConsoleChannel, TeamChatChannel,
+        TellChannel,
+    };
+    use crate::{
+        ffi::python::{
+            prelude::*,
+            pyshinqlx_test_support::{default_test_player, with_connected_players},
+        },
+        prelude::*,
+    };
+
+    fn channels(py: Python<'_>) -> Bound<'_, PyDict> {
+        let module = PyModule::from_code(
+            py,
+            cr#"
+import shinqlx
+
+
+def create(player):
+    return {
+        "abstract": shinqlx.AbstractChannel("abstract"),
+        "console": shinqlx.ConsoleChannel(),
+        "chat": shinqlx.ChatChannel(),
+        "team": shinqlx.TeamChatChannel("red"),
+        "tell": shinqlx.TellChannel(player),
+        "command": shinqlx.ClientCommandChannel(player),
+    }
+"#,
+            c"",
+            c"",
+        )
+        .expect("could not create the channels module");
+        module
+            .getattr("create")
+            .and_then(|create| {
+                create.call1((Bound::new(py, default_test_player()).expect("player"),))
+            })
+            .and_then(|channels| channels.cast_into::<PyDict>().map_err(PyErr::from))
+            .expect("could not create the channels")
+    }
+
+    fn attribute(channels: &Bound<'_, PyDict>, channel: &str, attribute: &str) -> String {
+        channels
+            .get_item(channel)
+            .ok()
+            .flatten()
+            .and_then(|channel| channel.getattr(attribute).ok())
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| format!("missing {channel}.{attribute}"))
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn channels_expose_their_names_through_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let channels = channels(py);
+
+            let names = ["abstract", "console", "chat", "team", "tell", "command"]
+                .map(|channel| attribute(&channels, channel, "name"));
+
+            assert_eq!(
+                names,
+                [
+                    "abstract",
+                    "console",
+                    "chat",
+                    "chat",
+                    "tell",
+                    "client_command"
+                ]
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn chat_and_tell_channels_expose_their_settings(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let channels = channels(py);
+
+            assert_eq!(attribute(&channels, "chat", "fmt"), "print \"{}\n\"\n");
+            assert_eq!(attribute(&channels, "team", "team"), "red");
+            assert_eq!(attribute(&channels, "tell", "client_id"), "2");
+            assert_eq!(attribute(&channels, "command", "client_id"), "2");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn the_client_command_channel_exposes_its_tell_channel_and_recipient(_pyshinqlx_setup: ()) {
+        with_connected_players(MockEngineBuilder::default(), &[(2, "Ada")], || {
+            Python::attach(|py| {
+                let channels = channels(py);
+                let command = channels
+                    .get_item("command")
+                    .ok()
+                    .flatten()
+                    .expect("no client command channel");
+
+                let tell_channel_id = command
+                    .getattr("tell_channel")
+                    .and_then(|tell_channel| tell_channel.getattr("client_id"))
+                    .map(|client_id| client_id.to_string());
+                let recipient_id = command
+                    .getattr("recipient")
+                    .and_then(|recipient| recipient.getattr("id"))
+                    .map(|id| id.to_string());
+
+                assert_eq!(tell_channel_id.ok(), Some("2".to_string()));
+                assert_eq!(recipient_id.ok(), Some("2".to_string()));
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn the_tell_channel_exposes_its_recipient(_pyshinqlx_setup: ()) {
+        with_connected_players(MockEngineBuilder::default(), &[(2, "Ada")], || {
+            Python::attach(|py| {
+                let channels = channels(py);
+                let tell = channels
+                    .get_item("tell")
+                    .ok()
+                    .flatten()
+                    .expect("no tell channel");
+
+                let recipient_id = tell
+                    .getattr("recipient")
+                    .and_then(|recipient| recipient.getattr("id"))
+                    .map(|id| id.to_string());
+
+                assert_eq!(recipient_id.ok(), Some("2".to_string()));
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn the_abstract_channel_cannot_reply(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let channels = channels(py);
+
+            let result = channels
+                .get_item("abstract")
+                .ok()
+                .flatten()
+                .expect("no abstract channel")
+                .call_method1("reply", ("message",));
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn the_channel_types_report_their_names_through_the_trait(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let channels = channels(py);
+            let channel = |name: &str| {
+                channels
+                    .get_item(name)
+                    .ok()
+                    .flatten()
+                    .unwrap_or_else(|| panic!("no {name} channel"))
+            };
+
+            assert_eq!(
+                channel("console")
+                    .cast::<ConsoleChannel>()
+                    .map(|channel| channel.get_name())
+                    .ok(),
+                Some("console".to_string())
+            );
+            assert_eq!(
+                channel("chat")
+                    .cast::<ChatChannel>()
+                    .map(|channel| channel.get_name())
+                    .ok(),
+                Some("chat".to_string())
+            );
+            assert_eq!(
+                channel("team")
+                    .cast::<TeamChatChannel>()
+                    .map(|channel| channel.get_name())
+                    .ok(),
+                Some("chat".to_string())
+            );
+            assert_eq!(
+                channel("tell")
+                    .cast::<TellChannel>()
+                    .map(|channel| channel.get_name())
+                    .ok(),
+                Some("tell".to_string())
+            );
+            assert_eq!(
+                channel("command")
+                    .cast::<ClientCommandChannel>()
+                    .map(|channel| channel.get_name())
+                    .ok(),
+                Some("client_command".to_string())
+            );
+        });
+    }
+}
