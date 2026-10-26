@@ -146,6 +146,7 @@ use pyo3::{
     exceptions::{PyAttributeError, PyEnvironmentError, PyException, PyValueError},
     ffi::Py_IsInitialized,
     intern,
+    sync::PyOnceLock,
     types::{IntoPyDict, PyBool, PyDelta, PyDict, PyFloat, PyInt, PyString, PyTuple, PyType},
 };
 use tap::{Conv, TapFallible, TapOptional, TryConv};
@@ -1299,18 +1300,17 @@ mod pyshinqlx_parse_variables_test {
     }
 }
 
-fn get_logger_name(py: Python<'_>, plugin: Option<Bound<'_, PyAny>>) -> String {
-    let opt_plugin_name = plugin.and_then(|req_plugin| {
-        req_plugin
-            .str()
-            .ok()
-            .map(|plugin_name| plugin_name.to_string())
-    });
-    py.detach(|| {
-        opt_plugin_name.map_or("shinqlx".to_string(), |plugin_name| {
+fn get_logger_name(plugin: Option<Bound<'_, PyAny>>) -> String {
+    plugin
+        .and_then(|req_plugin| {
+            req_plugin
+                .str()
+                .ok()
+                .map(|plugin_name| plugin_name.to_string())
+        })
+        .map_or("shinqlx".to_string(), |plugin_name| {
             format!("shinqlx.{plugin_name}")
         })
-    })
 }
 
 /// Provides a logger that should be used by your plugin for debugging, info and error reporting. It will automatically output to both the server console as well as to a file.
@@ -1321,10 +1321,52 @@ pub(crate) fn pyshinqlx_get_logger<'py>(
     py: Python<'py>,
     plugin: Option<Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyAny>> {
-    let logger_name = get_logger_name(py, plugin);
+    let logger_name = get_logger_name(plugin);
     PyModule::import(py, intern!(py, "logging")).and_then(|logging_module| {
         logging_module.call_method1(intern!(py, "getLogger"), (logger_name,))
     })
+}
+
+static SHINQLX_LOGGER: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+static DEBUG_LEVEL: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
+
+/// Writes a debug record to the `shinqlx` logger. Like `logger.debug()` it ends up in all handlers
+/// that accept debug records, but it neither looks up the caller of the log call nor the logger
+/// and the log level on every call.
+pub(crate) fn log_debug(py: Python<'_>, func: &str, message: &str) -> PyResult<()> {
+    let logger = SHINQLX_LOGGER
+        .get_or_try_init(py, || {
+            py.import(intern!(py, "logging"))
+                .and_then(|logging_module| {
+                    logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))
+                })
+                .map(Bound::unbind)
+        })?
+        .bind(py);
+    let debug_level = DEBUG_LEVEL
+        .get_or_try_init(py, || {
+            py.import(intern!(py, "logging"))
+                .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))
+                .map(Bound::unbind)
+        })?
+        .bind(py);
+
+    let log_record = logger.call_method1(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            debug_level,
+            intern!(py, ""),
+            -1,
+            message,
+            py.None(),
+            py.None(),
+            PyString::intern(py, func),
+        ),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+
+    Ok(())
 }
 
 #[pyfunction]
@@ -1875,7 +1917,7 @@ fn try_log_messages(
     py.import(intern!(py, "logging"))
         .and_then(|logging_module| {
             let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
-            let logger_name = get_logger_name(py, plugin);
+            let logger_name = get_logger_name(plugin);
             logging_module
                 .call_method1(intern!(py, "getLogger"), (logger_name,))
                 .and_then(|py_logger| {

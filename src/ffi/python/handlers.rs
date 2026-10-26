@@ -20,7 +20,7 @@ use tap::{TapFallible, TapOptional};
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
     FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, get_cvar, is_vote_active,
-    late_init, log_exception, prelude::*, pyshinqlx_get_logger, set_map_subtitles,
+    late_init, log_debug, log_exception, prelude::*, pyshinqlx_get_logger, set_map_subtitles,
 };
 use crate::{
     MAIN_ENGINE,
@@ -8363,29 +8363,7 @@ static PRINT_REDIRECTION: LazyLock<ArcSwapOption<Py<PrintRedirector>>> =
     LazyLock::new(ArcSwapOption::empty);
 
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
-    pyshinqlx_get_logger(py, None).and_then(|logger| {
-        let debug_level = py
-            .import(intern!(py, "logging"))
-            .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))?;
-        logger
-            .call_method(
-                intern!(py, "makeRecord"),
-                (
-                    intern!(py, "shinqlx"),
-                    debug_level,
-                    intern!(py, ""),
-                    -1,
-                    text.trim_end_matches('\n'),
-                    py.None(),
-                    py.None(),
-                ),
-                Some(
-                    &[(intern!(py, "func"), intern!(py, "handle_console_print"))]
-                        .into_py_dict(py)?,
-                ),
-            )
-            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-    })?;
+    log_debug(py, "handle_console_print", text.trim_end_matches('\n'))?;
 
     let result = EVENT_DISPATCHERS
         .load()

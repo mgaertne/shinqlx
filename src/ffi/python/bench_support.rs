@@ -5,7 +5,7 @@ use pyo3::{
     ffi::Py_IsInitialized,
     intern,
     prelude::*,
-    types::{PyDict, PyTuple},
+    types::{PyDict, PyString, PyTuple},
 };
 
 use super::{
@@ -14,6 +14,7 @@ use super::{
         ClientCommandDispatcher, DamageDispatcher, DeathDispatcher, EventDispatcherManager,
         EventDispatcherManagerMethods, FrameEventDispatcher, KillDispatcher,
         ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher,
+        dispatcher_debug_log as dispatcher_debug_log_impl,
     },
     handlers::{
         handle_client_command as handle_client_command_impl, handle_damage as handle_damage_impl,
@@ -82,6 +83,28 @@ pub fn handle_set_configstring(index: u32, value: &str) {
     Python::attach(|py| {
         handle_set_configstring_impl(py, index, value);
     });
+}
+
+/// Writes a debug message to the log the way the event dispatchers do.
+pub fn dispatcher_debug_log(message: &str) {
+    Python::attach(|py| dispatcher_debug_log_impl(py, message));
+}
+
+/// Formats the arguments of a client command event the way the event dispatchers do for logging.
+pub fn format_client_command_arguments() -> String {
+    Python::attach(|py| {
+        let player = Bound::new(
+            py,
+            super::player::Player::py_new(3, None).expect("could not create player"),
+        )
+        .expect("could not create player object");
+        let args = PyTuple::new(
+            py,
+            [player.into_any(), PyString::new(py, "scores").into_any()],
+        )
+        .expect("could not create arguments");
+        format!("client_command{args}")
+    })
 }
 
 /// Handles a message of the ZMQ stats protocol the way the stats listener does.
