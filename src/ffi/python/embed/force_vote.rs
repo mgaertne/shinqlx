@@ -10,8 +10,8 @@ use crate::{
 
 /// Forces the current vote to either fail or pass.
 #[pyfunction]
-#[pyo3(name = "force_vote")]
-pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool> {
+#[pyo3(name = "force_vote", signature = (_pass))]
+pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, _pass: bool) -> PyResult<bool> {
     py.detach(|| {
         if CurrentLevel::try_get()
             .ok()
@@ -40,7 +40,7 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, pass: bool) -> PyResult<bool>
                     })
                     .filter_map(|client_id| client_id.try_conv::<GameEntity>().ok())
                     .filter_map(|game_entity| game_entity.get_game_client().ok())
-                    .for_each(|mut game_client| game_client.set_vote_state(pass));
+                    .for_each(|mut game_client| game_client.set_vote_state(_pass));
                 Ok(true)
             },
         )

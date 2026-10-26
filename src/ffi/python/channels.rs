@@ -510,7 +510,7 @@ pub(crate) struct ChatChannel {
 #[pymethods]
 impl ChatChannel {
     #[new]
-    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n", *args, **kwargs), text_signature = "(name = \"chat\", fmt = \"print \"{}\n\"\n\")")]
+    #[pyo3(signature = (name = "chat", fmt = "print \"{}\n\"\n", *args, **kwargs), text_signature = "(name = \"chat\", fmt = \"print \\\"{}\\n\\\"\\n\")")]
     pub(crate) fn py_new(
         py: Python<'_>,
         name: &str,
@@ -1197,7 +1197,7 @@ pub(crate) struct TeamChatChannel {
 #[pymethods]
 impl TeamChatChannel {
     #[new]
-    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n", *args, **kwargs), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \"{}\n\"\n\")")]
+    #[pyo3(signature = (team="all", name="chat", fmt="print \"{}\n\"\n", *args, **kwargs), text_signature = "(team=\"all\", name=\"chat\", fmt=\"print \\\"{}\\n\\\"\\n\")")]
     pub(crate) fn py_new(
         py: Python<'_>,
         team: &str,

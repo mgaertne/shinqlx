@@ -413,11 +413,11 @@ Functions
    :param str value: The value the configstring is set to.
    :rasies ValueError: if the ``config_id`` is not between ``0`` and ``MAX_CONFISTRINGS`` (``1024``).
 
-.. function:: force_vote(pass) -> bool
+.. function:: force_vote(_pass) -> bool
 
    Forces the current vote to either fail or pass.
 
-   :param bool pass: Whether to pass (``True``) or fail (``False``) the vote.
+   :param bool _pass: Whether to pass (``True``) or fail (``False``) the vote.
    :return: ``False``, if no vote is in progress, ``True`` otherwise.
 
 .. function:: add_console_command(command)

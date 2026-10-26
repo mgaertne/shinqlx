@@ -440,7 +440,7 @@ impl Player {
         slf.get_ping()
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
     fn position<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -449,7 +449,7 @@ impl Player {
         slf.position(reset, kwargs)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
     fn velocity<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -458,7 +458,7 @@ impl Player {
         slf.velocity(reset, kwargs)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
     fn weapons<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -475,7 +475,7 @@ impl Player {
         slf.weapon(new_weapon)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
     fn ammo<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -484,7 +484,7 @@ impl Player {
         slf.ammo(reset, kwargs)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
     fn powerups<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -507,7 +507,7 @@ impl Player {
         slf.drop_holdable()
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = false, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
     fn flight<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
