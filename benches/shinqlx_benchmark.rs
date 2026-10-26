@@ -99,6 +99,17 @@ fn handle_event_benchmark(c: &mut Criterion) {
 
 #[cfg(feature = "bench-support")]
 #[criterion]
+fn python_hook_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+    let handler = bench_support::ClanLikeHandler::default();
+
+    c.bench_function("python_hook::clan_like_set_configstring_handler", |b| {
+        b.iter(|| handler.call(black_box(700), black_box("some value")))
+    });
+}
+
+#[cfg(feature = "bench-support")]
+#[criterion]
 fn handle_frame_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 
