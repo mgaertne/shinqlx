@@ -499,6 +499,25 @@ Plugins
       :param Iterable[Player] | None player_list:  the list of players to search for. If ``None``, :meth:`players` is used. (default: ``None``)
       :return: The list of matching players founds in ``player_list``.
 
+   .. method:: find_by_name_or_id(player, target, player_list = None) -> Player | None
+      :classmethod:
+
+      Find exactly one player by client ID or by name, for commands that should accept either.
+
+      A client ID of a connected player always wins, and may also be written as ``id:5`` or ``id=5``.
+      Everything else is matched against part of the names of the players, ignoring case and color codes.
+      This is only available in shinqlx.
+
+      If there is no matching player, or more than one, the calling ``player`` is told so, listing the
+      candidates when there are several.
+
+      :param Player | None player: The player that issued the command and who is told about problems. ``None``
+         to tell nobody.
+      :param str target: Client ID, ``id:<client ID>`` or name or part of the name of the player.
+      :param Iterable[Player] | None player_list: the list of players to search in. If ``None``, :meth:`players`
+         is used. (default: ``None``)
+      :return: The found player, or ``None`` if there was not exactly one matching player.
+
    .. method:: teams(player_list = None) -> dict[str, Player]
       :classmethod:
 

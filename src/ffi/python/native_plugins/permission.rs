@@ -1,11 +1,10 @@
 use pyo3::{intern, prelude::*, types::PyTuple};
 
-use super::register_command;
+use super::{register_command, without_trailing_color_reset};
 use crate::ffi::python::{
     NonexistentPlayerError, Plugin, PythonReturnCodes, plugin::PluginMethods, pyshinqlx_owner,
 };
 
-const INVALID_ID: &str = "Invalid ID. Use either a client ID or a SteamID64.";
 const INVALID_CLIENT_ID: &str = "Invalid client ID. Use either a client ID or a SteamID64.";
 
 /// Database agnostic way of getting and setting the permissions of players.
@@ -59,10 +58,42 @@ fn resolve_target<'py>(py: Python<'py>, ident: i64) -> PyResult<Option<Target<'p
     Ok(Some(Target::Player(steam_id, player)))
 }
 
+enum Resolution<'py> {
+    Target(Target<'py>),
+    UnknownClientId,
+    Reported,
+}
+
+fn resolve_text<'py>(
+    py: Python<'py>,
+    caller: &Bound<'py, PyAny>,
+    text: &str,
+) -> PyResult<Resolution<'py>> {
+    let text = text.trim();
+    if let Ok(ident) = text.parse::<i64>() {
+        return Ok(
+            resolve_target(py, ident)?.map_or(Resolution::UnknownClientId, Resolution::Target)
+        );
+    }
+
+    let Some(found) = Plugin::find_by_name_or_id(&py.get_type::<Plugin>(), caller, text, None)?
+    else {
+        return Ok(Resolution::Reported);
+    };
+    let steam_id = found.steam_id;
+    Ok(Resolution::Target(Target::Player(
+        steam_id,
+        Bound::new(py, found)?.into_any(),
+    )))
+}
+
 fn display_name(target: &Target<'_>) -> PyResult<String> {
     match target {
         Target::Id(steam_id) => Ok(steam_id.to_string()),
-        Target::Player(_, player) => player.getattr(intern!(player.py(), "name"))?.extract(),
+        Target::Player(_, player) => player
+            .getattr(intern!(player.py(), "name"))?
+            .extract::<String>()
+            .map(|name| without_trailing_color_reset(&name).to_owned()),
     }
 }
 
@@ -70,18 +101,17 @@ fn display_name(target: &Target<'_>) -> PyResult<String> {
 impl Permission {
     fn cmd_setperm(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        player: &Bound<'_, PyAny>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 3 {
             return usage();
         }
-        let Ok(ident) = msg[1].trim().parse::<i64>() else {
-            return reply(channel, INVALID_ID);
-        };
-        let Some(target) = resolve_target(slf.py(), ident)? else {
-            return reply(channel, INVALID_CLIENT_ID);
+        let target = match resolve_text(slf.py(), player, &msg[1])? {
+            Resolution::Target(target) => target,
+            Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
+            Resolution::Reported => return Ok(None),
         };
         let Some(level) = msg[2]
             .trim()
@@ -111,18 +141,17 @@ impl Permission {
 
     fn cmd_getperm(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        player: &Bound<'_, PyAny>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
         }
-        let Ok(ident) = msg[1].trim().parse::<i64>() else {
-            return reply(channel, INVALID_ID);
-        };
-        let Some(target) = resolve_target(slf.py(), ident)? else {
-            return reply(channel, INVALID_CLIENT_ID);
+        let target = match resolve_text(slf.py(), player, &msg[1])? {
+            Resolution::Target(target) => target,
+            Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
+            Resolution::Reported => return Ok(None),
         };
 
         if pyshinqlx_owner(slf.py())? == Some(target.steam_id()) {
@@ -223,9 +252,10 @@ mod permission_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                Plugin, PythonReturnCodes, plugin::PluginMethods,
+                Plugin, PythonReturnCodes,
+                plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
-                pyshinqlx_test_support::RestoredAttribute,
+                pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
             },
         },
         prelude::*,
@@ -256,6 +286,13 @@ mod permission_tests {
                 .expect("could not get calls")
         }
 
+        fn told(&self) -> Vec<String> {
+            self.player
+                .getattr("told")
+                .and_then(|told| told.extract())
+                .expect("could not get told messages")
+        }
+
         fn know(&self, steam_id: i64, level: i32) {
             self.database
                 .getattr("permissions")
@@ -264,7 +301,7 @@ mod permission_tests {
         }
     }
 
-    fn with_fixtures<F>(steam_id_of_caller: i64, test: F)
+    fn with_fixtures<F>(steam_id_of_caller: i64, players: &[(i32, &'static str)], test: F)
     where
         F: FnOnce(Fixtures<'_>),
     {
@@ -274,17 +311,16 @@ mod permission_tests {
             .build()
             .expect("this should not happen");
 
-        MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "qlx_owner",
-                move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok(),
-                0..,
-            )
-            .run(|| {
-                Python::attach(|py| {
-                    let module = PyModule::from_code(
-                        py,
-                        c"
+        let engine = MockEngineBuilder::default().with_find_cvar(
+            |cmd| cmd == "qlx_owner",
+            move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok(),
+            0..,
+        );
+        with_connected_players(engine, players, || {
+            Python::attach(|py| {
+                let module = PyModule::from_code(
+                    py,
+                    c"
 class Channel:
     def __init__(self):
         self.replies = []
@@ -310,41 +346,45 @@ class Player:
     def __init__(self, steam_id):
         self.steam_id = steam_id
         self.name = 'Caller'
-",
-                        c"",
-                        c"",
-                    )
-                    .expect("could not create fixtures");
-                    let plugin_class = py.get_type::<Plugin>();
-                    let _restore_database =
-                        RestoredAttribute::capture(plugin_class.as_any(), "database");
-                    plugin_class
-                        .setattr(
-                            intern!(py, "database"),
-                            module.getattr("Database").expect("no Database"),
-                        )
-                        .expect("could not set database");
+        self.told = []
 
-                    let plugin = Bound::new(
-                        py,
-                        PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Permission),
+    def tell(self, message):
+        self.told.append(message)
+",
+                    c"",
+                    c"",
+                )
+                .expect("could not create fixtures");
+                let plugin_class = py.get_type::<Plugin>();
+                let _restore_database =
+                    RestoredAttribute::capture(plugin_class.as_any(), "database");
+                plugin_class
+                    .setattr(
+                        intern!(py, "database"),
+                        module.getattr("Database").expect("no Database"),
                     )
-                    .expect("could not create plugin");
-                    let database = plugin.as_super().get_db().expect("could not get database");
-                    test(Fixtures {
-                        plugin,
-                        channel: module
-                            .getattr("Channel")
-                            .and_then(|channel| channel.call0())
-                            .expect("could not create channel"),
-                        database,
-                        player: module
-                            .getattr("Player")
-                            .and_then(|player| player.call1((steam_id_of_caller,)))
-                            .expect("could not create player"),
-                    });
+                    .expect("could not set database");
+
+                let plugin = Bound::new(
+                    py,
+                    PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Permission),
+                )
+                .expect("could not create plugin");
+                let database = plugin.as_super().get_db().expect("could not get database");
+                test(Fixtures {
+                    plugin,
+                    channel: module
+                        .getattr("Channel")
+                        .and_then(|channel| channel.call0())
+                        .expect("could not create channel"),
+                    database,
+                    player: module
+                        .getattr("Player")
+                        .and_then(|player| player.call1((steam_id_of_caller,)))
+                        .expect("could not create player"),
                 });
             });
+        });
     }
 
     fn msg(words: &[&str]) -> Vec<String> {
@@ -360,7 +400,7 @@ class Player:
         _pyshinqlx_setup: (),
         #[case] words: &[&str],
     ) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             let result = Permission::cmd_setperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -374,7 +414,6 @@ class Player:
     }
 
     #[rstest]
-    #[case(&["setperm", "abc", "3"], "Invalid ID. Use either a client ID or a SteamID64.")]
     #[case(&["setperm", "12345678901", "6"], "Invalid permission level. Use a level between 0 and 5.")]
     #[case(&["setperm", "12345678901", "-1"], "Invalid permission level. Use a level between 0 and 5.")]
     #[case(&["setperm", "12345678901", "x"], "Invalid permission level. Use a level between 0 and 5.")]
@@ -385,7 +424,7 @@ class Player:
         #[case] words: &[&str],
         #[case] expected: &str,
     ) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             let result = Permission::cmd_setperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -403,7 +442,7 @@ class Player:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn setperm_stores_the_level_of_a_steam_id(_pyshinqlx_setup: ()) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             let result = Permission::cmd_setperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -428,7 +467,7 @@ class Player:
         _pyshinqlx_setup: (),
         #[case] words: &[&str],
     ) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             let result = Permission::cmd_getperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -441,7 +480,116 @@ class Player:
     }
 
     #[rstest]
-    #[case("abc", "Invalid ID. Use either a client ID or a SteamID64.")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn setperm_with_an_unknown_name_tells_the_caller_and_changes_nothing(_pyshinqlx_setup: ()) {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
+            let result = Permission::cmd_setperm(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["setperm", "abc", "3"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(
+                fixtures.told(),
+                ["Sorry, but no players matched your tokens: abc."]
+            );
+            assert!(fixtures.replies().is_empty());
+            assert!(fixtures.calls().is_empty());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn setperm_by_name_stores_the_level_of_the_found_player(_pyshinqlx_setup: ()) {
+        with_fixtures(OTHER_ID, &[(0, "Ada"), (2, "Bob")], |fixtures| {
+            let result = Permission::cmd_setperm(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["setperm", "bob", "3"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(fixtures.calls(), [(1002, 3)]);
+            assert_eq!(
+                fixtures.replies(),
+                ["^6Bob^7 was given permission level ^63^7."]
+            );
+            assert!(fixtures.told().is_empty());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn setperm_by_an_ambiguous_name_lists_the_candidates_and_changes_nothing(_pyshinqlx_setup: ()) {
+        with_fixtures(OTHER_ID, &[(0, "Bob"), (1, "Bobby")], |fixtures| {
+            let result = Permission::cmd_setperm(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["setperm", "bob", "3"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(
+                fixtures.told(),
+                [
+                    "A total of ^62^7 players matched for bob:",
+                    "  0^6:^7 Bob\n  1^6:^7 Bobby"
+                ]
+            );
+            assert!(fixtures.replies().is_empty());
+            assert!(fixtures.calls().is_empty());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn getperm_by_name_replies_with_the_level_of_the_found_player(_pyshinqlx_setup: ()) {
+        with_fixtures(OTHER_ID, &[(0, "Ada"), (2, "Bob")], |fixtures| {
+            fixtures.know(1000, 4);
+
+            let result = Permission::cmd_getperm(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["getperm", "ada"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(fixtures.replies(), ["^6Ada^7 has permission level ^64^7."]);
+            assert!(fixtures.told().is_empty());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn getperm_with_an_unknown_name_tells_the_caller(_pyshinqlx_setup: ()) {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
+            let result = Permission::cmd_getperm(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["getperm", "abc"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(
+                fixtures.told(),
+                ["Sorry, but no players matched your tokens: abc."]
+            );
+            assert!(fixtures.replies().is_empty());
+        });
+    }
+
+    #[rstest]
     #[case("76561198000000001", "That's my master.")]
     #[case("76561198000000002", "I do not know ^676561198000000002^7.")]
     #[cfg_attr(miri, ignore)]
@@ -451,7 +599,7 @@ class Player:
         #[case] ident: &str,
         #[case] expected: &str,
     ) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             let result = Permission::cmd_getperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -468,7 +616,7 @@ class Player:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn getperm_replies_with_the_known_level(_pyshinqlx_setup: ()) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             fixtures.know(OTHER_ID, 4);
 
             let result = Permission::cmd_getperm(
@@ -490,7 +638,7 @@ class Player:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn myperm_greets_the_owner(_pyshinqlx_setup: ()) {
-        with_fixtures(OWNER_ID, |fixtures| {
+        with_fixtures(OWNER_ID, &[], |fixtures| {
             let result = Permission::cmd_myperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -507,7 +655,7 @@ class Player:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn myperm_does_not_know_unregistered_players(_pyshinqlx_setup: ()) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             let result = Permission::cmd_myperm(
                 &fixtures.plugin,
                 &fixtures.player,
@@ -524,7 +672,7 @@ class Player:
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn myperm_replies_with_the_known_level(_pyshinqlx_setup: ()) {
-        with_fixtures(OTHER_ID, |fixtures| {
+        with_fixtures(OTHER_ID, &[], |fixtures| {
             fixtures.know(OTHER_ID, 2);
 
             let result = Permission::cmd_myperm(

@@ -17,6 +17,12 @@ static NATIVE_PLUGINS: [(&str, Constructor); 3] = [
     ("workshop", workshop::create),
 ];
 
+/// Removes the color reset that `Player.name` appends, so that a reply which ends the name with a
+/// color reset of its own does not repeat it.
+fn without_trailing_color_reset(name: &str) -> &str {
+    name.strip_suffix("^7").unwrap_or(name)
+}
+
 fn register_hook(
     plugin: &Bound<'_, Plugin>,
     event: &str,
@@ -76,8 +82,19 @@ mod native_plugins_tests {
     use pyo3::prelude::*;
     use rstest::rstest;
 
-    use super::{create_native_plugin, has_native_plugin};
+    use super::{create_native_plugin, has_native_plugin, without_trailing_color_reset};
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+
+    #[rstest]
+    #[case("Ada^7", "Ada")]
+    #[case("^1Ada^7", "^1Ada")]
+    #[case("Ada", "Ada")]
+    #[case("Ada^2", "Ada^2")]
+    #[case("^7", "")]
+    #[case("", "")]
+    fn the_trailing_color_reset_of_a_name_is_removed(#[case] name: &str, #[case] expected: &str) {
+        assert_eq!(without_trailing_color_reset(name), expected);
+    }
 
     #[rstest]
     #[case("workshop", true)]

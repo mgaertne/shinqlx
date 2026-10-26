@@ -5954,12 +5954,75 @@ pub(crate) mod pyshinqlx_test_support {
     use alloc::ffi::CString;
     use core::fmt::Debug;
 
+    use mockall::predicate;
     use pyo3::{intern, prelude::*};
 
     use super::{
         Command, Flight, Holdable, Player, PlayerInfo, PlayerState, Powerups, Vector3, Weapons,
     };
-    use crate::ffi::c::prelude::{clientState_t, privileges_t, team_t, weapon_t};
+    use crate::{
+        ffi::c::prelude::{
+            MockClient, MockGameEntity, clientState_t, privileges_t, team_t, weapon_t,
+        },
+        prelude::MockEngineBuilder,
+    };
+
+    /// Runs the test with the given `(client id, name)` players connected to the mocked engine.
+    /// All other client slots up to the highest id are free.
+    pub(crate) fn with_connected_players<F>(
+        engine: MockEngineBuilder,
+        players: &[(i32, &'static str)],
+        test: F,
+    ) where
+        F: FnOnce(),
+    {
+        let slots = players.iter().map(|(id, _)| id + 1).max().unwrap_or(0);
+
+        let clients = MockClient::from_context();
+        for id in 0..slots {
+            let connected = players.iter().any(|(player_id, _)| *player_id == id);
+            clients
+                .expect()
+                .with(predicate::eq(id))
+                .returning(move |_client_id| {
+                    let mut client = MockClient::new();
+                    client.expect_get_state().returning(move || {
+                        if connected {
+                            clientState_t::CS_ACTIVE
+                        } else {
+                            clientState_t::CS_FREE
+                        }
+                    });
+                    client.expect_get_user_info().returning(|| "asdf".into());
+                    client
+                        .expect_get_steam_id()
+                        .returning(move || 1000 + u64::try_from(id).unwrap_or_default());
+                    client
+                });
+        }
+
+        let entities = MockGameEntity::from_context();
+        for (id, name) in players {
+            let name = *name;
+            entities
+                .expect()
+                .with(predicate::eq(*id))
+                .returning(move |_client_id| {
+                    let mut entity = MockGameEntity::new();
+                    entity
+                        .expect_get_player_name()
+                        .returning(move || name.to_string());
+                    entity.expect_get_team().returning(|| team_t::TEAM_RED);
+                    entity
+                        .expect_get_privileges()
+                        .returning(|| privileges_t::PRIV_NONE);
+                    entity
+                });
+        }
+
+        let mut engine = engine.with_max_clients(slots);
+        engine.run(test);
+    }
 
     pub(crate) struct RestoredAttribute<'py> {
         owner: Bound<'py, PyAny>,
