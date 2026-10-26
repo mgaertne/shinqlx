@@ -44,7 +44,7 @@ impl PartialEq for Game {
 #[pymethods]
 impl Game {
     #[new]
-    #[pyo3(signature = (cached = true), text_signature = "(cached = true)")]
+    #[pyo3(signature = (cached = true), text_signature = "(cached = True)")]
     pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.detach(|| {
             MAIN_ENGINE.load().as_ref().map_or(

@@ -1294,7 +1294,7 @@ mod set_map_subtitles_tests {
 /// them into a dictionary.
 #[pyfunction]
 #[pyo3(name = "parse_variables")]
-#[pyo3(signature = (varstr, ordered = false), text_signature = "(varstr, ordered = false)")]
+#[pyo3(signature = (varstr, ordered = false), text_signature = "(varstr, ordered = False)")]
 fn pyshinqlx_parse_variables<'py>(
     py: Python<'py>,
     varstr: &str,
@@ -3152,6 +3152,59 @@ fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     try_reload_plugin(py, &reload_target).tap_err(|e| {
         log_exception(py, e);
     })
+}
+
+#[cfg(test)]
+mod python_signature_tests {
+    use pyo3::{intern, prelude::*};
+    use rstest::rstest;
+
+    use super::prelude::pyshinqlx_setup;
+    use crate::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn all_text_signatures_are_valid_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let broken = PyModule::from_code(
+                py,
+                cr#"
+import inspect
+
+import shinqlx
+
+
+def broken_signatures():
+    found = []
+    for name in dir(shinqlx):
+        obj = getattr(shinqlx, name)
+        targets = [(name, obj)]
+        if inspect.isclass(obj):
+            targets += [
+                (f"{name}.{attr}", getattr(obj, attr, None))
+                for attr in dir(obj)
+                if not attr.startswith("__") or attr in ("__init__", "__new__")
+            ]
+        for label, target in targets:
+            if getattr(target, "__text_signature__", None) is None:
+                continue
+            try:
+                inspect.signature(target)
+            except Exception as error:
+                found.append(f"{label}: {type(error).__name__}: {error}")
+    return found
+"#,
+                c"",
+                c"",
+            )
+            .and_then(|module| module.call_method0(intern!(py, "broken_signatures")))
+            .and_then(|found| found.extract::<Vec<String>>())
+            .expect("could not check the signatures");
+
+            assert!(broken.is_empty(), "invalid signatures: {broken:#?}");
+        });
+    }
 }
 
 #[cfg(test)]

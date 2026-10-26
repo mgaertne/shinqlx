@@ -131,7 +131,7 @@ impl Plugin {
         slf.get_logger()
     }
 
-    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = 2)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
         event: &str,
@@ -141,7 +141,7 @@ impl Plugin {
         slf.add_hook(event, handler, priority)
     }
 
-    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = 2)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
         event: &str,
@@ -163,7 +163,7 @@ impl Plugin {
         client_cmd_perm = 5,
         prefix = true,
         usage = ""),
-    text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = false, client_cmd_perm = 0, prefix = true, usage = \"\")")]
+    text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = 2, client_cmd_pass = False, client_cmd_perm = 0, prefix = True, usage = \"\")")]
     #[allow(clippy::too_many_arguments)]
     fn add_command(
         slf: &Bound<'_, Self>,
@@ -202,7 +202,7 @@ impl Plugin {
 
     /// Gets the value of a cvar as a string.
     #[classmethod]
-    #[pyo3(signature = (name, return_type = None), text_signature = "(name, return_type=str)")]
+    #[pyo3(signature = (name, return_type = None), text_signature = "(name, return_type = None)")]
     fn get_cvar<'py>(
         cls: &Bound<'py, PyType>,
         name: &str,
