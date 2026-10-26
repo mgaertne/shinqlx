@@ -3208,6 +3208,78 @@ def broken_signatures():
 }
 
 #[cfg(test)]
+mod python_stub_tests {
+    use pyo3::{intern, prelude::*};
+    use rstest::rstest;
+
+    use super::prelude::pyshinqlx_setup;
+    use crate::prelude::*;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn everything_the_stubs_declare_exists_at_runtime(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let missing = PyModule::from_code(
+                py,
+                cr#"
+import ast
+import pathlib
+
+import shinqlx
+
+TYPING_ONLY = {"NamedTuple", "Protocol", "TypedDict"}
+
+
+def resolve(class_name):
+    for holder in (shinqlx, shinqlx.database):
+        found = getattr(holder, class_name, None)
+        if found is not None:
+            return found
+    return None
+
+
+def missing_members(stub_directory):
+    found = []
+    for stub in sorted(pathlib.Path(stub_directory).glob("*.pyi")):
+        tree = ast.parse(stub.read_text())
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef):
+                if not hasattr(shinqlx, node.name):
+                    found.append(f"{stub.name}: function {node.name}")
+            elif isinstance(node, ast.ClassDef):
+                if TYPING_ONLY & {getattr(base, "id", None) for base in node.bases}:
+                    continue
+                runtime_class = resolve(node.name)
+                if runtime_class is None:
+                    found.append(f"{stub.name}: class {node.name}")
+                    continue
+                for member in node.body:
+                    if not isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        continue
+                    if member.name.startswith("__") or hasattr(runtime_class, member.name):
+                        continue
+                    found.append(f"{stub.name}: {node.name}.{member.name}")
+    return sorted(set(found))
+"#,
+                c"",
+                c"",
+            )
+            .and_then(|module| {
+                module.call_method1(
+                    intern!(py, "missing_members"),
+                    (concat!(env!("CARGO_MANIFEST_DIR"), "/python/shinqlx"),),
+                )
+            })
+            .and_then(|found| found.extract::<Vec<String>>())
+            .expect("could not compare the stubs with the runtime");
+
+            assert!(missing.is_empty(), "declared but missing: {missing:#?}");
+        });
+    }
+}
+
+#[cfg(test)]
 mod plugin_source_tests {
     use rstest::rstest;
 
