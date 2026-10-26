@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -23,9 +23,212 @@ if TYPE_CHECKING:
     )
     from shinqlx.database import Redis
 
-_Handler = TypeVar("_Handler", bound=Callable[..., Any])
+_PluginT = TypeVar("_PluginT", bound="Plugin")
 
-def hook(event: str, priority: int | None = ...) -> Callable[[_Handler], _Handler]: ...
+_ConsolePrintHookHandler = Callable[[str], str | CancellableEventReturn]
+_ConsolePrintHookMethod = Callable[[_PluginT, str], str | CancellableEventReturn]
+_CommandHookHandler = Callable[[Player, Command, str], CancellableEventReturn]
+_CommandHookMethod = Callable[[_PluginT, Player, Command, str], CancellableEventReturn]
+_ClientCommandHookHandler = Callable[[Player | None, str], str | bool | CancellableEventReturn]
+_ClientCommandHookMethod = Callable[[_PluginT, Player | None, str], str | bool | CancellableEventReturn]
+_ServerCommandHookHandler = Callable[[Player | None, str], str | CancellableEventReturn]
+_ServerCommandHookMethod = Callable[[_PluginT, Player | None, str], str | CancellableEventReturn]
+_FrameHookHandler = Callable[[], UncancellableEventReturn]
+_FrameHookMethod = Callable[[_PluginT], UncancellableEventReturn]
+_SetConfigstringHookHandler = Callable[[int, str], str | CancellableEventReturn]
+_SetConfigstringHookMethod = Callable[[_PluginT, int, str], str | CancellableEventReturn]
+_ChatHookHandler = Callable[[Player, str, AbstractChannel], str | CancellableEventReturn]
+_ChatHookMethod = Callable[[_PluginT, Player, str, AbstractChannel], str | CancellableEventReturn]
+_UnloadHookHandler = Callable[[Plugin], UncancellableEventReturn]
+_UnloadHookMethod = Callable[[_PluginT, Plugin], UncancellableEventReturn]
+_PlayerConnectHookHandler = Callable[[Player], str | CancellableEventReturn]
+_PlayerConnectHookMethod = Callable[[_PluginT, Player], str | CancellableEventReturn]
+_PlayerLoadedHookHandler = Callable[[Player], UncancellableEventReturn]
+_PlayerLoadedHookMethod = Callable[[_PluginT, Player], UncancellableEventReturn]
+_PlayerDisconnectHookHandler = Callable[[Player, str | None], UncancellableEventReturn]
+_PlayerDisconnectHookMethod = Callable[[_PluginT, Player, str | None], UncancellableEventReturn]
+_PlayerSpawnHookHandler = Callable[[Player], UncancellableEventReturn]
+_PlayerSpawnHookMethod = Callable[[_PluginT, Player], UncancellableEventReturn]
+_StatsHookHandler = Callable[[StatsData], UncancellableEventReturn]
+_StatsHookMethod = Callable[[_PluginT, StatsData], UncancellableEventReturn]
+_VoteCalledHookHandler = Callable[[Player, str, str | None], CancellableEventReturn]
+_VoteCalledHookMethod = Callable[[_PluginT, Player, str, str | None], CancellableEventReturn]
+_VoteStartedHookHandler = Callable[[Player, str, str | None], CancellableEventReturn]
+_VoteStartedHookMethod = Callable[[_PluginT, Player, str, str | None], CancellableEventReturn]
+_VoteEndedHookHandler = Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn]
+_VoteEndedHookMethod = Callable[[_PluginT, tuple[int, int], str, str | None, bool], CancellableEventReturn]
+_VoteHookHandler = Callable[[Player, bool], CancellableEventReturn]
+_VoteHookMethod = Callable[[_PluginT, Player, bool], CancellableEventReturn]
+_GameCountdownHookHandler = Callable[[], CancellableEventReturn]
+_GameCountdownHookMethod = Callable[[_PluginT], CancellableEventReturn]
+_GameStartHookHandler = Callable[[GameStartData], CancellableEventReturn]
+_GameStartHookMethod = Callable[[_PluginT, GameStartData], CancellableEventReturn]
+_GameEndHookHandler = Callable[[GameEndData], CancellableEventReturn]
+_GameEndHookMethod = Callable[[_PluginT, GameEndData], CancellableEventReturn]
+_RoundCountdownHookHandler = Callable[[int], CancellableEventReturn]
+_RoundCountdownHookMethod = Callable[[_PluginT, int], CancellableEventReturn]
+_RoundStartHookHandler = Callable[[int], CancellableEventReturn]
+_RoundStartHookMethod = Callable[[_PluginT, int], CancellableEventReturn]
+_RoundEndHookHandler = Callable[[RoundEndData], CancellableEventReturn]
+_RoundEndHookMethod = Callable[[_PluginT, RoundEndData], CancellableEventReturn]
+_TeamSwitchHookHandler = Callable[[Player, str, str], CancellableEventReturn]
+_TeamSwitchHookMethod = Callable[[_PluginT, Player, str, str], CancellableEventReturn]
+_TeamSwitchAttemptHookHandler = Callable[[Player, str, str], CancellableEventReturn]
+_TeamSwitchAttemptHookMethod = Callable[[_PluginT, Player, str, str], CancellableEventReturn]
+_MapHookHandler = Callable[[str, str], CancellableEventReturn]
+_MapHookMethod = Callable[[_PluginT, str, str], CancellableEventReturn]
+_NewGameHookHandler = Callable[[], CancellableEventReturn]
+_NewGameHookMethod = Callable[[_PluginT], CancellableEventReturn]
+_KillHookHandler = Callable[[Player, Player, KillData], CancellableEventReturn]
+_KillHookMethod = Callable[[_PluginT, Player, Player, KillData], CancellableEventReturn]
+_DeathHookHandler = Callable[[Player, Player | None, DeathData], CancellableEventReturn]
+_DeathHookMethod = Callable[[_PluginT, Player, Player | None, DeathData], CancellableEventReturn]
+_UserinfoHookHandler = Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
+_UserinfoHookMethod = Callable[[_PluginT, Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
+_KamikazeUseHookHandler = Callable[[Player], CancellableEventReturn]
+_KamikazeUseHookMethod = Callable[[_PluginT, Player], CancellableEventReturn]
+_KamikazeExplodeHookHandler = Callable[[Player, bool], CancellableEventReturn]
+_KamikazeExplodeHookMethod = Callable[[_PluginT, Player, bool], CancellableEventReturn]
+_DamageHookHandler = Callable[[Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn]
+_DamageHookMethod = Callable[
+    [_PluginT, Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
+]
+
+_CommandHandler = Callable[[Player, list[str], AbstractChannel], int | None]
+_CommandMethod = Callable[[_PluginT, Player, list[str], AbstractChannel], int | None]
+
+@overload
+def hook(
+    event: Literal["console_print"], priority: int | None = ...
+) -> Callable[[_ConsolePrintHookMethod[_PluginT]], _ConsolePrintHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["command"], priority: int | None = ...
+) -> Callable[[_CommandHookMethod[_PluginT]], _CommandHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["client_command"], priority: int | None = ...
+) -> Callable[[_ClientCommandHookMethod[_PluginT]], _ClientCommandHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["server_command"], priority: int | None = ...
+) -> Callable[[_ServerCommandHookMethod[_PluginT]], _ServerCommandHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["frame"], priority: int | None = ...
+) -> Callable[[_FrameHookMethod[_PluginT]], _FrameHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["set_configstring"], priority: int | None = ...
+) -> Callable[[_SetConfigstringHookMethod[_PluginT]], _SetConfigstringHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["chat"], priority: int | None = ...
+) -> Callable[[_ChatHookMethod[_PluginT]], _ChatHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["unload"], priority: int | None = ...
+) -> Callable[[_UnloadHookMethod[_PluginT]], _UnloadHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["player_connect"], priority: int | None = ...
+) -> Callable[[_PlayerConnectHookMethod[_PluginT]], _PlayerConnectHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["player_loaded"], priority: int | None = ...
+) -> Callable[[_PlayerLoadedHookMethod[_PluginT]], _PlayerLoadedHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["player_disconnect"], priority: int | None = ...
+) -> Callable[[_PlayerDisconnectHookMethod[_PluginT]], _PlayerDisconnectHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["player_spawn"], priority: int | None = ...
+) -> Callable[[_PlayerSpawnHookMethod[_PluginT]], _PlayerSpawnHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["stats"], priority: int | None = ...
+) -> Callable[[_StatsHookMethod[_PluginT]], _StatsHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["vote_called"], priority: int | None = ...
+) -> Callable[[_VoteCalledHookMethod[_PluginT]], _VoteCalledHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["vote_started"], priority: int | None = ...
+) -> Callable[[_VoteStartedHookMethod[_PluginT]], _VoteStartedHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["vote_ended"], priority: int | None = ...
+) -> Callable[[_VoteEndedHookMethod[_PluginT]], _VoteEndedHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["vote"], priority: int | None = ...
+) -> Callable[[_VoteHookMethod[_PluginT]], _VoteHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["game_countdown"], priority: int | None = ...
+) -> Callable[[_GameCountdownHookMethod[_PluginT]], _GameCountdownHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["game_start"], priority: int | None = ...
+) -> Callable[[_GameStartHookMethod[_PluginT]], _GameStartHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["game_end"], priority: int | None = ...
+) -> Callable[[_GameEndHookMethod[_PluginT]], _GameEndHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["round_countdown"], priority: int | None = ...
+) -> Callable[[_RoundCountdownHookMethod[_PluginT]], _RoundCountdownHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["round_start"], priority: int | None = ...
+) -> Callable[[_RoundStartHookMethod[_PluginT]], _RoundStartHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["round_end"], priority: int | None = ...
+) -> Callable[[_RoundEndHookMethod[_PluginT]], _RoundEndHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["team_switch"], priority: int | None = ...
+) -> Callable[[_TeamSwitchHookMethod[_PluginT]], _TeamSwitchHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["team_switch_attempt"], priority: int | None = ...
+) -> Callable[[_TeamSwitchAttemptHookMethod[_PluginT]], _TeamSwitchAttemptHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["map"], priority: int | None = ...
+) -> Callable[[_MapHookMethod[_PluginT]], _MapHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["new_game"], priority: int | None = ...
+) -> Callable[[_NewGameHookMethod[_PluginT]], _NewGameHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["kill"], priority: int | None = ...
+) -> Callable[[_KillHookMethod[_PluginT]], _KillHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["death"], priority: int | None = ...
+) -> Callable[[_DeathHookMethod[_PluginT]], _DeathHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["userinfo"], priority: int | None = ...
+) -> Callable[[_UserinfoHookMethod[_PluginT]], _UserinfoHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["kamikaze_use"], priority: int | None = ...
+) -> Callable[[_KamikazeUseHookMethod[_PluginT]], _KamikazeUseHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["kamikaze_explode"], priority: int | None = ...
+) -> Callable[[_KamikazeExplodeHookMethod[_PluginT]], _KamikazeExplodeHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["damage"], priority: int | None = ...
+) -> Callable[[_DamageHookMethod[_PluginT]], _DamageHookMethod[_PluginT]]: ...
 def command(
     name: str | Iterable[str],
     *,
@@ -37,7 +240,7 @@ def command(
     client_cmd_perm: int = ...,
     prefix: bool = ...,
     usage: str = ...,
-) -> Callable[[_Handler], _Handler]: ...
+) -> Callable[[_CommandMethod[_PluginT]], _CommandMethod[_PluginT]]: ...
 
 class Plugin:
     _loaded_plugins: ClassVar[dict[str, Plugin]] = ...
@@ -223,486 +426,468 @@ class Plugin:
     def add_hook(
         self,
         event: Literal["console_print"],
-        handler: Callable[
-            [str],
-            str | CancellableEventReturn,
-        ],
+        handler: _ConsolePrintHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["command"],
-        handler: Callable[
-            [Player, Command, str],
-            CancellableEventReturn,
-        ],
+        handler: _CommandHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["client_command"],
-        handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
+        handler: _ClientCommandHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["server_command"],
-        handler: Callable[[Player | None, str], str | CancellableEventReturn],
+        handler: _ServerCommandHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["frame"],
-        handler: Callable[[], UncancellableEventReturn],
+        handler: _FrameHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["set_configstring"],
-        handler: Callable[[int, str], str | CancellableEventReturn],
+        handler: _SetConfigstringHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["chat"],
-        handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
+        handler: _ChatHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["unload"],
-        handler: Callable[[Plugin], UncancellableEventReturn],
+        handler: _UnloadHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["player_connect"],
-        handler: Callable[[Player], str | CancellableEventReturn],
+        handler: _PlayerConnectHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["player_loaded"],
-        handler: Callable[[Player], UncancellableEventReturn],
+        handler: _PlayerLoadedHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["player_disconnect"],
-        handler: Callable[[Player, str | None], UncancellableEventReturn],
+        handler: _PlayerDisconnectHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["player_spawn"],
-        handler: Callable[[Player], UncancellableEventReturn],
+        handler: _PlayerSpawnHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["stats"],
-        handler: Callable[[StatsData], UncancellableEventReturn],
+        handler: _StatsHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["vote_called"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        handler: _VoteCalledHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["vote_started"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        handler: _VoteStartedHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["vote_ended"],
-        handler: Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn],
+        handler: _VoteEndedHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["vote"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
+        handler: _VoteHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["game_countdown"],
-        handler: Callable[[], CancellableEventReturn],
+        handler: _GameCountdownHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["game_start"],
-        handler: Callable[[GameStartData], CancellableEventReturn],
+        handler: _GameStartHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["game_end"],
-        handler: Callable[[GameEndData], CancellableEventReturn],
+        handler: _GameEndHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["round_countdown"],
-        handler: Callable[[int], CancellableEventReturn],
+        handler: _RoundCountdownHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["round_start"],
-        handler: Callable[[int], CancellableEventReturn],
+        handler: _RoundStartHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["round_end"],
-        handler: Callable[[RoundEndData], CancellableEventReturn],
+        handler: _RoundEndHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["team_switch"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
+        handler: _TeamSwitchHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["team_switch_attempt"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
+        handler: _TeamSwitchAttemptHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["map"],
-        handler: Callable[[str, str], CancellableEventReturn],
+        handler: _MapHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["new_game"],
-        handler: Callable[[], CancellableEventReturn],
+        handler: _NewGameHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["kill"],
-        handler: Callable[[Player, Player, KillData], CancellableEventReturn],
+        handler: _KillHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["death"],
-        handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
+        handler: _DeathHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["userinfo"],
-        handler: Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn],
+        handler: _UserinfoHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["kamikaze_use"],
-        handler: Callable[[Player], CancellableEventReturn],
+        handler: _KamikazeUseHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["kamikaze_explde"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
+        event: Literal["kamikaze_explode"],
+        handler: _KamikazeExplodeHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
         event: Literal["damage"],
-        handler: Callable[
-            [Player | int | None, Player | int | None, int, int, int],
-            UncancellableEventReturn,
-        ],
+        handler: _DamageHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["console_print"],
-        handler: Callable[
-            [str],
-            str | CancellableEventReturn,
-        ],
+        handler: _ConsolePrintHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["command"],
-        handler: Callable[
-            [Player, Command, str],
-            CancellableEventReturn,
-        ],
+        handler: _CommandHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["client_command"],
-        handler: Callable[[Player | None, str], str | bool | CancellableEventReturn],
+        handler: _ClientCommandHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["server_command"],
-        handler: Callable[[Player | None, str], str | CancellableEventReturn],
+        handler: _ServerCommandHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["frame"],
-        handler: Callable[[], UncancellableEventReturn],
+        handler: _FrameHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["set_configstring"],
-        handler: Callable[[int, str], str | CancellableEventReturn],
+        handler: _SetConfigstringHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["chat"],
-        handler: Callable[[Player, str, AbstractChannel], str | CancellableEventReturn],
+        handler: _ChatHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["unload"],
-        handler: Callable[[Plugin], UncancellableEventReturn],
+        handler: _UnloadHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["player_connect"],
-        handler: Callable[[Player], str | CancellableEventReturn],
+        handler: _PlayerConnectHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["player_loaded"],
-        handler: Callable[[Player], UncancellableEventReturn],
+        handler: _PlayerLoadedHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["player_disconnect"],
-        handler: Callable[[Player, str | None], UncancellableEventReturn],
+        handler: _PlayerDisconnectHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["player_spawn"],
-        handler: Callable[[Player], UncancellableEventReturn],
+        handler: _PlayerSpawnHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["stats"],
-        handler: Callable[[StatsData], UncancellableEventReturn],
+        handler: _StatsHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["vote_called"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        handler: _VoteCalledHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["vote_started"],
-        handler: Callable[[Player, str, str | None], CancellableEventReturn],
+        handler: _VoteStartedHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["vote_ended"],
-        handler: Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn],
+        handler: _VoteEndedHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["vote"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
+        handler: _VoteHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["game_countdown"],
-        handler: Callable[[], CancellableEventReturn],
+        handler: _GameCountdownHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["game_start"],
-        handler: Callable[[GameStartData], CancellableEventReturn],
+        handler: _GameStartHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["game_end"],
-        handler: Callable[[GameEndData], CancellableEventReturn],
+        handler: _GameEndHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["round_countdown"],
-        handler: Callable[[int], CancellableEventReturn],
+        handler: _RoundCountdownHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["round_start"],
-        handler: Callable[[int], CancellableEventReturn],
+        handler: _RoundStartHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["round_end"],
-        handler: Callable[[RoundEndData], CancellableEventReturn],
+        handler: _RoundEndHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["team_switch"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
+        handler: _TeamSwitchHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["team_switch_attempt"],
-        handler: Callable[[Player, str, str], CancellableEventReturn],
+        handler: _TeamSwitchAttemptHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["map"],
-        handler: Callable[[str, str], CancellableEventReturn],
+        handler: _MapHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["new_game"],
-        handler: Callable[[], CancellableEventReturn],
+        handler: _NewGameHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["kill"],
-        handler: Callable[[Player, Player, KillData], CancellableEventReturn],
+        handler: _KillHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["death"],
-        handler: Callable[[Player, Player | None, DeathData], CancellableEventReturn],
+        handler: _DeathHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["userinfo"],
-        handler: Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn],
+        handler: _UserinfoHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["kamikaze_use"],
-        handler: Callable[[Player], CancellableEventReturn],
+        handler: _KamikazeUseHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["kamikaze_explde"],
-        handler: Callable[[Player, bool], CancellableEventReturn],
+        event: Literal["kamikaze_explode"],
+        handler: _KamikazeExplodeHookHandler,
         priority: int = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
         event: Literal["damage"],
-        handler: Callable[
-            [Player | int | None, Player | int | None, int, int, int],
-            UncancellableEventReturn,
-        ],
+        handler: _DamageHookHandler,
         priority: int = ...,
     ) -> None: ...
     def add_command(
         self,
         name: str | Iterable[str],
-        handler: Callable[[Player, str | list[str], AbstractChannel], CancellableEventReturn],
+        handler: _CommandHandler,
         permission: int = ...,
         channels: Iterable[AbstractChannel] | None = ...,
         exclude_channels: Iterable[AbstractChannel] = ...,
@@ -715,5 +900,5 @@ class Plugin:
     def remove_command(
         self,
         name: Iterable[str],
-        handler: Callable[[Player, str, AbstractChannel], CancellableEventReturn],
+        handler: _CommandHandler,
     ) -> None: ...
