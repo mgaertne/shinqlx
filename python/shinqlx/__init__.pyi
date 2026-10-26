@@ -128,7 +128,7 @@ from ._player import (
     Player,
     RconDummyPlayer,
 )
-from ._plugin import Plugin
+from ._plugin import Plugin, command, hook
 from ._shinqlx import (
     CS_ACTIVE,
     CS_CONNECTED,
@@ -898,6 +898,7 @@ __all__ = [
     "allow_single_player",
     "callvote",
     "client_command",
+    "command",
     "console_command",
     "console_print",
     "database",
@@ -928,6 +929,7 @@ __all__ = [
     "handle_rcon",
     "handle_server_command",
     "handle_set_configstring",
+    "hook",
     "initialize",
     "initialize_cvars",
     "kick",

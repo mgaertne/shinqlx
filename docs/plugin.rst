@@ -786,3 +786,46 @@ Plugins
       Set the match time to the one provided.
 
       :param int time: The new match time.
+
+
+Declaring hooks and commands with decorators
+--------------------------------------------
+
+.. note::
+   The decorators are only available in ``shinqlx``, they are not provided by the ``minqlx`` compatibility
+   layer.
+
+Instead of calling :meth:`Plugin.add_hook` and :meth:`Plugin.add_command` in the constructor, a plugin can declare
+its hooks and commands directly on the methods that handle them. The hooks and commands are registered when the
+plugin is loaded, and they are removed again when it is unloaded or reloaded, just like those added manually.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class greeter(shinqlx.Plugin):
+       @shinqlx.hook("player_connect", priority=shinqlx.PRI_LOW)
+       def greet_new_player(self, player):
+           self.msg(f"Welcome, {player.name}^7!")
+
+       @shinqlx.command("hello", permission=1, usage="<name>")
+       def cmd_hello(self, player, msg, channel):
+           channel.reply(f"Hello {player.name}^7!")
+
+.. function:: hook(event, priority = PRI_NORMAL)
+
+   Hooks the decorated method to an event. A method can be decorated multiple times to hook it to several events.
+
+   :param str event: The name of the event to hook the method to.
+   :param int priority: The priority of the hook. (default: ``PRI_NORMAL``)
+
+.. function:: command(name, **options)
+
+   Makes the decorated method a command. A method can be decorated multiple times.
+
+   :param str | Iterable[str] name: The name or names of the command.
+   :param options: The remaining arguments of :meth:`Plugin.add_command`, i.e. ``permission``, ``channels``,
+      ``exclude_channels``, ``priority``, ``client_cmd_pass``, ``client_cmd_perm``, ``prefix`` and ``usage``.
+
+   The decorated method has the same prototype as the ``handler`` of :meth:`Plugin.add_command`.
