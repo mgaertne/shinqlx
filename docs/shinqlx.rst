@@ -807,7 +807,7 @@ Functions
    plugin is known by ``name`` alone, so :func:`unload_plugin`, :func:`reload_plugin` and ``Plugin.plugins`` do
    not take the prefix. The prefixes also work in the ``qlx_plugins`` cvar and for the ``!load`` command.
 
-   Built-in Rust plugins: ``log``, ``motd``, ``permission`` and ``workshop``.
+   Built-in Rust plugins: ``clan``, ``log``, ``motd``, ``names``, ``permission``, ``silence`` and ``workshop``.
 
    :param str plugin: The name of the plugin to load, optionally with a prefix.
    :raises PluginLoadError: if the plugin could not be loaded.
