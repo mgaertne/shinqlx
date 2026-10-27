@@ -596,11 +596,6 @@ Plugins
 
       Shuffle the players.
 
-   .. method:: cointoss()
-      :classmethod:
-
-      Does nothing. It only exists because ``minqlx.Plugin`` provides it, so plugins calling it keep working.
-
    .. method:: change_map(new_map, factory = None)
       :classmethod:
 

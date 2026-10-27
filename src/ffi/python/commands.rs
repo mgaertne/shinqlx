@@ -273,7 +273,7 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
                 })
         })?;
 
-        let msg_vec = msg.split(' ').collect::<Vec<_>>();
+        let msg_vec = msg.split_whitespace().collect::<Vec<_>>();
         self.get()
             .handler
             .bind(self.py())
@@ -764,6 +764,54 @@ class mocked_db:
                     .call_method1(
                         intern!(py, "assert_called_with"),
                         (default_test_player(), ["cmd"], py.None(),)
+                    )
+                    .is_ok()
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn execute_splits_the_message_at_any_whitespace(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let capturing_hook = capturing_hook(py);
+            let command = Command {
+                plugin: test_plugin(py)
+                    .call0()
+                    .expect("this should not happen")
+                    .unbind(),
+                name: vec!["cmd".to_string()],
+                handler: capturing_hook
+                    .getattr(intern!(py, "hook"))
+                    .expect("could not get capturing hook")
+                    .unbind(),
+                permission: 0,
+                channels: vec![].into(),
+                exclude_channels: vec![].into(),
+                client_cmd_pass: false,
+                client_cmd_perm: 0,
+                prefix: false,
+                usage: "".to_string(),
+            };
+
+            let result = Bound::new(py, command)
+                .expect("this should not happen")
+                .execute(
+                    &Bound::new(py, default_test_player()).expect("this should not happen"),
+                    "cmd  first\tsecond \n third ",
+                    py.None().bind(py),
+                );
+            assert!(result.is_ok());
+            assert!(
+                capturing_hook
+                    .call_method1(
+                        intern!(py, "assert_called_with"),
+                        (
+                            default_test_player(),
+                            ["cmd", "first", "second", "third"],
+                            py.None(),
+                        )
                     )
                     .is_ok()
             );
