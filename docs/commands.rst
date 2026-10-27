@@ -13,7 +13,6 @@ Commands
    :param int permission: The minimum permission a player trying to invoke this command needs.
    :param Iterable[AbstractChannel] channels: The channels this command can be triggered from.
    :param Iterable[AbstractChannel] exclude_channels: Explicit channels this command cannot be triggered from.
-   :param int priority: The priority for this command, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>`.
    :param bool client_cmd_pass: Flag whether this command should be passed to ``client_command`` and the general quake live engine.
    :param int client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel.
    :param bool prefix: Flag indicating whether this commands needs to be prefixed with the character in ``qlx_commandPrefix``
@@ -31,7 +30,7 @@ Commands
          def handle_cmd(
              self,
              player: Player,
-             msg: str,
+             msg: list[str],
              channel: AbstractChannel
            ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL | RET_USAGE
 

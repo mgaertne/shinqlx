@@ -152,7 +152,7 @@ Plugins
                                    def handle_player_disconnect(
                                        self,
                                        player: Player,
-                                       reason: str
+                                       reason: str | None
                                      ) ->  None | RET_NONE
       ``"player_spawn"``        .. code-block:: python
 
@@ -164,7 +164,7 @@ Plugins
 
                                    def handle_stats(
                                        self,
-                                       stats
+                                       stats: StatsData
                                      ) ->  None | RET_NONE
       ``"vote_called"``         .. code-block:: python
 
@@ -207,13 +207,13 @@ Plugins
 
                                    def handle_game_start(
                                        self,
-                                       data,
+                                       data: GameStartData
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"game_end"``            .. code-block:: python
 
                                    def handle_game_end(
                                        self,
-                                       data
+                                       data: GameEndData
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"round_countdown"``     .. code-block:: python
 
@@ -229,9 +229,9 @@ Plugins
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"round_end"``           .. code-block:: python
 
-                                   def handle_round_end
+                                   def handle_round_end(
                                        self,
-                                       data
+                                       data: RoundEndData
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"team_switch"``         .. code-block:: python
 
@@ -267,7 +267,7 @@ Plugins
                                        self,
                                        victim: Player,
                                        killer: Player,
-                                       data
+                                       data: KillData
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"death"``               .. code-block:: python
 
@@ -275,7 +275,7 @@ Plugins
                                        self,
                                        victim: Player,
                                        killer: Player | None,
-                                       data
+                                       data: DeathData
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"userinfo"``            .. code-block:: python
 
@@ -301,7 +301,7 @@ Plugins
 
                                    def handle_damage(
                                        self,
-                                       player: Player | int | None,
+                                       target: Player | int | None,
                                        attacker: Player | int | None,
                                        damage: int,
                                        dflags: int,
@@ -317,7 +317,7 @@ Plugins
       :param Callable handler: The handler for the ``event`` that should be removed from  this hook. See prototypes in :meth:`add_hook`
       :param int priority: The priority for this hook, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
 
-   .. method:: add_command(name, handler, permission = PRIV_NONE, channels = None, exclude_channels = (), priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 3, prefix = True, usage = "")
+   .. method:: add_command(name, handler, permission = PRIV_NONE, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = "")
 
       Add a command for this plugin.
 
@@ -328,10 +328,10 @@ Plugins
       :param Callable handler: The handler for the command. See below for a prototype.
       :param int permission: The minimum permission a player trying to invoke this command needs. (default: ``PRIV_NONE``, i.e. no special permissions needed)
       :param Iterable[AbstractChannel] | None channels: The channels this command can be triggered from. (default: ``None``, command can be triggered from any channel)
-      :param Iterable[AbstractChannel] exclude_channels: Explicit channels this command cannot be triggered from. (default: ``()``)
+      :param Iterable[AbstractChannel] exclude_channels: Explicit channels this command cannot be triggered from. (default: ``None``, no channels are excluded)
       :param int priority: The priority for this command, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
       :param bool client_cmd_pass: Flag whether this command should be passed to ``client_command`` and the general quake live engine. (default: ``False``)
-      :param int client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel. (default; 5, i.e. the owner and super-admins.)
+      :param int client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel. (default: ``5``, i.e. the owner and super-admins.)
       :param bool prefix: Flag indicating whether this commands needs to be prefixed with the character in ``qlx_commandPrefix``, (default: ``True``)
       :param str usage: Usage message shown to a player trying to invoke this command when the ``handler`` returns ``RET_USAGE``. (default: ``""``)
 
@@ -343,7 +343,7 @@ Plugins
             def handle_cmd(
                 self,
                 player: Player,
-                msg: str,
+                msg: list[str],
                 channel: AbstractChannel
               ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL | RET_USAGE
 
@@ -595,6 +595,11 @@ Plugins
       :classmethod:
 
       Shuffle the players.
+
+   .. method:: cointoss()
+      :classmethod:
+
+      Does nothing. It only exists because ``minqlx.Plugin`` provides it, so plugins calling it keep working.
 
    .. method:: change_map(new_map, factory = None)
       :classmethod:

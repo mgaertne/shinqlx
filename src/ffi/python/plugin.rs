@@ -225,7 +225,7 @@ impl Plugin {
         client_cmd_perm = 5,
         prefix = true,
         usage = ""),
-    text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 0, prefix = True, usage = \"\")")]
+    text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = \"\")")]
     #[allow(clippy::too_many_arguments)]
     fn add_command(
         slf: &Bound<'_, Self>,

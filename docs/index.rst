@@ -16,6 +16,7 @@ High-level classes and functions
 * :ref:`Game <game>`
 * :ref:`Channels <channels>`
 * :ref:`Database <database>`
+* :ref:`Built-in Rust plugins <native_plugins>`
 
 *******************************
 Low-level classes and functions
@@ -40,6 +41,7 @@ Indices and tables
    game
    channels
    database
+   native_plugins
    shinqlx
    commands
    events
