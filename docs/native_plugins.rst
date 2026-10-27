@@ -138,7 +138,6 @@ command                                    level   description
 ``!kickban <id>``, ``!tempban <id>``       2       Kicks a player for the remainder of the map.
 ``!yes``, ``!no``                          2       Passes or vetoes the current vote.
 ``!random <limit>``                        1       Announces a random number.
-``!cointoss``                              1       Tosses a coin.
 ``!switch <id> <id>``                      1       Swaps the teams of two players.
 ``!red <id>``, ``!blue <id>``              1       Moves a player to a team.
 ``!free <id>``                             1       Moves a player to the free team.

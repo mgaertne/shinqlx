@@ -935,9 +935,6 @@ impl Plugin {
     }
 
     #[classmethod]
-    fn cointoss(_cls: &Bound<'_, PyType>) {}
-
-    #[classmethod]
     #[pyo3(signature = (new_map, factory = None), text_signature = "(new_map, factory = None)")]
     fn change_map(cls: &Bound<'_, PyType>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
         cls.py().detach(|| {
@@ -4986,14 +4983,6 @@ mod plugin_tests {
                 let result = Python::attach(|py| Plugin::shuffle(&py.get_type::<Plugin>()));
                 assert!(result.is_ok());
             });
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    fn cointoss_does_nothing(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            Plugin::cointoss(&py.get_type::<Plugin>());
-        });
     }
 
     #[rstest]

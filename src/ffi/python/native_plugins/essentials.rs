@@ -1060,23 +1060,6 @@ impl Essentials {
         reply(channel, &format!("^3Random number is: ^5{number}"))
     }
 
-    fn cmd_cointoss(
-        slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
-        _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
-    ) -> PyResult<Option<i32>> {
-        let heads = slf
-            .py()
-            .import(intern!(slf.py(), "random"))?
-            .call_method1(intern!(slf.py(), "randint"), (0, 1))?
-            .is_truthy()?;
-        reply(
-            channel,
-            &format!("^3The coin is: ^5{}", if heads { "HEADS" } else { "TAILS" }),
-        )
-    }
-
     fn cmd_switch(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -1382,7 +1365,6 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         (&["yes"], "cmd_yes", 2, ""),
         (&["no"], "cmd_no", 2, ""),
         (&["random"], "cmd_random", 1, "<limit>"),
-        (&["cointoss"], "cmd_cointoss", 1, ""),
         (&["switch"], "cmd_switch", 1, "<id> <id>"),
         (&["red"], "cmd_red", 1, "<id>"),
         (&["blue"], "cmd_blue", 1, "<id>"),
@@ -3092,24 +3074,6 @@ for _name in ('players', 'find_player', 'player', 'teams', 'clean_text', 'is_vot
 
             assert_eq!(result, Some(None));
             assert_eq!(fixtures.replies(), ["^3Random number is: ^51"]);
-        });
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn cointoss_announces_heads_or_tails(_pyshinqlx_setup: ()) {
-        with_essentials(&NO_VOTEPASS, None, |fixtures| {
-            let result = Essentials::cmd_cointoss(
-                &fixtures.plugin,
-                &fixtures.caller,
-                msg(&["cointoss"]),
-                &fixtures.channel,
-            );
-
-            assert_eq!(result.ok(), Some(None));
-            let replies = fixtures.replies();
-            assert!(replies == ["^3The coin is: ^5HEADS"] || replies == ["^3The coin is: ^5TAILS"]);
         });
     }
 
