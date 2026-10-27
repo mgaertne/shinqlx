@@ -48,6 +48,12 @@ pub(super) fn local_time(py: Python<'_>, epoch: f64) -> PyResult<String> {
     .extract()
 }
 
+pub(super) fn expiry_datetime<'py>(py: Python<'py>, expires: &str) -> PyResult<Bound<'py, PyAny>> {
+    py.import(intern!(py, "datetime"))?
+        .getattr(intern!(py, "datetime"))?
+        .call_method1(intern!(py, "strptime"), (expires, TIME_FORMAT))
+}
+
 /// Converts lengths such as `2 days` into seconds. Months count as 30 days and years as 52 weeks.
 pub(super) fn length_in_seconds(length: &str) -> Option<f64> {
     let length = length.to_lowercase();

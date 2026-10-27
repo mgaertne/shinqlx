@@ -8,7 +8,8 @@ use super::{
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
     tell,
     timed_entries::{
-        Entry, active_entries, latest_entry, length_in_seconds, now, revoke_entries, store_entry,
+        Entry, active_entries, expiry_datetime, latest_entry, length_in_seconds, now,
+        revoke_entries, store_entry,
     },
 };
 use crate::ffi::python::{
@@ -52,6 +53,22 @@ fn mute(target_player: &Bound<'_, PyAny>) -> PyResult<()> {
 
 #[pymethods]
 impl Silence {
+    /// The expiry, the score and the reason of the longest active silence, for other plugins.
+    fn is_silenced<'py>(
+        slf: &Bound<'py, Self>,
+        steam_id: i64,
+    ) -> PyResult<Option<(Bound<'py, PyAny>, f64, String)>> {
+        latest_entry(&slf.as_super().get_db()?, &silences_key(steam_id))?
+            .map(|silenced| {
+                Ok((
+                    expiry_datetime(slf.py(), &silenced.expires)?,
+                    silenced.score,
+                    silenced.reason,
+                ))
+            })
+            .transpose()
+    }
+
     fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
         let steam_id = player.getattr(intern!(slf.py(), "steam_id"))?.extract()?;
         let Some(silenced) = latest_entry(&slf.as_super().get_db()?, &silences_key(steam_id))?
@@ -1082,6 +1099,41 @@ player = classmethod(find_player)
 
                 assert!(result.is_ok_and(|result| result.is_none()));
             });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_silenced_gives_other_plugins_the_expiry_the_score_and_the_reason(_pyshinqlx_setup: ()) {
+        with_silence(REDIS_5, &[], |fixtures| {
+            fixtures.silence(TARGET_ID, 0, FAR_FUTURE, "2096-10-02 12:00:00", "rude");
+
+            let result = Silence::is_silenced(&fixtures.plugin, TARGET_ID);
+
+            let (expires, score, reason) = result
+                .expect("is_silenced failed")
+                .expect("the player should be silenced");
+            assert_eq!(reason, "rude");
+            assert_eq!(score, FAR_FUTURE);
+            assert_eq!(
+                expires
+                    .call_method1("strftime", ("%Y-%m-%d %H:%M:%S",))
+                    .and_then(|expires| expires.extract::<String>())
+                    .expect("could not format the expiry"),
+                "2096-10-02 12:00:00"
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_silenced_is_none_without_an_active_silence(_pyshinqlx_setup: ()) {
+        with_silence(REDIS_5, &[], |fixtures| {
+            let result = Silence::is_silenced(&fixtures.plugin, TARGET_ID);
+
+            assert!(result.is_ok_and(|silenced| silenced.is_none()));
         });
     }
 }

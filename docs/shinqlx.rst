@@ -1146,7 +1146,7 @@ Means of Death
 .. data:: MOD_SUICIDE
    :type: int
 
-.. data::MOD_TARGET_LASER
+.. data:: MOD_TARGET_LASER
    :type: int
 
 .. data:: MOD_TRIGGER_HURT

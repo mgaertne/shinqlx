@@ -13,7 +13,8 @@ use super::{
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
     tell,
     timed_entries::{
-        Entry, active_entries, latest_entry, length_in_seconds, revoke_entries, store_entry,
+        Entry, active_entries, expiry_datetime, latest_entry, length_in_seconds, revoke_entries,
+        store_entry,
     },
 };
 use crate::ffi::python::{
@@ -76,7 +77,7 @@ fn leave_action(
     minimum_games: i64,
     warn_threshold: f64,
     ban_threshold: f64,
-) -> Option<(LeaveAction, f64)> {
+) -> Option<(Option<LeaveAction>, f64)> {
     let total = completed + left;
     if total == 0 {
         return None;
@@ -95,13 +96,13 @@ fn leave_action(
     } else {
         None
     };
-    action.map(|action| (action, completed as f64 / total as f64))
+    Some((action, completed as f64 / total as f64))
 }
 
 fn leave_status(
     database: &Bound<'_, PyAny>,
     steam_id: i64,
-) -> PyResult<Option<(LeaveAction, f64)>> {
+) -> PyResult<Option<(Option<LeaveAction>, f64)>> {
     let py = database.py();
     if !cvar_flag(py, LEAVER_BAN_CVAR)? {
         return Ok(None);
@@ -159,6 +160,43 @@ fn is_in_progress(plugin: &Bound<'_, Ban>) -> PyResult<bool> {
 
 #[pymethods]
 impl Ban {
+    /// The expiry and the reason of the longest active ban of the player, for other plugins.
+    fn is_banned<'py>(
+        slf: &Bound<'py, Self>,
+        steam_id: i64,
+    ) -> PyResult<Option<(Bound<'py, PyAny>, String)>> {
+        let database = slf.as_super().get_db()?;
+        latest_entry(&database, &bans_key(steam_id))?
+            .map(|banned| Ok((expiry_datetime(slf.py(), &banned.expires)?, banned.reason)))
+            .transpose()
+    }
+
+    /// The action (`"warn"`, `"ban"` or `None`) and the share of completed games, for other plugins.
+    fn leave_status(
+        slf: &Bound<'_, Self>,
+        steam_id: i64,
+    ) -> PyResult<Option<(Option<&'static str>, f64)>> {
+        let database = slf.as_super().get_db()?;
+        Ok(
+            leave_status(&database, steam_id)?.map(|(action, ratio)| match action {
+                Some(LeaveAction::Warn) => (Some("warn"), ratio),
+                Some(LeaveAction::Ban) => (Some("ban"), ratio),
+                None => (None, ratio),
+            }),
+        )
+    }
+
+    fn warn_player(_slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>, ratio: f64) -> PyResult<()> {
+        tell(
+            player,
+            &format!(
+                "^7You have only completed ^6{:.1}^7 percent of your games.",
+                ratio * 100.0
+            ),
+        )?;
+        tell(player, "^7If you keep leaving you ^6will^7 be banned.")
+    }
+
     fn handle_player_connect(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -166,15 +204,15 @@ impl Ban {
         let steam_id = steam_id_of(player)?;
         let database = slf.as_super().get_db()?;
         match leave_status(&database, steam_id)? {
-            Some((LeaveAction::Ban, _)) => {
+            Some((Some(LeaveAction::Ban), _)) => {
                 return Ok(Some(
                     "You have been banned from this server for leaving too many games.".to_owned(),
                 ));
             }
-            Some((LeaveAction::Warn, ratio)) => {
+            Some((Some(LeaveAction::Warn), ratio)) => {
                 slf.get().pending_warnings.lock().insert(steam_id, ratio);
             }
-            None => {}
+            _ => {}
         }
 
         Ok(latest_entry(&database, &bans_key(steam_id))?.map(|banned| ban_notice(&banned)))
@@ -203,14 +241,7 @@ impl Ban {
             return Ok(());
         };
 
-        tell(
-            player,
-            &format!(
-                "^7You have only completed ^6{:.1}^7 percent of your games.",
-                ratio * 100.0
-            ),
-        )?;
-        tell(player, "^7If you keep leaving you ^6will^7 be banned.")
+        Self::warn_player(slf, player, ratio)
     }
 
     fn handle_player_disconnect(
@@ -469,7 +500,7 @@ impl Ban {
             ),
             None if matches!(
                 leave_status(&database, steam_id)?,
-                Some((LeaveAction::Ban, _))
+                Some((Some(LeaveAction::Ban), _))
             ) =>
             {
                 format!("^6{name} ^7is banned for having left too many games.")
@@ -967,19 +998,19 @@ kick = classmethod(kick)
     }
 
     #[rstest]
-    #[case(15, 0, 15, None)]
+    #[case(15, 0, 15, Some((None, 1.0)))]
     #[case(0, 0, 15, None)]
-    #[case(14, 1, 15, None)]
-    #[case(3, 1, 15, None)]
-    #[case(10, 5, 15, Some((LeaveAction::Warn, 10.0 / 15.0)))]
-    #[case(9, 6, 15, Some((LeaveAction::Ban, 0.6)))]
-    #[case(3, 6, 15, Some((LeaveAction::Warn, 1.0 / 3.0)))]
-    #[case(0, 9, 15, Some((LeaveAction::Warn, 0.0)))]
+    #[case(14, 1, 15, Some((None, 14.0 / 15.0)))]
+    #[case(3, 1, 15, Some((None, 0.75)))]
+    #[case(10, 5, 15, Some((Some(LeaveAction::Warn), 10.0 / 15.0)))]
+    #[case(9, 6, 15, Some((Some(LeaveAction::Ban), 0.6)))]
+    #[case(3, 6, 15, Some((Some(LeaveAction::Warn), 1.0 / 3.0)))]
+    #[case(0, 9, 15, Some((Some(LeaveAction::Warn), 0.0)))]
     fn leaving_leads_to_warnings_and_bans(
         #[case] completed: i64,
         #[case] left: i64,
         #[case] minimum: i64,
-        #[case] expected: Option<(LeaveAction, f64)>,
+        #[case] expected: Option<(Option<LeaveAction>, f64)>,
     ) {
         assert_eq!(leave_action(completed, left, minimum, 0.78, 0.63), expected);
     }
@@ -1782,6 +1813,119 @@ kick = classmethod(kick)
 
             assert!(result.is_ok());
             assert_eq!(fixtures.start_ids(), [TARGET_ID]);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_banned_gives_other_plugins_the_expiry_and_the_reason(_pyshinqlx_setup: ()) {
+        with_ban(REDIS_5, &[], |fixtures| {
+            fixtures.ban(TARGET_ID, 0, FAR_FUTURE, "2096-10-02 12:00:00", "rude");
+            let py = fixtures.plugin.py();
+
+            let result = Ban::is_banned(&fixtures.plugin, TARGET_ID);
+
+            let (expires, reason) = result
+                .expect("is_banned failed")
+                .expect("the player should be banned");
+            assert_eq!(reason, "rude");
+            assert_eq!(
+                expires
+                    .call_method1("strftime", ("%Y-%m-%d %H:%M:%S",))
+                    .and_then(|expires| expires.extract::<String>())
+                    .expect("could not format the expiry"),
+                "2096-10-02 12:00:00"
+            );
+            assert!(
+                expires
+                    .is_instance(
+                        &py.import("datetime")
+                            .and_then(|datetime| datetime.getattr("datetime"))
+                            .expect("no datetime")
+                    )
+                    .expect("could not check the type")
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn is_banned_is_none_without_an_active_ban(_pyshinqlx_setup: ()) {
+        with_ban(REDIS_5, &[], |fixtures| {
+            let result = Ban::is_banned(&fixtures.plugin, TARGET_ID);
+
+            assert!(result.is_ok_and(|banned| banned.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[case("9", "6", Some(("ban", 0.6)))]
+    #[case("10", "5", Some(("warn", 10.0 / 15.0)))]
+    #[case("15", "0", None)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn leave_status_gives_other_plugins_the_action_and_the_ratio(
+        _pyshinqlx_setup: (),
+        #[case] completed: &str,
+        #[case] left: &str,
+        #[case] expected: Option<(&str, f64)>,
+    ) {
+        with_leaver_ban(None, |fixtures| {
+            fixtures.store(&counter_key(TARGET_ID, "games_completed"), completed);
+            fixtures.store(&counter_key(TARGET_ID, "games_left"), left);
+
+            let result = Ban::leave_status(&fixtures.plugin, TARGET_ID);
+
+            let status = result.expect("leave_status failed");
+            match expected {
+                Some((action, ratio)) => {
+                    assert_eq!(status, Some((Some(action), ratio)));
+                }
+                None => {
+                    let (action, ratio) = status.expect("there should be a status");
+                    assert_eq!(action, None);
+                    assert_eq!(ratio, 1.0);
+                }
+            }
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn leave_status_is_none_without_games_or_the_leaver_ban(_pyshinqlx_setup: ()) {
+        with_leaver_ban(None, |fixtures| {
+            let result = Ban::leave_status(&fixtures.plugin, TARGET_ID);
+
+            assert!(result.is_ok_and(|status| status.is_none()));
+        });
+        with_ban(REDIS_5, &[], |fixtures| {
+            fixtures.store(&counter_key(TARGET_ID, "games_completed"), "1");
+            fixtures.store(&counter_key(TARGET_ID, "games_left"), "9");
+
+            let result = Ban::leave_status(&fixtures.plugin, TARGET_ID);
+
+            assert!(result.is_ok_and(|status| status.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn warn_player_tells_the_share_of_completed_games(_pyshinqlx_setup: ()) {
+        with_ban(REDIS_5, &[], |fixtures| {
+            let result = Ban::warn_player(&fixtures.plugin, &fixtures.target, 2.0 / 3.0);
+
+            assert!(result.is_ok());
+            assert_eq!(
+                fixtures.told(&fixtures.target),
+                [
+                    "^7You have only completed ^666.7^7 percent of your games.",
+                    "^7If you keep leaving you ^6will^7 be banned."
+                ]
+            );
         });
     }
 }
