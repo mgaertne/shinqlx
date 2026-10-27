@@ -1,6 +1,7 @@
 mod ban;
 mod chat_log;
 mod clan;
+mod essentials;
 mod motd;
 mod names;
 mod permission;
@@ -24,9 +25,10 @@ use super::{
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 9] = [
+static NATIVE_PLUGINS: [(&str, Constructor); 10] = [
     ("ban", ban::create),
     ("clan", clan::create),
+    ("essentials", essentials::create),
     ("log", chat_log::create),
     ("motd", motd::create),
     ("names", names::create),
