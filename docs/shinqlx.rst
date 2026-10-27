@@ -815,7 +815,7 @@ Functions
    loaded: ``p!name`` is refused while the Rust plugin ``name`` is loaded and vice versa. Unload it first, or use
    :func:`reload_plugin` with the prefix to replace it.
 
-   Built-in Rust plugins: ``ban``, ``clan``, ``log``, ``motd``, ``names``, ``permission``, ``plugin_manager``, ``silence`` and ``workshop``.
+   Built-in Rust plugins: ``ban``, ``clan``, ``essentials``, ``log``, ``motd``, ``names``, ``permission``, ``plugin_manager``, ``silence`` and ``workshop``.
 
    :param str plugin: The name of the plugin to load, optionally with a prefix.
    :raises PluginLoadError: if the plugin could not be loaded.
