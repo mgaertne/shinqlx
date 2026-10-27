@@ -1,38 +1,22 @@
-use std::{
-    collections::HashMap,
-    sync::LazyLock,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::collections::HashMap;
 
 use parking_lot::Mutex;
-use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
-    intern,
-    prelude::*,
-    types::{IntoPyDict, PyDict, PyTuple},
-};
-use regex::Regex;
+use pyo3::{exceptions::PyValueError, intern, prelude::*, types::PyDict};
 
 use super::{
     register_command, register_hook,
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, usage},
     tell,
+    timed_entries::{
+        Entry, active_entries, latest_entry, length_in_seconds, now, revoke_entries, store_entry,
+    },
 };
 use crate::ffi::python::{
     Plugin, PythonReturnCodes, commands::CommandPriorities, next_frame, plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
-const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const MINIMUM_PERMISSION_TO_BE_PROTECTED: i32 = 2;
-const SECONDS_PER_DAY: f64 = 86_400.0;
-
-static LENGTH: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"^(?P<number>[0-9]+) (?P<scale>seconds?|minutes?|hours?|days?|weeks?|months?|years?)",
-    )
-    .expect("the pattern for the length of a silence is a valid regex")
-});
 
 /// Mutes players temporarily, also across server restarts.
 #[pyclass(name = "silence", module = "shinqlx", extends = Plugin, frozen)]
@@ -40,12 +24,7 @@ pub(super) struct Silence {
     silenced: Mutex<HashMap<i64, Silenced>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-struct Silenced {
-    expires: String,
-    score: f64,
-    reason: String,
-}
+type Silenced = Entry;
 
 impl Silenced {
     fn notice(&self) -> String {
@@ -64,127 +43,6 @@ fn silences_key(steam_id: i64) -> String {
     format!("minqlx:players:{steam_id}:silences")
 }
 
-fn now() -> f64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0.0, |elapsed| elapsed.as_secs_f64())
-}
-
-fn local_time(py: Python<'_>, epoch: f64) -> PyResult<String> {
-    let time = py.import(intern!(py, "time"))?;
-    time.call_method1(
-        intern!(py, "strftime"),
-        (
-            TIME_FORMAT,
-            time.call_method1(intern!(py, "localtime"), (epoch,))?,
-        ),
-    )?
-    .extract()
-}
-
-fn length_in_seconds(length: &str) -> Option<f64> {
-    let length = length.to_lowercase();
-    let captures = LENGTH.captures(&length)?;
-    let number = captures["number"].parse::<f64>().ok()?;
-    let unit = match captures["scale"].trim_end_matches('s') {
-        "second" => 1.0,
-        "minute" => 60.0,
-        "hour" => 3_600.0,
-        "day" => SECONDS_PER_DAY,
-        "week" => 7.0 * SECONDS_PER_DAY,
-        "month" => 30.0 * SECONDS_PER_DAY,
-        "year" => 52.0 * 7.0 * SECONDS_PER_DAY,
-        _ => return None,
-    };
-    (number > 0.0).then_some(number * unit)
-}
-
-fn redis_before_3(py: Python<'_>) -> PyResult<bool> {
-    py.import(intern!(py, "redis"))?
-        .getattr(intern!(py, "VERSION"))?
-        .lt(PyTuple::new(py, [3])?)
-}
-
-fn active_silences(database: &Bound<'_, PyAny>, steam_id: i64) -> PyResult<Vec<(String, f64)>> {
-    let py = database.py();
-    database
-        .call_method(
-            intern!(py, "zrangebyscore"),
-            (silences_key(steam_id), now(), "+inf"),
-            Some(&[("withscores", true)].into_py_dict(py)?),
-        )?
-        .extract()
-}
-
-fn is_silenced(database: &Bound<'_, PyAny>, steam_id: i64) -> PyResult<Option<Silenced>> {
-    let py = database.py();
-    let silences = active_silences(database, steam_id)?;
-    let Some((silence_id, score)) = silences.last() else {
-        return Ok(None);
-    };
-
-    let details = database
-        .call_method1(
-            intern!(py, "hgetall"),
-            (format!("{}:{silence_id}", silences_key(steam_id)),),
-        )?
-        .extract::<HashMap<String, String>>()?;
-    Ok(Some(Silenced {
-        expires: match details.get("expires") {
-            Some(expires) => expires.clone(),
-            None => local_time(py, *score)?,
-        },
-        score: *score,
-        reason: details.get("reason").cloned().unwrap_or_default(),
-    }))
-}
-
-fn queue_silence(
-    pipeline: &Bound<'_, PyAny>,
-    steam_id: i64,
-    silence_id: i64,
-    score: f64,
-    details: &Bound<'_, PyDict>,
-) -> PyResult<()> {
-    let py = pipeline.py();
-    let base_key = silences_key(steam_id);
-    if redis_before_3(py)? {
-        pipeline.call_method1(intern!(py, "zadd"), (&base_key, score, silence_id))?;
-    } else {
-        let scores = PyDict::new(py);
-        scores.set_item(silence_id, score)?;
-        pipeline.call_method1(intern!(py, "zadd"), (&base_key, scores))?;
-    }
-
-    let details_key = format!("{base_key}:{silence_id}");
-    let with_mapping = [("mapping", details)].into_py_dict(py)?;
-    match pipeline.call_method(intern!(py, "hset"), (&details_key,), Some(&with_mapping)) {
-        Err(err) if err.is_instance_of::<PyTypeError>(py) => {
-            pipeline.call_method1(intern!(py, "hmset"), (&details_key, details))?;
-        }
-        result => {
-            result?;
-        }
-    }
-    Ok(())
-}
-
-fn queue_unsilence(
-    pipeline: &Bound<'_, PyAny>,
-    steam_id: i64,
-    silence_id: &str,
-    score: f64,
-) -> PyResult<()> {
-    let py = pipeline.py();
-    let base_key = silences_key(steam_id);
-    if redis_before_3(py)? {
-        pipeline.call_method1(intern!(py, "zincrby"), (&base_key, silence_id, -score))?;
-    } else {
-        pipeline.call_method1(intern!(py, "zincrby"), (&base_key, -score, silence_id))?;
-    }
-    Ok(())
-}
-
 fn mute(target_player: &Bound<'_, PyAny>) -> PyResult<()> {
     match target_player.call_method0(intern!(target_player.py(), "mute")) {
         Err(err) if err.is_instance_of::<PyValueError>(target_player.py()) => Ok(()),
@@ -196,7 +54,8 @@ fn mute(target_player: &Bound<'_, PyAny>) -> PyResult<()> {
 impl Silence {
     fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
         let steam_id = player.getattr(intern!(slf.py(), "steam_id"))?.extract()?;
-        let Some(silenced) = is_silenced(&slf.as_super().get_db()?, steam_id)? else {
+        let Some(silenced) = latest_entry(&slf.as_super().get_db()?, &silences_key(steam_id))?
+        else {
             return Ok(());
         };
 
@@ -310,33 +169,18 @@ impl Silence {
         let Some(seconds) = length_in_seconds(&format!("{} {}", msg[2], msg[3])) else {
             return usage();
         };
-        let reason = msg[4..].join(" ");
 
-        let issued_at = now();
-        let score = issued_at + seconds;
-        let expires = local_time(py, score)?;
-        let silence_id = database
-            .call_method1(intern!(py, "zcard"), (silences_key(steam_id),))?
-            .extract::<i64>()?;
-        let details = PyDict::new(py);
-        details.set_item("expires", &expires)?;
-        details.set_item("reason", &reason)?;
-        details.set_item("issued", local_time(py, issued_at)?)?;
-        details.set_item("issued_by", player.getattr(intern!(py, "steam_id"))?)?;
+        let silenced = store_entry(
+            &database,
+            &silences_key(steam_id),
+            &player.getattr(intern!(py, "steam_id"))?,
+            seconds,
+            &msg[4..].join(" "),
+        )?;
 
-        let pipeline = database.call_method0(intern!(py, "pipeline"))?;
-        queue_silence(&pipeline, steam_id, silence_id, score, &details)?;
-        pipeline.call_method0(intern!(py, "execute"))?;
-
+        let expires = silenced.expires.clone();
         if let Some(target_player) = target.player() {
-            slf.get().silenced.lock().insert(
-                steam_id,
-                Silenced {
-                    expires: expires.clone(),
-                    score,
-                    reason,
-                },
-            );
+            slf.get().silenced.lock().insert(steam_id, silenced);
             mute(target_player)?;
         }
         reply(
@@ -364,16 +208,12 @@ impl Silence {
         let steam_id = target.steam_id();
 
         let database = slf.as_super().get_db()?;
-        let silences = active_silences(&database, steam_id)?;
+        let key = silences_key(steam_id);
+        let silences = active_entries(&database, &key)?;
         if silences.is_empty() {
             return reply(channel, &format!("No active silences on ^6{name}^7 found."));
         }
-
-        let pipeline = database.call_method0(intern!(py, "pipeline"))?;
-        for (silence_id, score) in &silences {
-            queue_unsilence(&pipeline, steam_id, silence_id, *score)?;
-        }
-        pipeline.call_method0(intern!(py, "execute"))?;
+        revoke_entries(&database, &key, &silences)?;
 
         slf.get().silenced.lock().remove(&steam_id);
         if let Some(target_player) = target.player() {
@@ -399,7 +239,8 @@ impl Silence {
         };
         let name = display_name(&target)?;
 
-        let message = match is_silenced(&slf.as_super().get_db()?, target.steam_id())? {
+        let key = silences_key(target.steam_id());
+        let message = match latest_entry(&slf.as_super().get_db()?, &key)? {
             Some(silenced) if silenced.reason.is_empty() => {
                 format!("^6{name}^7 is silenced until ^6{}^7.", silenced.expires)
             }
@@ -468,10 +309,14 @@ mod silence_tests {
     };
     use rstest::rstest;
 
-    use super::{STOP_ALL, Silence, Silenced, length_in_seconds, now, silences_key};
+    use super::{STOP_ALL, Silence, Silenced, silences_key};
     use crate::{
         ffi::python::{
             Plugin, PythonReturnCodes,
+            native_plugins::{
+                test_support::{FakeRedis, REDIS_2, REDIS_5, fixture_module},
+                timed_entries::now,
+            },
             plugin::PluginMethods,
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
@@ -483,81 +328,8 @@ mod silence_tests {
     const TARGET_ID: i64 = 76_561_198_000_000_003;
     const FAR_FUTURE: f64 = 4_000_000_000.0;
     const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
-    const REDIS_5: &CStr = c"VERSION = (5, 0, 0)\n";
-    const REDIS_2: &CStr = c"VERSION = (2, 10, 6)\n";
 
     const FIXTURES: &CStr = c"
-import shinqlx
-
-
-class Pipeline:
-    def __init__(self, database):
-        self.database = database
-        self.queued = []
-
-    def zadd(self, key, *args):
-        members = args[0] if isinstance(args[0], dict) else {args[1]: args[0]}
-        self.queued.append(('zadd', key, members))
-
-    def zincrby(self, key, first, second):
-        import redis
-        value, amount = (first, second) if redis.VERSION < (3,) else (second, first)
-        self.queued.append(('zincrby', key, value, amount))
-
-    def hset(self, key, mapping=None):
-        if not self.database.hset_supports_mapping:
-            raise TypeError('hset() got an unexpected keyword argument')
-        self.queued.append(('hset', key, mapping))
-
-    def hmset(self, key, mapping):
-        self.queued.append(('hset', key, mapping))
-
-    def execute(self):
-        for command, key, *args in self.queued:
-            if command == 'zadd':
-                scores = self.database.zsets.setdefault(key, {})
-                for member, score in args[0].items():
-                    scores[str(member)] = score
-            elif command == 'zincrby':
-                self.database.zsets[key][str(args[0])] += args[1]
-            else:
-                self.database.hashes[key] = {k: str(v) for k, v in args[0].items()}
-        self.queued = []
-
-
-class Database:
-    hset_supports_mapping = True
-
-    def __init__(self, plugin):
-        self.permissions = {}
-        self.zsets = {}
-        self.hashes = {}
-
-    def has_permission(self, who, level=5):
-        return self.permissions.get(who, 0) >= level
-
-    def zcard(self, key):
-        return len(self.zsets.get(key, {}))
-
-    def zrangebyscore(self, key, low, high, withscores=False):
-        items = [(member, score) for member, score in self.zsets.get(key, {}).items() if score >= low]
-        return sorted(items, key=lambda item: item[1])
-
-    def hgetall(self, key):
-        return dict(self.hashes.get(key, {}))
-
-    def pipeline(self):
-        return Pipeline(self)
-
-
-class Channel:
-    def __init__(self):
-        self.replies = []
-
-    def reply(self, message):
-        self.replies.append(message)
-
-
 class Player:
     def __init__(self, client_id, steam_id, name):
         self.id = client_id
@@ -593,36 +365,6 @@ def find_player(cls, client_id, player_list=None):
 
 player = classmethod(find_player)
 ";
-
-    struct FakeRedis<'py> {
-        modules: Bound<'py, PyDict>,
-        previous: Option<Bound<'py, PyAny>>,
-    }
-
-    impl<'py> FakeRedis<'py> {
-        fn install(py: Python<'py>, code: &CStr) -> Self {
-            let modules = py
-                .import("sys")
-                .and_then(|sys| sys.getattr("modules"))
-                .and_then(|modules| Ok(modules.cast_into::<PyDict>()?))
-                .expect("could not get sys.modules");
-            let previous = modules
-                .get_item("redis")
-                .expect("could not look up the redis module");
-            PyModule::from_code(py, code, c"fake_redis.py", c"redis")
-                .expect("could not create the fake redis module");
-            Self { modules, previous }
-        }
-    }
-
-    impl Drop for FakeRedis<'_> {
-        fn drop(&mut self) {
-            let _ = match &self.previous {
-                Some(previous) => self.modules.set_item("redis", previous),
-                None => self.modules.del_item("redis"),
-            };
-        }
-    }
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Silence>,
@@ -719,8 +461,7 @@ player = classmethod(find_player)
         with_connected_players(MockEngineBuilder::default(), players, || {
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
-                let module = PyModule::from_code(py, FIXTURES, c"", c"")
-                    .expect("could not create the fixtures");
+                let module = fixture_module(py, FIXTURES);
                 let plugin_class = py.get_type::<Plugin>();
                 let _restore_database =
                     RestoredAttribute::capture(plugin_class.as_any(), "database");
@@ -756,24 +497,6 @@ player = classmethod(find_player)
 
     fn msg(words: &[&str]) -> Vec<String> {
         words.iter().map(|word| (*word).to_owned()).collect()
-    }
-
-    #[rstest]
-    #[case("1 second", Some(1.0))]
-    #[case("2 Minutes", Some(120.0))]
-    #[case("1 hour", Some(3_600.0))]
-    #[case("3 days", Some(259_200.0))]
-    #[case("1 week", Some(604_800.0))]
-    #[case("1 month", Some(2_592_000.0))]
-    #[case("1 year", Some(31_449_600.0))]
-    #[case("1 day and more", Some(86_400.0))]
-    #[case("0 days", None)]
-    #[case("x days", None)]
-    #[case("5 parsecs", None)]
-    #[case("1day", None)]
-    #[case("", None)]
-    fn lengths_are_converted_to_seconds(#[case] length: &str, #[case] expected: Option<f64>) {
-        assert_eq!(length_in_seconds(length), expected);
     }
 
     #[rstest]
