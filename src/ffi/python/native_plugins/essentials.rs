@@ -14,7 +14,7 @@ use pyo3::{
 
 use super::{
     cvar_flag, register_client_command, register_command, register_hook,
-    target::{find_player, reply, stop_all, usage},
+    target::{Resolution, Target, find_player, reply, resolve_text, stop_all, usage},
     tell,
     timed_entries::{local_time, now},
 };
@@ -169,6 +169,78 @@ fn update_player(database: &Bound<'_, PyAny>, player: &Bound<'_, PyAny>) -> PyRe
     pipeline.call_method0(intern!(py, "execute")).map(|_| ())
 }
 
+const SOUNDS_FLAG: &str = "essentials:sounds_enabled";
+
+enum Lookup<'py> {
+    Found(Bound<'py, PyAny>),
+    Finished(Option<i32>),
+}
+
+fn lookup_player<'py>(
+    caller: &Bound<'py, PyAny>,
+    channel: &Bound<'py, PyAny>,
+    text: &str,
+    invalid: &str,
+    tell_caller: bool,
+) -> PyResult<Lookup<'py>> {
+    match resolve_text(caller.py(), caller, text)? {
+        Resolution::Target(Target::Player(_, player)) => Ok(Lookup::Found(player)),
+        Resolution::Reported => stop_all().map(Lookup::Finished),
+        Resolution::Target(Target::Id(_)) | Resolution::UnknownClientId if tell_caller => {
+            tell(caller, invalid)?;
+            stop_all().map(Lookup::Finished)
+        }
+        Resolution::Target(Target::Id(_)) | Resolution::UnknownClientId => {
+            reply(channel, invalid).map(Lookup::Finished)
+        }
+    }
+}
+
+fn act_on_player<'py>(
+    caller: &Bound<'py, PyAny>,
+    msg: &[String],
+    channel: &Bound<'py, PyAny>,
+    action: impl FnOnce(&Bound<'py, PyAny>) -> PyResult<()>,
+) -> PyResult<Option<i32>> {
+    let Some(ident) = msg.get(1) else {
+        return usage();
+    };
+    match lookup_player(caller, channel, ident, "Invalid ID.", false)? {
+        Lookup::Found(player) => action(&player).map(|()| None),
+        Lookup::Finished(code) => Ok(code),
+    }
+}
+
+fn sounds_enabled(database: &Bound<'_, PyAny>, player: &Bound<'_, PyAny>) -> PyResult<bool> {
+    let py = database.py();
+    database
+        .call_method(
+            intern!(py, "get_flag"),
+            (player, SOUNDS_FLAG),
+            Some(&[("default", true)].into_py_dict(py)?),
+        )?
+        .extract()
+}
+
+fn tell_sounds_disabled(player: &Bound<'_, PyAny>) -> PyResult<()> {
+    tell(
+        player,
+        &format!(
+            "Sounds are disabled. Use ^6{}sounds^7 to enable them again.",
+            command_prefix()?
+        ),
+    )
+}
+
+fn game_state(plugin: &Bound<'_, Essentials>) -> PyResult<Option<String>> {
+    let py = plugin.py();
+    let game = plugin.getattr(intern!(py, "game"))?;
+    if game.is_none() {
+        return Ok(None);
+    }
+    game.getattr(intern!(py, "state"))?.extract().map(Some)
+}
+
 fn mappool_error(caller: &Bound<'_, PyAny>, message: &str, command: bool) -> PyResult<Option<i32>> {
     let message = if command {
         format!(
@@ -180,6 +252,94 @@ fn mappool_error(caller: &Bound<'_, PyAny>, message: &str, command: bool) -> PyR
     };
     tell(caller, &message)?;
     stop_all()
+}
+
+impl Essentials {
+    fn play_for_everybody(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: &[String],
+        play: &str,
+    ) -> PyResult<Option<i32>> {
+        let Some(path) = msg.get(1) else {
+            return usage();
+        };
+        let database = slf.as_super().get_db()?;
+        if !sounds_enabled(&database, player)? {
+            tell_sounds_disabled(player)?;
+            return stop_all();
+        }
+
+        let class = plugin_class(slf.py());
+        if !class.call_method1(play, (path, player))?.is_truthy()? {
+            tell(player, "Invalid sound.")?;
+            return stop_all();
+        }
+
+        let everybody = class
+            .call_method0(intern!(slf.py(), "players"))?
+            .extract::<Vec<Bound<'_, PyAny>>>()?;
+        for other in everybody {
+            if !other.eq(player)? && sounds_enabled(&database, &other)? {
+                class.call_method1(play, (path, &other))?;
+            }
+        }
+        stop_all()
+    }
+
+    fn stop_playing(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        stop: &str,
+    ) -> PyResult<Option<i32>> {
+        if !sounds_enabled(&slf.as_super().get_db()?, player)? {
+            tell_sounds_disabled(player)?;
+            return stop_all();
+        }
+        plugin_class(slf.py()).call_method0(stop).map(|_| None)
+    }
+
+    fn decide_vote(
+        py: Python<'_>,
+        channel: &Bound<'_, PyAny>,
+        pass_it: bool,
+    ) -> PyResult<Option<i32>> {
+        let class = plugin_class(py);
+        if !class
+            .call_method0(intern!(py, "is_vote_active"))?
+            .is_truthy()?
+        {
+            return reply(channel, "There is no active vote!");
+        }
+        class
+            .call_method1(intern!(py, "force_vote"), (pass_it,))
+            .map(|_| None)
+    }
+
+    fn change_lock(
+        py: Python<'_>,
+        player: &Bound<'_, PyAny>,
+        msg: &[String],
+        method: &str,
+    ) -> PyResult<Option<i32>> {
+        let team = match msg.get(1) {
+            None => None,
+            Some(team) => match team
+                .chars()
+                .next()
+                .map(|initial| initial.to_ascii_lowercase())
+            {
+                Some('s') => Some("spectator"),
+                Some('r') => Some("red"),
+                Some('b') => Some("blue"),
+                _ => {
+                    tell(player, "Invalid team.")?;
+                    return stop_all();
+                }
+            },
+        };
+        plugin_class(py).call_method1(method, (team,)).map(|_| None)
+    }
 }
 
 #[pymethods]
@@ -697,6 +857,449 @@ impl Essentials {
         result.map(|_| None)
     }
 
+    fn cmd_shuffle(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        plugin_class(slf.py())
+            .call_method0(intern!(slf.py(), "shuffle"))
+            .map(|_| None)
+    }
+
+    fn cmd_pause(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        plugin_class(slf.py())
+            .call_method0(intern!(slf.py(), "pause"))
+            .map(|_| None)
+    }
+
+    fn cmd_unpause(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        plugin_class(slf.py())
+            .call_method0(intern!(slf.py(), "unpause"))
+            .map(|_| None)
+    }
+
+    fn cmd_slap(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let Some(ident) = msg.get(1) else {
+            return usage();
+        };
+        let Lookup::Found(target) = lookup_player(player, channel, ident, "Invalid ID.", true)?
+        else {
+            return stop_all();
+        };
+
+        let damage = match msg.get(2).map(|damage| damage.parse::<i32>()) {
+            None => 0,
+            Some(Ok(damage)) => damage,
+            Some(Err(_)) => {
+                tell(player, "Invalid damage value.")?;
+                return stop_all();
+            }
+        };
+        plugin_class(slf.py()).call_method1(intern!(slf.py(), "slap"), (target, damage))?;
+        stop_all()
+    }
+
+    fn cmd_slay(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let Some(ident) = msg.get(1) else {
+            return usage();
+        };
+        let Lookup::Found(target) = lookup_player(player, channel, ident, "Invalid ID.", true)?
+        else {
+            return stop_all();
+        };
+
+        plugin_class(slf.py()).call_method1(intern!(slf.py(), "slay"), (target,))?;
+        stop_all()
+    }
+
+    fn cmd_enable_sounds(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let database = slf.as_super().get_db()?;
+        let enabled = sounds_enabled(&database, player)?;
+        database.call_method1(
+            intern!(slf.py(), "set_flag"),
+            (player, SOUNDS_FLAG, !enabled),
+        )?;
+
+        let (state, next) = if enabled {
+            ("disabled", "enable")
+        } else {
+            ("enabled", "disable")
+        };
+        tell(
+            player,
+            &format!(
+                "Sounds have been {state}. Use ^6{}sounds^7 to {next} them again.",
+                command_prefix()?
+            ),
+        )?;
+        stop_all()
+    }
+
+    fn cmd_sound(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::play_for_everybody(slf, player, &msg, "play_sound")
+    }
+
+    fn cmd_music(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::play_for_everybody(slf, player, &msg, "play_music")
+    }
+
+    fn cmd_stopsound(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::stop_playing(slf, player, "stop_sound")
+    }
+
+    fn cmd_stopmusic(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::stop_playing(slf, player, "stop_music")
+    }
+
+    fn cmd_kick(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let reason = msg.get(2..).unwrap_or_default().join(" ");
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method1("kick", (reason,)).map(drop)
+        })
+    }
+
+    fn cmd_kickban(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method0("tempban").map(drop)
+        })
+    }
+
+    fn cmd_yes(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::decide_vote(slf.py(), channel, true)
+    }
+
+    fn cmd_no(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::decide_vote(slf.py(), channel, false)
+    }
+
+    fn cmd_random(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let Some(limit) = msg.get(1) else {
+            return usage();
+        };
+        let Ok(limit @ 1..) = limit.parse::<i64>() else {
+            tell(player, "Invalid upper limit. Use a positive integer.")?;
+            return stop_all();
+        };
+
+        let number = slf
+            .py()
+            .import(intern!(slf.py(), "random"))?
+            .call_method1(intern!(slf.py(), "randint"), (1, limit))?;
+        reply(channel, &format!("^3Random number is: ^5{number}"))
+    }
+
+    fn cmd_cointoss(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let heads = slf
+            .py()
+            .import(intern!(slf.py(), "random"))?
+            .call_method1(intern!(slf.py(), "randint"), (0, 1))?
+            .is_truthy()?;
+        reply(
+            channel,
+            &format!("^3The coin is: ^5{}", if heads { "HEADS" } else { "TAILS" }),
+        )
+    }
+
+    fn cmd_switch(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let [_, first, second, ..] = msg.as_slice() else {
+            return usage();
+        };
+        let Lookup::Found(first) =
+            lookup_player(player, channel, first, "The first ID is invalid.", false)?
+        else {
+            return Ok(None);
+        };
+        let Lookup::Found(second) =
+            lookup_player(player, channel, second, "The second ID is invalid.", false)?
+        else {
+            return Ok(None);
+        };
+
+        plugin_class(slf.py())
+            .call_method1(intern!(slf.py(), "switch"), (first, second))
+            .map(|_| None)
+    }
+
+    fn cmd_red(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method1("put", ("red",)).map(drop)
+        })
+    }
+
+    fn cmd_blue(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method1("put", ("blue",)).map(drop)
+        })
+    }
+
+    fn cmd_spectate(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method1("put", ("spectator",)).map(drop)
+        })
+    }
+
+    fn cmd_free(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method1("put", ("free",)).map(drop)
+        })
+    }
+
+    fn cmd_addmod(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method0("addmod").map(drop)
+        })
+    }
+
+    fn cmd_addadmin(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method0("addadmin").map(drop)
+        })
+    }
+
+    fn cmd_demote(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method0("demote").map(drop)
+        })
+    }
+
+    fn cmd_mute(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let Some(ident) = msg.get(1) else {
+            return usage();
+        };
+        match lookup_player(player, channel, ident, "Invalid ID.", false)? {
+            Lookup::Found(target) if target.eq(player)? => reply(channel, "I refuse."),
+            Lookup::Found(target) => target.call_method0("mute").map(|_| None),
+            Lookup::Finished(code) => Ok(code),
+        }
+    }
+
+    fn cmd_unmute(
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        act_on_player(player, &msg, channel, |target| {
+            target.call_method0("unmute").map(drop)
+        })
+    }
+
+    fn cmd_lock(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::change_lock(slf.py(), player, &msg, "lock")
+    }
+
+    fn cmd_unlock(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        Self::change_lock(slf.py(), player, &msg, "unlock")
+    }
+
+    fn cmd_allready(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        match game_state(slf)?.as_deref() {
+            None => reply(channel, "There is no game running."),
+            Some("warmup") => plugin_class(slf.py())
+                .call_method0(intern!(slf.py(), "allready"))
+                .map(|_| None),
+            Some(_) => reply(
+                channel,
+                "But the game's already in progress, you silly goose!",
+            ),
+        }
+    }
+
+    fn cmd_abort(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        _msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        match game_state(slf)?.as_deref() {
+            None => reply(channel, "There is no game running."),
+            Some("warmup") => reply(channel, "But the game isn't even on, you doofus!"),
+            Some(_) => plugin_class(slf.py())
+                .call_method0(intern!(slf.py(), "abort"))
+                .map(|_| None),
+        }
+    }
+
+    fn cmd_map(
+        slf: &Bound<'_, Self>,
+        _player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        _channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let Some(map_name) = msg.get(1) else {
+            return usage();
+        };
+        plugin_class(slf.py())
+            .call_method1(intern!(slf.py(), "change_map"), (map_name, msg.get(2)))
+            .map(|_| None)
+    }
+
+    fn cmd_teamsize(
+        slf: &Bound<'_, Self>,
+        player: &Bound<'_, PyAny>,
+        msg: Vec<String>,
+        channel: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>> {
+        let Some(size) = msg.get(1) else {
+            return usage();
+        };
+        let Ok(size) = size.parse::<i64>() else {
+            return reply(channel, "^7Unintelligible size.");
+        };
+
+        let py = slf.py();
+        let game = slf.getattr(intern!(py, "game"))?;
+        if game.is_none() {
+            return reply(channel, "There is no game running.");
+        }
+        game.setattr(intern!(py, "teamsize"), size)?;
+        plugin_class(py).call_method1(
+            intern!(py, "msg"),
+            (format!(
+                "The teamsize has been set to ^6{size}^7 by {}.",
+                player.str()?
+            ),),
+        )?;
+        stop_all()
+    }
+
     fn cmd_mappool(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -765,6 +1368,42 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         (&["players"], "cmd_players", 1, ""),
         (&["disconnects", "dcs"], "cmd_disconnects", 1, ""),
         (&["commands", "cmds"], "cmd_commands", 2, ""),
+        (&["shuffle"], "cmd_shuffle", 1, ""),
+        (&["pause", "timeout"], "cmd_pause", 1, ""),
+        (&["unpause", "timein"], "cmd_unpause", 1, ""),
+        (&["slap"], "cmd_slap", 2, "<id> [damage]"),
+        (&["slay"], "cmd_slay", 2, "<id>"),
+        (&["sound"], "cmd_sound", 1, "<path>"),
+        (&["music"], "cmd_music", 1, "<path>"),
+        (&["stopsound"], "cmd_stopsound", 1, ""),
+        (&["stopmusic"], "cmd_stopmusic", 1, ""),
+        (&["kick"], "cmd_kick", 2, "<id>"),
+        (&["kickban", "tempban"], "cmd_kickban", 2, "<id>"),
+        (&["yes"], "cmd_yes", 2, ""),
+        (&["no"], "cmd_no", 2, ""),
+        (&["random"], "cmd_random", 1, "<limit>"),
+        (&["cointoss"], "cmd_cointoss", 1, ""),
+        (&["switch"], "cmd_switch", 1, "<id> <id>"),
+        (&["red"], "cmd_red", 1, "<id>"),
+        (&["blue"], "cmd_blue", 1, "<id>"),
+        (
+            &["spectate", "spec", "spectator"],
+            "cmd_spectate",
+            1,
+            "<id>",
+        ),
+        (&["free"], "cmd_free", 1, "<id>"),
+        (&["addmod"], "cmd_addmod", 5, "<id>"),
+        (&["addadmin"], "cmd_addadmin", 5, "<id>"),
+        (&["demote"], "cmd_demote", 5, "<id>"),
+        (&["mute"], "cmd_mute", 1, "<id>"),
+        (&["unmute"], "cmd_unmute", 1, "<id>"),
+        (&["lock"], "cmd_lock", 1, "[team]"),
+        (&["unlock"], "cmd_unlock", 1, "[team]"),
+        (&["allready"], "cmd_allready", 2, ""),
+        (&["abort"], "cmd_abort", 2, ""),
+        (&["map", "changemap"], "cmd_map", 2, "<mapname> [factory]"),
+        (&["teamsize", "ts"], "cmd_teamsize", 2, "<size>"),
         (&["db"], "cmd_db", 5, "<key> [value]"),
         (&["seen"], "cmd_seen", 0, "<steam_id>"),
         (&["time"], "cmd_time", 0, "[timezone_offset]"),
@@ -773,6 +1412,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     ] {
         register_command(plugin.as_super(), names, handler, permission, usage, None)?;
     }
+    register_client_command(plugin.as_super(), &["sounds"], "cmd_enable_sounds", "<0/1>")?;
     register_client_command(
         plugin.as_super(),
         &["mappool", "maps", "maplist"],
@@ -791,7 +1431,7 @@ mod essentials_tests {
     use pyo3::{prelude::*, types::PyDict};
     use rstest::rstest;
 
-    use super::{Essentials, mappool_listing, parse_mappool, player_key};
+    use super::{Essentials, SOUNDS_FLAG, mappool_listing, parse_mappool, player_key};
     use crate::{
         ffi::python::{
             Plugin, PythonReturnCodes,
@@ -824,8 +1464,35 @@ class Player:
     def tell(self, message):
         self.told.append(message)
 
+    def kick(self, reason=''):
+        actions.append(('kick', self.id, reason))
+
+    def tempban(self):
+        actions.append(('tempban', self.id))
+
+    def put(self, team):
+        actions.append(('put', self.id, team))
+
+    def addmod(self):
+        actions.append(('addmod', self.id))
+
+    def addadmin(self):
+        actions.append(('addadmin', self.id))
+
+    def demote(self):
+        actions.append(('demote', self.id))
+
+    def mute(self):
+        actions.append(('mute', self.id))
+
+    def unmute(self):
+        actions.append(('unmute', self.id))
+
     def __str__(self):
         return self.name
+
+
+actions = []
 
 
 caller = Player(1, 76561198000000001, 'Caller^7', '1.1.1.1')
@@ -842,9 +1509,45 @@ owner_id = [76561198000000009]
 
 class FakeGame:
     factory = 'ca'
+    state = 'warmup'
+    teamsize = 4
 
 
-game = property(lambda self: FakeGame())
+game_holder = [FakeGame()]
+game = property(lambda self: game_holder[0])
+
+
+def recorder(name, result=None):
+    def record(cls, *args):
+        actions.append((name,) + tuple(a.id if isinstance(a, Player) else a for a in args))
+        return result
+    return record
+
+
+shuffle = recorder('shuffle')
+pause = recorder('pause')
+unpause = recorder('unpause')
+slap = recorder('slap')
+slay = recorder('slay')
+stop_sound = recorder('stop_sound')
+stop_music = recorder('stop_music')
+switch = recorder('switch')
+lock = recorder('lock')
+unlock = recorder('unlock')
+allready = recorder('allready')
+abort = recorder('abort')
+change_map = recorder('change_map')
+msg = recorder('msg')
+
+
+def play_sound(cls, path, player=None):
+    actions.append(('play_sound', path, player.id))
+    return path != 'bad'
+
+
+def play_music(cls, path, player=None):
+    actions.append(('play_music', path, player.id))
+    return path != 'bad'
 
 
 def players(cls):
@@ -905,11 +1608,13 @@ class Redirect:
 
 
 for _name in ('players', 'find_player', 'player', 'teams', 'clean_text', 'is_vote_active',
-              'current_vote_count', 'force_vote'):
+              'current_vote_count', 'force_vote', 'shuffle', 'pause', 'unpause', 'slap', 'slay',
+              'stop_sound', 'stop_music', 'switch', 'lock', 'unlock', 'allready', 'abort',
+              'change_map', 'msg', 'play_sound', 'play_music'):
     globals()[_name] = classmethod(globals()[_name])
 ";
 
-    const PLUGIN_METHODS: [&str; 8] = [
+    const PLUGIN_METHODS: [&str; 24] = [
         "players",
         "find_player",
         "player",
@@ -918,6 +1623,22 @@ for _name in ('players', 'find_player', 'player', 'teams', 'clean_text', 'is_vot
         "is_vote_active",
         "current_vote_count",
         "force_vote",
+        "shuffle",
+        "pause",
+        "unpause",
+        "slap",
+        "slay",
+        "stop_sound",
+        "stop_music",
+        "switch",
+        "lock",
+        "unlock",
+        "allready",
+        "abort",
+        "change_map",
+        "msg",
+        "play_sound",
+        "play_music",
     ];
 
     struct Fixtures<'py> {
@@ -1944,4 +2665,646 @@ for _name in ('players', 'find_player', 'player', 'teams', 'clean_text', 'is_vot
         ("qlx_enforceMappool", c"0"),
         ("qlx_commandPrefix", c"!"),
     ];
+
+    type Handler = fn(
+        &Bound<'_, Essentials>,
+        &Bound<'_, PyAny>,
+        Vec<String>,
+        &Bound<'_, PyAny>,
+    ) -> PyResult<Option<i32>>;
+
+    fn handler(name: &str) -> Handler {
+        match name {
+            "kick" => Essentials::cmd_kick,
+            "kickban" => Essentials::cmd_kickban,
+            "red" => Essentials::cmd_red,
+            "blue" => Essentials::cmd_blue,
+            "spectate" => Essentials::cmd_spectate,
+            "free" => Essentials::cmd_free,
+            "addmod" => Essentials::cmd_addmod,
+            "addadmin" => Essentials::cmd_addadmin,
+            "demote" => Essentials::cmd_demote,
+            "mute" => Essentials::cmd_mute,
+            "unmute" => Essentials::cmd_unmute,
+            "slap" => Essentials::cmd_slap,
+            "slay" => Essentials::cmd_slay,
+            "sound" => Essentials::cmd_sound,
+            "music" => Essentials::cmd_music,
+            "random" => Essentials::cmd_random,
+            "switch" => Essentials::cmd_switch,
+            "map" => Essentials::cmd_map,
+            "teamsize" => Essentials::cmd_teamsize,
+            other => panic!("no handler for {other}"),
+        }
+    }
+
+    impl Fixtures<'_> {
+        fn run(
+            &self,
+            name: &str,
+            caller: &Bound<'_, PyAny>,
+            words: &[&str],
+        ) -> Option<Option<i32>> {
+            handler(name)(&self.plugin, caller, msg(words), &self.channel).ok()
+        }
+
+        fn actions(&self) -> String {
+            self.module
+                .getattr("actions")
+                .and_then(|actions| actions.repr())
+                .map(|repr| repr.to_string())
+                .expect("could not read the actions")
+        }
+
+        fn set_game(&self, state: Option<&str>) {
+            let holder = self.module.getattr("game_holder").expect("no game holder");
+            match state {
+                Some(state) => holder
+                    .get_item(0)
+                    .and_then(|game| game.setattr("state", state)),
+                None => holder.set_item(0, self.module.py().None()),
+            }
+            .expect("could not set the game");
+        }
+    }
+
+    #[rstest]
+    #[case("kick", &["kick", "3", "bad", "manners"], "[('kick', 3, 'bad manners')]")]
+    #[case("kick", &["kick", "3"], "[('kick', 3, '')]")]
+    #[case("kickban", &["kickban", "3"], "[('tempban', 3)]")]
+    #[case("red", &["red", "3"], "[('put', 3, 'red')]")]
+    #[case("blue", &["blue", "3"], "[('put', 3, 'blue')]")]
+    #[case("spectate", &["spec", "3"], "[('put', 3, 'spectator')]")]
+    #[case("free", &["free", "3"], "[('put', 3, 'free')]")]
+    #[case("addmod", &["addmod", "3"], "[('addmod', 3)]")]
+    #[case("addadmin", &["addadmin", "3"], "[('addadmin', 3)]")]
+    #[case("demote", &["demote", "3"], "[('demote', 3)]")]
+    #[case("mute", &["mute", "3"], "[('mute', 3)]")]
+    #[case("unmute", &["unmute", "3"], "[('unmute', 3)]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn player_commands_act_on_the_resolved_player(
+        _pyshinqlx_setup: (),
+        #[case] command: &str,
+        #[case] words: &[&str],
+        #[case] expected: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run(command, &fixtures.caller, words);
+
+            assert_eq!(result, Some(None));
+            assert_eq!(fixtures.actions(), expected);
+        });
+    }
+
+    #[rstest]
+    #[case("kick")]
+    #[case("kickban")]
+    #[case("red")]
+    #[case("blue")]
+    #[case("spectate")]
+    #[case("free")]
+    #[case("addmod")]
+    #[case("addadmin")]
+    #[case("demote")]
+    #[case("mute")]
+    #[case("unmute")]
+    #[case("slap")]
+    #[case("slay")]
+    #[case("sound")]
+    #[case("music")]
+    #[case("random")]
+    #[case("switch")]
+    #[case("map")]
+    #[case("teamsize")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn commands_without_arguments_ask_for_usage(_pyshinqlx_setup: (), #[case] command: &str) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run(command, &fixtures.caller, &[command]);
+
+            assert_eq!(result, Some(Some(USAGE)));
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
+
+    #[rstest]
+    #[case("7")]
+    #[case("76561198000000042")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn player_commands_reject_unknown_ids(_pyshinqlx_setup: (), #[case] ident: &str) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("kick", &fixtures.caller, &["kick", ident]);
+
+            assert_eq!(result, Some(None));
+            assert_eq!(fixtures.replies(), ["Invalid ID."]);
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn muting_oneself_is_refused(_pyshinqlx_setup: ()) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("mute", &fixtures.caller, &["mute", "1"]);
+
+            assert_eq!(result, Some(None));
+            assert_eq!(fixtures.replies(), ["I refuse."]);
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
+
+    #[rstest]
+    #[case(&["slap", "3"], "[('slap', 3, 0)]")]
+    #[case(&["slap", "3", "-5"], "[('slap', 3, -5)]")]
+    #[case(&["slay", "3"], "[('slay', 3)]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn slap_and_slay_stop_all_processing(
+        _pyshinqlx_setup: (),
+        #[case] words: &[&str],
+        #[case] expected: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run(words[0], &fixtures.caller, words);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(fixtures.actions(), expected);
+        });
+    }
+
+    #[rstest]
+    #[case(&["slap", "7"], "Invalid ID.")]
+    #[case(&["slay", "7"], "Invalid ID.")]
+    #[case(&["slap", "3", "lots"], "Invalid damage value.")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn slap_and_slay_tell_the_caller_about_invalid_values(
+        _pyshinqlx_setup: (),
+        #[case] words: &[&str],
+        #[case] expected: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run(words[0], &fixtures.caller, words);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(fixtures.told(&fixtures.caller), [expected]);
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
+
+    #[rstest]
+    #[case("cmd_shuffle", "[('shuffle',)]")]
+    #[case("cmd_pause", "[('pause',)]")]
+    #[case("cmd_unpause", "[('unpause',)]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_control_commands_call_the_plugin(
+        _pyshinqlx_setup: (),
+        #[case] command: &str,
+        #[case] expected: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let handler = match command {
+                "cmd_shuffle" => Essentials::cmd_shuffle,
+                "cmd_pause" => Essentials::cmd_pause,
+                _ => Essentials::cmd_unpause,
+            };
+
+            let result = handler(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&["x"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(fixtures.actions(), expected);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn sounds_toggles_the_flag_of_the_player(_pyshinqlx_setup: ()) {
+        with_essentials(&VOTE_CVARS, None, |fixtures| {
+            let toggle = || {
+                Essentials::cmd_enable_sounds(
+                    &fixtures.plugin,
+                    &fixtures.caller,
+                    msg(&["sounds"]),
+                    &fixtures.channel,
+                )
+            };
+
+            assert_eq!(toggle().ok(), Some(Some(STOP_ALL)));
+            assert_eq!(toggle().ok(), Some(Some(STOP_ALL)));
+
+            assert_eq!(
+                fixtures.told(&fixtures.caller),
+                [
+                    "Sounds have been disabled. Use ^6!sounds^7 to enable them again.",
+                    "Sounds have been enabled. Use ^6!sounds^7 to disable them again."
+                ]
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("sound", "play_sound")]
+    #[case("music", "play_music")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn sounds_are_played_for_everybody_who_enabled_them(
+        _pyshinqlx_setup: (),
+        #[case] command: &str,
+        #[case] play: &str,
+    ) {
+        with_essentials(&VOTE_CVARS, None, |fixtures| {
+            let result = fixtures.run(command, &fixtures.caller, &[command, "boom"]);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(
+                fixtures.actions(),
+                format!("[('{play}', 'boom', 1), ('{play}', 'boom', 3)]")
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("sound")]
+    #[case("music")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn sounds_skip_players_who_disabled_them(_pyshinqlx_setup: (), #[case] command: &str) {
+        with_essentials(&VOTE_CVARS, None, |fixtures| {
+            fixtures
+                .database
+                .call_method1("set_flag", (&fixtures.target, SOUNDS_FLAG, false))
+                .expect("could not set the flag");
+
+            let result = fixtures.run(command, &fixtures.caller, &[command, "boom"]);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(fixtures.actions().matches("boom").count(), 1);
+        });
+    }
+
+    #[rstest]
+    #[case("sound")]
+    #[case("music")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn sounds_are_refused_for_players_who_disabled_them(
+        _pyshinqlx_setup: (),
+        #[case] command: &str,
+    ) {
+        with_essentials(&VOTE_CVARS, None, |fixtures| {
+            fixtures
+                .database
+                .call_method1("set_flag", (&fixtures.caller, SOUNDS_FLAG, false))
+                .expect("could not set the flag");
+
+            let result = fixtures.run(command, &fixtures.caller, &[command, "boom"]);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(
+                fixtures.told(&fixtures.caller),
+                ["Sounds are disabled. Use ^6!sounds^7 to enable them again."]
+            );
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
+
+    #[rstest]
+    #[case("sound")]
+    #[case("music")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn invalid_sounds_are_reported_only_to_the_caller(_pyshinqlx_setup: (), #[case] command: &str) {
+        with_essentials(&VOTE_CVARS, None, |fixtures| {
+            let result = fixtures.run(command, &fixtures.caller, &[command, "bad"]);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(fixtures.told(&fixtures.caller), ["Invalid sound."]);
+            assert_eq!(fixtures.actions().matches("bad").count(), 1);
+        });
+    }
+
+    #[rstest]
+    #[case(true, "stopsound", "[('stop_sound',)]")]
+    #[case(true, "stopmusic", "[('stop_music',)]")]
+    #[case(false, "stopsound", "[]")]
+    #[case(false, "stopmusic", "[]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn stopping_sounds_respects_the_flag(
+        _pyshinqlx_setup: (),
+        #[case] enabled: bool,
+        #[case] command: &str,
+        #[case] expected: &str,
+    ) {
+        with_essentials(&VOTE_CVARS, None, |fixtures| {
+            fixtures
+                .database
+                .call_method1("set_flag", (&fixtures.caller, SOUNDS_FLAG, enabled))
+                .expect("could not set the flag");
+            let handler = if command == "stopsound" {
+                Essentials::cmd_stopsound
+            } else {
+                Essentials::cmd_stopmusic
+            };
+
+            let result = handler(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&[command]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(
+                result.ok(),
+                Some(if enabled { None } else { Some(STOP_ALL) })
+            );
+            assert_eq!(fixtures.actions(), expected);
+        });
+    }
+
+    #[rstest]
+    #[case(true, true, &[])]
+    #[case(true, false, &[])]
+    #[case(false, true, &["There is no active vote!"])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn yes_and_no_decide_the_active_vote(
+        _pyshinqlx_setup: (),
+        #[case] active: bool,
+        #[case] yes: bool,
+        #[case] expected_replies: &[&str],
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            fixtures.set_vote(active, None);
+            let handler = if yes {
+                Essentials::cmd_yes
+            } else {
+                Essentials::cmd_no
+            };
+
+            let result = handler(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&["x"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(fixtures.replies(), expected_replies);
+            assert_eq!(fixtures.forced(), usize::from(active));
+        });
+    }
+
+    #[rstest]
+    #[case("0")]
+    #[case("-3")]
+    #[case("many")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn random_needs_a_positive_limit(_pyshinqlx_setup: (), #[case] limit: &str) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("random", &fixtures.caller, &["random", limit]);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(
+                fixtures.told(&fixtures.caller),
+                ["Invalid upper limit. Use a positive integer."]
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn random_announces_a_number_up_to_the_limit(_pyshinqlx_setup: ()) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("random", &fixtures.caller, &["random", "1"]);
+
+            assert_eq!(result, Some(None));
+            assert_eq!(fixtures.replies(), ["^3Random number is: ^51"]);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cointoss_announces_heads_or_tails(_pyshinqlx_setup: ()) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = Essentials::cmd_cointoss(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&["cointoss"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            let replies = fixtures.replies();
+            assert!(replies == ["^3The coin is: ^5HEADS"] || replies == ["^3The coin is: ^5TAILS"]);
+        });
+    }
+
+    #[rstest]
+    #[case(&["switch", "1"], Some(USAGE), &[], "[]")]
+    #[case(&["switch", "7", "3"], None, &["The first ID is invalid."], "[]")]
+    #[case(&["switch", "1", "7"], None, &["The second ID is invalid."], "[]")]
+    #[case(&["switch", "1", "3"], None, &[], "[('switch', 1, 3)]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn switch_swaps_the_teams_of_two_players(
+        _pyshinqlx_setup: (),
+        #[case] words: &[&str],
+        #[case] expected_code: Option<i32>,
+        #[case] expected_replies: &[&str],
+        #[case] expected_actions: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("switch", &fixtures.caller, words);
+
+            assert_eq!(result, Some(expected_code));
+            assert_eq!(fixtures.replies(), expected_replies);
+            assert_eq!(fixtures.actions(), expected_actions);
+        });
+    }
+
+    #[rstest]
+    #[case("cmd_lock", &["lock"], "[('lock', None)]")]
+    #[case("cmd_lock", &["lock", "red"], "[('lock', 'red')]")]
+    #[case("cmd_lock", &["lock", "Blue"], "[('lock', 'blue')]")]
+    #[case("cmd_unlock", &["unlock", "s"], "[('unlock', 'spectator')]")]
+    #[case("cmd_unlock", &["unlock"], "[('unlock', None)]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn teams_are_locked_and_unlocked_by_their_initial(
+        _pyshinqlx_setup: (),
+        #[case] command: &str,
+        #[case] words: &[&str],
+        #[case] expected: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let handler = if command == "cmd_lock" {
+                Essentials::cmd_lock
+            } else {
+                Essentials::cmd_unlock
+            };
+
+            let result = handler(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(words),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(fixtures.actions(), expected);
+        });
+    }
+
+    #[rstest]
+    #[case("x")]
+    #[case("")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn locking_an_unknown_team_is_refused(_pyshinqlx_setup: (), #[case] team: &str) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = Essentials::cmd_lock(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&["lock", team]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(Some(STOP_ALL)));
+            assert_eq!(fixtures.told(&fixtures.caller), ["Invalid team."]);
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
+
+    #[rstest]
+    #[case(Some("warmup"), "[('allready',)]", &[])]
+    #[case(Some("in_progress"), "[]", &["But the game's already in progress, you silly goose!"])]
+    #[case(None, "[]", &["There is no game running."])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn allready_only_works_during_warmup(
+        _pyshinqlx_setup: (),
+        #[case] state: Option<&str>,
+        #[case] expected_actions: &str,
+        #[case] expected_replies: &[&str],
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            fixtures.set_game(state);
+
+            let result = Essentials::cmd_allready(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&["allready"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.as_ref().ok(), Some(&None), "{result:?}");
+            assert_eq!(fixtures.actions(), expected_actions);
+            assert_eq!(fixtures.replies(), expected_replies);
+        });
+    }
+
+    #[rstest]
+    #[case(Some("in_progress"), "[('abort',)]", &[])]
+    #[case(Some("warmup"), "[]", &["But the game isn't even on, you doofus!"])]
+    #[case(None, "[]", &["There is no game running."])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn abort_only_works_during_a_game(
+        _pyshinqlx_setup: (),
+        #[case] state: Option<&str>,
+        #[case] expected_actions: &str,
+        #[case] expected_replies: &[&str],
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            fixtures.set_game(state);
+
+            let result = Essentials::cmd_abort(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(&["abort"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(fixtures.actions(), expected_actions);
+            assert_eq!(fixtures.replies(), expected_replies);
+        });
+    }
+
+    #[rstest]
+    #[case(&["map", "campgrounds"], "[('change_map', 'campgrounds', None)]")]
+    #[case(&["map", "campgrounds", "ffa"], "[('change_map', 'campgrounds', 'ffa')]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn map_changes_the_map_with_an_optional_factory(
+        _pyshinqlx_setup: (),
+        #[case] words: &[&str],
+        #[case] expected: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("map", &fixtures.caller, words);
+
+            assert_eq!(result, Some(None));
+            assert_eq!(fixtures.actions(), expected);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn teamsize_sets_the_size_and_announces_it(_pyshinqlx_setup: ()) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            let result = fixtures.run("teamsize", &fixtures.caller, &["ts", "6"]);
+
+            assert_eq!(result, Some(Some(STOP_ALL)));
+            assert_eq!(
+                fixtures.actions(),
+                "[('msg', 'The teamsize has been set to ^66^7 by Caller^7.')]"
+            );
+            let size: i64 = fixtures
+                .module
+                .getattr("game_holder")
+                .and_then(|holder| holder.get_item(0))
+                .and_then(|game| game.getattr("teamsize"))
+                .and_then(|size| size.extract())
+                .expect("no teamsize");
+            assert_eq!(size, 6);
+        });
+    }
+
+    #[rstest]
+    #[case(Some("warmup"), "^7Unintelligible size.", "x")]
+    #[case(None, "There is no game running.", "4")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn teamsize_reports_problems(
+        _pyshinqlx_setup: (),
+        #[case] state: Option<&str>,
+        #[case] expected: &str,
+        #[case] size: &str,
+    ) {
+        with_essentials(&NO_VOTEPASS, None, |fixtures| {
+            fixtures.set_game(state);
+
+            let result = fixtures.run("teamsize", &fixtures.caller, &["ts", size]);
+
+            assert_eq!(result, Some(None));
+            assert_eq!(fixtures.replies(), [expected]);
+            assert_eq!(fixtures.actions(), "[]");
+        });
+    }
 }
