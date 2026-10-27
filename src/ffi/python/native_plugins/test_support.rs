@@ -106,6 +106,13 @@ class Database:
         self.strings = {}
         self.lists = {}
         self.sets = {}
+        self.flags = {}
+
+    def get_flag(self, player, flag, default=False):
+        return self.flags.get((player.steam_id, flag), default)
+
+    def set_flag(self, player, flag, value=True):
+        self.flags[(player.steam_id, flag)] = value
 
     def lrange(self, key, start, stop):
         items = self.lists.get(key, [])
