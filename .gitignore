@@ -6,3 +6,6 @@
 .idea/
 .tox/
 _docs_out/
+
+# locally built python extension modules
+python/shinqlx/*.so
