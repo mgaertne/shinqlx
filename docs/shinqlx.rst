@@ -331,6 +331,11 @@ Functions
 
    Sends a server command to either one specific client or all the clients.
 
+   The server takes a ``%`` for a printf placeholder and does not show such text. In commands that show text
+   (``print``, ``chat``, ``tchat`` and ``cp``), every ``%`` is therefore replaced by the full width percent sign
+   ``％`` (U+FF05). This also applies to everything that ends up here, such as ``Plugin.msg``, ``Player.tell``
+   and ``Plugin.center_print``.
+
    :param int | None client_id: The (optional) ``client_id`` to send the server command to. If ``None``, the server command is sent to all players.
    :param str cmd: The server command to send.
    :return: ``False`` if the client for the ``client_id`` is not an active player, ``True`` otherwise.

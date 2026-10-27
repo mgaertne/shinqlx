@@ -32,6 +32,11 @@ pub(super) fn reply(channel: &Bound<'_, PyAny>, message: &str) -> PyResult<Optio
         .map(|_| None)
 }
 
+/// Ends the processing of the command when the target has already been reported to the caller.
+pub(super) fn stop_all() -> PyResult<Option<i32>> {
+    Ok(Some(PythonReturnCodes::RET_STOP_ALL as i32))
+}
+
 pub(super) fn usage() -> PyResult<Option<i32>> {
     Ok(Some(PythonReturnCodes::RET_USAGE as i32))
 }
