@@ -1,10 +1,15 @@
+mod ban;
 mod chat_log;
 mod clan;
 mod motd;
 mod names;
 mod permission;
+mod plugin_manager;
 mod silence;
 mod target;
+#[cfg(test)]
+mod test_support;
+mod timed_entries;
 mod workshop;
 
 use std::sync::LazyLock;
@@ -19,12 +24,14 @@ use super::{
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 7] = [
+static NATIVE_PLUGINS: [(&str, Constructor); 9] = [
+    ("ban", ban::create),
     ("clan", clan::create),
     ("log", chat_log::create),
     ("motd", motd::create),
     ("names", names::create),
     ("permission", permission::create),
+    ("plugin_manager", plugin_manager::create),
     ("silence", silence::create),
     ("workshop", workshop::create),
 ];
