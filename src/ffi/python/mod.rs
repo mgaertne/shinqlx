@@ -6031,7 +6031,7 @@ def initialize():
 #[cfg(not(tarpaulin_include))]
 pub(crate) mod pyshinqlx_test_support {
     use alloc::ffi::CString;
-    use core::fmt::Debug;
+    use core::{borrow::BorrowMut, ffi::CStr, fmt::Debug};
 
     use mockall::predicate;
     use pyo3::{intern, prelude::*};
@@ -6041,10 +6041,29 @@ pub(crate) mod pyshinqlx_test_support {
     };
     use crate::{
         ffi::c::prelude::{
-            MockClient, MockGameEntity, clientState_t, privileges_t, team_t, weapon_t,
+            CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t,
+            team_t, weapon_t,
         },
         prelude::MockEngineBuilder,
     };
+
+    /// A mocked engine that knows the given `(name, value)` cvars.
+    pub(crate) fn engine_with_cvars(cvars: &[(&'static str, &'static CStr)]) -> MockEngineBuilder {
+        cvars
+            .iter()
+            .fold(MockEngineBuilder::default(), |engine, (name, value)| {
+                let name = *name;
+                let mut raw_cvar = CVarBuilder::default()
+                    .string(value.as_ptr().cast_mut())
+                    .build()
+                    .expect("this should not happen");
+                engine.with_find_cvar(
+                    move |cmd| cmd == name,
+                    move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    0..,
+                )
+            })
+    }
 
     /// Runs the test with the given `(client id, name)` players connected to the mocked engine.
     /// All other client slots up to the highest id are free.

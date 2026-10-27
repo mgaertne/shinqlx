@@ -1,9 +1,16 @@
 mod chat_log;
+mod clan;
 mod motd;
+mod names;
 mod permission;
+mod silence;
+mod target;
 mod workshop;
 
+use std::sync::LazyLock;
+
 use pyo3::{intern, prelude::*};
+use regex::Regex;
 
 use super::{
     commands::CommandPriorities,
@@ -12,10 +19,13 @@ use super::{
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 4] = [
+static NATIVE_PLUGINS: [(&str, Constructor); 7] = [
+    ("clan", clan::create),
     ("log", chat_log::create),
     ("motd", motd::create),
+    ("names", names::create),
     ("permission", permission::create),
+    ("silence", silence::create),
     ("workshop", workshop::create),
 ];
 
@@ -34,11 +44,57 @@ fn register_hook(
     plugin.add_hook(event, &plugin.getattr(handler)?, priority as i32)
 }
 
+static EXCESSIVE_COLORS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:\^.)+(\^.)").expect("the pattern for excessive colors is a valid regex")
+});
+
+/// Removes excessive colors and only keeps the last of a run of color codes.
+fn without_excessive_colors(text: &str) -> String {
+    EXCESSIVE_COLORS.replace_all(text, "$1").into_owned()
+}
+
+fn tell(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
+    player
+        .call_method1(intern!(player.py(), "tell"), (message,))
+        .map(|_| ())
+}
+
+fn cvar_flag(py: Python<'_>, name: &str) -> PyResult<bool> {
+    py.get_type::<Plugin>()
+        .call_method1(
+            intern!(py, "get_cvar"),
+            (name, py.get_type::<pyo3::types::PyBool>()),
+        )?
+        .is_truthy()
+}
+
 fn register_command(
     plugin: &Bound<'_, Plugin>,
     names: &[&str],
     handler: &str,
     permission: i32,
+    usage: &str,
+    channels: Option<Bound<'_, PyAny>>,
+) -> PyResult<()> {
+    add_command(plugin, names, handler, permission, 5, usage, channels)
+}
+
+/// Registers a command that everybody may also use as a client command, such as `/name`.
+fn register_client_command(
+    plugin: &Bound<'_, Plugin>,
+    names: &[&str],
+    handler: &str,
+    usage: &str,
+) -> PyResult<()> {
+    add_command(plugin, names, handler, 0, 0, usage, None)
+}
+
+fn add_command(
+    plugin: &Bound<'_, Plugin>,
+    names: &[&str],
+    handler: &str,
+    permission: i32,
+    client_cmd_perm: i32,
     usage: &str,
     channels: Option<Bound<'_, PyAny>>,
 ) -> PyResult<()> {
@@ -55,7 +111,7 @@ fn register_command(
         None,
         CommandPriorities::PRI_NORMAL as u32,
         false,
-        5,
+        client_cmd_perm,
         true,
         usage,
     )
@@ -88,7 +144,10 @@ mod native_plugins_tests {
     use pyo3::prelude::*;
     use rstest::rstest;
 
-    use super::{create_native_plugin, has_native_plugin, without_trailing_color_reset};
+    use super::{
+        create_native_plugin, has_native_plugin, without_excessive_colors,
+        without_trailing_color_reset,
+    };
     use crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
 
     #[rstest]
@@ -103,9 +162,23 @@ mod native_plugins_tests {
     }
 
     #[rstest]
+    #[case("^1Ada", "^1Ada")]
+    #[case("^1^2^3Ada", "^3Ada")]
+    #[case("^1A^2^3da", "^1A^3da")]
+    #[case("Ada", "Ada")]
+    #[case("^1^2^3", "^3")]
+    #[case("", "")]
+    fn excessive_colors_keep_only_the_last_of_a_run(#[case] text: &str, #[case] expected: &str) {
+        assert_eq!(without_excessive_colors(text), expected);
+    }
+
+    #[rstest]
     #[case("workshop", true)]
     #[case("log", true)]
     #[case("motd", true)]
+    #[case("names", true)]
+    #[case("clan", true)]
+    #[case("silence", true)]
     #[case("permission", true)]
     #[case("balance", false)]
     #[case("r!workshop", false)]

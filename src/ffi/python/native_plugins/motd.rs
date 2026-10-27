@@ -1,6 +1,6 @@
 use pyo3::{exceptions::PyKeyError, intern, prelude::*, types::PyTuple};
 
-use super::{register_command, register_hook};
+use super::{register_command, register_hook, tell};
 use crate::ffi::python::{
     Plugin, PythonReturnCodes, commands::CommandPriorities, delay, get_cvar, plugin::PluginMethods,
 };
@@ -35,12 +35,6 @@ fn appended(existing: &str, addition: &str) -> String {
         " "
     };
     format!("{existing}{leading_space}{addition}")
-}
-
-fn tell(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
-    player
-        .call_method1(intern!(player.py(), "tell"), (message,))
-        .map(|_| ())
 }
 
 fn registered_paths(database: &Bound<'_, PyAny>) -> PyResult<Vec<String>> {
