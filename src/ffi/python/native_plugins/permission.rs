@@ -2,7 +2,7 @@ use pyo3::{intern, prelude::*, types::PyTuple};
 
 use super::{
     register_command,
-    target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, usage},
+    target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
 };
 use crate::ffi::python::{Plugin, plugin::PluginMethods, pyshinqlx_owner};
 
@@ -24,7 +24,7 @@ impl Permission {
         let target = match resolve_text(slf.py(), player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let Some(level) = msg[2]
             .trim()
@@ -64,7 +64,7 @@ impl Permission {
         let target = match resolve_text(slf.py(), player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
 
         if pyshinqlx_owner(slf.py())? == Some(target.steam_id()) {
@@ -183,6 +183,7 @@ mod permission_tests {
 
     const OWNER_ID: i64 = 76_561_198_000_000_001;
     const OTHER_ID: i64 = 76_561_198_000_000_002;
+    const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Permission>,
@@ -411,7 +412,7 @@ class Player:
                 &fixtures.channel,
             );
 
-            assert_eq!(result.ok(), Some(None));
+            assert_eq!(result.ok(), Some(Some(STOP_ALL)));
             assert_eq!(
                 fixtures.told(),
                 ["Sorry, but no players matched your tokens: abc."]
@@ -455,7 +456,7 @@ class Player:
                 &fixtures.channel,
             );
 
-            assert_eq!(result.ok(), Some(None));
+            assert_eq!(result.ok(), Some(Some(STOP_ALL)));
             assert_eq!(
                 fixtures.told(),
                 [
@@ -500,7 +501,7 @@ class Player:
                 &fixtures.channel,
             );
 
-            assert_eq!(result.ok(), Some(None));
+            assert_eq!(result.ok(), Some(Some(STOP_ALL)));
             assert_eq!(
                 fixtures.told(),
                 ["Sorry, but no players matched your tokens: abc."]

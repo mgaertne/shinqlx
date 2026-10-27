@@ -10,7 +10,7 @@ use pyo3::{
 
 use super::{
     cvar_flag, register_command, register_hook,
-    target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, usage},
+    target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
     tell,
     timed_entries::{
         Entry, active_entries, latest_entry, length_in_seconds, revoke_entries, store_entry,
@@ -360,7 +360,7 @@ impl Ban {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
         let steam_id = target.steam_id();
@@ -426,7 +426,7 @@ impl Ban {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
 
@@ -453,7 +453,7 @@ impl Ban {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
         let steam_id = target.steam_id();
@@ -492,7 +492,7 @@ impl Ban {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
         let steam_id = target.steam_id();
@@ -1034,6 +1034,40 @@ kick = classmethod(kick)
                 fixtures.replies(),
                 ["Invalid client ID. Use either a client ID or a SteamID64."]
             );
+        });
+    }
+
+    #[rstest]
+    #[case(&["ban", "nobody", "1", "day"])]
+    #[case(&["unban", "nobody"])]
+    #[case(&["checkban", "nobody"])]
+    #[case(&["forgive", "nobody"])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn commands_stop_all_processing_for_a_name_that_matches_nobody(
+        _pyshinqlx_setup: (),
+        #[case] words: &[&str],
+    ) {
+        with_ban(REDIS_5, &[], |fixtures| {
+            let command = match words[0] {
+                "ban" => Ban::cmd_ban,
+                "unban" => Ban::cmd_unban,
+                "checkban" => Ban::cmd_checkban,
+                _ => Ban::cmd_forgive,
+            };
+
+            let result = command(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(words),
+                &fixtures.channel,
+            );
+
+            assert_eq!(
+                result.ok(),
+                Some(Some(PythonReturnCodes::RET_STOP_ALL as i32))
+            );
+            assert!(fixtures.zsets().is_empty());
         });
     }
 

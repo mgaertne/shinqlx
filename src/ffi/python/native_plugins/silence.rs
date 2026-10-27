@@ -5,7 +5,7 @@ use pyo3::{exceptions::PyValueError, intern, prelude::*, types::PyDict};
 
 use super::{
     register_command, register_hook,
-    target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, usage},
+    target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
     tell,
     timed_entries::{
         Entry, active_entries, latest_entry, length_in_seconds, now, revoke_entries, store_entry,
@@ -145,7 +145,7 @@ impl Silence {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
         let steam_id = target.steam_id();
@@ -202,7 +202,7 @@ impl Silence {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
         let steam_id = target.steam_id();
@@ -235,7 +235,7 @@ impl Silence {
         let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
-            Resolution::Reported => return Ok(None),
+            Resolution::Reported => return stop_all(),
         };
         let name = display_name(&target)?;
 
@@ -531,6 +531,35 @@ player = classmethod(find_player)
             );
 
             assert_eq!(result.ok(), Some(Some(USAGE)));
+            assert!(fixtures.zsets().is_empty());
+        });
+    }
+
+    #[rstest]
+    #[case(&["silence", "nobody", "1", "day"])]
+    #[case(&["unsilence", "nobody"])]
+    #[case(&["checksilence", "nobody"])]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn commands_stop_all_processing_for_a_name_that_matches_nobody(
+        _pyshinqlx_setup: (),
+        #[case] words: &[&str],
+    ) {
+        with_silence(REDIS_5, &[], |fixtures| {
+            let command = match words[0] {
+                "silence" => Silence::cmd_silence,
+                "unsilence" => Silence::cmd_unsilence,
+                _ => Silence::cmd_checksilence,
+            };
+
+            let result = command(
+                &fixtures.plugin,
+                &fixtures.caller,
+                msg(words),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(Some(STOP_ALL)));
             assert!(fixtures.zsets().is_empty());
         });
     }
