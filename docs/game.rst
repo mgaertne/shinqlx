@@ -17,6 +17,14 @@ Game
 
    A class representing the game. That is, stuff like what map is being played, if it's in warmup, and so on. It also has methods to call in timeins, aborts, pauses, and so on.
 
+   .. property:: cached
+      :type: bool
+
+      Whether this instance was created with ``cached = True``. **Read-only**.
+
+      .. deprecated:: 0.5.11
+         will be removed in future versions
+
    .. property:: cvars
       :type: dict[str, str]
 

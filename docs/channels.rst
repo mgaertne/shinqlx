@@ -134,12 +134,12 @@ Constants
 
    Chat channel for messages to the blue team.
 
-.. data:: FREE_TEAM_CHAT_CHANNEL
+.. data:: FREE_CHAT_CHANNEL
    :type: TeamChatChannel
 
    Chat channel for messages to the free team.
 
-.. data:: SPECTATOR_TEAM_CHAT_CHANNEL
+.. data:: SPECTATOR_CHAT_CHANNEL
    :type: TeamChatChannel
 
    Chat channel for messages to spectators only.

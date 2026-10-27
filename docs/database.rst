@@ -151,3 +151,61 @@ Database
    .. method:: close()
 
       Close the Redis connection if the config was overridden. Otherwise only do so if this is the last plugin using the default connection.
+
+   .. method:: __contains__(key) -> bool
+
+      Allows ``key in self.db``. Checks whether the key exists in the database.
+
+   .. method:: __getitem__(key) -> str
+
+      Allows ``self.db[key]``. Returns the string value stored for the key.
+
+      :raises KeyError: if the key is not present in the database.
+
+   .. method:: __setitem__(key, item)
+
+      Allows ``self.db[key] = item``. Stores the value for the key.
+
+      :raises RuntimeError: if the database assignment failed.
+
+   .. method:: __delitem__(key)
+
+      Allows ``del self.db[key]``. Removes the key from the database.
+
+      :raises KeyError: if the key is not present in the database.
+
+   .. method:: __getattr__(attr)
+
+      Every other attribute is looked up on the underlying redis connection :attr:`r`. That way commands like ``self.db.smembers(key)`` or ``self.db.lrange(key, 0, -1)`` work as they would on a redis connection.
+
+   The following commands behave the same with redis-py 2.x and 3.x or later. Where redis-py changed the order of the positional arguments between those versions, the arguments are accepted by keyword only.
+
+   .. method:: mset(mapping = None, **kwargs)
+               msetnx(mapping = None, **kwargs)
+
+      Set multiple keys at once, ``msetnx`` only if none of the keys exist yet. The pairs are given either as a single :class:`dict` or as keyword arguments, or both.
+
+      Raises a ``redis.RedisError`` if more than one positional argument or a positional argument that is not a :class:`dict` is given.
+
+   .. method:: zadd(name, *args, **kwargs)
+               zadd(name, mapping, nx = False, xx = False, ch = False, incr = False, gt = None, lt = None)
+
+      Add members to the sorted set ``name``. Accepts the redis-py 3.x style with a ``mapping`` of members to scores, as well as the redis-py 2.x style with alternating ``member, score`` arguments, which is converted to a mapping.
+
+      Raises a ``redis.RedisError`` if the number of members and scores does not match.
+
+   .. method:: zincrby(name, *, value, amount = 1)
+
+      Increment the score of ``value`` in the sorted set ``name`` by ``amount``.
+
+   .. method:: setex(name, *, value, time)
+
+      Set the ``value`` of the key ``name`` that expires after ``time``, given in seconds or as a :class:`datetime.timedelta`.
+
+   .. method:: lrem(name, *, value, count = 0)
+
+      Remove occurrences of ``value`` from the list ``name``. A ``count`` of ``0`` removes all of them.
+
+   .. note::
+
+      Old minqlx plugins call ``setex``, ``zincrby`` and ``lrem`` with positional arguments in the redis-py 2.x order, for example ``self.db.setex(key, time, value)``. Those calls raise a :class:`TypeError` here and have to pass ``value``, ``time``, ``amount`` and ``count`` as keyword arguments.

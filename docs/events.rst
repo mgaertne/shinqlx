@@ -356,7 +356,7 @@ Concrete Event dispatchers
 
    Event that goes off when the countdown before a round starts.
 
-   .. method:: dipatch(round_number) -> bool
+   .. method:: dispatch(round_number) -> bool
 
       :param int round_number: The round number that is about to start.
       :return: Whether to pass on the event to the engine.
@@ -367,7 +367,7 @@ Concrete Event dispatchers
 
    Event that goes off when a round starts.
 
-   .. method:: dipatch(round_number) -> bool
+   .. method:: dispatch(round_number) -> bool
 
       :param int round_number: The round number that is about to start.
       :return: Whether to pass on the event to the engine.
@@ -380,7 +380,7 @@ Concrete Event dispatchers
 
    Event that goes off when a round ends.
 
-   .. method:: dipatch(data) -> bool
+   .. method:: dispatch(data) -> bool
 
       :param dict data: The raw round end event data received via ZMQ.
       :return: Whether to pass on the event to the engine.
@@ -492,7 +492,7 @@ Concrete Event dispatchers
       :param Player player: The player that used their kamikaze holdable.
       :return: Whether to pass on the event to the engine.
 
-.. class:: KamikazeUExplodeDispatcher
+.. class:: KamikazeExplodeDispatcher
 
    ``name = "kamikaze_explode"``
 

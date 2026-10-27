@@ -59,7 +59,7 @@ Low-level handlers. These are all called by the Rust-code, not within Python.
    :param bool is_bot: Whether or not the player is a bot.
    :return: ``True`` if an exception occurred during handling, a changed value, if a handler returned a different value while processing, ``None`` otherwise.
 
-.. function:: handple_player_loaded(client_id) -> bool | None
+.. function:: handle_player_loaded(client_id) -> bool | None
 
    This will be called whenever a player has connected and finished loading, meaning it'll go off a bit later than the usual "X connected" messages. This will not trigger on bots.
 

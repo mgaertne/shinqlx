@@ -638,7 +638,7 @@ Functions
    :return: ``True``.
    :raises ValueError: if the ``item_id`` is not in the range between ``0`` and the maximum number of items on the current map and gamemode.
 
-.. function:: remove_dropped_item() -> bool
+.. function:: remove_dropped_items() -> bool
 
    Removes all dropped items.
 
@@ -815,7 +815,7 @@ Functions
    loaded: ``p!name`` is refused while the Rust plugin ``name`` is loaded and vice versa. Unload it first, or use
    :func:`reload_plugin` with the prefix to replace it.
 
-   Built-in Rust plugins: ``ban``, ``clan``, ``essentials``, ``log``, ``motd``, ``names``, ``permission``, ``plugin_manager``, ``silence`` and ``workshop``.
+   Built-in Rust plugins: ``ban``, ``clan``, ``essentials``, ``log``, ``motd``, ``names``, ``permission``, ``plugin_manager``, ``silence`` and ``workshop``. See :ref:`native_plugins` for their commands and cvars.
 
    :param str plugin: The name of the plugin to load, optionally with a prefix.
    :raises PluginLoadError: if the plugin could not be loaded.
