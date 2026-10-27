@@ -94,6 +94,11 @@ cvar                             default   description
 Compared to the Python plugin, an invalid or non-positive length answers with the usage instead of doing nothing,
 and the expiry time is taken from the stored score.
 
+Other plugins can ask the plugin through ``self.plugins["ban"]``, as with the Python plugin:
+``is_banned(steam_id)`` returns the expiry as :class:`datetime.datetime` and the reason of the longest active ban or
+``None``, ``leave_status(steam_id)`` returns the action (``"warn"``, ``"ban"`` or ``None``) and the share of
+completed games or ``None``, and ``warn_player(player, ratio)`` tells a player about their leaves.
+
 silence
 =======
 
@@ -106,6 +111,9 @@ command                                     level   description
 ``!unsilence <id>``                         2       Lifts all active silences of a player.
 ``!checksilence <id>``                      0       Shows the active silences of a player.
 =========================================== ======= =======================================================
+
+Other plugins can ask the plugin through ``self.plugins["silence"]``: ``is_silenced(steam_id)`` returns the expiry as
+:class:`datetime.datetime`, the score and the reason of the longest active silence, or ``None``.
 
 essentials
 ==========
