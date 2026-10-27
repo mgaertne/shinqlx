@@ -2872,6 +2872,25 @@ fn load_plugin_with(py: Python<'_>, plugin: &str, reload_if_loaded: bool) -> PyR
             .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
     })?;
 
+    if let Some(loaded_plugin) = py
+        .get_type::<Plugin>()
+        .getattr(intern!(py, "_loaded_plugins"))?
+        .cast::<PyDict>()?
+        .get_item(plugin)?
+        && source != PluginSource::Unspecified
+        && native_plugins::is_native_plugin(&loaded_plugin) != (source == PluginSource::Native)
+    {
+        cold_path();
+        let loaded_source = if source == PluginSource::Native {
+            "Python"
+        } else {
+            "Rust"
+        };
+        return Err(PluginLoadError::new_err(format!(
+            "Plugin '{plugin}' is already loaded as a {loaded_source} plugin. Unload it first."
+        )));
+    }
+
     let use_native = match source {
         PluginSource::Native => true,
         PluginSource::Python => false,
@@ -3064,8 +3083,9 @@ fn is_loaded_native_plugin(py: Python<'_>, plugin: &str) -> bool {
         .is_ok_and(|loaded_plugin| native_plugins::is_native_plugin(&loaded_plugin))
 }
 
-fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
-    if let Some(loaded_modules) = MODULES.load().as_ref()
+fn try_reload_plugin(py: Python, plugin: &str, target: &str) -> PyResult<()> {
+    if !target.starts_with("r!")
+        && let Some(loaded_modules) = MODULES.load().as_ref()
         && loaded_modules.bind(py).contains(plugin)?
     {
         loaded_modules
@@ -3080,19 +3100,21 @@ fn try_reload_plugin(py: Python, plugin: &str) -> PyResult<()> {
                     .and_then(|module| loaded_modules.bind(py).set_item(plugin, module))
             })?;
     };
-    load_plugin_with(py, plugin, false)
+    load_plugin_with(py, target, false)
 }
 
 #[pyfunction(name = "reload_plugin")]
 fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    let reload_target = if is_loaded_native_plugin(py, plugin) {
-        format!("r!{plugin}")
-    } else {
-        plugin.to_owned()
+    let (source, plugin) = split_plugin_source(plugin).map_err(PluginLoadError::new_err)?;
+    let reload_target = match source {
+        PluginSource::Native => format!("r!{plugin}"),
+        PluginSource::Python => format!("p!{plugin}"),
+        PluginSource::Unspecified if is_loaded_native_plugin(py, plugin) => format!("r!{plugin}"),
+        PluginSource::Unspecified => plugin.to_owned(),
     };
     let _ = unload_plugin(py, plugin);
 
-    try_reload_plugin(py, &reload_target).tap_err(|e| {
+    try_reload_plugin(py, plugin, &reload_target).tap_err(|e| {
         log_exception(py, e);
     })
 }
@@ -3831,6 +3853,68 @@ mod native_plugin_loading_tests {
 
             assert!(load_plugin(py, "r!workshop").is_ok());
             assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn load_plugin_refuses_another_source_than_the_loaded_one(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(1, |py| {
+            load_plugin(py, "r!workshop").expect("could not load native plugin");
+
+            let result = load_plugin(py, "p!workshop");
+
+            assert!(
+                result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)
+                    && err.value(py).to_string()
+                        == "Plugin 'workshop' is already loaded as a Rust plugin. Unload it first.")
+            );
+            assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
+    }
+
+    #[rstest]
+    #[case("r!workshop")]
+    #[case("workshop")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn reload_plugin_accepts_the_native_prefix(_pyshinqlx_setup: (), #[case] plugin: &str) {
+        with_native_workshop_engine(2, |py| {
+            load_plugin(py, "r!workshop").expect("could not load native plugin");
+
+            assert!(reload_plugin(py, plugin).is_ok());
+            assert_eq!(loaded_hooks(py, "workshop"), 1);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn reload_plugin_with_python_prefix_replaces_a_native_plugin(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(1, |py| {
+            load_plugin(py, "r!workshop").expect("could not load native plugin");
+
+            let result = reload_plugin(py, "p!workshop");
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+            assert!(
+                py.get_type::<Plugin>()
+                    .getattr(intern!(py, "_loaded_plugins"))
+                    .and_then(|loaded_plugins| loaded_plugins.contains("workshop"))
+                    .is_ok_and(|contained| !contained)
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn reload_plugin_with_unknown_prefix_fails(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| {
+            let result = reload_plugin(py, "x!workshop");
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
         });
     }
 

@@ -804,8 +804,11 @@ Functions
    Plugins written in Rust are built into shinqlx. A prefix selects where the plugin comes from: ``p!name`` loads
    the Python plugin ``name`` from the plugins directory, ``r!name`` the built-in Rust plugin. Without a prefix, the
    Python plugin is loaded, and the built-in plugin only if there is no Python file of that name. Either way the
-   plugin is known by ``name`` alone, so :func:`unload_plugin`, :func:`reload_plugin` and ``Plugin.plugins`` do
-   not take the prefix. The prefixes also work in the ``qlx_plugins`` cvar and for the ``!load`` command.
+   plugin is known by ``name`` alone, so :func:`unload_plugin` and ``Plugin.plugins`` do not take the prefix.
+   The prefixes also work in the ``qlx_plugins`` cvar, for the ``!load`` command and for :func:`reload_plugin`,
+   which then reloads the plugin from the given source. A plugin cannot be loaded from the other source while it is
+   loaded: ``p!name`` is refused while the Rust plugin ``name`` is loaded and vice versa. Unload it first, or use
+   :func:`reload_plugin` with the prefix to replace it.
 
    Built-in Rust plugins: ``ban``, ``clan``, ``log``, ``motd``, ``names``, ``permission``, ``plugin_manager``, ``silence`` and ``workshop``.
 
