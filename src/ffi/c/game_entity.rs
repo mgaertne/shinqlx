@@ -319,13 +319,14 @@ impl GameEntity {
         let angle = self.gentity_t.s.apos.trBase[1] * (PI * 2.0 / 360.0);
         let mut velocity = [150.0 * angle.cos(), 150.0 * angle.sin(), 250.0];
         MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
-            let mut entity = main_engine
-                .try_launch_item(
-                    gitem.borrow_mut(),
-                    self.gentity_t.s.pos.trBase.borrow_mut(),
-                    velocity.borrow_mut(),
-                )
-                .unwrap();
+            let Ok(mut entity) = main_engine.try_launch_item(
+                gitem.borrow_mut(),
+                self.gentity_t.s.pos.trBase.borrow_mut(),
+                velocity.borrow_mut(),
+            ) else {
+                cold_path();
+                return;
+            };
             entity.set_touch(Some(ShiNQlx_Touch_Item));
             entity.set_parent(self.gentity_t);
             entity.set_think(Some(ShiNQlx_Switch_Touch_Item));

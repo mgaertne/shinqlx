@@ -998,7 +998,7 @@ impl QuakeLiveEngine {
                     cmd_executestring_orig,
                     cmd_argc_orig,
                 })
-                .unwrap();
+                .expect("the static functions are searched only once per engine");
 
             Ok(())
         }
@@ -1096,7 +1096,7 @@ impl QuakeLiveEngine {
                 sv_sendservercommand_detour,
                 com_printf_detour,
             })
-            .unwrap();
+            .expect("the static detours are hooked only once per engine");
 
         Ok(())
     }

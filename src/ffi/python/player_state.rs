@@ -1,7 +1,7 @@
 use derive_more::Display;
 
 use super::prelude::*;
-use crate::ffi::c::prelude::*;
+use crate::{ffi::c::prelude::*, prelude::QuakeLiveEngineError};
 
 /// Information about a player's state in the game.
 #[pyclass(
@@ -47,12 +47,14 @@ pub(crate) struct PlayerState {
     pub(crate) is_frozen: bool,
 }
 
-impl From<GameEntity> for PlayerState {
-    fn from(game_entity: GameEntity) -> Self {
-        let game_client = game_entity.get_game_client().unwrap();
+impl TryFrom<GameEntity> for PlayerState {
+    type Error = QuakeLiveEngineError;
+
+    fn try_from(game_entity: GameEntity) -> Result<Self, Self::Error> {
+        let game_client = game_entity.get_game_client()?;
         let position = game_client.get_position();
         let velocity = game_client.get_velocity();
-        Self {
+        Ok(Self {
             is_alive: game_client.is_alive(),
             position: Vector3::from(position),
             velocity: Vector3::from(velocity),
@@ -72,7 +74,7 @@ impl From<GameEntity> for PlayerState {
             ),
             is_chatting: game_client.is_chatting(),
             is_frozen: game_client.is_frozen(),
-        }
+        })
     }
 }
 
@@ -139,7 +141,21 @@ mod player_state_tests {
         });
         mock_game_entity.expect_get_health().returning(|| 123);
 
-        assert_eq!(PlayerState::from(mock_game_entity), default_player_state());
+        assert_eq!(
+            PlayerState::try_from(mock_game_entity).ok(),
+            Some(default_player_state())
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn player_state_from_entity_without_game_client() {
+        let mut mock_game_entity = MockGameEntity::new();
+        mock_game_entity
+            .expect_get_game_client()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
+        assert!(PlayerState::try_from(mock_game_entity).is_err());
     }
 
     #[test]

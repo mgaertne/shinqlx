@@ -1152,7 +1152,9 @@ pub struct netchan_t {
     pub sock: netsrc_t,
     #[builder(default)]
     pub dropped: c_int, // between last packet and previous
-    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"NetadrBuilder::default().build().expect("NetadrBuilder has defaults for all fields")"#
+    )]
     pub remoteAddress: netadr_t,
     #[builder(default)]
     pub qport: c_int, // qport value to write when transmitting
@@ -1210,7 +1212,9 @@ pub struct trace_t {
     pub fraction: f32,
     #[builder(default)]
     pub endpos: vec3_t,
-    #[builder(default = "CPlaneBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"CPlaneBuilder::default().build().expect("CPlaneBuilder has defaults for all fields")"#
+    )]
     pub plane: cplane_t,
     #[builder(default)]
     pub surfaceFlags: c_int,
@@ -1398,7 +1402,9 @@ pub struct clientSnapshot_t {
     pub areabytes: c_int,
     #[builder(default = "[0; MAX_MAP_AREA_BYTES as usize]")]
     pub areabits: [byte; MAX_MAP_AREA_BYTES as usize], // portalarea visibility bits
-    #[builder(default = "PlayerStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"PlayerStateBuilder::default().build().expect("PlayerStateBuilder has defaults for all fields")"#
+    )]
     pub ps: playerState_t,
     #[builder(default)]
     pub num_entities: c_int,
@@ -1451,9 +1457,13 @@ pub struct entityState_s {
     pub eType: c_int,
     #[builder(default)]
     pub eFlags: c_int,
-    #[builder(default = "TrajectoryBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"TrajectoryBuilder::default().build().expect("TrajectoryBuilder has defaults for all fields")"#
+    )]
     pub pos: trajectory_t,
-    #[builder(default = "TrajectoryBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"TrajectoryBuilder::default().build().expect("TrajectoryBuilder has defaults for all fields")"#
+    )]
     pub apos: trajectory_t,
     #[builder(default)]
     pub time: c_int,
@@ -1519,7 +1529,9 @@ pub type entityState_t = entityState_s;
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "EntitySharedBuilder", no_std)]
 pub struct entityShared_t {
-    #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"EntityStateBuilder::default().build().expect("EntityStateBuilder has defaults for all fields")"#
+    )]
     pub s: entityState_t,
     #[builder(default = "qboolean::qfalse")]
     pub linked: qboolean,
@@ -1553,9 +1565,13 @@ pub struct entityShared_t {
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "SharedEntityBuilder", no_std)]
 pub struct sharedEntity_t {
-    #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"EntityStateBuilder::default().build().expect("EntityStateBuilder has defaults for all fields")"#
+    )]
     pub s: entityState_t, // communicated by server to clients
-    #[builder(default = "EntitySharedBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"EntitySharedBuilder::default().build().expect("EntitySharedBuilder has defaults for all fields")"#
+    )]
     pub r: entityShared_t, // shared by both the server system and game
 }
 
@@ -1581,7 +1597,9 @@ pub struct client_s {
     pub gamestateMessageNum: c_int, // netchan->outgoingSequence of gamestate
     #[builder(default)]
     pub challenge: c_int,
-    #[builder(default = "UserCmdBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"UserCmdBuilder::default().build().expect("UserCmdBuilder has defaults for all fields")"#
+    )]
     pub lastUsercmd: usercmd_t,
     #[builder(default)]
     pub lastMessageNum: c_int, // for delta compression
@@ -1634,22 +1652,7 @@ pub struct client_s {
     #[builder(default)]
     pub timeoutCount: c_int, // must timeout a few frames in a row so debugging doesn't break
     #[builder(
-        default = "[ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap(),\
-        ClientSnapshotBuilder::default().build().unwrap(), ClientSnapshotBuilder::default().build().unwrap()]"
+        default = r#"core::array::from_fn(|_| ClientSnapshotBuilder::default().build().expect("ClientSnapshotBuilder has defaults for all fields"))"#
     )]
     pub frames: [clientSnapshot_t; PACKET_BACKUP as usize], // updates can be delta'd from here
     #[builder(default)]
@@ -1662,7 +1665,9 @@ pub struct client_s {
     pub pureAuthentic: c_int,
     #[builder(default = "qboolean::qfalse")]
     pub gotCP: qboolean, // TTimo - additional flag to distinguish between a bad pure checksum, and no cp command at all
-    #[builder(default = "NetchanBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"NetchanBuilder::default().build().expect("NetchanBuilder has defaults for all fields")"#
+    )]
     pub netchan: netchan_t,
     #[builder(default = "core::ptr::null_mut()")]
     pub netchan_start_queue: *mut netchan_buffer_t,
@@ -1683,7 +1688,9 @@ pub type client_t = client_s;
 #[derive(Debug, PartialEq, Clone, Copy, Builder)]
 #[builder(name = "ChallengeBuilder", no_std)]
 pub struct challenge_t {
-    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"NetadrBuilder::default().build().expect("NetadrBuilder has defaults for all fields")"#
+    )]
     pub adr: netadr_t,
     #[builder(default)]
     pub challenge: c_int,
@@ -1717,11 +1724,17 @@ pub struct serverStatic_t {
     pub snapshotEntities: *mut entityState_t, // [numSnapshotEntities]
     #[builder(default)]
     pub nextHeartbeatTime: c_int,
-    #[builder(default = "[ChallengeBuilder::default().build().unwrap(); MAX_CHALLENGES as usize]")]
+    #[builder(
+        default = r#"[ChallengeBuilder::default().build().expect("ChallengeBuilder has defaults for all fields"); MAX_CHALLENGES as usize]"#
+    )]
     pub challenges: [challenge_t; MAX_CHALLENGES as usize], // to prevent invalid IPs from connecting
-    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"NetadrBuilder::default().build().expect("NetadrBuilder has defaults for all fields")"#
+    )]
     pub redirectAddress: netadr_t, // for rcon return messages
-    #[builder(default = "NetadrBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"NetadrBuilder::default().build().expect("NetadrBuilder has defaults for all fields")"#
+    )]
     pub authorizeAddress: netadr_t, // for rcon return messages
 }
 
@@ -1951,7 +1964,9 @@ pub struct expandedStatObj_t {
 pub struct clientPersistant_t {
     #[builder(default = "clientConnected_t::CON_CONNECTED")]
     pub connected: clientConnected_t,
-    #[builder(default = "UserCmdBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"UserCmdBuilder::default().build().expect("UserCmdBuilder has defaults for all fields")"#
+    )]
     pub cmd: usercmd_t,
     #[builder(default = "qboolean::qfalse")]
     pub localClient: qboolean,
@@ -1991,7 +2006,9 @@ pub struct clientPersistant_t {
     pub timeouts: c_int,
     #[builder(default)]
     pub enterTime: c_int,
-    #[builder(default = "PlayerTeamStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"PlayerTeamStateBuilder::default().build().expect("PlayerTeamStateBuilder has defaults for all fields")"#
+    )]
     pub teamState: playerTeamState_t,
     #[builder(default)]
     pub damageResidual: c_int,
@@ -2105,9 +2122,13 @@ pub enum entityType_t {
 #[builder(name = "GEntityBuilder", no_std)]
 #[allow(unpredictable_function_pointer_comparisons)]
 pub struct gentity_s {
-    #[builder(default = "EntityStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"EntityStateBuilder::default().build().expect("EntityStateBuilder has defaults for all fields")"#
+    )]
     pub s: entityState_t,
-    #[builder(default = "EntitySharedBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"EntitySharedBuilder::default().build().expect("EntitySharedBuilder has defaults for all fields")"#
+    )]
     pub r: entityShared_t,
     #[builder(default = "core::ptr::null_mut()")]
     pub client: *mut gclient_s,
@@ -2309,11 +2330,17 @@ pub struct raceInfo_t {
 #[builder(name = "GClientBuilder", no_std)]
 #[repr(C, align(8))]
 pub struct gclient_s {
-    #[builder(default = "PlayerStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"PlayerStateBuilder::default().build().expect("PlayerStateBuilder has defaults for all fields")"#
+    )]
     pub ps: playerState_t,
-    #[builder(default = "ClientPersistantBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"ClientPersistantBuilder::default().build().expect("ClientPersistantBuilder has defaults for all fields")"#
+    )]
     pub pers: clientPersistant_t,
-    #[builder(default = "ClientSessionBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"ClientSessionBuilder::default().build().expect("ClientSessionBuilder has defaults for all fields")"#
+    )]
     pub sess: clientSession_t,
     #[builder(default = "qboolean::qfalse")]
     pub noclip: qboolean,
@@ -2395,7 +2422,9 @@ pub struct gclient_s {
     pub ammoTimes: [c_int; 16usize],
     #[builder(default)]
     pub invulnerabilityTime: c_int,
-    #[builder(default = "ExpandedStatsBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"ExpandedStatsBuilder::default().build().expect("ExpandedStatsBuilder has defaults for all fields")"#
+    )]
     pub expandedStats: expandedStatObj_t,
     #[builder(default)]
     pub ignoreChatsTime: c_int,
@@ -2407,7 +2436,9 @@ pub struct gclient_s {
     pub deferredSpawnTime: c_int,
     #[builder(default)]
     pub deferredSpawnCount: c_int,
-    #[builder(default = "RaceInfoBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"RaceInfoBuilder::default().build().expect("RaceInfoBuilder has defaults for all fields")"#
+    )]
     pub race: raceInfo_t,
     #[builder(
         default = "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"
@@ -2647,7 +2678,9 @@ pub struct level_locals_t {
     pub lastTeamRoundScores: [c_int; 4usize],
     #[builder(default = "team_t::TEAM_FREE")]
     pub attackingTeam: team_t,
-    #[builder(default = "RoundStateBuilder::default().build().unwrap()")]
+    #[builder(
+        default = r#"RoundStateBuilder::default().build().expect("RoundStateBuilder has defaults for all fields")"#
+    )]
     pub roundState: roundState_t,
     #[builder(default)]
     pub lastTeamCountSent: c_int,

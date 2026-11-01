@@ -48,8 +48,7 @@ impl<'py> VoteStartedDispatcherMethods<'py> for Bound<'py, VoteStartedDispatcher
         let player = &self
             .get()
             .player
-            .try_read()
-            .unwrap()
+            .read()
             .clone_ref(self.py())
             .into_bound(self.py())
             .into_any();

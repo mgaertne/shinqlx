@@ -14,8 +14,10 @@ use crate::{
     quake_live_engine::GetConfigstring,
 };
 
-static RE_VOTE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#).unwrap());
+static RE_VOTE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^(?P<cmd>[^ ]+)(?: "?(?P<args>.*?)"?)?$"#)
+        .expect("the pattern of RE_VOTE is a valid regex")
+});
 
 /// Event that goes off whenever a vote either passes or fails.
 #[pyclass(module = "_events", name = "VoteEndedDispatcher", extends = EventDispatcher, frozen)]

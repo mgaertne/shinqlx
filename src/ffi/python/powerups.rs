@@ -76,7 +76,7 @@ impl Powerups {
                 .map(|&value| value.unwrap_or(0))
                 .collect::<ArrayVec<i32, 6>>()
                 .into_inner()
-                .unwrap(),
+                .expect("the tuple was checked to hold exactly 6 values"),
         ))
     }
 

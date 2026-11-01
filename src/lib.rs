@@ -95,7 +95,8 @@ pub(crate) static _INIT_TIME: LazyLock<DateTime<Utc>> = LazyLock::new(Utc::now);
 
 fn initialize_logging() {
     if Path::new("./shinqlx_log.yml").exists() {
-        log4rs::config::init_file("shinqlx_log.yml", Default::default()).unwrap();
+        log4rs::config::init_file("shinqlx_log.yml", Default::default())
+            .expect("shinqlx_log.yml needs to be a valid log4rs configuration");
     } else {
         let stdout = ConsoleAppender::builder()
             .encoder(Box::new(PatternEncoder::new(
@@ -108,9 +109,9 @@ fn initialize_logging() {
         let config = Config::builder()
             .appender(Appender::builder().build("stdout", Box::new(stdout)))
             .build(Root::builder().appender("stdout").build(level_filter))
-            .unwrap();
+            .expect("the default logging configuration only refers to its own stdout appender");
 
-        log4rs::init_config(config).unwrap();
+        log4rs::init_config(config).expect("the logger is initialized only once");
     }
 }
 

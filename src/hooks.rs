@@ -1,3 +1,4 @@
+use alloc::borrow::Cow;
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
@@ -16,6 +17,11 @@ use crate::{
         ShutdownGame, SpawnServer,
     },
 };
+
+fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
+    CStr::from_bytes_until_nul(buffer)
+        .map_or_else(|_| String::from_utf8_lossy(buffer), CStr::to_string_lossy)
+}
 
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
@@ -99,21 +105,19 @@ where
     if cmd.as_ref().is_empty() {
         return;
     }
-    let passed_on_cmd_str: String = if client_ok.into()
-        && client
-            .as_ref()
-            .is_some_and(|safe_client| safe_client.has_gentity())
-    {
-        let client_id = client
-            .as_ref()
-            .map(|safe_client| safe_client.get_client_id())
-            .unwrap();
-        let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd.into()) else {
-            return;
-        };
-        dispatcher_result
-    } else {
-        cmd.into()
+    let client_ok_flag: bool = client_ok.into();
+    let dispatching_client_id = client
+        .as_ref()
+        .filter(|safe_client| client_ok_flag && safe_client.has_gentity())
+        .map(|safe_client| safe_client.get_client_id());
+    let passed_on_cmd_str: String = match dispatching_client_id {
+        Some(client_id) => {
+            let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd.into()) else {
+                return;
+            };
+            dispatcher_result
+        }
+        None => cmd.into(),
     };
 
     if !passed_on_cmd_str.is_empty() {
@@ -153,9 +157,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
 
-    let cmd = CStr::from_bytes_until_nul(&buffer)
-        .unwrap()
-        .to_string_lossy();
+    let cmd = message_from_buffer(&buffer);
     if client.is_null() {
         shinqlx_send_server_command(None, cmd);
     } else {
@@ -191,9 +193,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
 
-    let cmd = CStr::from_bytes_until_nul(&buffer)
-        .unwrap()
-        .to_string_lossy();
+    let cmd = message_from_buffer(&buffer);
     if client.is_null() {
         shinqlx_send_server_command(None, cmd);
     } else {
@@ -340,9 +340,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
 
-    let rust_msg = CStr::from_bytes_until_nul(&buffer)
-        .unwrap()
-        .to_string_lossy();
+    let rust_msg = message_from_buffer(&buffer);
     if !rust_msg.is_empty() {
         shinqlx_com_printf(rust_msg);
     }
@@ -370,9 +368,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
         warn!(target: "shinqlx", "some formatting problem occurred");
     }
 
-    let rust_msg = CStr::from_bytes_until_nul(&buffer)
-        .unwrap()
-        .to_string_lossy();
+    let rust_msg = message_from_buffer(&buffer);
     if !rust_msg.is_empty() {
         shinqlx_com_printf(rust_msg);
     }
