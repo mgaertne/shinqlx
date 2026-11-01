@@ -180,41 +180,41 @@ static RE_SAY: LazyLock<Regex> = LazyLock::new(|| {
         .case_insensitive(true)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_SAY is a valid regex")
 });
 static RE_SAY_TEAM: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^say_team +(?P<quote>"?)(?P<msg>.+)$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_SAY_TEAM is a valid regex")
 });
 static RE_CALLVOTE: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^(?:cv|callvote) +(?P<cmd>[^ ]+)(?: "?(?P<args>.+?)"?)?$"#)
         .case_insensitive(true)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_CALLVOTE is a valid regex")
 });
 static RE_VOTE: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r"^vote +(?P<arg>.)")
         .case_insensitive(true)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_VOTE is a valid regex")
 });
 static RE_TEAM: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r"^team +(?P<arg>.)")
         .case_insensitive(true)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_TEAM is a valid regex")
 });
 static RE_USERINFO: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^userinfo "(?P<vars>.+)"$"#)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_USERINFO is a valid regex")
 });
 
 /// Extracts the message of a say or say_team command and makes it safe to be put in quotes again.
@@ -3161,7 +3161,7 @@ static RE_VOTE_ENDED: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(r#"^print "Vote (?P<result>passed|failed)\.\n"$"#)
         .multi_line(true)
         .build()
-        .unwrap()
+        .expect("the pattern of RE_VOTE_ENDED is a valid regex")
 });
 
 fn try_handle_server_command<'py>(

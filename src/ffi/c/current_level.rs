@@ -29,6 +29,16 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel<'_> {
 
 const OFFSET_LEVEL: usize = 0x4A1;
 
+fn copy_nul_terminated(destination: &mut [c_char], text: &str) {
+    destination.fill(0);
+    let capacity = destination.len().saturating_sub(1);
+    destination
+        .iter_mut()
+        .take(capacity)
+        .zip(text.bytes())
+        .for_each(|(slot, byte)| *slot = byte as c_char);
+}
+
 impl CurrentLevel<'_> {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
         MAIN_ENGINE.load().as_ref().map_or(
@@ -60,14 +70,8 @@ impl CurrentLevel<'_> {
         MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
             let actual_vote_time = vote_time.unwrap_or(30);
 
-            let mut vote_bytes = vote.bytes();
-            self.level.voteString[0..vote.len()].fill_with(|| vote_bytes.next().unwrap() as c_char);
-            self.level.voteString[vote.len()..].fill(0 as c_char);
-
-            let mut vote_disp_bytes = vote_disp.bytes();
-            self.level.voteDisplayString[0..vote_disp.len()]
-                .fill_with(|| vote_disp_bytes.next().unwrap() as c_char);
-            self.level.voteDisplayString[vote_disp.len()..].fill(0 as c_char);
+            copy_nul_terminated(&mut self.level.voteString, vote);
+            copy_nul_terminated(&mut self.level.voteDisplayString, vote_disp);
 
             self.level.voteTime = self.level.time - 30000 + actual_vote_time * 1000;
             self.level.voteYes = 0;

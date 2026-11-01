@@ -16,8 +16,7 @@ pub(crate) fn pyshinqlx_player_state(
         Ok(client_id
             .try_conv::<GameEntity>()
             .ok()
-            .filter(|game_entity| game_entity.get_game_client().is_ok())
-            .map(PlayerState::from))
+            .and_then(|game_entity| PlayerState::try_from(game_entity).ok()))
     })
 }
 

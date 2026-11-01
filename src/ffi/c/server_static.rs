@@ -46,7 +46,7 @@ impl ServerStatic<'_> {
         &self,
         client_id: i32,
     ) -> Result<*mut client_t, QuakeLiveEngineError> {
-        let max_clients = i32::try_from(MAX_CLIENTS).unwrap();
+        let max_clients = MAX_CLIENTS as i32;
 
         if !(0..max_clients).contains(&client_id) {
             cold_path();

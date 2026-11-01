@@ -46,7 +46,7 @@ impl GameClient {
     }
 
     pub(crate) fn remove_kamikaze_flag(&mut self) {
-        self.game_client.ps.eFlags &= !i32::try_from(EF_KAMIKAZE).unwrap();
+        self.game_client.ps.eFlags &= !(EF_KAMIKAZE as i32);
     }
 
     pub(crate) fn set_privileges<T>(&mut self, privileges: T)
@@ -196,7 +196,7 @@ impl GameClient {
     {
         let holdable_index: i32 = holdable.into();
         if holdable_index == MODELINDEX_KAMIKAZE as i32 {
-            self.game_client.ps.eFlags |= i32::try_from(EF_KAMIKAZE).unwrap();
+            self.game_client.ps.eFlags |= EF_KAMIKAZE as i32;
         } else {
             self.remove_kamikaze_flag();
         }

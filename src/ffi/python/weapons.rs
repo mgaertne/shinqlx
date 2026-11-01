@@ -91,7 +91,7 @@ impl Weapons {
                 .map(|&value| value.unwrap_or(0))
                 .collect::<ArrayVec<i32, 15>>()
                 .into_inner()
-                .unwrap(),
+                .expect("the tuple was checked to hold exactly 15 values"),
         ))
     }
 
