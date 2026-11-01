@@ -4,7 +4,7 @@ use super::{
     register_command,
     target::{reply, usage},
 };
-use crate::ffi::python::{Plugin, next_frame, plugin::PluginMethods};
+use crate::ffi::python::{Plugin, log_plugin_exception, next_frame, plugin::PluginMethods};
 
 const MANAGER_PERMISSION: i32 = 5;
 
@@ -24,10 +24,8 @@ fn shinqlx_function<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyA
     py.import(intern!(py, "shinqlx"))?.getattr(name)
 }
 
-fn log_exception(slf: &Bound<'_, PluginManager>) -> PyResult<()> {
-    shinqlx_function(slf.py(), "log_exception")?
-        .call1((slf,))
-        .map(|_| ())
+fn log_exception(slf: &Bound<'_, PluginManager>, err: &PyErr) -> PyResult<()> {
+    log_plugin_exception(slf.py(), slf.as_any(), err)
 }
 
 /// Runs the action for the plugin and tells the channel about the outcome.
@@ -49,7 +47,7 @@ fn report(
                 "Plugin ^6{plugin} ^7has failed to {failure}: {}",
                 describe(py, &err)
             );
-            log_exception(slf)?;
+            log_exception(slf, &err)?;
             reply(channel, &message)
         }
     }
@@ -148,7 +146,7 @@ impl PluginManager {
             ),
             Err(err) => {
                 let message = format!("Plugins failed to load: {}", describe(py, &err));
-                log_exception(slf)?;
+                log_exception(slf, &err)?;
                 reply(channel, &message)
             }
         }
@@ -170,7 +168,7 @@ impl PluginManager {
                     "Plugin ^6{plugin} ^7has failed to unload: {}",
                     describe(py, &err)
                 );
-                log_exception(slf)?;
+                log_exception(slf, &err)?;
                 reply(channel, &message)?;
             }
         }
@@ -205,7 +203,7 @@ impl PluginManager {
                     "Plugin ^6{plugin} ^7has failed to reload: {}",
                     describe(py, &err)
                 );
-                log_exception(slf)?;
+                log_exception(slf, &err)?;
                 reply(channel, &message)?;
             }
         }
@@ -282,8 +280,23 @@ def make(name):
     return function
 
 
-def log_exception(plugin=None):
-    logged.append(plugin)
+import logging
+
+
+class Collector(logging.Handler):
+    def emit(self, record):
+        logged.append(record.getMessage())
+
+
+collector = Collector()
+
+
+def install():
+    logging.getLogger('shinqlx').addHandler(collector)
+
+
+def uninstall():
+    logging.getLogger('shinqlx').removeHandler(collector)
 ";
 
     struct Fixtures<'py> {
@@ -320,11 +333,20 @@ def log_exception(plugin=None):
                 .expect("could not get the replies")
         }
 
-        fn logged(&self) -> usize {
+        fn logged(&self) -> Vec<String> {
             self.module
                 .getattr("logged")
-                .and_then(|logged| logged.len())
-                .expect("could not count the logged exceptions")
+                .and_then(|logged| logged.extract())
+                .expect("could not get the logged exceptions")
+        }
+
+        fn assert_logged_the_failure(&self) {
+            let logged = self.logged();
+            assert_eq!(
+                logged.last().map(String::as_str),
+                Some("RuntimeError: boom")
+            );
+            assert!(logged.iter().all(|line| !line.contains("NoneType")));
         }
 
         fn fail(&self, name: &str) {
@@ -356,16 +378,9 @@ def log_exception(plugin=None):
                     .expect("could not create the fake");
                 shinqlx.setattr(name, fake).expect("could not replace it");
             }
-            restored.push(RestoredAttribute::capture(
-                shinqlx.as_any(),
-                "log_exception",
-            ));
-            shinqlx
-                .setattr(
-                    "log_exception",
-                    module.getattr("log_exception").expect("no log_exception"),
-                )
-                .expect("could not replace log_exception");
+            module
+                .call_method0("install")
+                .expect("could not install the log collector");
 
             let plugin_class = py.get_type::<Plugin>();
             restored.push(RestoredAttribute::capture(
@@ -391,8 +406,11 @@ def log_exception(plugin=None):
                     .getattr("Channel")
                     .and_then(|c| c.call0())
                     .expect("no channel"),
-                module,
+                module: module.clone(),
             });
+            module
+                .call_method0("uninstall")
+                .expect("could not remove the log collector");
         });
     }
 
@@ -501,7 +519,7 @@ def log_exception(plugin=None):
                     "Plugin ^6essentials ^7has failed to {command}: RuntimeError - boom"
                 )]
             );
-            assert_eq!(fixtures.logged(), 1);
+            fixtures.assert_logged_the_failure();
         });
     }
 
@@ -625,7 +643,7 @@ def log_exception(plugin=None):
                     "Successfully unloaded all plugins except plugin_manager."
                 ]
             );
-            assert_eq!(fixtures.logged(), 1);
+            fixtures.assert_logged_the_failure();
         });
     }
 
