@@ -35,8 +35,16 @@ impl AbstractChannel {
     #[pyo3(signature = (name = "AbstractChannel", *args, **kwargs), text_signature = "(name)")]
     fn py_new(
         name: &str,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> Self {
         AbstractChannel {
             name: name.to_string().into(),
@@ -86,12 +94,7 @@ impl AbstractChannel {
 
     #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
     )]
-    fn reply(
-        slf: &Bound<'_, Self>,
-        #[allow(unused_variables)] msg: &str,
-        #[allow(unused_variables)] limit: i32,
-        #[allow(unused_variables)] delimiter: &str,
-    ) -> PyResult<()> {
+    fn reply(slf: &Bound<'_, Self>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         slf.reply(msg, limit, delimiter)
     }
 
@@ -144,9 +147,21 @@ impl AbstractChannelMethods for Bound<'_, AbstractChannel> {
 
     fn reply(
         &self,
-        #[allow(unused_variables)] msg: &str,
-        #[allow(unused_variables)] limit: i32,
-        #[allow(unused_variables)] delimiter: &str,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        msg: &str,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        limit: i32,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        delimiter: &str,
     ) -> PyResult<()> {
         Err(PyNotImplementedError::new_err("not implemented"))
     }
@@ -409,8 +424,16 @@ impl ConsoleChannel {
     #[pyo3(signature = (*args, **kwargs), text_signature = "()")]
     pub(crate) fn py_new(
         py: Python<'_>,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new("console", py.None().bind(py), None))
             .add_subclass(Self {})
@@ -441,8 +464,16 @@ impl AbstractChannelMethods for Bound<'_, ConsoleChannel> {
     fn reply(
         &self,
         msg: &str,
-        #[allow(unused_variables)] limit: i32,
-        #[allow(unused_variables)] delimiter: &str,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        limit: i32,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        delimiter: &str,
     ) -> PyResult<()> {
         pyshinqlx_console_print(self.py(), msg);
         Ok(())
@@ -515,8 +546,16 @@ impl ChatChannel {
         py: Python<'_>,
         name: &str,
         fmt: &str,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name, py.None().bind(py), None))
             .add_subclass(Self {
@@ -1003,8 +1042,16 @@ impl TellChannel {
     pub(crate) fn py_new(
         py: Python<'_>,
         player: &Player,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new("tell", py.None().bind(py), None))
             .add_subclass(ChatChannel {
@@ -1203,8 +1250,16 @@ impl TeamChatChannel {
         team: &str,
         name: &str,
         fmt: &str,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(name, py.None().bind(py), None))
             .add_subclass(ChatChannel {
@@ -1445,8 +1500,16 @@ impl ClientCommandChannel {
     pub(crate) fn py_new(
         py: Python<'_>,
         player: &Player,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         PyClassInitializer::from(AbstractChannel::py_new(
             "client_command",

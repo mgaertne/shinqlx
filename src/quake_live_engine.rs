@@ -39,7 +39,13 @@ use crate::{
     quake_live_functions::QuakeLiveFunction,
 };
 
-#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
+#[cfg_attr(
+    any(not(target_os = "linux"), test),
+    allow(
+        dead_code,
+        reason = "stand-ins for engine symbols that not every test calls"
+    )
+)]
 const QAGAME: &str = "qagamex64.so";
 
 #[derive(Debug, PartialEq, Eq)]
@@ -149,17 +155,35 @@ struct VmFunctions {
     g_damage_detour: ArcSwapOption<GDamageDetourType>,
 }
 
-#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
+#[cfg_attr(
+    any(not(target_os = "linux"), test),
+    allow(
+        dead_code,
+        reason = "stand-ins for engine symbols that not every test calls"
+    )
+)]
 const OFFSET_VM_CALL_TABLE: usize = 0x3;
-#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
+#[cfg_attr(
+    any(not(target_os = "linux"), test),
+    allow(
+        dead_code,
+        reason = "stand-ins for engine symbols that not every test calls"
+    )
+)]
 const OFFSET_INITGAME: usize = 0x18;
-#[cfg_attr(any(not(target_os = "linux"), test), allow(dead_code))]
+#[cfg_attr(
+    any(not(target_os = "linux"), test),
+    allow(
+        dead_code,
+        reason = "stand-ins for engine symbols that not every test calls"
+    )
+)]
 const OFFSET_RUNFRAME: usize = 0x8;
 
 impl VmFunctions {
     pub(crate) fn try_initialize_from(
         &self,
-        #[allow(unused_variables)] module_offset: usize,
+        #[allow(unused_variables, reason = "only used on Linux")] module_offset: usize,
     ) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
@@ -418,7 +442,13 @@ impl VmFunctions {
     }
 
     #[cfg(feature = "patches")]
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn patch(&self) {
         let cmd_callvote_f_orig = self.cmd_callvote_f_orig.load(Ordering::Acquire);
         if cmd_callvote_f_orig == 0 {
@@ -804,7 +834,13 @@ pub(crate) struct QuakeLiveEngine {
 const OFFSET_CMD_ARGC: i32 = 0x81;
 
 impl QuakeLiveEngine {
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn search_static_functions(&self) -> Result<(), QuakeLiveEngineError> {
         #[cfg(not(target_os = "linux"))]
         return Err(QuakeLiveEngineError::ProcessNotFound(
@@ -967,7 +1003,10 @@ impl QuakeLiveEngine {
                     (sv_map_f_orig as usize + OFFSET_CMD_ARGC as usize) as *const i32,
                 )
             };
-            #[allow(clippy::fn_to_numeric_cast_with_truncation)]
+            #[allow(
+                clippy::fn_to_numeric_cast_with_truncation,
+                reason = "the symbol search computes with 32-bit engine offsets"
+            )]
             let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + OFFSET_CMD_ARGC + 4;
             debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr);
             let cmd_argc_orig =
@@ -1004,7 +1043,13 @@ impl QuakeLiveEngine {
         }
     }
 
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError> {
         debug!(target: "shinqlx", "Hooking...");
         let cmd_addcommand_detour = QuakeLiveFunction::Cmd_AddCommand
@@ -1163,7 +1208,13 @@ impl QuakeLiveEngine {
         self.common_initialized.load(Ordering::Acquire)
     }
 
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn initialize_vm(&self, module_offset: usize) -> Result<(), QuakeLiveEngineError> {
         self.vm_functions.try_initialize_from(module_offset)?;
         self.current_vm.store(module_offset, Ordering::Release);
@@ -1231,7 +1282,13 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "stand-ins for engine symbols that not every test calls"
+        )
+    )]
     fn cmd_tokenizestring_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
@@ -1246,7 +1303,13 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "stand-ins for engine symbols that not every test calls"
+        )
+    )]
     fn cbuf_executetext_orig(
         &self,
     ) -> Result<extern "C" fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
@@ -1275,7 +1338,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn cvar_get_orig(
         &self,
     ) -> Result<
@@ -1293,7 +1355,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn cvar_getlimit_orig(
         &self,
     ) -> Result<
@@ -1317,7 +1378,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn cvar_set2_orig(
         &self,
     ) -> Result<
@@ -1377,7 +1437,13 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg_attr(
+        not(test),
+        allow(
+            dead_code,
+            reason = "stand-ins for engine symbols that not every test calls"
+        )
+    )]
     fn sv_map_f_orig(&self) -> Result<extern "C" fn(), QuakeLiveEngineError> {
         self.static_functions.get().map_or(
             {
@@ -1532,7 +1598,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn sv_executeclientcommand_detour(
         &self,
     ) -> Result<
@@ -1550,7 +1615,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn sv_cliententerworld_detour(
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError>
@@ -1566,7 +1630,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn sv_setconfgistring_detour(
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(c_int, *const c_char)>, QuakeLiveEngineError> {
@@ -1581,7 +1644,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     pub(crate) fn sv_dropclient_detour(
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>
@@ -1597,7 +1659,6 @@ impl QuakeLiveEngine {
         )
     }
 
-    #[allow(clippy::type_complexity)]
     fn sv_spawnserver_detour(
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
@@ -1731,7 +1792,6 @@ impl QuakeLiveEngine {
         }
     }
 
-    #[allow(clippy::type_complexity)]
     pub(crate) fn launch_item_orig(
         &self,
     ) -> Result<
@@ -1757,7 +1817,13 @@ impl QuakeLiveEngine {
         }
     }
 
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn touch_item_orig(
         &self,
     ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
@@ -4970,7 +5036,10 @@ mod get_configstring_quake_live_engine_tests {
 }
 
 pub(crate) trait RegisterDamage<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> {
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "mirrors the signature of the engine function"
+    )]
     fn register_damage(
         &self,
         target: *mut gentity_t,
@@ -5438,7 +5507,7 @@ mockall::mock! {
             extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
             QuakeLiveEngineError,
         >;
-        #[allow(clippy::type_complexity)]
+        #[allow(clippy::type_complexity, reason = "spells out the detour type of the engine function")]
         pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
         pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError>;
     }
@@ -5482,11 +5551,11 @@ mockall::mock! {
         fn client_spawn(&self, ent: &mut GameEntity);
     }
     impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
-        #[allow(clippy::too_many_arguments)]
+        #[allow(clippy::too_many_arguments, reason = "mirrors the signature of the engine function")]
         fn register_damage(&self, target: *mut gentity_t, inflictor: *mut gentity_t, attacker: *mut gentity_t, dir: *mut vec3_t, pos: *mut vec3_t, damage: c_int, dflags: c_int, means_of_death: c_int);
     }
     impl TryLaunchItem<&mut crate::ffi::c::game_item::GameItem> for QuakeEngine {
-        #[allow(clippy::extra_unused_lifetimes)]
+        #[allow(clippy::extra_unused_lifetimes, reason = "the mock repeats the lifetime of the trait signature")]
         fn try_launch_item<'a>(&self, gitem: &'a mut crate::ffi::c::game_item::GameItem, origin: &mut vec3_t, velocity: &mut vec3_t) -> Result<GameEntity, QuakeLiveEngineError>;
     }
     impl GameAddEvent<&mut GameEntity, i32> for QuakeEngine {
@@ -5683,7 +5752,10 @@ impl Default for MockEngineBuilder {
 
 #[cfg(test)]
 #[mockall::automock]
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "stand-ins for engine symbols that not every test calls"
+)]
 mod quake_functions {
     use core::{
         ffi::{c_char, c_float, c_int},
@@ -5695,19 +5767,37 @@ mod quake_functions {
         usercmd_t, vec3_t,
     };
 
-    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        clippy::just_underscores_and_digits,
+        non_snake_case,
+        reason = "mock stand-in for the variadic engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn Com_Printf(_fmt: *const c_char, _: ...) {}
 
-    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        clippy::just_underscores_and_digits,
+        non_snake_case,
+        reason = "mock stand-in for the variadic engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn detoured_Com_Printf(_fmt: *const c_char, _: ...) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_AddCommand(_cmd: *const c_char, _func: unsafe extern "C" fn()) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_Cmd_AddCommand(
         _cmd: *const c_char,
@@ -5715,35 +5805,59 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Args() -> *const c_char {
         ptr::null()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Argv(_arg: c_int) -> *const c_char {
         ptr::null()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Tokenizestring(_text_in: *const c_char) -> *const c_char {
         ptr::null()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cbuf_ExecuteText(_exec_when: cbufExec_t, _text: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_FindVar(_var_name: *const c_char) -> *mut cvar_t {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_Get(
         _var_name: *const c_char,
@@ -5753,7 +5867,11 @@ mod quake_functions {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_GetLimit(
         _var_name: *const c_char,
@@ -5765,7 +5883,11 @@ mod quake_functions {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cvar_Set2(
         _var_name: *const c_char,
@@ -5775,7 +5897,12 @@ mod quake_functions {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        clippy::just_underscores_and_digits,
+        non_snake_case,
+        reason = "mock stand-in for the variadic engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn SV_SendServerCommand(
         _cl: *mut client_t,
@@ -5784,7 +5911,12 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, clippy::just_underscores_and_digits, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        clippy::just_underscores_and_digits,
+        non_snake_case,
+        reason = "mock stand-in for the variadic engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) unsafe extern "C" fn detoured_SV_SendServerCommand(
         _cl: *mut client_t,
@@ -5793,7 +5925,11 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_ExecuteClientCommand(
         _cl: *mut client_t,
@@ -5802,7 +5938,11 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_ExecuteClientCommand(
         _cl: *mut client_t,
@@ -5811,19 +5951,35 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_Shutdown(_finalmsg: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_Map_f() {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_ClientEnterWorld(_client: *mut client_t, _cmd: *mut usercmd_t) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_ClientEnterWorld(
         _client: *mut client_t,
@@ -5831,15 +5987,27 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_SetConfigstring(_index: c_int, _value: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_GetConfigstring(
         _index: c_int,
@@ -5848,15 +6016,27 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_DropClient(_drop: *mut client_t, _reason: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Sys_SetModuleOffset(
         _moduleName: *mut c_char,
@@ -5864,7 +6044,11 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_Sys_SetModuleOffset(
         _moduleName: *mut c_char,
@@ -5872,37 +6056,69 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_ExecuteString(_text: *const c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Cmd_Argc() -> c_int {
         0
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_InitGame(_level_time: c_int, _random_see: c_int, _restart: c_int) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_ShutdownGame(_restart: c_int) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_RunFrame(_time: c_int) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn ClientConnect(
         _client_num: c_int,
@@ -5912,7 +6128,11 @@ mod quake_functions {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_ClientConnect(
         _client_num: c_int,
@@ -5922,15 +6142,27 @@ mod quake_functions {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn ClientSpawn(_client: *mut gentity_t) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_ClientSpawn(_client: *mut gentity_t) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_AddEvent(
         _ent: *mut gentity_t,
@@ -5939,7 +6171,11 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_Damage(
         _target: *mut gentity_t,
@@ -5953,7 +6189,11 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_G_Damage(
         _target: *mut gentity_t,
@@ -5967,11 +6207,19 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_FreeEntity(_ent: *mut gentity_t) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn LaunchItem(
         _item: *mut gitem_t,
@@ -5981,19 +6229,35 @@ mod quake_functions {
         ptr::null_mut()
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn G_StartKamikaze(_ent: *mut gentity_t) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_G_StartKamikaze(_ent: *mut gentity_t) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn CheckPrivileges(_ent: *mut gentity_t, _cmd: *mut c_char) {}
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Touch_Item(
         _ent: *mut gentity_t,
@@ -6002,7 +6266,11 @@ mod quake_functions {
     ) {
     }
 
-    #[allow(unused_attributes, non_snake_case)]
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn Drop_Item(
         _ent: *mut gentity_t,

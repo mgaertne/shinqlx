@@ -694,7 +694,7 @@ pub(crate) trait PlayerMethods<'py> {
     fn set_name(&self, value: &str) -> PyResult<()>;
     fn get_clean_name(&self) -> String;
     fn get_qport(&self) -> i32;
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg_attr(not(test), allow(dead_code, reason = "only called from tests"))]
     fn get_team(&self) -> PyResult<String>;
     fn set_team(&self, new_team: &str) -> PyResult<()>;
     fn get_colors(&self) -> (f32, f32);
@@ -1618,7 +1618,10 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             (false, true) => pyshinqlx_player_spawn(self.py(), self.get().id).map(|_| ()),
             (true, false) => {
                 self.set_health(0)?;
-                #[allow(irrefutable_let_patterns)]
+                #[allow(
+                    irrefutable_let_patterns,
+                    reason = "the conversion is infallible for the mocked types"
+                )]
                 if let Ok(mut client_entity) = self.get().id.try_conv::<GameEntity>() {
                     let client_number = client_entity.get_client_number();
                     MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
@@ -7946,8 +7949,16 @@ impl AbstractDummyPlayer {
     #[pyo3(signature = (name = "DummyPlayer", *args, **kwargs), text_signature = "(name = \"DummyPlayer\")")]
     fn py_new(
         name: &str,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         let player_info = PlayerInfo {
             client_id: -1,
@@ -8026,8 +8037,16 @@ impl<'py> AbstractDummyPlayerMethods<'py> for Bound<'py, AbstractDummyPlayer> {
 
     fn tell(
         &self,
-        #[allow(unused_variables)] msg: &str,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        msg: &str,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "tell() needs to be implemented.",
@@ -8176,8 +8195,16 @@ impl RconDummyPlayer {
     #[pyo3(signature = (*args, **kwargs), text_signature = "()")]
     pub(crate) fn py_new(
         py: Python<'_>,
-        #[allow(unused_variables)] args: &Bound<'_, PyAny>,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'_, PyAny>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        args: &Bound<'_, PyAny>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
         AbstractDummyPlayer::py_new("RconDummyPlayer", py.None().bind(py), None)
             .add_subclass(Self {})
@@ -8236,7 +8263,11 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
     fn tell(
         &self,
         msg: &str,
-        #[allow(unused_variables)] kwargs: Option<&Bound<'py, PyDict>>,
+        #[allow(
+            unused_variables,
+            reason = "the parameter belongs to the Python signature"
+        )]
+        kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
         CONSOLE_CHANNEL.load().as_ref().map_or(
             {

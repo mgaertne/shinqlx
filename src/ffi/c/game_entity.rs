@@ -92,7 +92,6 @@ impl TryFrom<u32> for GameEntity {
     }
 }
 
-#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     ent: *mut gentity_t,
@@ -110,7 +109,6 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
     });
 }
 
-#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
@@ -212,7 +210,13 @@ impl GameEntity {
         self.gentity_t.client.try_into()
     }
 
-    #[allow(mismatched_lifetime_syntaxes)]
+    #[cfg_attr(
+        not(test),
+        allow(
+            mismatched_lifetime_syntaxes,
+            reason = "the mocked Activator of the tests has no lifetime"
+        )
+    )]
     pub(crate) fn get_activator(&self) -> Result<Activator, QuakeLiveEngineError> {
         self.gentity_t.activator.try_into()
     }
@@ -352,7 +356,13 @@ impl GameEntity {
             let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
             main_engine.com_printf(&class_name.to_string_lossy());
             if item_id != 0 {
-                #[cfg_attr(test, allow(irrefutable_let_patterns))]
+                #[cfg_attr(
+                    test,
+                    allow(
+                        irrefutable_let_patterns,
+                        reason = "the conversion is infallible for the mocked types"
+                    )
+                )]
                 let Ok(gitem) = item_id.try_conv::<GameItem>() else {
                     cold_path();
                     return;
@@ -1822,7 +1832,10 @@ mod game_entity_tests {
         game_entity.set_think(None);
 
         assert!(
-            #[allow(unpredictable_function_pointer_comparisons)]
+            #[allow(
+                unpredictable_function_pointer_comparisons,
+                reason = "the assertion only checks that the callback is unset"
+            )]
             gentity.think.is_none()
         );
     }
@@ -1858,7 +1871,10 @@ mod game_entity_tests {
         game_entity.set_touch(None);
 
         assert!(
-            #[allow(unpredictable_function_pointer_comparisons)]
+            #[allow(
+                unpredictable_function_pointer_comparisons,
+                reason = "the assertion only checks that the callback is unset"
+            )]
             gentity.touch.is_none()
         );
     }

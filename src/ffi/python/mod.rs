@@ -26,17 +26,26 @@ mod weapons;
 pub(crate) mod prelude {
     pub(crate) use pyo3::prelude::*;
 
-    #[allow(unused_imports)]
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
     pub(crate) use super::channels::{
         AbstractChannel, AbstractChannelMethods, ChatChannel, ChatChannelMethods,
         ClientCommandChannel, ClientCommandChannelMethods, ConsoleChannel, MAX_MSG_LENGTH,
         TeamChatChannel, TellChannel, TellChannelMethods,
     };
-    #[allow(unused_imports)]
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
     pub(crate) use super::commands::{
         Command, CommandInvoker, CommandInvokerMethods, CommandMethods,
     };
-    #[allow(unused_imports)]
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
     pub(crate) use super::database::{
         AbstractDatabase, AbstractDatabaseMethods, Redis, RedisMethods,
     };
@@ -48,10 +57,16 @@ pub(crate) mod prelude {
         new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
         set_configstring_dispatcher,
     };
-    #[allow(unused_imports)]
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
     pub(crate) use super::game::{Game, GameMethods, NonexistentGameError};
     #[cfg(test)]
-    #[allow(unused_imports)]
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
     pub(crate) use super::handlers::mock_handlers::{
         handle_client_command, handle_console_print, handle_damage, handle_frame,
         handle_kamikaze_explode, handle_kamikaze_use, handle_new_game, handle_player_connect,
@@ -59,7 +74,10 @@ pub(crate) mod prelude {
         handle_server_command, handle_set_configstring, register_handlers,
     };
     #[cfg(test)]
-    #[allow(unused_imports)]
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
     pub(crate) use super::handlers::mock_handlers::{
         handle_client_command_context, handle_console_print_context, handle_damage_context,
         handle_frame_context, handle_kamikaze_explode_context, handle_kamikaze_use_context,
@@ -68,7 +86,6 @@ pub(crate) mod prelude {
         handle_server_command_context, handle_set_configstring_context, register_handlers_context,
     };
     #[cfg(not(test))]
-    #[allow(unused_imports)]
     pub(crate) use super::handlers::{
         handle_client_command, handle_console_print, handle_damage, handle_frame,
         handle_kamikaze_explode, handle_kamikaze_use, handle_new_game, handle_player_connect,
@@ -100,10 +117,6 @@ pub(crate) mod prelude {
     pub(crate) use super::mock_python_tests::{
         pyshinqlx_initialize_context, pyshinqlx_is_initialized_context, pyshinqlx_reload_context,
     };
-    #[allow(unused_imports)]
-    pub(crate) use super::player::{
-        AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
-    };
     #[cfg(test)]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
     pub(crate) use super::{
@@ -113,6 +126,9 @@ pub(crate) mod prelude {
         flight::Flight,
         holdable::Holdable,
         parse_variables,
+        player::{
+            AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
+        },
         player_info::PlayerInfo,
         player_state::PlayerState,
         player_stats::PlayerStats,
@@ -218,18 +234,22 @@ pub(crate) fn event_dispatcher<'py>(
         })
 }
 
-// Used primarily in Python, but defined here and added using PyModule_AddIntMacro().
-#[allow(non_camel_case_types)]
+/// Return codes of Python handlers, defined here and added to the module using `PyModule_AddIntMacro()`.
+#[allow(
+    non_camel_case_types,
+    reason = "the variants keep the RET_* names of minqlx"
+)]
 #[derive(PartialEq, Clone, Copy)]
 pub(crate) enum PythonReturnCodes {
     RET_NONE,
+    /// Stop execution of event handlers within Python.
     RET_STOP,
-    // Stop execution of event handlers within Python.
+    /// Only stop the event, but let other handlers process it.
     RET_STOP_EVENT,
-    // Only stop the event, but let other handlers process it.
+    /// Stop execution at an engine level. SCARY STUFF!
     RET_STOP_ALL,
-    // Stop execution at an engine level. SCARY STUFF!
-    RET_USAGE, // Used for commands. Replies to the channel with a command's usage.
+    /// Used for commands. Replies to the channel with a command's usage.
+    RET_USAGE,
 }
 
 impl FromPyObject<'_, '_> for PythonReturnCodes {
@@ -1301,7 +1321,7 @@ mod set_map_subtitles_tests {
 fn pyshinqlx_parse_variables<'py>(
     py: Python<'py>,
     varstr: &str,
-    #[allow(unused_variables)] ordered: bool,
+    #[allow(unused_variables, reason = "kept for the signature of minqlx")] ordered: bool,
 ) -> Bound<'py, PyDict> {
     let parsed_variables = py.detach(|| parse_variables(varstr));
     parsed_variables.into_py_dict(py).unwrap_or(PyDict::new(py))
@@ -5419,8 +5439,7 @@ fn pyshinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Set a bunch of constants. We set them here because if you define functions in Python that use module
-    // constants as keyword defaults, we have to always make sure they're exported first, and fuck that.
+    // The constants are exported first because Python functions may use them as keyword defaults.
     m.add("RET_NONE", PythonReturnCodes::RET_NONE as i32)?;
     m.add("RET_STOP", PythonReturnCodes::RET_STOP as i32)?;
     m.add("RET_STOP_EVENT", PythonReturnCodes::RET_STOP_EVENT as i32)?;
@@ -5432,7 +5451,6 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("PRI_LOW", CommandPriorities::PRI_LOW as i32)?;
     m.add("PRI_LOWEST", CommandPriorities::PRI_LOWEST as i32)?;
 
-    // Cvar flags.
     m.add("CVAR_ARCHIVE", cvar_flags::CVAR_ARCHIVE as i32)?;
     m.add("CVAR_USERINFO", cvar_flags::CVAR_USERINFO as i32)?;
     m.add("CVAR_SERVERINFO", cvar_flags::CVAR_SERVERINFO as i32)?;
@@ -5445,27 +5463,23 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("CVAR_CHEAT", cvar_flags::CVAR_CHEAT as i32)?;
     m.add("CVAR_NORESTART", cvar_flags::CVAR_NORESTART as i32)?;
 
-    // Privileges.
     m.add("PRIV_NONE", privileges_t::PRIV_NONE as i32)?;
     m.add("PRIV_MOD", privileges_t::PRIV_MOD as i32)?;
     m.add("PRIV_ADMIN", privileges_t::PRIV_ADMIN as i32)?;
     m.add("PRIV_ROOT", privileges_t::PRIV_ROOT as i32)?;
     m.add("PRIV_BANNED", privileges_t::PRIV_BANNED as i32)?;
 
-    // Connection states.
     m.add("CS_FREE", clientState_t::CS_FREE as i32)?;
     m.add("CS_ZOMBIE", clientState_t::CS_ZOMBIE as i32)?;
     m.add("CS_CONNECTED", clientState_t::CS_CONNECTED as i32)?;
     m.add("CS_PRIMED", clientState_t::CS_PRIMED as i32)?;
     m.add("CS_ACTIVE", clientState_t::CS_ACTIVE as i32)?;
 
-    // Teams.
     m.add("TEAM_FREE", team_t::TEAM_FREE as i32)?;
     m.add("TEAM_RED", team_t::TEAM_RED as i32)?;
     m.add("TEAM_BLUE", team_t::TEAM_BLUE as i32)?;
     m.add("TEAM_SPECTATOR", team_t::TEAM_SPECTATOR as i32)?;
 
-    // Means of death.
     m.add("MOD_UNKNOWN", meansOfDeath_t::MOD_UNKNOWN as i32)?;
     m.add("MOD_SHOTGUN", meansOfDeath_t::MOD_SHOTGUN as i32)?;
     m.add("MOD_GAUNTLET", meansOfDeath_t::MOD_GAUNTLET as i32)?;
@@ -5594,7 +5608,6 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
             .map(|team| (*team as i32, team.to_string()))
             .into_py_dict(m.py())?,
     )?;
-    // Game types
     m.add(
         "GAMETYPES",
         [
@@ -5645,7 +5658,6 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
         .map(|connection_state| (*connection_state as i32, connection_state.to_string()))
         .into_py_dict(m.py())?,
     )?;
-    // Weapons
     m.add(
         "WEAPONS",
         [
@@ -6035,7 +6047,13 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     })
 }
 
-#[cfg_attr(test, allow(dead_code))]
+#[cfg_attr(
+    test,
+    allow(
+        dead_code,
+        reason = "only called from the running game process, not from tests"
+    )
+)]
 pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyshinqlx_is_initialized() {
         cold_path();
@@ -6415,7 +6433,10 @@ def raises_exception(*args, **kwargs):
 
 #[cfg(test)]
 #[mockall::automock]
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "mock module, not every function is called in tests"
+)]
 pub(crate) mod python_tests {
     use super::PythonInitializationError;
 

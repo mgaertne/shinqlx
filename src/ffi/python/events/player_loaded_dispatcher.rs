@@ -12,10 +12,16 @@ pub(crate) struct PlayerLoadedDispatcher {}
 #[pymethods]
 impl PlayerLoadedDispatcher {
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const name: &'static str = "player_loaded";
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const need_zmq_stats_enabled: bool = false;
 
     #[new]

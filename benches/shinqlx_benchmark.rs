@@ -1,6 +1,6 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(criterion::runner)]
-#![allow(missing_docs)]
+#![allow(missing_docs, reason = "not part of the public API")]
 
 use core::hint::black_box;
 

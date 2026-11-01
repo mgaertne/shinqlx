@@ -18,10 +18,16 @@ pub(crate) struct ChatEventDispatcher {}
 #[pymethods]
 impl ChatEventDispatcher {
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const name: &'static str = "chat";
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const need_zmq_stats_enabled: bool = false;
 
     #[new]

@@ -45,7 +45,10 @@ pub(crate) struct Command {
 #[pymethods]
 impl Command {
     #[new]
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "mirrors the constructor of minqlx.Command"
+    )]
     pub(crate) fn py_new(
         plugin: &Bound<'_, PyAny>,
         name: &Bound<'_, PyAny>,
@@ -1763,7 +1766,10 @@ class mocked_db:
     }
 }
 
-#[allow(non_camel_case_types)]
+#[allow(
+    non_camel_case_types,
+    reason = "the variants keep the PRI_* names of minqlx"
+)]
 pub(crate) enum CommandPriorities {
     PRI_HIGHEST,
     PRI_HIGH,

@@ -131,7 +131,6 @@ where
     }
 }
 
-#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 #[rustversion::before(1.94)]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
@@ -167,7 +166,6 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     }
 }
 
-#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 #[rustversion::since(1.94)]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
@@ -318,7 +316,6 @@ where
     client.disconnect(reason.as_ref());
 }
 
-#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 #[rustversion::before(1.94)]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
@@ -346,7 +343,6 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
     }
 }
 
-#[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 #[rustversion::since(1.94)]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
@@ -491,21 +487,15 @@ pub(crate) extern "C" fn shinqlx_g_startkamikaze(ent: *mut gentity_t) {
     kamikaze_explode_dispatcher(client_id, game_entity.get_game_client().is_ok())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) extern "C" fn shinqlx_g_damage(
-    target: *mut gentity_t,    // entity that is being damaged
-    inflictor: *mut gentity_t, // entity that is causing the damage
-    attacker: *mut gentity_t,  // entity that caused the inflictor to damage target
-    dir: *mut vec3_t,          // direction of the attack for knockback
-    pos: *mut vec3_t,          // point at which the damage is being inflicted, used for headshots
-    damage: c_int,             // amount of damage being inflicted
-    dflags: c_int,             // these flags are used to control how T_Damage works
-    // DAMAGE_RADIUS			damage was indirect (from a nearby explosion)
-    // DAMAGE_NO_ARMOR			armor does not protect from this damage
-    // DAMAGE_NO_KNOCKBACK		do not affect velocity, just view angles
-    // DAMAGE_NO_PROTECTION	kills godmode, armor, everything
-    // DAMAGE_NO_TEAM_PROTECTION	kills team mates
-    means_of_death: c_int, // means_of_death indicator
+    target: *mut gentity_t,
+    inflictor: *mut gentity_t,
+    attacker: *mut gentity_t, // entity that caused the inflictor to damage target
+    dir: *mut vec3_t,         // direction of the attack for knockback
+    pos: *mut vec3_t,         // point at which the damage is inflicted, used for headshots
+    damage: c_int,
+    dflags: c_int, // DAMAGE_* flags controlling how T_Damage works
+    means_of_death: c_int,
 ) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.register_damage(
@@ -555,7 +545,11 @@ pub(crate) extern "C" fn shinqlx_g_damage(
 
 #[cfg(test)]
 #[mockall::automock]
-#[allow(dead_code, clippy::module_inception)]
+#[allow(
+    dead_code,
+    clippy::module_inception,
+    reason = "the mock module is named like the module it replaces"
+)]
 pub(crate) mod hooks {
     use super::{Client, GameEntity};
 

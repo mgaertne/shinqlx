@@ -19,7 +19,10 @@
 //! and provides a Python API for interacting with the game.
 
 #![cfg_attr(not(test), no_main)]
-#![allow(stable_features)]
+#![allow(
+    stable_features,
+    reason = "the feature gates stay for toolchains where they are not yet stable"
+)]
 #![feature(arbitrary_self_types, c_variadic)]
 #![cfg_attr(test, feature(stmt_expr_attributes))]
 
@@ -46,7 +49,10 @@ pub use ffi::python::bench_support;
 #[cfg(feature = "patches")]
 mod patches;
 mod quake_live_engine;
-#[allow(missing_docs)]
+#[allow(
+    missing_docs,
+    reason = "the variants of the module are the C symbol names of the engine functions"
+)]
 pub mod quake_live_functions;
 
 pub(crate) mod prelude {
@@ -85,7 +91,13 @@ use tap::TapFallible;
 
 use crate::prelude::*;
 
-#[cfg_attr(test, allow(dead_code))]
+#[cfg_attr(
+    test,
+    allow(
+        dead_code,
+        reason = "only called from the running game process, not from tests"
+    )
+)]
 pub(crate) const QZERODED: &str = "qzeroded.x64";
 
 pub(crate) static MAIN_ENGINE: LazyLock<ArcSwapOption<QuakeLiveEngine>> =
@@ -116,7 +128,13 @@ fn initialize_logging() {
 }
 
 #[cfg_attr(not(test), ctor(unsafe))]
-#[cfg_attr(test, allow(dead_code))]
+#[cfg_attr(
+    test,
+    allow(
+        dead_code,
+        reason = "only called from the running game process, not from tests"
+    )
+)]
 fn initialize() {
     if env::args()
         .next()

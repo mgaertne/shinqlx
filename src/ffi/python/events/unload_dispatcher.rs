@@ -9,10 +9,16 @@ pub(crate) struct UnloadDispatcher {}
 #[pymethods]
 impl UnloadDispatcher {
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const name: &'static str = "unload";
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const need_zmq_stats_enabled: bool = false;
 
     #[new]

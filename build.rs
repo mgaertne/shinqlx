@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, reason = "not part of the public API")]
 
 use git2::{Repository, StatusOptions, StatusShow};
 

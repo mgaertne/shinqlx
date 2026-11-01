@@ -10,10 +10,16 @@ pub(crate) struct DeathDispatcher {}
 #[pymethods]
 impl DeathDispatcher {
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const name: &'static str = "death";
     #[classattr]
-    #[allow(non_upper_case_globals)]
+    #[allow(
+        non_upper_case_globals,
+        reason = "exposed to Python as a lower-case class attribute"
+    )]
     const need_zmq_stats_enabled: bool = true;
 
     #[new]
