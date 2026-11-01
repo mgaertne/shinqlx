@@ -50,22 +50,34 @@ pub(crate) use client_command_dispatcher::{
 pub(crate) use command_dispatcher::{CommandDispatcher, CommandDispatcherMethods};
 pub(crate) use console_print_dispatcher::{ConsolePrintDispatcher, ConsolePrintDispatcherMethods};
 pub(crate) use damage_dispatcher::{DamageDispatcher, DamageDispatcherMethods};
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use death_dispatcher::{DeathDispatcher, DeathDispatcherMethods};
 pub(crate) use frame_event_dispatcher::{FrameEventDispatcher, FrameEventDispatcherMethods};
 pub(crate) use game_countdown_dispatcher::{
     GameCountdownDispatcher, GameCountdownDispatcherMethods,
 };
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use game_end_dispatcher::{GameEndDispatcher, GameEndDispatcherMethods};
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use game_start_dispatcher::{GameStartDispatcher, GameStartDispatcherMethods};
 use itertools::Itertools;
 pub(crate) use kamikaze_explode_dispatcher::{
     KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods,
 };
 pub(crate) use kamikaze_use_dispatcher::{KamikazeUseDispatcher, KamikazeUseDispatcherMethods};
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use kill_dispatcher::{KillDispatcher, KillDispatcherMethods};
 pub(crate) use map_dispatcher::{MapDispatcher, MapDispatcherMethods};
 pub(crate) use new_game_dispatcher::{NewGameDispatcher, NewGameDispatcherMethods};
@@ -86,7 +98,10 @@ use pyo3::{
 pub(crate) use round_countdown_dispatcher::{
     RoundCountdownDispatcher, RoundCountdownDispatcherMethods,
 };
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use round_end_dispatcher::{RoundEndDispatcher, RoundEndDispatcherMethods};
 pub(crate) use round_start_dispatcher::{RoundStartDispatcher, RoundStartDispatcherMethods};
 pub(crate) use server_command_dispatcher::{
@@ -95,13 +110,19 @@ pub(crate) use server_command_dispatcher::{
 pub(crate) use set_configstring_dispatcher::{
     SetConfigstringDispatcher, SetConfigstringDispatcherMethods,
 };
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use stats_dispatcher::{StatsDispatcher, StatsDispatcherMethods};
 use tap::TapFallible;
 pub(crate) use team_switch_attempt_dispatcher::{
     TeamSwitchAttemptDispatcher, TeamSwitchAttemptDispatcherMethods,
 };
-#[allow(unused_imports)]
+#[allow(
+    unused_imports,
+    reason = "re-exported for the prelude, not every build uses every item"
+)]
 pub(crate) use team_switch_dispatcher::{TeamSwitchDispatcher, TeamSwitchDispatcherMethods};
 use unicode_segmentation::UnicodeSegmentation;
 pub(crate) use unload_dispatcher::{UnloadDispatcher, UnloadDispatcherMethods};
@@ -179,7 +200,10 @@ pub(crate) fn log_unexpected_return_value(
 
 #[pyclass(name = "EventDispatcher", module = "_events", subclass, frozen)]
 pub(crate) struct EventDispatcher {
-    #[allow(clippy::type_complexity)]
+    #[allow(
+        clippy::type_complexity,
+        reason = "keeps the handlers per priority next to the plugin name"
+    )]
     plugins: parking_lot::RwLock<Vec<(String, [Vec<Py<PyAny>>; 5])>>,
 }
 

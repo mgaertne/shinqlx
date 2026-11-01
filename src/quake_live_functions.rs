@@ -43,7 +43,11 @@ where
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Display)]
-#[allow(non_camel_case_types, missing_docs)]
+#[allow(
+    non_camel_case_types,
+    missing_docs,
+    reason = "the variants are the C symbol names of the engine functions"
+)]
 pub enum QuakeLiveFunction {
     Com_Printf,
     Cmd_AddCommand,
@@ -87,8 +91,8 @@ pub enum QuakeLiveFunction {
 }
 
 impl QuakeLiveFunction {
+    /// Creates a detour of the engine function and enables it right away.
     #[inline]
-    #[allow(missing_docs)]
     pub fn create_and_enable_generic_detour<T, D>(
         &self,
         function: T,

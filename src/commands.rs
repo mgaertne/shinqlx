@@ -87,7 +87,13 @@ pub extern "C" fn cmd_slap() {
             0
         };
 
-        #[cfg_attr(test, allow(irrefutable_let_patterns))]
+        #[cfg_attr(
+            test,
+            allow(
+                irrefutable_let_patterns,
+                reason = "the conversion is infallible for the mocked types"
+            )
+        )]
         let Ok(mut client_entity) = client_id.try_conv::<GameEntity>() else {
             cold_path();
             return;
@@ -99,7 +105,13 @@ pub extern "C" fn cmd_slap() {
 
         main_engine.com_printf("Slapping...\n");
 
-        #[cfg_attr(test, allow(irrefutable_let_patterns))]
+        #[cfg_attr(
+            test,
+            allow(
+                irrefutable_let_patterns,
+                reason = "the conversion is infallible for the mocked types"
+            )
+        )]
         let Ok(client) = client_id.try_conv::<Client>() else {
             cold_path();
             return;
@@ -181,7 +193,13 @@ pub extern "C" fn cmd_slay() {
             return;
         }
 
-        #[cfg_attr(test, allow(irrefutable_let_patterns))]
+        #[cfg_attr(
+            test,
+            allow(
+                irrefutable_let_patterns,
+                reason = "the conversion is infallible for the mocked types"
+            )
+        )]
         let Ok(mut client_entity) = client_id.try_conv::<GameEntity>() else {
             cold_path();
             return;
@@ -193,7 +211,13 @@ pub extern "C" fn cmd_slay() {
 
         main_engine.com_printf("Slaying player...\n");
 
-        #[cfg_attr(test, allow(irrefutable_let_patterns))]
+        #[cfg_attr(
+            test,
+            allow(
+                irrefutable_let_patterns,
+                reason = "the conversion is infallible for the mocked types"
+            )
+        )]
         let Ok(client) = client_id.try_conv::<Client>() else {
             cold_path();
             return;
@@ -214,9 +238,9 @@ pub extern "C" fn cmd_slay() {
     });
 }
 
+/// Executes a pyshinqlx command as if it were the owner executing it.
+/// The output appears in the console.
 #[unsafe(no_mangle)]
-// Execute a pyshinqlx command as if it were the owner executing it.
-// Output will appear in the console.
 pub extern "C" fn cmd_py_rcon() {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(commands) = main_engine.cmd_args() else {

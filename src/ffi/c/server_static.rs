@@ -4,7 +4,10 @@ use super::prelude::*;
 use crate::{MAIN_ENGINE, prelude::*};
 
 #[derive(Debug, PartialEq)]
-#[allow(non_snake_case)]
+#[allow(
+    non_snake_case,
+    reason = "the field is named after the engine struct serverStatic_t"
+)]
 #[repr(transparent)]
 pub(crate) struct ServerStatic<'a> {
     serverStatic_t: &'a mut serverStatic_t,
@@ -41,7 +44,13 @@ impl ServerStatic<'_> {
         )
     }
 
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn try_get_client_by_id(
         &self,
         client_id: i32,
@@ -56,7 +65,13 @@ impl ServerStatic<'_> {
         Ok(unsafe { self.serverStatic_t.clients.offset(client_id as isize) })
     }
 
-    #[cfg_attr(test, allow(dead_code))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
     pub(crate) fn try_determine_client_id(
         &self,
         client_t: &client_t,
@@ -212,7 +227,10 @@ mod server_static_tests {
 
     #[test]
     fn server_static_try_get_client_by_id_from_ok_client_not_first_position() {
-        #[allow(clippy::useless_vec)]
+        #[allow(
+            clippy::useless_vec,
+            reason = "client_t is too large for the stack of the test thread"
+        )]
         let mut clients = vec![
             ClientBuilder::default()
                 .build()
@@ -273,7 +291,10 @@ mod server_static_tests {
 
     #[test]
     fn server_static_determine_client_id_from_ok_client_not_first_position() {
-        #[allow(clippy::useless_vec)]
+        #[allow(
+            clippy::useless_vec,
+            reason = "client_t is too large for the stack of the test thread"
+        )]
         let mut clients = vec![
             ClientBuilder::default()
                 .build()

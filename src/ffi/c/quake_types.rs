@@ -1,7 +1,16 @@
-#![allow(dead_code)]
-#![allow(clippy::upper_case_acronyms)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
+#![allow(
+    dead_code,
+    reason = "the types mirror the whole engine API, not every part is used"
+)]
+#![allow(
+    clippy::upper_case_acronyms,
+    reason = "the names follow the Quake Live headers"
+)]
+#![allow(
+    non_camel_case_types,
+    reason = "the names follow the Quake Live headers"
+)]
+#![allow(non_snake_case, reason = "the names follow the Quake Live headers")]
 
 use core::{
     ffi::{c_char, c_float, c_int, c_uchar, c_uint, c_ushort},
@@ -2120,7 +2129,10 @@ pub enum entityType_t {
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "GEntityBuilder", no_std)]
-#[allow(unpredictable_function_pointer_comparisons)]
+#[allow(
+    unpredictable_function_pointer_comparisons,
+    reason = "the derived PartialEq compares the callbacks of the entity"
+)]
 pub struct gentity_s {
     #[builder(
         default = r#"EntityStateBuilder::default().build().expect("EntityStateBuilder has defaults for all fields")"#

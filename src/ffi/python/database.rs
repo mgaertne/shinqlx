@@ -127,28 +127,40 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
         pyshinqlx_get_logger(self.py(), Some(bound_plugin))
     }
 
-    #[allow(unused_variables)]
+    #[allow(
+        unused_variables,
+        reason = "the parameter belongs to the Python signature"
+    )]
     fn set_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
     }
 
-    #[allow(unused_variables)]
+    #[allow(
+        unused_variables,
+        reason = "the parameter belongs to the Python signature"
+    )]
     fn get_permission(&self, player: &Bound<'_, PyAny>) -> PyResult<i32> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
     }
 
-    #[allow(unused_variables)]
+    #[allow(
+        unused_variables,
+        reason = "the parameter belongs to the Python signature"
+    )]
     fn has_permission(&self, player: &Bound<'_, PyAny>, level: i32) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
         ))
     }
 
-    #[allow(unused_variables)]
+    #[allow(
+        unused_variables,
+        reason = "the parameter belongs to the Python signature"
+    )]
     fn set_flag(&self, player: &Bound<'_, PyAny>, flag: &str, value: bool) -> PyResult<()> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",
@@ -159,7 +171,10 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, AbstractDatabase> {
         self.set_flag(player, flag, false)
     }
 
-    #[allow(unused_variables)]
+    #[allow(
+        unused_variables,
+        reason = "the parameter belongs to the Python signature"
+    )]
     fn get_flag(&self, player: &Bound<'_, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
         Err(PyNotImplementedError::new_err(
             "The abstract base database can't do database actions.",

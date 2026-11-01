@@ -361,7 +361,13 @@ mod client_tests {
         }
     }
 
-    #[cfg_attr(test, allow(clippy::type_complexity))]
+    #[cfg_attr(
+        test,
+        allow(
+            clippy::type_complexity,
+            reason = "spells out the detour type of the engine function"
+        )
+    )]
     static SV_DROPCLIENT_DETOUR: OnceLock<GenericDetour<fn(*mut client_t, *const c_char)>> =
         OnceLock::new();
 

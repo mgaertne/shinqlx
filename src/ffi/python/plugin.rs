@@ -226,7 +226,10 @@ impl Plugin {
         prefix = true,
         usage = ""),
     text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = \"\")")]
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "mirrors minqlx.Plugin.add_command"
+    )]
     fn add_command(
         slf: &Bound<'_, Self>,
         name: &Bound<'_, PyAny>,
@@ -1158,7 +1161,10 @@ pub(crate) trait PluginMethods<'py> {
     fn get_logger(&self) -> PyResult<Bound<'py, PyAny>>;
     fn add_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()>;
     fn remove_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()>;
-    #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "mirrors minqlx.Plugin.add_command"
+    )]
     fn add_command(
         &self,
         name: &Bound<'_, PyAny>,
@@ -1327,7 +1333,6 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn add_command(
         &self,
         name: &Bound<'_, PyAny>,

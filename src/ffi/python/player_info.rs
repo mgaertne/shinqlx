@@ -18,7 +18,6 @@ use crate::ffi::c::prelude::*;
 #[display(
     "PlayerInfo(client_id={client_id}, name={name}, connection_state={connection_state}, userinfo={userinfo}, steam_id={steam_id}, team={team}, privileges={privileges})"
 )]
-#[allow(unused)]
 pub(crate) struct PlayerInfo {
     /// The player's client ID.
     pub(crate) client_id: i32,
