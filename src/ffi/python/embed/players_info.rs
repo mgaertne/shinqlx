@@ -24,13 +24,12 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
 
         Ok((0..maxclients)
             .filter_map(|client_id| {
-                client_id.try_conv::<Client>().map_or_else(
-                    |_| None,
-                    |client| match client.get_state() {
+                client_id
+                    .try_conv::<Client>()
+                    .map_or(None, |client| match client.get_state() {
                         clientState_t::CS_FREE => None,
                         _ => Some(Some(PlayerInfo::from(client_id))),
-                    },
-                )
+                    })
             })
             .collect())
     })

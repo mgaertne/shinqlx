@@ -1914,7 +1914,11 @@ except ValueError as e:
     }
 }
 
-fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
+fn try_log_exception(
+    py: Python<'_>,
+    plugin: Option<Bound<'_, PyAny>>,
+    exception: &PyErr,
+) -> PyResult<()> {
     py.import(intern!(py, "traceback"))
         .and_then(|traceback_module| {
             traceback_module
@@ -1928,13 +1932,27 @@ fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
                 )?
                 .extract::<Vec<String>>()
                 .and_then(|formatted_traceback| {
-                    try_log_messages(py, None, intern!(py, "log_exception"), formatted_traceback)
+                    try_log_messages(
+                        py,
+                        plugin,
+                        intern!(py, "log_exception"),
+                        formatted_traceback,
+                    )
                 })
         })
 }
 
 pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
-    let _ = try_log_exception(py, exception);
+    let _ = try_log_exception(py, None, exception);
+}
+
+/// Logs an already caught exception under the logger of the plugin.
+pub(crate) fn log_plugin_exception(
+    py: Python<'_>,
+    plugin: &Bound<'_, PyAny>,
+    exception: &PyErr,
+) -> PyResult<()> {
+    try_log_exception(py, Some(plugin.clone()), exception)
 }
 
 fn try_log_messages(

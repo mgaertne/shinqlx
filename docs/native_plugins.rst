@@ -65,7 +65,7 @@ command                   level   description
 ``!myperm``               0       Shows your own permission level, in game only.
 ========================= ======= ====================================================
 
-The owner (``qlx_owner``) cannot be changed.
+The owner (``qlx_owner``) always has all permissions, whatever level is stored for them in the database.
 
 ban
 ===
