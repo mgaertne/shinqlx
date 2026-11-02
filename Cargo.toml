@@ -10,7 +10,7 @@ version = "0.8.0-alpha.1"
 authors = ["Markus 'ShiN0' Gaertner"]
 
 [workspace.dependencies]
-arzmq = { version = ">=0.7", default-features = false, features = ["futures", "builder", "draft-api"] }
+arzmq = { version = ">=0.7", default-features = false }
 regex = { version = ">=1.13", default-features = false, features = ["perf", "unicode"] }
 serde_json = { version = ">=1.0.145", default-features = false, features = ["alloc"] }
 
@@ -24,7 +24,7 @@ readme = "README.md"
 description = "ShiN0's QuakeLive extension in Rust"
 repository = "https://github.com/mgaertne/shinqlx"
 license-file = "LICENSE"
-include = ["run_server_shinqlx.sh", "log4rs.yml"]
+include = ["run_server_shinqlx.sh", "shinqlx_log.yml"]
 publish = false
 
 [lib]
@@ -57,12 +57,12 @@ rustflags = ["-Zlocation-detail=none"]
 [dependencies]
 serde_json = { workspace = true }
 regex = { workspace = true }
-arzmq = { workspace = true }
+arzmq = { workspace = true, features = ["builder"] }
 
 rustversion = { version = ">=1.0", default-features = false }
 ctor = { version = ">=1.0", default-features = false, features = ["proc_macro"] }
 rand = { version = ">=0.10", default-features = false, features = ["thread_rng"] }
-pyo3 = { version = ">=0.30, <0.31", features = ["pyo3-macros", "extension-module", "nightly", "parking_lot"] }
+pyo3 = { version = ">=0.30, <0.31", default-features = false, features = ["macros", "extension-module", "nightly"] }
 detour = { version = ">=0.10.0", default-features = false, features = ["no_std"] }
 derive_builder = { version = ">=0.20", default-features = false, features = ["clippy", "alloc"] }
 arc-swap = { version = ">=1.9", default-features = false }
@@ -71,10 +71,10 @@ rayon = { version = ">=1.12", default-features = false }
 derive_more = { version = ">=2.1", default-features = false, features = ["display", "try_from"]}
 derive-new = { version = ">=0.7", default-features = false }
 log = { version = ">=0.4", default-features = false }
-log4rs = { version = ">=1.4", default-features = false, features = ["console_appender", "config_parsing", ] }
+log4rs = { version = ">=1.4", default-features = false, features = ["console_appender", "config_parsing", "yaml_format"] }
 signal-hook = { version = ">=0.4", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
-chrono = { version = ">=0.4.41", default-features = false }
+chrono = { version = ">=0.4.41", default-features = false, features = ["now"] }
 itertools = { version = ">=0.15", default-features = false, features = ["use_std"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false }
@@ -87,7 +87,6 @@ region = { version = ">=4.0", default-features = false, optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 procfs = { version = ">=0.18", default-features = false }
-procfs-core = { version = ">=0.18", default-features = false }
 
 [target."cfg(not(windows))".dependencies]
 tikv-jemallocator = { version = ">=0.7", default-features = false, features = ["background_threads_runtime_support"], optional = true }
