@@ -50,13 +50,14 @@ strip = "symbols"
 opt-level = "z"
 lto = "fat"
 codegen-units = 1
+rustflags = ["-Zlocation-detail=none"]
 
 [profile.release.build-override]
 rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 serde_json = { workspace = true }
-regex = { workspace = true }
+regex-lite = { version = ">=0.1.9", default-features = false, features = ["std", "string"] }
 arzmq = { workspace = true, features = ["builder"] }
 
 rustversion = { version = ">=1.0", default-features = false }
@@ -75,7 +76,7 @@ log4rs = { version = ">=1.4", default-features = false, features = ["console_app
 signal-hook = { version = ">=0.4", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
 chrono = { version = ">=0.4.41", default-features = false, features = ["now"] }
-itertools = { version = ">=0.15", default-features = false, features = ["use_std"] }
+itertools = { version = ">=0.15", default-features = false, features = ["use_alloc"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false }
 parking_lot = { version = ">=0.13", default-features = false, features = ["nightly"] }

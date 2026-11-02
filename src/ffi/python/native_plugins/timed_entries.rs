@@ -10,7 +10,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyDict, PyTuple},
 };
-use regex::Regex;
+use regex_lite::Regex;
 
 const TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const SECONDS_PER_DAY: f64 = 86_400.0;
