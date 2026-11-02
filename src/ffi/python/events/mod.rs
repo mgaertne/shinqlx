@@ -376,7 +376,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                     .into_py_dict(self.py())
                     .ok()
             })
-            .unwrap_or(PyDict::new(self.py()))
+            .unwrap_or_else(|| PyDict::new(self.py()))
     }
 
     fn has_hooks(&self) -> bool {

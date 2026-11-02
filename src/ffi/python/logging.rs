@@ -18,9 +18,10 @@ pub(super) fn get_logger_name(plugin: Option<Bound<'_, PyAny>>) -> String {
                 .ok()
                 .map(|plugin_name| plugin_name.to_string())
         })
-        .map_or("shinqlx".to_string(), |plugin_name| {
-            format!("shinqlx.{plugin_name}")
-        })
+        .map_or_else(
+            || "shinqlx".to_string(),
+            |plugin_name| format!("shinqlx.{plugin_name}"),
+        )
 }
 
 /// Provides a logger that should be used by your plugin for debugging, info and error reporting. It will automatically output to both the server console as well as to a file.
@@ -82,8 +83,8 @@ pub(crate) fn log_debug(py: Python<'_>, func: &str, message: &str) -> PyResult<(
 #[pyfunction]
 #[pyo3(name = "_configure_logger")]
 pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
-    let (homepath, num_max_logs, max_logssize) = MAIN_ENGINE.load().as_ref().map_or(
-        {
+    let (homepath, num_max_logs, max_logssize) = MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err("no main engine found"))
         },
@@ -91,7 +92,7 @@ pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
             let homepath = main_engine
                 .find_cvar("fs_homepath")
                 .map(|homepath_cvar| homepath_cvar.get_string().to_string())
-                .unwrap_or(".".into());
+                .unwrap_or_else(|| ".".into());
             let num_max_logs = main_engine
                 .find_cvar("qlx_logs")
                 .map(|max_logs_cvar| max_logs_cvar.get_integer())

@@ -209,7 +209,9 @@ pub(super) fn pyshinqlx_parse_variables<'py>(
     #[allow(unused_variables, reason = "kept for the signature of minqlx")] ordered: bool,
 ) -> Bound<'py, PyDict> {
     let parsed_variables = py.detach(|| parse_variables(varstr));
-    parsed_variables.into_py_dict(py).unwrap_or(PyDict::new(py))
+    parsed_variables
+        .into_py_dict(py)
+        .unwrap_or_else(|_| PyDict::new(py))
 }
 
 #[cfg(test)]

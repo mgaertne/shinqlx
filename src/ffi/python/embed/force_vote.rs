@@ -21,8 +21,8 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, _pass: bool) -> PyResult<bool
             return Ok(false);
         }
 
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",

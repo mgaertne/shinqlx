@@ -385,7 +385,7 @@ impl StatsListener {
                     Some(host.to_string())
                 }
             })
-            .unwrap_or("127.0.0.1".into());
+            .unwrap_or_else(|| "127.0.0.1".into());
         let port = match main_engine.find_cvar("zmq_stats_port") {
             None => main_engine
                 .find_cvar("net_port")

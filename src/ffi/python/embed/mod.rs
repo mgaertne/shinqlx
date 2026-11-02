@@ -101,8 +101,8 @@ pub(crate) use spawn_item::pyshinqlx_spawn_item;
 use crate::MAIN_ENGINE;
 
 fn validate_client_id(client_id: i32) -> PyResult<()> {
-    let maxclients = MAIN_ENGINE.load().as_ref().map_or(
-        {
+    let maxclients = MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",

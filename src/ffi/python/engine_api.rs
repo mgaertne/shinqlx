@@ -60,8 +60,8 @@ pub(crate) fn client_id(
 }
 
 pub(crate) fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
@@ -76,8 +76,8 @@ pub(crate) fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
 }
 
 pub(crate) fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
@@ -103,8 +103,8 @@ pub(crate) fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<
 }
 
 pub(crate) fn console_command(cmd: &str) -> PyResult<()> {
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
@@ -126,8 +126,8 @@ pub(crate) fn get_configstring(index: u16) -> PyResult<String> {
         )));
     }
 
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err(
                 "main quake live engine not set",
@@ -195,8 +195,8 @@ pub(crate) fn unlock(team: Option<&str>) -> PyResult<()> {
 }
 
 pub(crate) fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -219,8 +219,8 @@ pub(crate) fn put(py: Python<'_>, player: &Bound<'_, PyAny>, team: &str) -> PyRe
 }
 
 pub(crate) fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -234,8 +234,8 @@ pub(crate) fn mute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 }
 
 pub(crate) fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -249,8 +249,8 @@ pub(crate) fn unmute(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> 
 }
 
 pub(crate) fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -264,8 +264,8 @@ pub(crate) fn tempban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()>
 }
 
 pub(crate) fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -279,8 +279,8 @@ pub(crate) fn ban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
 }
 
 pub(crate) fn unban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -299,8 +299,8 @@ pub(crate) fn opsay(msg: &str) -> PyResult<()> {
 }
 
 pub(crate) fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -314,8 +314,8 @@ pub(crate) fn addadmin(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()
 }
 
 pub(crate) fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -329,8 +329,8 @@ pub(crate) fn addmod(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> 
 }
 
 pub(crate) fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -344,8 +344,8 @@ pub(crate) fn demote(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> 
 }
 
 pub(crate) fn addscore(py: Python<'_>, player: &Bound<'_, PyAny>, score: i32) -> PyResult<()> {
-    client_id(py, player, None).map_or(
-        {
+    client_id(py, player, None).map_or_else(
+        || {
             cold_path();
             Err(PyValueError::new_err("Invalid player."))
         },
@@ -396,7 +396,7 @@ pub(crate) fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
         let plugins_version = module
             .getattr(intern!(module.py(), "__plugins_version__"))
             .and_then(|value| value.extract::<String>())
-            .unwrap_or("NOT_SET".to_string());
+            .unwrap_or_else(|_| "NOT_SET".to_string());
 
         map_subtitle1.push_str(&plugins_version);
         map_subtitle1.push_str("^7.");

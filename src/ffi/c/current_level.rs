@@ -21,9 +21,9 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel<'_> {
     fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
         unsafe { level_locals.as_mut() }
             .map(|level| Self { level })
-            .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string(),
-            ))
+            .ok_or_else(|| {
+                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
+            })
     }
 }
 

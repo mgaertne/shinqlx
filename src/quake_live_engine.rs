@@ -1233,8 +1233,8 @@ impl QuakeLiveEngine {
     fn com_printf_orig(
         &self,
     ) -> Result<unsafe extern "C" fn(*const c_char, ...), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Com_Printf,
@@ -1247,8 +1247,8 @@ impl QuakeLiveEngine {
     fn cmd_addcommand_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cmd_AddCommand,
@@ -1259,8 +1259,8 @@ impl QuakeLiveEngine {
     }
 
     fn cmd_args_orig(&self) -> Result<extern "C" fn() -> *const c_char, QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cmd_Args,
@@ -1271,8 +1271,8 @@ impl QuakeLiveEngine {
     }
 
     fn cmd_argv_orig(&self) -> Result<extern "C" fn(c_int) -> *const c_char, QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cmd_Argv,
@@ -1292,8 +1292,8 @@ impl QuakeLiveEngine {
     fn cmd_tokenizestring_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *const c_char, QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cmd_Tokenizestring,
@@ -1313,8 +1313,8 @@ impl QuakeLiveEngine {
     fn cbuf_executetext_orig(
         &self,
     ) -> Result<extern "C" fn(cbufExec_t, *const c_char), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cbuf_ExecuteText,
@@ -1327,8 +1327,8 @@ impl QuakeLiveEngine {
     fn cvar_findvar_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char) -> *mut cvar_t, QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cvar_FindVar,
@@ -1344,8 +1344,8 @@ impl QuakeLiveEngine {
         extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
         QuakeLiveEngineError,
     > {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cvar_Get,
@@ -1367,8 +1367,8 @@ impl QuakeLiveEngine {
         ) -> *mut cvar_t,
         QuakeLiveEngineError,
     > {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cvar_GetLimit,
@@ -1384,8 +1384,8 @@ impl QuakeLiveEngine {
         extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
         QuakeLiveEngineError,
     > {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cvar_Set2,
@@ -1398,8 +1398,8 @@ impl QuakeLiveEngine {
     fn sv_sendservercommand_orig(
         &self,
     ) -> Result<unsafe extern "C" fn(*mut client_t, *const c_char, ...), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_SendServerCommand,
@@ -1412,8 +1412,8 @@ impl QuakeLiveEngine {
     fn sv_executeclientcommand_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char, qboolean), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_ExecuteClientCommand,
@@ -1426,8 +1426,8 @@ impl QuakeLiveEngine {
     pub(crate) fn sv_shutdown_orig(
         &self,
     ) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_Shutdown,
@@ -1445,8 +1445,8 @@ impl QuakeLiveEngine {
         )
     )]
     fn sv_map_f_orig(&self) -> Result<extern "C" fn(), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_Map_f,
@@ -1459,8 +1459,8 @@ impl QuakeLiveEngine {
     fn sv_cliententerworld_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *mut usercmd_t), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_ClientEnterWorld,
@@ -1473,8 +1473,8 @@ impl QuakeLiveEngine {
     fn sv_setconfigstring_orig(
         &self,
     ) -> Result<extern "C" fn(c_int, *const c_char), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_SetConfigstring,
@@ -1487,8 +1487,8 @@ impl QuakeLiveEngine {
     fn sv_getconfigstring_orig(
         &self,
     ) -> Result<extern "C" fn(c_int, *mut c_char, c_int), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_GetConfigstring,
@@ -1501,8 +1501,8 @@ impl QuakeLiveEngine {
     fn sv_dropclient_orig(
         &self,
     ) -> Result<extern "C" fn(*mut client_t, *const c_char), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_DropClient,
@@ -1515,8 +1515,8 @@ impl QuakeLiveEngine {
     fn sys_setmoduleoffset_orig(
         &self,
     ) -> Result<extern "C" fn(*mut c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Sys_SetModuleOffset,
@@ -1529,8 +1529,8 @@ impl QuakeLiveEngine {
     fn sv_spawnserver_orig(
         &self,
     ) -> Result<extern "C" fn(*mut c_char, qboolean), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::SV_SpawnServer,
@@ -1541,8 +1541,8 @@ impl QuakeLiveEngine {
     }
 
     fn cmd_executestring_orig(&self) -> Result<extern "C" fn(*const c_char), QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cmd_ExecuteString,
@@ -1553,8 +1553,8 @@ impl QuakeLiveEngine {
     }
 
     fn cmd_argc_orig(&self) -> Result<extern "C" fn() -> c_int, QuakeLiveEngineError> {
-        self.static_functions.get().map_or(
-            {
+        self.static_functions.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticFunctionNotFound(
                     QuakeLiveFunction::Cmd_Argc,
@@ -1570,8 +1570,8 @@ impl QuakeLiveEngine {
         &GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
         QuakeLiveEngineError,
     > {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::Cmd_AddCommand,
@@ -1587,8 +1587,8 @@ impl QuakeLiveEngine {
         &GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
         QuakeLiveEngineError,
     > {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::Sys_SetModuleOffset,
@@ -1604,8 +1604,8 @@ impl QuakeLiveEngine {
         &GenericDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
         QuakeLiveEngineError,
     > {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::SV_ExecuteClientCommand,
@@ -1619,8 +1619,8 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError>
     {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::SV_ClientEnterWorld,
@@ -1633,8 +1633,8 @@ impl QuakeLiveEngine {
     fn sv_setconfgistring_detour(
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(c_int, *const c_char)>, QuakeLiveEngineError> {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::SV_SetConfigstring,
@@ -1648,8 +1648,8 @@ impl QuakeLiveEngine {
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>
     {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::SV_DropClient,
@@ -1662,8 +1662,8 @@ impl QuakeLiveEngine {
     fn sv_spawnserver_detour(
         &self,
     ) -> Result<&GenericDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::SV_SpawnServer,
@@ -1674,8 +1674,8 @@ impl QuakeLiveEngine {
     }
 
     fn sv_sendservercommand_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::SV_SendServerCommand,
@@ -1686,8 +1686,8 @@ impl QuakeLiveEngine {
     }
 
     fn com_printf_detour(&self) -> Result<&RawDetour, QuakeLiveEngineError> {
-        self.static_detours.get().map_or(
-            {
+        self.static_detours.get().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::StaticDetourNotFound(
                     QuakeLiveFunction::Com_Printf,
@@ -4976,8 +4976,9 @@ pub(crate) trait GetConfigstring<T: Into<c_int>> {
 
 impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
     fn get_configstring(&self, index: T) -> String {
-        self.sv_getconfigstring_orig()
-            .map_or("".into(), |original_func| {
+        self.sv_getconfigstring_orig().map_or_else(
+            |_| "".into(),
+            |original_func| {
                 let mut buffer: [u8; MAX_STRING_CHARS as usize] = [0; MAX_STRING_CHARS as usize];
                 original_func(
                     index.into(),
@@ -4988,7 +4989,8 @@ impl<T: Into<c_int>> GetConfigstring<T> for QuakeLiveEngine {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .into()
-            })
+            },
+        )
     }
 }
 
