@@ -416,7 +416,6 @@ fn handle_userinfo(py: Python<'_>, player: Player, cmd: &str, vars: &str) -> PyR
     let old_info = parse_variables(&player.user_info);
 
     let changed = new_info
-        .items
         .iter()
         .filter(|(key, new_value)| {
             let opt_old_value = old_info.get(key);
