@@ -1,8 +1,7 @@
-use core::hint::cold_path;
-
-use pyo3::exceptions::PyEnvironmentError;
-
-use crate::{MAIN_ENGINE, ffi::python::prelude::*, quake_live_engine::SetCVarLimit};
+use crate::{
+    ffi::python::{prelude::*, with_main_engine},
+    quake_live_engine::SetCVarLimit,
+};
 
 /// Sets a non-string cvar with a minimum and maximum value.
 #[pyfunction]
@@ -17,19 +16,11 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
     flags: Option<i32>,
 ) -> PyResult<()> {
     py.detach(|| {
-        MAIN_ENGINE.load().as_ref().map_or_else(
-            || {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                ))
-            },
-            |main_engine| {
-                main_engine.set_cvar_limit(cvar, value, min, max, flags);
+        with_main_engine(|main_engine| {
+            main_engine.set_cvar_limit(cvar, value, min, max, flags);
 
-                Ok(())
-            },
-        )
+            Ok(())
+        })
     })
 }
 
