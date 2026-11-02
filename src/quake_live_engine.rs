@@ -326,7 +326,7 @@ impl VmFunctions {
 
         let client_connect_orig = self.client_connect_orig.load(Ordering::Acquire);
         let client_connect_func = unsafe {
-            mem::transmute::<usize, extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>(
+            function_at::<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>(
                 client_connect_orig,
             )
         };
@@ -352,9 +352,8 @@ impl VmFunctions {
             });
 
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::Acquire);
-        let g_start_kamikaze_func = unsafe {
-            mem::transmute::<usize, extern "C" fn(*mut gentity_s)>(g_start_kamikaze_orig)
-        };
+        let g_start_kamikaze_func =
+            unsafe { function_at::<extern "C" fn(*mut gentity_s)>(g_start_kamikaze_orig) };
         let g_start_kamikaze_detour = unsafe {
             GStartKamikazeDetourType::new(g_start_kamikaze_func, shinqlx_g_startkamikaze)
         }
@@ -379,7 +378,7 @@ impl VmFunctions {
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::Acquire);
         let client_spawn_func =
-            unsafe { mem::transmute::<usize, extern "C" fn(*mut gentity_s)>(client_spawn_orig) };
+            unsafe { function_at::<extern "C" fn(*mut gentity_s)>(client_spawn_orig) };
         let client_spawn_detour =
             unsafe { ClientSpawnDetourType::new(client_spawn_func, shinqlx_clientspawn) }.map_err(
                 |_| {
@@ -404,8 +403,7 @@ impl VmFunctions {
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::Acquire);
         let g_damage_func = unsafe {
-            mem::transmute::<
-                usize,
+            function_at::<
                 extern "C" fn(
                     *mut gentity_t,
                     *mut gentity_t,
@@ -795,7 +793,15 @@ mod vm_functions_tests {
 }
 
 #[cfg(target_os = "linux")]
-fn try_find_static_function<FuncType>(
+/// # Safety
+/// `address` must be the address of a function with the signature `FuncType`.
+unsafe fn function_at<FuncType: Copy>(address: usize) -> FuncType {
+    const { assert!(size_of::<FuncType>() == size_of::<*const ()>()) };
+    let function_pointer = ptr::with_exposed_provenance::<()>(address);
+    unsafe { mem::transmute_copy::<*const (), FuncType>(&function_pointer) }
+}
+
+fn try_find_static_function<FuncType: Copy>(
     maps: &[&MemoryMap],
     func: QuakeLiveFunction,
 ) -> Result<FuncType, QuakeLiveEngineError> {
@@ -807,7 +813,7 @@ fn try_find_static_function<FuncType>(
         },
         |result| {
             debug!(target: "shinqlx", "{}: {:#X}", func, result);
-            Ok(unsafe { mem::transmute_copy::<usize, FuncType>(&result) })
+            Ok(unsafe { function_at::<FuncType>(result) })
         },
     )
 }
@@ -1010,7 +1016,7 @@ impl QuakeLiveEngine {
             let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + OFFSET_CMD_ARGC + 4;
             debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr);
             let cmd_argc_orig =
-                unsafe { mem::transmute::<usize, extern "C" fn() -> c_int>(cmd_argc_ptr as usize) };
+                unsafe { function_at::<extern "C" fn() -> c_int>(cmd_argc_ptr as usize) };
 
             self.static_functions
                 .set(StaticFunctions {
@@ -1708,9 +1714,8 @@ impl QuakeLiveEngine {
                 ))
             }
             g_init_game_orig => {
-                let g_init_game_func = unsafe {
-                    mem::transmute::<usize, extern "C" fn(c_int, c_int, c_int)>(g_init_game_orig)
-                };
+                let g_init_game_func =
+                    unsafe { function_at::<extern "C" fn(c_int, c_int, c_int)>(g_init_game_orig) };
                 Ok(g_init_game_func)
             }
         }
@@ -1730,7 +1735,7 @@ impl QuakeLiveEngine {
             }
             g_shutdown_game_orig => {
                 let g_shutdown_game_func =
-                    unsafe { mem::transmute::<usize, extern "C" fn(c_int)>(g_shutdown_game_orig) };
+                    unsafe { function_at::<extern "C" fn(c_int)>(g_shutdown_game_orig) };
                 Ok(g_shutdown_game_func)
             }
         }
@@ -1746,7 +1751,7 @@ impl QuakeLiveEngine {
             }
             g_run_frame_orig => {
                 let g_run_frame_func =
-                    unsafe { mem::transmute::<usize, extern "C" fn(c_int)>(g_run_frame_orig) };
+                    unsafe { function_at::<extern "C" fn(c_int)>(g_run_frame_orig) };
                 Ok(g_run_frame_func)
             }
         }
@@ -1764,7 +1769,7 @@ impl QuakeLiveEngine {
             }
             g_addevent_orig => {
                 let g_addevent_func = unsafe {
-                    mem::transmute::<usize, extern "C" fn(*mut gentity_t, entity_event_t, c_int)>(
+                    function_at::<extern "C" fn(*mut gentity_t, entity_event_t, c_int)>(
                         g_addevent_orig,
                     )
                 };
@@ -1784,9 +1789,8 @@ impl QuakeLiveEngine {
                 ))
             }
             g_free_entity_orig => {
-                let g_free_entity_func = unsafe {
-                    mem::transmute::<usize, extern "C" fn(*mut gentity_t)>(g_free_entity_orig)
-                };
+                let g_free_entity_func =
+                    unsafe { function_at::<extern "C" fn(*mut gentity_t)>(g_free_entity_orig) };
                 Ok(g_free_entity_func)
             }
         }
@@ -1807,8 +1811,7 @@ impl QuakeLiveEngine {
             }
             launch_item_orig => {
                 let launch_item_func = unsafe {
-                    mem::transmute::<
-                        usize,
+                    function_at::<
                         extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
                     >(launch_item_orig)
                 };
@@ -1837,10 +1840,9 @@ impl QuakeLiveEngine {
             }
             touch_item_orig => {
                 let touch_item_func = unsafe {
-                    mem::transmute::<
-                        usize,
-                        extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t),
-                    >(touch_item_orig)
+                    function_at::<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>(
+                        touch_item_orig,
+                    )
                 };
                 Ok(touch_item_func)
             }
@@ -1881,10 +1883,7 @@ mod quake_live_engine_tests {
             cmd_send_server_command, cmd_slap, cmd_slay,
         },
         ffi::{
-            c::prelude::{
-                CVarBuilder, cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t,
-                qboolean, usercmd_t, vec3_t,
-            },
+            c::prelude::{CVarBuilder, cbufExec_t, client_t, cvar_t, qboolean, usercmd_t},
             python::{PythonInitializationError, prelude::pyshinqlx_initialize_context},
         },
         prelude::{QuakeLiveEngineError, serial},
@@ -2252,7 +2251,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn unhook_vm_when_restarted() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3090,7 +3088,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn g_init_game_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3098,11 +3095,12 @@ mod quake_live_engine_tests {
             .g_init_game_orig
             .store(G_InitGame as *const () as usize, Ordering::Release);
 
+        let stored_address = quake_engine
+            .vm_functions
+            .g_init_game_orig
+            .load(Ordering::Acquire);
         let result = quake_engine.g_init_game_orig();
-        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
-            func,
-            G_InitGame as extern "C" fn(c_int, c_int, c_int)
-        )));
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 
     #[test]
@@ -3115,7 +3113,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn g_shutdown_game_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3123,10 +3120,12 @@ mod quake_live_engine_tests {
             .g_shutdown_game_orig
             .store(G_ShutdownGame as *const () as usize, Ordering::Release);
 
+        let stored_address = quake_engine
+            .vm_functions
+            .g_shutdown_game_orig
+            .load(Ordering::Acquire);
         let result = quake_engine.g_shutdown_game_orig();
-        assert!(
-            result.is_ok_and(|func| ptr::fn_addr_eq(func, G_ShutdownGame as extern "C" fn(c_int)))
-        );
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 
     #[test]
@@ -3141,7 +3140,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn g_run_frame_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3149,8 +3147,12 @@ mod quake_live_engine_tests {
             .g_run_frame_orig
             .store(G_RunFrame as *const () as usize, Ordering::Release);
 
+        let stored_address = quake_engine
+            .vm_functions
+            .g_run_frame_orig
+            .load(Ordering::Acquire);
         let result = quake_engine.g_run_frame_orig();
-        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(func, G_RunFrame as extern "C" fn(c_int))));
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 
     #[test]
@@ -3165,7 +3167,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn g_addevent_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3173,11 +3174,12 @@ mod quake_live_engine_tests {
             .g_addevent_orig
             .store(G_AddEvent as *const () as usize, Ordering::Release);
 
+        let stored_address = quake_engine
+            .vm_functions
+            .g_addevent_orig
+            .load(Ordering::Acquire);
         let result = quake_engine.g_addevent_orig();
-        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
-            func,
-            G_AddEvent as extern "C" fn(*mut gentity_t, entity_event_t, c_int)
-        )));
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 
     #[test]
@@ -3192,7 +3194,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn g_free_entity_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3200,11 +3201,12 @@ mod quake_live_engine_tests {
             .g_free_entity_orig
             .store(G_FreeEntity as *const () as usize, Ordering::Release);
 
+        let stored_address = quake_engine
+            .vm_functions
+            .g_free_entity_orig
+            .load(Ordering::Acquire);
         let result = quake_engine.g_free_entity_orig();
-        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
-            func,
-            G_FreeEntity as extern "C" fn(*mut gentity_t)
-        )));
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 
     #[test]
@@ -3219,7 +3221,6 @@ mod quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn launch_item_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -3227,11 +3228,12 @@ mod quake_live_engine_tests {
             .launch_item_orig
             .store(LaunchItem as *const () as usize, Ordering::Release);
 
+        let stored_address = quake_engine
+            .vm_functions
+            .launch_item_orig
+            .load(Ordering::Acquire);
         let result = quake_engine.launch_item_orig();
-        assert!(result.is_ok_and(|func| ptr::fn_addr_eq(
-            func,
-            LaunchItem as extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t
-        )));
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 }
 
@@ -3381,7 +3383,6 @@ mod find_cvar_quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn find_cvar_when_function_returns_valid_cvar() {
         let mut cvar = CVarBuilder::default()
@@ -3407,7 +3408,6 @@ mod find_cvar_quake_live_engine_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn find_cvar_when_function_returns_null_ptr() {
         let find_cvar_ctx = Cvar_FindVar_context();
@@ -3857,7 +3857,6 @@ mod client_enter_world_quake_live_engine_tests {
     };
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn client_enter_world_with_no_detour_set() {
         let mock_client = MockClient::default();

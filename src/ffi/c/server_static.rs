@@ -76,17 +76,20 @@ impl ServerStatic<'_> {
         &self,
         client_t: &client_t,
     ) -> Result<i32, QuakeLiveEngineError> {
-        let offset =
-            unsafe { (client_t as *const client_t).offset_from(self.serverStatic_t.clients) };
+        let byte_distance = (client_t as *const client_t)
+            .addr()
+            .wrapping_sub(self.serverStatic_t.clients.addr());
+        let client_size = size_of::<client_t>();
+        let index = byte_distance / client_size;
 
-        if !(0..MAX_CLIENTS as isize).contains(&offset) {
+        if !byte_distance.is_multiple_of(client_size) || index >= MAX_CLIENTS as usize {
             cold_path();
             return Err(QuakeLiveEngineError::ClientNotFound(
                 "client not found".to_string(),
             ));
         }
 
-        offset.try_into().map_err(|_| {
+        i32::try_from(index).map_err(|_| {
             cold_path();
             QuakeLiveEngineError::ClientNotFound("client not found".to_string())
         })
@@ -255,7 +258,6 @@ mod server_static_tests {
         );
     }
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn server_static_determine_client_id_from_invalid_client() {
         let client = ClientBuilder::default()
             .build()
