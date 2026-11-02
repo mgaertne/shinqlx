@@ -1687,7 +1687,6 @@ mod try_get_plugins_path_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_no_main_engine() {
         let result = try_get_plugins_path();
         assert!(result.is_err_and(|err| err == "no main engine found"));
@@ -1695,7 +1694,6 @@ mod try_get_plugins_path_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_no_cvar_set() {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 1..)

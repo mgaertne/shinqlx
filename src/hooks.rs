@@ -577,6 +577,7 @@ mod hooks_tests {
     use core::{
         borrow::BorrowMut,
         ffi::{CStr, c_int},
+        sync::atomic::{AtomicUsize, Ordering},
     };
 
     use mockall::predicate;
@@ -641,7 +642,26 @@ mod hooks_tests {
         damage_dispatcher_context()
     }
 
-    unsafe extern "C" fn dummy_function() {}
+    static DUMMY_FUNCTION_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    unsafe extern "C" fn dummy_function() {
+        DUMMY_FUNCTION_CALLS.fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn is_dummy_address(address: usize) -> bool {
+        let function = unsafe {
+            core::mem::transmute::<*const (), unsafe extern "C" fn()>(
+                core::ptr::with_exposed_provenance(address),
+            )
+        };
+        is_dummy_function(function)
+    }
+
+    fn is_dummy_function(function: unsafe extern "C" fn()) -> bool {
+        let calls_before = DUMMY_FUNCTION_CALLS.load(Ordering::SeqCst);
+        unsafe { function() };
+        DUMMY_FUNCTION_CALLS.load(Ordering::SeqCst) == calls_before + 1
+    }
 
     #[test]
     #[serial]
@@ -668,7 +688,6 @@ mod hooks_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn add_command_with_main_engine_already_initialized() {
         let cmd_string = c"slap";
         MockEngineBuilder::default()
@@ -678,10 +697,7 @@ mod hooks_tests {
                     .return_const(true);
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| {
-                        cmd == "slap"
-                            && ptr::fn_addr_eq(func, dummy_function as unsafe extern "C" fn())
-                    })
+                    .withf(|cmd, &func| cmd == "slap" && is_dummy_function(func))
                     .times(1);
             })
             .run(|| {
@@ -691,7 +707,6 @@ mod hooks_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn add_command_with_main_engine_not_initiailized_command_non_empty() {
         let cmd_string = c"slap";
         MockEngineBuilder::default()
@@ -705,10 +720,7 @@ mod hooks_tests {
                     .times(1);
                 mock_engine
                     .expect_add_command()
-                    .withf(|cmd, &func| {
-                        cmd == "slap"
-                            && ptr::fn_addr_eq(func, dummy_function as unsafe extern "C" fn())
-                    })
+                    .withf(|cmd, &func| cmd == "slap" && is_dummy_function(func))
                     .times(1);
             })
             .run(|| {
@@ -746,7 +758,6 @@ mod hooks_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn sys_setmoduleoffset_vm_init_ok() {
         let module_string = c"qagame";
         MockEngineBuilder::default()
@@ -754,13 +765,12 @@ mod hooks_tests {
                 mock_engine
                     .expect_set_module_offset()
                     .withf(|module_name, &offset| {
-                        module_name == "qagame"
-                            && ptr::fn_addr_eq(offset, dummy_function as unsafe extern "C" fn())
+                        module_name == "qagame" && is_dummy_function(offset)
                     })
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
-                    .withf(|&offset| offset == dummy_function as *const () as usize)
+                    .withf(|&offset| is_dummy_address(offset))
                     .returning(|_offset| Ok(()))
                     .times(1);
             })
@@ -780,13 +790,12 @@ mod hooks_tests {
                 mock_engine
                     .expect_set_module_offset()
                     .withf_st(|module_name, &offset| {
-                        module_name == "qagame"
-                            && ptr::fn_addr_eq(offset, dummy_function as unsafe extern "C" fn())
+                        module_name == "qagame" && is_dummy_function(offset)
                     })
                     .times(1);
                 mock_engine
                     .expect_initialize_vm()
-                    .withf(|&func| func == dummy_function as *const () as usize)
+                    .withf(|&func| is_dummy_address(func))
                     .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
                     .times(1);
             })

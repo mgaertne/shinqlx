@@ -970,7 +970,6 @@ mod game_entity_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_i32_gentities_initialized() {
         let mut gentities = Box::new([
             GEntityBuilder::default()
@@ -986,10 +985,11 @@ mod game_entity_tests {
                 .build()
                 .expect("this should not happen"),
         ]);
+        let gentities_ptr = gentities.as_mut_ptr();
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
-            .returning_st(move || gentities[0].borrow_mut() as *mut gentity_t);
+            .returning_st(move || gentities_ptr);
 
         assert!(GameEntity::try_from(2i32).is_ok());
     }
@@ -1021,7 +1021,6 @@ mod game_entity_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn game_entity_try_from_valid_u32_gentities_initialized() {
         let mut gentities = Box::new([
             GEntityBuilder::default()
@@ -1037,10 +1036,11 @@ mod game_entity_tests {
                 .build()
                 .expect("this should not happen"),
         ]);
+        let gentities_ptr = gentities.as_mut_ptr();
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
-            .returning_st(move || gentities[0].borrow_mut() as *mut gentity_t);
+            .returning_st(move || gentities_ptr);
 
         assert!(GameEntity::try_from(2u32).is_ok());
     }
@@ -1083,7 +1083,6 @@ mod game_entity_tests {
 
     #[test]
     #[serial]
-    #[cfg_attr(miri, ignore)]
     fn game_entity_get_entity_id_gets_offset() {
         let mut gentities = Box::new([
             GEntityBuilder::default()
@@ -1103,10 +1102,11 @@ mod game_entity_tests {
                 .expect("this should not happen"),
         ]);
 
+        let gentities_ptr = gentities.as_mut_ptr();
         let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
         get_entities_list_ctx
             .expect()
-            .returning_st(move || gentities[0].borrow_mut() as *mut gentity_t);
+            .returning_st(move || gentities_ptr);
 
         let game_entity = GameEntity::try_from(3).expect("this should not happen");
         assert_eq!(game_entity.get_entity_id(), 3);

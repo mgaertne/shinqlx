@@ -563,7 +563,6 @@ mod stats_listener_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_disabled_zmq_cvar() {
         let cvar_string = c"0";
@@ -593,7 +592,6 @@ mod stats_listener_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_defaulted_cvars() {
         let mut raw_zmq_enable_cvar = CVarBuilder::default()
@@ -652,7 +650,6 @@ mod stats_listener_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn constructor_with_configured_cvars() {
         let mut raw_zmq_enable_cvar = CVarBuilder::default()

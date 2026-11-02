@@ -2,4 +2,4 @@
 rustflags = ["-C", "target-cpu=native"]
 
 [env]
-MIRIFLAGS = "-Zmiri-disable-stacked-borrows -Zmiri-ignore-leaks -Zmiri-permissive-provenance"
+MIRIFLAGS = "-Zmiri-ignore-leaks"
