@@ -51,7 +51,7 @@ pub(crate) fn pyshinqlx_replace_items(
     // Note: if item_id == 0 and item_classname == NULL, then item will be removed
 
     match item1.extract::<i32>() {
-        Ok(item1_id) if (0..GameItem::get_num_items()).contains(&item1_id) => py.detach(|| {
+        Ok(item1_id) if (0..MAX_GENTITIES as i32).contains(&item1_id) => py.detach(|| {
             item1_id
                 .try_conv::<GameEntity>()
                 .ok()
@@ -75,7 +75,7 @@ pub(crate) fn pyshinqlx_replace_items(
             cold_path();
             Err(PyValueError::new_err(format!(
                 "item1 needs to be between 0 and {}.",
-                GameItem::get_num_items() - 1
+                MAX_GENTITIES - 1
             )))
         }
         Err(_) => match item1.extract::<String>() {
@@ -150,11 +150,46 @@ mod replace_items_tests {
         Python::attach(|py| {
             let result = pyshinqlx_replace_items(
                 py,
-                PyInt::new(py, 43i32).as_any(),
+                PyInt::new(py, MAX_GENTITIES as i32).as_any(),
                 PyInt::new(py, 1i32).as_any(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn replace_items_replaces_an_entity_with_an_id_beyond_the_item_count(_pyshinqlx_setup: ()) {
+        let get_num_items_ctx = MockGameItem::get_num_items_context();
+        get_num_items_ctx.expect().returning(|| 42);
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(500))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_is_game_item()
+                    .with(predicate::eq(entityType_t::ET_ITEM))
+                    .returning(|_| true);
+                mock_game_entity
+                    .expect_replace_item()
+                    .with(predicate::eq(2))
+                    .times(1);
+                mock_game_entity
+            });
+
+        let result = Python::attach(|py| {
+            pyshinqlx_replace_items(
+                py,
+                PyInt::new(py, 500i32).as_any(),
+                PyInt::new(py, 2i32).as_any(),
+            )
+        });
+        assert_eq!(result.expect("result was not OK"), true);
     }
 
     #[rstest]
