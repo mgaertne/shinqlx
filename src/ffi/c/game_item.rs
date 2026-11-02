@@ -315,4 +315,88 @@ mod game_item_tests {
                 game_item.spawn((1, 2, 3));
             });
     }
+
+    fn item_list_with_classnames_at(indices: &[usize]) -> Vec<gitem_t> {
+        (0..=4096)
+            .map(|index| {
+                GItemBuilder::default()
+                    .classname(if indices.contains(&index) {
+                        c"item".as_ptr().cast_mut()
+                    } else {
+                        ptr::null_mut()
+                    })
+                    .build()
+                    .expect("this should not happen")
+            })
+            .collect()
+    }
+
+    #[test]
+    #[serial]
+    fn get_num_items_counts_up_to_the_last_item_with_a_classname() {
+        let mut items = item_list_with_classnames_at(&[1, 2, 5]);
+        let items_ptr = items.as_mut_ptr();
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx.expect().returning_st(move || items_ptr);
+
+        assert_eq!(GameItem::get_num_items(), 6);
+    }
+
+    #[test]
+    #[serial]
+    fn game_item_try_from_valid_i32_item_id() {
+        let mut items = item_list_with_classnames_at(&[1, 2]);
+        let items_ptr = items.as_mut_ptr();
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx.expect().returning_st(move || items_ptr);
+
+        let game_item = GameItem::try_from(2).expect("this should not happen");
+
+        assert_eq!(game_item.get_classname(), "item");
+    }
+
+    #[test]
+    #[serial]
+    fn game_item_try_from_i32_item_id_after_the_last_item() {
+        let mut items = item_list_with_classnames_at(&[1, 2]);
+        let items_ptr = items.as_mut_ptr();
+        let get_item_ctx = MockGameItem::get_mocked_item_list_context();
+        get_item_ctx.expect().returning_st(move || items_ptr);
+
+        assert_eq!(
+            GameItem::try_from(3),
+            Err(QuakeLiveEngineError::InvalidId(3))
+        );
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn get_item_list_real_resolves_the_relative_address() {
+        #[repr(align(8))]
+        struct FunctionBytes([u8; 0x80]);
+        let mut item = GItemBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let item_ptr = item.borrow_mut() as *mut gitem_t;
+        let mut function_bytes = FunctionBytes([0; 0x80]);
+        function_bytes.0[0x2A..0x2E].copy_from_slice(&0x12i32.to_le_bytes());
+        function_bytes.0[0x40..0x48].copy_from_slice(&(item_ptr as u64).to_le_bytes());
+        let function_pointer = unsafe {
+            core::mem::transmute::<
+                usize,
+                extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
+            >(function_bytes.0.as_ptr() as usize)
+        };
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_launch_item_orig()
+                    .return_once(move || Ok(function_pointer));
+            })
+            .run(|| {
+                assert_eq!(GameItem::get_item_list_real(), item_ptr);
+            });
+    }
 }
