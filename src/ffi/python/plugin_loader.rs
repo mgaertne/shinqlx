@@ -738,8 +738,8 @@ mod pyshinqlx_plugins_tests {
     use rstest::*;
 
     use super::{
-        DEFAULT_PLUGINS, EVENT_DISPATCHERS, PluginLoadError, PluginUnloadError, load_plugin,
-        load_preset_plugins, reload_plugin, unload_plugin,
+        COMMANDS, DEFAULT_PLUGINS, EVENT_DISPATCHERS, PluginLoadError, PluginUnloadError,
+        load_plugin, load_preset_plugins, reload_plugin, unload_plugin,
     };
     use crate::{
         ffi::{
@@ -1704,5 +1704,148 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                     assert!(result.is_ok());
                 });
             });
+    }
+
+    fn with_plugins_engine<F>(plugins_dir: String, test: F)
+    where
+        F: for<'py> FnOnce(Python<'py>),
+    {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
+        let mut raw_pluginspath_cvar = CVarBuilder::default()
+            .string(cvar_tempdir_str.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let zmq_cvar_str = c"1";
+        let mut raw_zmq_cvar = CVarBuilder::default()
+            .string(zmq_cvar_str.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_pluginsPath",
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                |cmd| cmd == "zmq_stats_enable",
+                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
+                0..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    py.import(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    test(py);
+                });
+            });
+    }
+
+    fn store_event_dispatchers(py: Python<'_>, with_game_end: bool) {
+        let event_dispatcher =
+            Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+        event_dispatcher
+            .add_dispatcher(&py.get_type::<UnloadDispatcher>())
+            .expect("could not add unload dispatcher");
+        if with_game_end {
+            event_dispatcher
+                .add_dispatcher(&py.get_type::<GameEndDispatcher>())
+                .expect("could not add game end dispatcher");
+        }
+        EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+    }
+
+    fn store_command_invoker(py: Python<'_>) {
+        COMMANDS.store(Some(
+            Py::new(py, CommandInvoker::py_new())
+                .expect("could not create command invoker in python")
+                .into(),
+        ));
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn load_plugin_refuses_the_rust_source_for_a_loaded_python_plugin(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+    ) {
+        with_plugins_engine(plugins_dir, |py| {
+            load_plugin(py, "test_plugin").expect("could not load the python plugin");
+
+            let result = load_plugin(py, "r!test_plugin");
+
+            assert!(
+                result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)
+                    && err.value(py).to_string()
+                        == "Plugin 'test_plugin' is already loaded as a Python plugin. Unload it first.")
+            );
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn unloading_a_plugin_whose_hooks_have_no_dispatcher_still_unloads_it(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+    ) {
+        with_plugins_engine(plugins_dir, |py| {
+            store_event_dispatchers(py, true);
+            store_command_invoker(py);
+            load_plugin(py, "test_cmd_hook_plugin").expect("could not load the plugin");
+            store_event_dispatchers(py, false);
+
+            let result = unload_plugin(py, "test_cmd_hook_plugin");
+
+            assert!(result.is_ok());
+            assert!(
+                py.get_type::<Plugin>()
+                    .getattr(intern!(py, "_loaded_plugins"))
+                    .and_then(|loaded| loaded.contains("test_cmd_hook_plugin"))
+                    .is_ok_and(|contained| !contained)
+            );
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn unloading_a_plugin_without_a_command_invoker_still_unloads_it(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+    ) {
+        with_plugins_engine(plugins_dir, |py| {
+            store_event_dispatchers(py, true);
+            store_command_invoker(py);
+            load_plugin(py, "test_cmd_hook_plugin").expect("could not load the plugin");
+            COMMANDS.store(None);
+
+            let result = unload_plugin(py, "test_cmd_hook_plugin");
+            store_command_invoker(py);
+
+            assert!(result.is_ok());
+            assert!(
+                py.get_type::<Plugin>()
+                    .getattr(intern!(py, "_loaded_plugins"))
+                    .and_then(|loaded| loaded.contains("test_cmd_hook_plugin"))
+                    .is_ok_and(|contained| !contained)
+            );
+        });
     }
 }

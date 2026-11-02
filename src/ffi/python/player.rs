@@ -7361,6 +7361,37 @@ assert(player._valid)
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    fn tell_can_be_called_from_python(_pyshinqlx_setup: ()) {
+        let client_from_ctx = MockClient::from_context();
+        client_from_ctx.expect().returning(|_| {
+            let mut mock_client = MockClient::new();
+            mock_client
+                .expect_get_state()
+                .returning(|| clientState_t::CS_ACTIVE);
+            mock_client
+        });
+
+        let send_server_cmd_ctx = shinqlx_send_server_command_context();
+        send_server_cmd_ctx
+            .expect()
+            .withf(|_client, msg| msg == "print \"asdf\n\"\n")
+            .times(1);
+
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
+            Python::attach(|py| {
+                let player = Bound::new(py, default_test_player()).expect("this should not happen");
+
+                let result = player.call_method1("tell", ("asdf",));
+                assert!(result.is_ok());
+
+                let _ = run_all_frame_tasks(py);
+            });
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
     fn tell_with_limit_keyword(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
@@ -8186,6 +8217,44 @@ player = ConcreteDummyPlayer("asdf")
             assert!(result.is_err_and(|err| err.is_instance_of::<PyNotImplementedError>(py)));
         });
     }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn the_abstract_methods_report_their_errors_to_python(_pyshinqlx_setup: ()) {
+        let result = Python::attach(|py| {
+            py.run(
+                cr#"
+import shinqlx
+
+player = shinqlx.AbstractDummyPlayer("dummy")
+
+for attribute, error in (
+    ("id", AttributeError),
+    ("steam_id", NotImplementedError),
+    ("channel", NotImplementedError),
+):
+    try:
+        getattr(player, attribute)
+    except error:
+        pass
+    else:
+        raise AssertionError(attribute)
+
+assert player.update() is None
+
+try:
+    player.tell("asdf")
+except NotImplementedError:
+    pass
+else:
+    raise AssertionError("tell")
+            "#,
+                None,
+                None,
+            )
+        });
+        assert!(result.is_ok(), "{result:?}");
+    }
 }
 
 #[pyclass(module = "_player", name = "RconDummyPlayer", extends = AbstractDummyPlayer, frozen)]
@@ -8438,6 +8507,53 @@ assert(rcon_player.name == "RconDummyPlayer^7")
             let result = rcon_dummy_player.tell("asdf", None);
             assert!(result.is_ok());
         });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn steam_id_channel_and_tell_can_be_used_from_python(_pyshinqlx_setup: ()) {
+        let owner = c"1234567890";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .with(predicate::eq("asdf\n"))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_owner",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let console_channel =
+                        Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
+                            .expect("this should not happen");
+                    CONSOLE_CHANNEL.store(Some(console_channel.unbind().into()));
+
+                    let result = py.run(
+                        cr#"
+import shinqlx
+
+player = shinqlx.RconDummyPlayer()
+
+assert player.steam_id == 1234567890
+assert player.channel is not None
+assert player.tell("asdf") is None
+                        "#,
+                        None,
+                        None,
+                    );
+                    assert!(result.is_ok(), "{result:?}");
+                });
+            });
     }
 }
 

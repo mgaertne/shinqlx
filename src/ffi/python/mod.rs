@@ -1841,6 +1841,7 @@ mod pyshinqlx_tests {
     use core::sync::atomic::Ordering;
 
     use pretty_assertions::assert_eq;
+    use pyo3::{intern, types::PyDict};
     use rstest::rstest;
 
     use super::{
@@ -1895,6 +1896,80 @@ def initialize():
 
         assert!(result.is_err_and(|err| err == PythonInitializationError::NotInitializedError));
         assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
+    }
+
+    struct ReplacedShinqlxModule<'py> {
+        modules: Bound<'py, PyDict>,
+        original: Option<Bound<'py, PyAny>>,
+    }
+
+    impl<'py> ReplacedShinqlxModule<'py> {
+        fn with(py: Python<'py>, replacement: &Bound<'py, PyAny>) -> Self {
+            let modules = py
+                .import(intern!(py, "sys"))
+                .and_then(|sys| sys.getattr(intern!(py, "modules")))
+                .and_then(|modules| Ok(modules.cast_into::<PyDict>()?))
+                .expect("could not get sys.modules");
+            let original = modules
+                .get_item("shinqlx")
+                .expect("could not look up the shinqlx module");
+            modules
+                .set_item("shinqlx", replacement)
+                .expect("could not replace the shinqlx module");
+
+            Self { modules, original }
+        }
+    }
+
+    impl Drop for ReplacedShinqlxModule<'_> {
+        fn drop(&mut self) {
+            let _ = match &self.original {
+                Some(original) => self.modules.set_item("shinqlx", original),
+                None => self.modules.del_item("shinqlx"),
+            };
+        }
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn initialize_when_the_main_script_fails(_pyshinqlx_setup: ()) {
+        PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
+
+        Python::attach(|py| {
+            let failing_module = PyModule::from_code(
+                py,
+                cr#"""
+def initialize():
+    raise RuntimeError("the loader sequence failed")
+"""#,
+                c"failing_shinqlx.py",
+                c"failing_shinqlx",
+            )
+            .expect("this should not happen");
+            let _replaced = ReplacedShinqlxModule::with(py, failing_module.as_any());
+
+            let result = pyshinqlx_initialize();
+
+            assert!(result.is_err_and(|err| err == PythonInitializationError::MainScriptError));
+            assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
+        });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn reload_when_the_shinqlx_module_cannot_be_reloaded(_pyshinqlx_setup: ()) {
+        PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
+
+        Python::attach(|py| {
+            let _replaced = ReplacedShinqlxModule::with(py, py.None().bind(py));
+
+            let result = pyshinqlx_reload();
+
+            assert!(result.is_err_and(|err| err == PythonInitializationError::MainScriptError));
+            assert_eq!(PYSHINQLX_INITIALIZED.load(Ordering::Acquire), false);
+        });
     }
 }
 
