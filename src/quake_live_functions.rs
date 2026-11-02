@@ -3,9 +3,9 @@ use core::borrow::Borrow;
 use core::hint::cold_path;
 
 use derive_more::Display;
+use detour::{Function, HookableWith, TypedDetour};
 #[cfg(target_os = "linux")]
 use procfs::process::{MMPermissions, MemoryMap};
-use retour::{Function, GenericDetour, HookableWith};
 
 use crate::prelude::*;
 
@@ -102,12 +102,12 @@ impl QuakeLiveFunction {
         &self,
         function: T,
         replacement: D,
-    ) -> Result<GenericDetour<T>, QuakeLiveEngineError>
+    ) -> Result<TypedDetour<T>, QuakeLiveEngineError>
     where
         T: HookableWith<D>,
         D: Function,
     {
-        let Ok(detour) = (unsafe { GenericDetour::new(function, replacement) }) else {
+        let Ok(detour) = (unsafe { TypedDetour::new(function, replacement) }) else {
             cold_path();
             return Err(QuakeLiveEngineError::DetourCouldNotBeCreated(*self));
         };
