@@ -1325,7 +1325,10 @@ mod redis_tests {
     use core::{borrow::BorrowMut, ffi::CStr};
 
     use pyo3::{
-        exceptions::{PyEnvironmentError, PyKeyError, PyRuntimeError, PyTypeError, PyValueError},
+        exceptions::{
+            PyEnvironmentError, PyImportError, PyKeyError, PyRuntimeError, PyTypeError,
+            PyValueError,
+        },
         intern,
         prelude::*,
         types::{PyDict, PyInt, PyString, PyTuple},
@@ -2421,6 +2424,164 @@ class Redis:
 
             assert!(redis_type.hasattr("setex").is_ok_and(|has| has));
             assert!(redis_type.hasattr("setx").is_ok_and(|has| !has));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn permissions_can_be_managed_from_python(_pyshinqlx_setup: ()) {
+        with_redis(owner_engine(c"76561198000000001"), |py, redis| {
+            connected(&redis);
+
+            redis
+                .call_method1("set_permission", (42, 3))
+                .expect("could not set permission");
+
+            assert!(
+                redis
+                    .call_method1("get_permission", (42,))
+                    .is_ok_and(|level| level.to_string() == "3")
+            );
+            assert!(
+                redis
+                    .call_method1("has_permission", (42,))
+                    .is_ok_and(|has| has.to_string() == "False")
+            );
+            assert!(
+                redis
+                    .call_method1("has_permission", (42, 3))
+                    .is_ok_and(|has| has.to_string() == "True")
+            );
+            assert!(
+                redis
+                    .call_method1("get_permission", ("not a number",))
+                    .is_err_and(|err| err.is_instance_of::<PyValueError>(py))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flags_can_be_managed_from_python(_pyshinqlx_setup: ()) {
+        with_fake_redis(|_py, redis| {
+            let connection = connected(&redis);
+
+            redis
+                .call_method1("set_flag", (42, "flag"))
+                .expect("could not set the flag");
+            assert_eq!(
+                stored(&connection, "minqlx:players:42:flags:flag"),
+                Some("1".to_string())
+            );
+            assert!(
+                redis
+                    .call_method1("get_flag", (42, "flag"))
+                    .is_ok_and(|flag| flag.to_string() == "True")
+            );
+
+            redis
+                .call_method1("set_flag", (42, "flag", false))
+                .expect("could not clear the flag");
+            assert!(
+                redis
+                    .call_method1("get_flag", (42, "flag"))
+                    .is_ok_and(|flag| flag.to_string() == "False")
+            );
+            assert!(
+                redis
+                    .call_method1("get_flag", (42, "unknown", true))
+                    .is_ok_and(|flag| flag.to_string() == "True")
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn connect_from_python_without_a_host_uses_the_cvars(_pyshinqlx_setup: ()) {
+        with_redis(redis_engine(default_cvars()), |_py, redis| {
+            let connection = redis
+                .call_method0("connect")
+                .expect("could not connect from python");
+
+            assert_eq!(kwarg(&connection, "decode_responses"), "True");
+            assert!(redis.connect().is_ok_and(|again| again.is(&connection)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn close_from_python_returns_none(_pyshinqlx_setup: ()) {
+        with_fake_redis(|_py, redis| {
+            connected(&redis);
+
+            assert!(
+                redis
+                    .call_method0("close")
+                    .is_ok_and(|result| result.is_none())
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn mset_msetnx_and_zadd_can_be_called_from_python(_pyshinqlx_setup: ()) {
+        with_fake_redis(|py, redis| {
+            let connection = connected(&redis);
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("a", 1).expect("this should not happen");
+
+            redis
+                .call_method("mset", (), Some(&kwargs))
+                .expect("could not mset");
+            let msetnx_result = redis
+                .call_method("msetnx", (), Some(&kwargs))
+                .expect("could not msetnx");
+            redis
+                .call_method1("zadd", ("z", 10, 1, 20, 2))
+                .expect("could not zadd");
+
+            assert_eq!(stored(&connection, "a"), Some("1".to_string()));
+            assert_eq!(msetnx_result.to_string(), "False");
+            assert_eq!(
+                calls(&connection),
+                "[('zadd', 'z', {'1': '10', '2': '20'}, {})]"
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_logger_is_delegated_to_the_abstract_database(_pyshinqlx_setup: ()) {
+        with_fake_redis(|_py, redis| {
+            assert!(
+                AbstractDatabaseMethods::get_logger(&redis)
+                    .is_ok_and(|logger| logger.hasattr("name").is_ok_and(|has| has))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn connect_fails_when_the_redis_module_is_missing(_pyshinqlx_setup: ()) {
+        with_fake_redis(|py, redis| {
+            let modules = py
+                .import(intern!(py, "sys"))
+                .and_then(|sys| sys.getattr(intern!(py, "modules")))
+                .expect("could not get sys.modules");
+            modules
+                .set_item("redis", py.None())
+                .expect("could not hide the redis module");
+
+            let result = redis.connect_with_parameters("localhost", 0, false, None);
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyImportError>(py)));
         });
     }
 }

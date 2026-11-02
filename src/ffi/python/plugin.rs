@@ -5921,6 +5921,147 @@ mod plugin_tests {
                 assert!(result.is_ok());
             });
     }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn logger_and_plugins_can_be_read_from_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let plugin_instance = test_plugin(py)
+                .call0()
+                .expect("could not create plugin instance");
+
+            let logger_name = plugin_instance
+                .getattr("logger")
+                .and_then(|logger| logger.getattr("name"))
+                .map(|name| name.to_string());
+            let plugins = plugin_instance.getattr("plugins");
+
+            assert_eq!(
+                logger_name.expect("could not get the logger"),
+                "shinqlx.test_plugin"
+            );
+            assert!(plugins.is_ok_and(|plugins| plugins.is_instance_of::<PyDict>()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn remove_hook_can_be_called_from_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            EVENT_DISPATCHERS.store(None);
+            let plugin_instance = test_plugin(py)
+                .call0()
+                .expect("could not create plugin instance");
+
+            let result = plugin_instance.call_method1("remove_hook", ("team_switch", py.None()));
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn remove_command_can_be_called_from_python(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let command_handler = python_function_returning(py, &py.None());
+            COMMANDS.store(Some(
+                Py::new(py, CommandInvoker::py_new())
+                    .expect("could not create command invoker in python")
+                    .into(),
+            ));
+            let plugin_instance = test_plugin(py)
+                .call0()
+                .expect("could not create plugin instance");
+            plugin_instance
+                .cast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::intern(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
+
+            let result = plugin_instance.call_method1("remove_command", ("slap", &command_handler));
+
+            assert!(result.is_ok());
+            assert!(
+                COMMANDS
+                    .load()
+                    .as_ref()
+                    .expect("could not get access to commands")
+                    .getattr(py, intern!(py, "commands"))
+                    .expect("could not get commands")
+                    .cast_bound::<PyList>(py)
+                    .expect("could not downcast to list")
+                    .is_empty()
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn remove_command_without_command_invoker_fails(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let command_handler = python_function_returning(py, &py.None());
+            COMMANDS.store(Some(
+                Py::new(py, CommandInvoker::py_new())
+                    .expect("could not create command invoker in python")
+                    .into(),
+            ));
+            let plugin_instance = test_plugin(py)
+                .call0()
+                .expect("could not create plugin instance");
+            plugin_instance
+                .cast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .add_command(
+                    PyString::intern(py, "slap").as_any(),
+                    &command_handler,
+                    0,
+                    None,
+                    None,
+                    CommandPriorities::PRI_NORMAL as u32,
+                    false,
+                    0,
+                    true,
+                    "",
+                )
+                .expect("could not add command");
+            COMMANDS.store(None);
+
+            let result = plugin_instance
+                .cast::<Plugin>()
+                .expect("could not downcast instance to plugin")
+                .remove_command(PyString::intern(py, "slap").as_any(), &command_handler);
+
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tell_with_an_unknown_recipient_fails(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default().with_max_clients(16).run(|| {
+            Python::attach(|py| {
+                let result =
+                    Plugin::tell(&py.get_type::<Plugin>(), "asdf", py.None().bind(py), None);
+
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            });
+        });
+    }
 }
 
 #[cfg(test)]
