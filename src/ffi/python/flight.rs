@@ -1,10 +1,7 @@
-use core::hint::cold_path;
-
-use arrayvec::ArrayVec;
 use derive_more::Display;
-use pyo3::{exceptions::PyValueError, types::PyTuple};
+use pyo3::types::PyTuple;
 
-use super::prelude::*;
+use super::{int_tuple::extract_int_array, prelude::*};
 
 /// A struct sequence containing parameters for the flight holdable item.
 #[pyclass(
@@ -36,31 +33,12 @@ impl From<Flight> for [i32; 4] {
 impl Flight {
     #[new]
     fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
-        if values.len() < 4 {
-            cold_path();
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all 4 flight parameters",
-            ));
-        }
-
-        if values.len() > 4 {
-            cold_path();
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than 4 flight parameters",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .filter_map(|item| item.extract::<i32>().ok())
-            .collect::<ArrayVec<i32, 4>>();
-
-        if results.len() != 4 {
-            cold_path();
-            return Err(PyValueError::new_err("Flight values need to be integer"));
-        }
-
-        Ok(Self(results[0], results[1], results[2], results[3]))
+        extract_int_array::<4>(
+            values,
+            "flight parameters",
+            "Flight values need to be integer",
+        )
+        .map(|[fuel, max_fuel, thrust, refuel]| Self(fuel, max_fuel, thrust, refuel))
     }
 
     fn __repr__(&self) -> String {

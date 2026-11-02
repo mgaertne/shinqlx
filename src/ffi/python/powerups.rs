@@ -1,10 +1,7 @@
-use core::hint::cold_path;
-
-use arrayvec::ArrayVec;
 use derive_more::Display;
-use pyo3::{exceptions::PyValueError, types::PyTuple};
+use pyo3::types::PyTuple;
 
-use super::prelude::*;
+use super::{int_tuple::extract_int_array, prelude::*};
 
 /// A struct sequence containing all the powerups in the game.
 #[pyclass(
@@ -46,38 +43,8 @@ impl From<Powerups> for [i32; 6] {
 impl Powerups {
     #[new]
     fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
-        if values.len() < 6 {
-            cold_path();
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all 6 powerups",
-            ));
-        }
-
-        if values.len() > 6 {
-            cold_path();
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than 6 powerups",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<ArrayVec<Option<i32>, 6>>();
-
-        if results.iter().any(|item| item.is_none()) {
-            cold_path();
-            return Err(PyValueError::new_err("Powerups values need to be integer"));
-        }
-
-        Ok(Self::from(
-            results
-                .iter()
-                .map(|&value| value.unwrap_or(0))
-                .collect::<ArrayVec<i32, 6>>()
-                .into_inner()
-                .expect("the tuple was checked to hold exactly 6 values"),
-        ))
+        extract_int_array::<6>(values, "powerups", "Powerups values need to be integer")
+            .map(Self::from)
     }
 
     fn __repr__(&self) -> String {

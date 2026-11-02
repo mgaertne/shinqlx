@@ -1,10 +1,7 @@
-use core::hint::cold_path;
-
-use arrayvec::ArrayVec;
 use derive_more::Display;
-use pyo3::{exceptions::PyValueError, types::PyTuple};
+use pyo3::types::PyTuple;
 
-use super::prelude::*;
+use super::{int_tuple::extract_int_array, prelude::*};
 
 /// A struct sequence containing all the weapons in the game.
 #[pyclass(
@@ -61,38 +58,8 @@ impl From<Weapons> for [i32; 15] {
 impl Weapons {
     #[new]
     fn py_new(values: &Bound<'_, PyTuple>) -> PyResult<Self> {
-        if values.len() < 15 {
-            cold_path();
-            return Err(PyValueError::new_err(
-                "tuple did not provide values for all 15 weapons",
-            ));
-        }
-
-        if values.len() > 15 {
-            cold_path();
-            return Err(PyValueError::new_err(
-                "tuple did provide values for more than 15 weapons",
-            ));
-        }
-
-        let results = values
-            .iter()
-            .map(|item| item.extract::<i32>().ok())
-            .collect::<ArrayVec<Option<i32>, 15>>();
-
-        if results.iter().any(|item| item.is_none()) {
-            cold_path();
-            return Err(PyValueError::new_err("Weapons values need to be boolean"));
-        }
-
-        Ok(Self::from(
-            results
-                .iter()
-                .map(|&value| value.unwrap_or(0))
-                .collect::<ArrayVec<i32, 15>>()
-                .into_inner()
-                .expect("the tuple was checked to hold exactly 15 values"),
-        ))
+        extract_int_array::<15>(values, "weapons", "Weapons values need to be boolean")
+            .map(Self::from)
     }
 
     fn __repr__(&self) -> String {
