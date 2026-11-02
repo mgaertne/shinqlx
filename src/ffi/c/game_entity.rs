@@ -10,9 +10,12 @@ use arrayvec::ArrayVec;
 use tap::{TapFallible, TapOptional, TryConv};
 
 use super::prelude::*;
+#[cfg(test)]
+use crate::hooks::mock_hooks::shinqlx_set_configstring;
+#[cfg(not(test))]
+use crate::hooks::shinqlx_set_configstring;
 use crate::{
     MAIN_ENGINE,
-    hooks::shinqlx_set_configstring,
     prelude::*,
     quake_live_engine::{
         ComPrintf, FreeEntity, GetConfigstring, RegisterDamage, StartKamikaze, TryLaunchItem,
@@ -373,8 +376,11 @@ impl GameEntity {
 
                 // this forces client to load new item
                 let mut items = main_engine.get_configstring(CS_ITEMS as u16).to_string();
-                items.replace_range(item_id as usize..=item_id as usize, "1");
-                shinqlx_set_configstring(item_id as u32, &items);
+                let item_index = item_id as usize;
+                if item_index < items.len() {
+                    items.replace_range(item_index..=item_index, "1");
+                }
+                shinqlx_set_configstring(CS_ITEMS, &items);
             } else {
                 self.free_entity();
             }
@@ -653,13 +659,18 @@ mockall::mock! {
 
 #[cfg(test)]
 mod game_entity_tests {
-    use core::{borrow::BorrowMut, ffi::c_int};
+    use core::{
+        borrow::BorrowMut,
+        ffi::{CStr, c_int},
+    };
 
     use mockall::predicate;
     use pretty_assertions::assert_eq;
 
     use super::{GameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
-    use crate::{ffi::c::prelude::*, prelude::*};
+    use crate::{
+        ffi::c::prelude::*, hooks::mock_hooks::shinqlx_set_configstring_context, prelude::*,
+    };
 
     #[test]
     #[serial]
@@ -1923,5 +1934,265 @@ mod game_entity_tests {
         game_entity.set_position_trace_time(1337);
 
         assert_eq!(gentity.s.pos.trTime, 1337);
+    }
+
+    fn item_list_with_second_item(classname: &'static CStr) -> Vec<gitem_t> {
+        (0..=4096)
+            .map(|index| {
+                GItemBuilder::default()
+                    .classname(if index == 1 {
+                        classname.as_ptr().cast_mut()
+                    } else {
+                        ptr::null_mut()
+                    })
+                    .build()
+                    .expect("this should not happen")
+            })
+            .collect()
+    }
+
+    #[test]
+    fn game_entity_as_mut_gives_access_to_the_gentity() {
+        let mut gentity = GEntityBuilder::default()
+            .health(7)
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        game_entity.as_mut().health = 42;
+
+        assert_eq!(game_entity.get_health(), 42);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn game_entity_get_entities_list_real_resolves_the_relative_address() {
+        #[repr(align(8))]
+        struct FunctionBytes([u8; 0x140]);
+        let mut function_bytes = FunctionBytes([0; 0x140]);
+        function_bytes.0[0x11B..0x11F].copy_from_slice(&0x10i32.to_le_bytes());
+        let function_address = function_bytes.0.as_ptr() as usize;
+        let function_pointer =
+            unsafe { core::mem::transmute::<usize, extern "C" fn(c_int)>(function_address) };
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_g_run_frame_orig()
+                    .return_once(move || Ok(function_pointer));
+            })
+            .run(|| {
+                assert_eq!(
+                    GameEntity::get_entities_list_real() as usize,
+                    function_address + 0x10 + 0x11B + 4
+                );
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_drop_holdable_launches_the_holdable_item() {
+        let current_level_ctx = MockCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().returning_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client.expect_get_holdable().returning_st(|| 1);
+            mock_game_client
+                .expect_set_holdable::<i32>()
+                .with(predicate::eq(0))
+                .times(1);
+            Ok(mock_game_client)
+        });
+
+        let classname = c"holdable_teleporter";
+        let mut items = item_list_with_second_item(classname);
+        let items_ptr = items.as_mut_ptr();
+        let item_list_ctx = MockGameItem::get_mocked_item_list_context();
+        item_list_ctx.expect().returning_st(move || items_ptr);
+
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_try_launch_item()
+                    .withf(|_item, origin, velocity| {
+                        origin == &[0.0, 0.0, 0.0] && velocity == &[150.0, 0.0, 250.0]
+                    })
+                    .times(1)
+                    .return_once(|_item, _origin, _velocity| {
+                        let mut launched = MockGameEntity::new();
+                        launched.expect_set_touch().times(1);
+                        launched.expect_set_parent().times(1);
+                        launched.expect_set_think().times(1);
+                        launched
+                            .expect_set_next_think()
+                            .with(predicate::eq(2234))
+                            .times(1);
+                        launched
+                            .expect_set_position_trace_time()
+                            .with(predicate::eq(734))
+                            .times(1);
+                        Ok(launched)
+                    });
+            })
+            .run(|| game_entity.drop_holdable());
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_drop_holdable_clears_the_holdable_when_launching_fails() {
+        let current_level_ctx = MockCurrentLevel::try_get_context();
+        current_level_ctx.expect().returning(|| {
+            let mut current_level = MockCurrentLevel::new();
+            current_level.expect_get_leveltime().return_const(1234);
+            Ok(current_level)
+        });
+
+        let game_client_try_from_ctx = MockGameClient::try_from_context();
+        game_client_try_from_ctx.expect().returning_st(|_| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client.expect_get_holdable().returning_st(|| 1);
+            mock_game_client
+                .expect_set_holdable::<i32>()
+                .with(predicate::eq(0))
+                .times(1);
+            Ok(mock_game_client)
+        });
+
+        let classname = c"holdable_teleporter";
+        let mut items = item_list_with_second_item(classname);
+        let items_ptr = items.as_mut_ptr();
+        let item_list_ctx = MockGameItem::get_mocked_item_list_context();
+        item_list_ctx.expect().returning_st(move || items_ptr);
+
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_try_launch_item().times(1).return_once(
+                    |_item, _origin, _velocity| Err(QuakeLiveEngineError::MainEngineNotInitialized),
+                );
+            })
+            .run(|| game_entity.drop_holdable());
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_replace_item_swaps_the_item_and_updates_the_configstring() {
+        let mut gentity = GEntityBuilder::default()
+            .classname(c"old_item".as_ptr())
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        let game_item_from_ctx = MockGameItem::from_context();
+        game_item_from_ctx.expect().returning(|_| {
+            let mut game_item = MockGameItem::new();
+            game_item
+                .expect_get_classname()
+                .returning(|| "new_item".into());
+            game_item.expect_as_ref().return_const(
+                GItemBuilder::default()
+                    .build()
+                    .expect("this should not happen"),
+            );
+            game_item
+        });
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_ITEMS), predicate::eq("001"))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::eq("old_item"), 1)
+            .with_get_configstring(CS_ITEMS as u16, "000", 1)
+            .run(|| game_entity.replace_item(2));
+
+        assert_eq!(gentity.s.modelindex, 2);
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_get_targetting_entity_ids_finds_the_entities_with_a_matching_target() {
+        let door = c"door";
+        let window = c"window";
+        let mut gentities = (0..MAX_GENTITIES)
+            .map(|_| {
+                GEntityBuilder::default()
+                    .build()
+                    .expect("this should not happen")
+            })
+            .collect::<Vec<_>>();
+        gentities[5].target = door.as_ptr().cast_mut();
+        gentities[7].target = window.as_ptr().cast_mut();
+        gentities[900].target = door.as_ptr().cast_mut();
+        let gentities_ptr = gentities.as_mut_ptr();
+        let get_entities_list_ctx = MockGameEntity::get_entities_list_context();
+        get_entities_list_ctx
+            .expect()
+            .returning_st(move || gentities_ptr);
+
+        let mut gentity = GEntityBuilder::default()
+            .targetname(door.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        assert_eq!(game_entity.get_targetting_entity_ids(), vec![5, 900]);
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_replace_item_keeps_a_too_short_configstring_unchanged() {
+        let mut gentity = GEntityBuilder::default()
+            .classname(c"old_item".as_ptr())
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        let game_item_from_ctx = MockGameItem::from_context();
+        game_item_from_ctx.expect().returning(|_| {
+            let mut game_item = MockGameItem::new();
+            game_item
+                .expect_get_classname()
+                .returning(|| "new_item".into());
+            game_item.expect_as_ref().return_const(
+                GItemBuilder::default()
+                    .build()
+                    .expect("this should not happen"),
+            );
+            game_item
+        });
+        let set_configstring_ctx = shinqlx_set_configstring_context();
+        set_configstring_ctx
+            .expect()
+            .with(predicate::eq(CS_ITEMS), predicate::eq("00"))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::eq("old_item"), 1)
+            .with_get_configstring(CS_ITEMS as u16, "00", 1)
+            .run(|| game_entity.replace_item(5));
     }
 }
