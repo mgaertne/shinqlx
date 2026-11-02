@@ -254,39 +254,41 @@ impl VmFunctions {
                 ));
             }
 
-            let base_address = unsafe {
-                ptr::read_unaligned(
-                    (module_offset as u64 + OFFSET_VM_CALL_TABLE as u64) as *const i32,
-                )
-            };
-            let vm_call_table = base_address as usize + module_offset + OFFSET_VM_CALL_TABLE + 4;
-            self.vm_call_table.store(vm_call_table, Ordering::Release);
-
-            let g_initgame_orig = unsafe {
-                ptr::read(
-                    (vm_call_table + OFFSET_INITGAME)
-                        as *const *const extern "C" fn(c_int, c_int, c_int),
-                )
-            };
-            debug!(target: "shinqlx", "G_InitGame: {:#X}", g_initgame_orig as usize);
-            self.g_init_game_orig
-                .store(g_initgame_orig as usize, Ordering::Release);
-
-            let g_shutdowngame_orig =
-                unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
-            debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
-            self.g_shutdown_game_orig
-                .store(g_shutdowngame_orig as usize, Ordering::Release);
-
-            let g_runframe_orig = unsafe {
-                ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
-            };
-            debug!(target: "shinqlx", "G_RunFrame: {:#X}", g_runframe_orig as usize);
-            self.g_run_frame_orig
-                .store(g_runframe_orig as usize, Ordering::Release);
-
+            self.read_vm_call_table(module_offset);
             Ok(())
         }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn read_vm_call_table(&self, module_offset: usize) {
+        let base_address = unsafe {
+            ptr::read_unaligned((module_offset as u64 + OFFSET_VM_CALL_TABLE as u64) as *const i32)
+        };
+        let vm_call_table = base_address as usize + module_offset + OFFSET_VM_CALL_TABLE + 4;
+        self.vm_call_table.store(vm_call_table, Ordering::Release);
+
+        let g_initgame_orig = unsafe {
+            ptr::read(
+                (vm_call_table + OFFSET_INITGAME)
+                    as *const *const extern "C" fn(c_int, c_int, c_int),
+            )
+        };
+        debug!(target: "shinqlx", "G_InitGame: {:#X}", g_initgame_orig as usize);
+        self.g_init_game_orig
+            .store(g_initgame_orig as usize, Ordering::Release);
+
+        let g_shutdowngame_orig =
+            unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
+        debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
+        self.g_shutdown_game_orig
+            .store(g_shutdowngame_orig as usize, Ordering::Release);
+
+        let g_runframe_orig = unsafe {
+            ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
+        };
+        debug!(target: "shinqlx", "G_RunFrame: {:#X}", g_runframe_orig as usize);
+        self.g_run_frame_orig
+            .store(g_runframe_orig as usize, Ordering::Release);
     }
 
     /*
@@ -519,15 +521,19 @@ impl VmFunctions {
 
 #[cfg(test)]
 mod vm_functions_tests {
-    use core::sync::atomic::{AtomicUsize, Ordering};
+    use core::{
+        ptr,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
 
     use pretty_assertions::assert_eq;
 
     use super::{
         ClientConnectDetourType, ClientSpawnDetourType, GDamageDetourType,
-        GStartKamikazeDetourType, VmFunctions,
+        GStartKamikazeDetourType, QuakeLiveEngineError, VmFunctions,
     };
     use crate::{
+        hooks::{shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame},
         prelude::serial,
         quake_live_engine::mock_quake_functions::{
             CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage,
@@ -560,6 +566,89 @@ mod vm_functions_tests {
             g_start_kamikaze_detour: Default::default(),
             g_damage_detour: Default::default(),
         }
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    #[cfg(target_os = "linux")]
+    fn try_initialize_from_without_qagame_module_reports_missing_function() {
+        let vm_functions = default_vm_functions();
+
+        let result = vm_functions.try_initialize_from(0);
+
+        assert!(matches!(
+            result,
+            Err(QuakeLiveEngineError::VmFunctionNotFound(_))
+        ));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[cfg(target_os = "linux")]
+    fn read_vm_call_table_reads_the_function_pointers() {
+        let memory = [9usize << 24, 0, 0x1111, 0x2222, 0, 0x3333, 0, 0];
+        let module_offset = memory.as_ptr() as usize;
+        let vm_functions = default_vm_functions();
+
+        vm_functions.read_vm_call_table(module_offset);
+
+        assert_eq!(
+            vm_functions.vm_call_table.load(Ordering::Acquire),
+            module_offset + 16
+        );
+        assert_eq!(
+            vm_functions.g_shutdown_game_orig.load(Ordering::Acquire),
+            0x1111
+        );
+        assert_eq!(
+            vm_functions.g_run_frame_orig.load(Ordering::Acquire),
+            0x2222
+        );
+        assert_eq!(
+            vm_functions.g_init_game_orig.load(Ordering::Acquire),
+            0x3333
+        );
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn hook_replaces_the_vm_calls_and_enables_the_detours() {
+        let table = [0usize; 4];
+        let table_address = table.as_ptr() as usize;
+        let vm_functions = VmFunctions {
+            vm_call_table: AtomicUsize::new(table_address),
+            client_connect_orig: AtomicUsize::new(ClientConnect as *const () as usize),
+            client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
+            g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
+            g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
+            ..default_vm_functions()
+        };
+
+        let result = vm_functions.hook();
+
+        assert!(result.is_ok());
+        let read_entry = |index: usize| unsafe { ptr::read_volatile(table.as_ptr().add(index)) };
+        assert_eq!(read_entry(0), shinqlx_g_shutdowngame as *const () as usize);
+        assert_eq!(read_entry(1), shinqlx_g_runframe as *const () as usize);
+        assert_eq!(read_entry(3), shinqlx_g_initgame as *const () as usize);
+        assert!(
+            vm_functions
+                .client_connect_detour
+                .load()
+                .as_ref()
+                .is_some_and(|detour| detour.is_enabled())
+        );
+        assert!(
+            vm_functions
+                .g_damage_detour
+                .load()
+                .as_ref()
+                .is_some_and(|detour| detour.is_enabled())
+        );
+
+        vm_functions.unhook();
     }
 
     #[test]
@@ -1871,7 +1960,7 @@ mod quake_live_engine_tests {
             Cvar_Get, Cvar_GetLimit, Cvar_Set2, Cvar_Set2_context, G_AddEvent, G_FreeEntity,
             G_InitGame, G_RunFrame, G_ShutdownGame, LaunchItem, SV_ClientEnterWorld, SV_DropClient,
             SV_ExecuteClientCommand, SV_GetConfigstring, SV_Map_f, SV_SendServerCommand,
-            SV_SetConfigstring, SV_Shutdown, SV_SpawnServer, Sys_SetModuleOffset,
+            SV_SetConfigstring, SV_Shutdown, SV_SpawnServer, Sys_SetModuleOffset, Touch_Item,
         },
         quake_live_engine_test_helpers::{
             default_quake_engine, default_static_detours, default_static_functions,
@@ -3233,6 +3322,73 @@ mod quake_live_engine_tests {
             .launch_item_orig
             .load(Ordering::Acquire);
         let result = quake_engine.launch_item_orig();
+        assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    #[cfg(target_os = "linux")]
+    fn search_static_functions_without_engine_module_reports_missing_memory_mapping() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.search_static_functions();
+
+        assert!(matches!(
+            result,
+            Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(_))
+        ));
+    }
+
+    #[test]
+    fn hook_static_without_static_functions_reports_missing_function() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.hook_static();
+
+        assert!(result.is_err_and(|err| err
+            == QuakeLiveEngineError::StaticFunctionNotFound(QuakeLiveFunction::Cmd_AddCommand)));
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    #[cfg(target_os = "linux")]
+    fn initialize_vm_without_game_module_reports_missing_function() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.initialize_vm(0);
+
+        assert!(matches!(
+            result,
+            Err(QuakeLiveEngineError::VmFunctionNotFound(_))
+        ));
+    }
+
+    #[test]
+    fn touch_item_orig_when_no_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+
+        let result = quake_engine.touch_item_orig();
+        assert!(
+            result.is_err_and(|err| err
+                == QuakeLiveEngineError::VmFunctionNotFound(QuakeLiveFunction::Touch_Item,))
+        );
+    }
+
+    #[test]
+    fn touch_item_orig_when_function_pointer_set() {
+        let quake_engine = default_quake_engine();
+        quake_engine
+            .vm_functions
+            .touch_item_orig
+            .store(Touch_Item as *const () as usize, Ordering::Release);
+
+        let stored_address = quake_engine
+            .vm_functions
+            .touch_item_orig
+            .load(Ordering::Acquire);
+        let result = quake_engine.touch_item_orig();
         assert!(result.is_ok_and(|func| func as *const () as usize == stored_address));
     }
 }
