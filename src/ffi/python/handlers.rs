@@ -14,7 +14,7 @@ use pyo3::{
     prelude::*,
     types::{IntoPyDict, PyBool, PyDict, PyInt, PyString},
 };
-use regex::{Regex, RegexBuilder};
+use regex_lite::{Regex, RegexBuilder};
 use tap::{TapFallible, TapOptional};
 
 use super::{

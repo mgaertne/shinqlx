@@ -41,7 +41,7 @@ pub(crate) fn last_color_tag(text: &str) -> Option<&str> {
 #[cfg(test)]
 mod color_tag_tests {
     use pretty_assertions::assert_eq;
-    use regex::Regex;
+    use regex_lite::Regex;
     use rstest::rstest;
 
     use super::{clean_text, last_color_tag};

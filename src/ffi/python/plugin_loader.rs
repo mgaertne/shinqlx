@@ -1,7 +1,6 @@
 use core::hint::cold_path;
 use std::path::Path;
 
-use itertools::Itertools;
 use pyo3::{
     exceptions::{PyAttributeError, PyEnvironmentError},
     intern,
@@ -51,9 +50,13 @@ pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                         plugins.extend_from_slice(&DEFAULT_PLUGINS);
                         plugins.retain(|&value| value != "DEFAULT");
                     }
-                    plugins.iter().unique().for_each(|&plugin| {
-                        let _ = load_plugin(py, plugin);
-                    });
+                    plugins
+                        .iter()
+                        .enumerate()
+                        .filter(|&(index, plugin)| !plugins[..index].contains(plugin))
+                        .for_each(|(_, &plugin)| {
+                            let _ = load_plugin(py, plugin);
+                        });
                 });
 
             Ok(())

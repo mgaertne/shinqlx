@@ -2,7 +2,7 @@ use core::hint::cold_path;
 use std::sync::LazyLock;
 
 use pyo3::types::{PyBool, PyString, PyTuple};
-use regex::Regex;
+use regex_lite::Regex;
 
 use super::prelude::*;
 use crate::{

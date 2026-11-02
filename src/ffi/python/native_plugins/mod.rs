@@ -16,7 +16,7 @@ mod workshop;
 use std::sync::LazyLock;
 
 use pyo3::{intern, prelude::*};
-use regex::Regex;
+use regex_lite::Regex;
 
 use super::{
     commands::CommandPriorities,
