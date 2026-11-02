@@ -19,9 +19,9 @@ use tap::{TapFallible, TapOptional};
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
-    FREE_CHAT_CHANNEL, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL, event_dispatcher, get_cvar,
-    is_false, is_vote_active, late_init, log_debug, log_exception, prelude::*,
-    pyshinqlx_get_logger, set_map_subtitles,
+    FREE_CHAT_CHANNEL, ParsedVariables, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
+    event_dispatcher, get_cvar, is_false, is_vote_active, late_init, log_debug, log_exception,
+    prelude::*, pyshinqlx_get_logger, set_map_subtitles,
 };
 use crate::{
     MAIN_ENGINE,
@@ -235,6 +235,231 @@ fn chat_message(command_regex: &Regex, command: &str) -> Option<String> {
     })
 }
 
+fn blocked(py: Python<'_>) -> Py<PyAny> {
+    PyBool::new(py, false).into_any().unbind()
+}
+
+fn passed_on(py: Python<'_>, cmd: &str) -> Py<PyAny> {
+    PyString::new(py, cmd).into_any().unbind()
+}
+
+/// Passes `cmd` on unless a handler of the dispatcher blocked it by returning `False`.
+fn blocked_or_passed_on(py: Python<'_>, result: &Bound<'_, PyAny>, cmd: &str) -> Py<PyAny> {
+    if is_false(result) {
+        blocked(py)
+    } else {
+        passed_on(py, cmd)
+    }
+}
+
+fn captured<'a>(command_regex: &Regex, group: &str, command: &'a str) -> Option<&'a str> {
+    command_regex
+        .captures(command)
+        .and_then(|captures| captures.name(group))
+        .map(|matched| matched.as_str())
+}
+
+fn callvote_parts(command: &str) -> Option<(&str, &str)> {
+    let captures = RE_CALLVOTE.captures(command)?;
+    let vote = captures.name("cmd")?.as_str();
+    let args = captures.name("args").map_or("", |matched| matched.as_str());
+    Some((vote, args))
+}
+
+fn handle_say(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyAny>> {
+    let result = event_dispatcher(
+        py,
+        intern!(py, "chat"),
+        "could not get access to chat dispatcher",
+    )
+    .and_then(|chat_dispatcher| {
+        let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
+            cold_path();
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to main chat channel",
+            ));
+        };
+
+        ChatEventDispatcherMethods::dispatch(
+            chat_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            msg,
+            main_chat_channel.bind(py),
+        )
+    })?;
+
+    Ok(blocked_or_passed_on(py, &result, &format!("say \"{msg}\"")))
+}
+
+fn handle_say_team(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyAny>> {
+    let result = event_dispatcher(
+        py,
+        intern!(py, "chat"),
+        "could not get access to chat dispatcher",
+    )
+    .and_then(|chat_dispatcher| {
+        let channel = match player.get_team(py)?.as_str() {
+            "free" => &FREE_CHAT_CHANNEL,
+            "red" => &RED_TEAM_CHAT_CHANNEL,
+            "blue" => &BLUE_TEAM_CHAT_CHANNEL,
+            _ => &SPECTATOR_CHAT_CHANNEL,
+        };
+        let Some(ref chat_channel) = *channel.load() else {
+            cold_path();
+            return Err(PyEnvironmentError::new_err(
+                "could not get access to team chat channel",
+            ));
+        };
+        ChatEventDispatcherMethods::dispatch(
+            chat_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            msg,
+            chat_channel.bind(py),
+        )
+    })?;
+
+    Ok(blocked_or_passed_on(
+        py,
+        &result,
+        &format!("say_team \"{msg}\""),
+    ))
+}
+
+fn handle_callvote(
+    py: Python<'_>,
+    player: Player,
+    cmd: &str,
+    vote: &str,
+    args: &str,
+) -> PyResult<Py<PyAny>> {
+    if is_vote_active() {
+        return Ok(passed_on(py, cmd));
+    }
+    event_dispatcher(
+        py,
+        intern!(py, "vote_started"),
+        "could not get access to vote started dispatcher",
+    )
+    .and_then(|vote_started_dispatcher| {
+        VoteStartedDispatcherMethods::caller(
+            vote_started_dispatcher.cast()?,
+            Bound::new(py, player.to_owned())?.as_any(),
+        );
+        Ok(())
+    })?;
+    let result = event_dispatcher(
+        py,
+        intern!(py, "vote_called"),
+        "could not get access to vote called dispatcher",
+    )
+    .and_then(|vote_called_dispatcher| {
+        VoteCalledDispatcherMethods::dispatch(
+            vote_called_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            vote,
+            PyString::new(py, args).as_any(),
+        )
+    })?;
+
+    Ok(blocked_or_passed_on(py, &result, cmd))
+}
+
+fn handle_vote(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> PyResult<Py<PyAny>> {
+    if !is_vote_active() || !["y", "Y", "1", "n", "N", "2"].contains(&arg) {
+        return Ok(passed_on(py, cmd));
+    }
+    let vote = ["y", "Y", "1"].contains(&arg);
+    let result = event_dispatcher(
+        py,
+        intern!(py, "vote"),
+        "could not get access to vote dispatcher",
+    )
+    .and_then(|vote_dispatcher| {
+        VoteDispatcherMethods::dispatch(vote_dispatcher.cast()?, &Bound::new(py, player)?, vote)
+    })?;
+
+    Ok(blocked_or_passed_on(py, &result, cmd))
+}
+
+fn handle_team_switch(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> PyResult<Py<PyAny>> {
+    let current_team = player.get_team(py)?;
+    if !["f", "r", "b", "s", "a"].contains(&arg) || current_team.starts_with(arg) {
+        return Ok(passed_on(py, cmd));
+    }
+
+    let target_team = match arg {
+        "f" => "free",
+        "r" => "red",
+        "b" => "blue",
+        "s" => "spectator",
+        _ => "any",
+    };
+    let result = event_dispatcher(
+        py,
+        intern!(py, "team_switch_attempt"),
+        "could not get access to team switch attempt dispatcher",
+    )
+    .and_then(|team_switch_attempt_dispatcher| {
+        TeamSwitchAttemptDispatcherMethods::dispatch(
+            team_switch_attempt_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            &current_team,
+            target_team,
+        )
+    })?;
+
+    Ok(blocked_or_passed_on(py, &result, cmd))
+}
+
+fn handle_userinfo(py: Python<'_>, player: Player, cmd: &str, vars: &str) -> PyResult<Py<PyAny>> {
+    let new_info = parse_variables(vars);
+    let old_info = parse_variables(&player.user_info);
+
+    let changed = new_info
+        .items
+        .iter()
+        .filter(|(key, new_value)| {
+            let opt_old_value = old_info.get(key);
+            opt_old_value.is_none()
+                || opt_old_value.is_some_and(|old_value| old_value != *new_value)
+        })
+        .collect::<Vec<_>>();
+
+    if changed.is_empty() {
+        return Ok(passed_on(py, cmd));
+    }
+    let result = event_dispatcher(
+        py,
+        intern!(py, "userinfo"),
+        "could not get access to userinfo dispatcher",
+    )
+    .and_then(|userinfo_dispatcher| {
+        UserinfoDispatcherMethods::dispatch(
+            userinfo_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            &changed.into_py_dict(py)?,
+        )
+    })?;
+
+    if is_false(&result) {
+        return Ok(blocked(py));
+    }
+    let Ok(changed_values) = result.cast::<PyDict>() else {
+        return Ok(passed_on(py, cmd));
+    };
+
+    let updated_info = new_info.into_py_dict(py)?;
+    updated_info.update(changed_values.as_mapping())?;
+    let formatted_key_values = updated_info
+        .iter()
+        .map(|(key, value)| format!(r"\{key}\{value}"))
+        .join("");
+    Ok(passed_on(
+        py,
+        &format!(r#"userinfo "{formatted_key_values}""#),
+    ))
+}
+
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
     let player = Player::from_client_id(client_id, None);
 
@@ -251,244 +476,31 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         )
     })?;
     if is_false(&return_value) {
-        return Ok(PyBool::new(py, false).into_any().unbind());
+        return Ok(blocked(py));
     };
 
     let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
 
-    if let Some(reformatted_msg) = chat_message(&RE_SAY, updated_cmd) {
-        let result = event_dispatcher(
-            py,
-            intern!(py, "chat"),
-            "could not get access to chat dispatcher",
-        )
-        .and_then(|chat_dispatcher| {
-            let Some(ref main_chat_channel) = *CHAT_CHANNEL.load() else {
-                cold_path();
-                return Err(PyEnvironmentError::new_err(
-                    "could not get access to main chat channel",
-                ));
-            };
-
-            ChatEventDispatcherMethods::dispatch(
-                chat_dispatcher.cast()?,
-                &Bound::new(py, player)?,
-                &reformatted_msg,
-                main_chat_channel.bind(py),
-            )
-        })?;
-
-        return match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => {
-                let new_command = format!("say \"{reformatted_msg}\"");
-                Ok(PyString::new(py, &new_command).into_any().unbind())
-            }
-        };
+    if let Some(msg) = chat_message(&RE_SAY, updated_cmd) {
+        return handle_say(py, player, &msg);
+    }
+    if let Some(msg) = chat_message(&RE_SAY_TEAM, updated_cmd) {
+        return handle_say_team(py, player, &msg);
+    }
+    if let Some((vote, args)) = callvote_parts(updated_cmd) {
+        return handle_callvote(py, player, updated_cmd, vote, args);
+    }
+    if let Some(arg) = captured(&RE_VOTE, "arg", updated_cmd) {
+        return handle_vote(py, player, updated_cmd, arg);
+    }
+    if let Some(arg) = captured(&RE_TEAM, "arg", updated_cmd) {
+        return handle_team_switch(py, player, updated_cmd, arg);
+    }
+    if let Some(vars) = captured(&RE_USERINFO, "vars", updated_cmd) {
+        return handle_userinfo(py, player, updated_cmd, vars);
     }
 
-    if let Some(reformatted_msg) = chat_message(&RE_SAY_TEAM, updated_cmd) {
-        let result = event_dispatcher(
-            py,
-            intern!(py, "chat"),
-            "could not get access to chat dispatcher",
-        )
-        .and_then(|chat_dispatcher| {
-            let channel = match player.get_team(py)?.as_str() {
-                "free" => &FREE_CHAT_CHANNEL,
-                "red" => &RED_TEAM_CHAT_CHANNEL,
-                "blue" => &BLUE_TEAM_CHAT_CHANNEL,
-                _ => &SPECTATOR_CHAT_CHANNEL,
-            };
-            let Some(ref chat_channel) = *channel.load() else {
-                cold_path();
-                return Err(PyEnvironmentError::new_err(
-                    "could not get access to team chat channel",
-                ));
-            };
-            ChatEventDispatcherMethods::dispatch(
-                chat_dispatcher.cast()?,
-                &Bound::new(py, player)?,
-                &reformatted_msg,
-                chat_channel.bind(py),
-            )
-        })?;
-
-        return match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => {
-                let new_command = format!("say_team \"{reformatted_msg}\"");
-                Ok(PyString::new(py, &new_command).into_any().unbind())
-            }
-        };
-    }
-    if let Some((vote, args)) = RE_CALLVOTE.captures(updated_cmd).and_then(|captures| {
-        captures.name("cmd").map(|vote_cmd| {
-            (
-                vote_cmd,
-                captures
-                    .name("args")
-                    .map(|matched| matched.as_str())
-                    .unwrap_or(""),
-            )
-        })
-    }) {
-        if is_vote_active() {
-            return Ok(PyString::new(py, updated_cmd).into_any().unbind());
-        }
-        event_dispatcher(
-            py,
-            intern!(py, "vote_started"),
-            "could not get access to vote started dispatcher",
-        )
-        .and_then(|vote_started_dispatcher| {
-            VoteStartedDispatcherMethods::caller(
-                vote_started_dispatcher.cast()?,
-                Bound::new(py, player.to_owned())?.as_any(),
-            );
-            Ok(())
-        })?;
-        let result = event_dispatcher(
-            py,
-            intern!(py, "vote_called"),
-            "could not get access to vote called dispatcher",
-        )
-        .and_then(|vote_called_dispatcher| {
-            VoteCalledDispatcherMethods::dispatch(
-                vote_called_dispatcher.cast()?,
-                &Bound::new(py, player.to_owned())?,
-                vote.as_str(),
-                PyString::new(py, args).as_any(),
-            )
-        })?;
-
-        return match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
-        };
-    }
-
-    if let Some(arg) = RE_VOTE
-        .captures(updated_cmd)
-        .and_then(|captures| captures.name("arg"))
-    {
-        if !is_vote_active() || !["y", "Y", "1", "n", "N", "2"].contains(&arg.as_str()) {
-            return Ok(PyString::new(py, updated_cmd).into_any().unbind());
-        }
-        let vote = ["y", "Y", "1"].contains(&arg.as_str());
-        let result = event_dispatcher(
-            py,
-            intern!(py, "vote"),
-            "could not get access to vote dispatcher",
-        )
-        .and_then(|vote_dispatcher| {
-            VoteDispatcherMethods::dispatch(
-                vote_dispatcher.cast()?,
-                &Bound::new(py, player.to_owned())?,
-                vote,
-            )
-        })?;
-
-        return match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
-        };
-    }
-
-    if let Some(arg) = RE_TEAM
-        .captures(updated_cmd)
-        .and_then(|captures| captures.name("arg"))
-    {
-        let current_team = player.get_team(py)?;
-        if !["f", "r", "b", "s", "a"].contains(&arg.as_str())
-            || current_team.starts_with(arg.as_str())
-        {
-            return Ok(PyString::new(py, updated_cmd).into_any().unbind());
-        }
-
-        let target_team = match arg.as_str() {
-            "f" => "free",
-            "r" => "red",
-            "b" => "blue",
-            "s" => "spectator",
-            _ => "any",
-        };
-        let result = event_dispatcher(
-            py,
-            intern!(py, "team_switch_attempt"),
-            "could not get access to team switch attempt dispatcher",
-        )
-        .and_then(|team_switch_attempt_dispatcher| {
-            TeamSwitchAttemptDispatcherMethods::dispatch(
-                team_switch_attempt_dispatcher.cast()?,
-                &Bound::new(py, player)?,
-                &current_team,
-                target_team,
-            )
-        })?;
-
-        return match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
-        };
-    }
-
-    if let Some(vars) = RE_USERINFO
-        .captures(updated_cmd)
-        .and_then(|captures| captures.name("vars"))
-    {
-        let new_info = parse_variables(vars.as_str());
-        let old_info = parse_variables(&player.user_info);
-
-        let changed = new_info
-            .items
-            .iter()
-            .filter(|(key, new_value)| {
-                let opt_old_value = old_info.get(key);
-                opt_old_value.is_none()
-                    || opt_old_value.is_some_and(|old_value| old_value != *new_value)
-            })
-            .collect::<Vec<_>>();
-
-        if changed.is_empty() {
-            return Ok(PyString::new(py, updated_cmd).into_any().unbind());
-        }
-        let result = event_dispatcher(
-            py,
-            intern!(py, "userinfo"),
-            "could not get access to userinfo dispatcher",
-        )
-        .and_then(|userinfo_dispatcher| {
-            UserinfoDispatcherMethods::dispatch(
-                userinfo_dispatcher.cast()?,
-                &Bound::new(py, player.to_owned())?,
-                &changed.into_py_dict(py)?,
-            )
-        })?;
-
-        return match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => Ok(PyBool::new(py, false).into_any().unbind()),
-            _ => match result.cast::<PyDict>() {
-                Ok(changed_values) => {
-                    let updated_info = new_info.into_py_dict(py)?;
-                    updated_info
-                        .update(changed_values.to_owned().as_mapping())
-                        .map(|_| {
-                            let formatted_key_values = updated_info
-                                .iter()
-                                .map(|(key, value)| format!(r"\{key}\{value}"))
-                                .join("");
-
-                            let new_command = format!(r#"userinfo "{formatted_key_values}""#);
-                            PyString::new(py, &new_command).into_any().unbind()
-                        })
-                }
-                _ => Ok(PyString::new(py, updated_cmd).into_any().unbind()),
-            },
-        };
-    }
-
-    Ok(PyString::new(py, updated_cmd).into_any().unbind())
+    Ok(passed_on(py, updated_cmd))
 }
 
 /// Client commands are commands such as "say", "say_team", "scores",
@@ -5005,6 +5017,149 @@ mod handle_new_game_tests {
 
 static AD_ROUND_NUMBER: AtomicI32 = AtomicI32::new(0);
 
+fn int_variable(variables: &ParsedVariables, key: &str) -> PyResult<i32> {
+    let Some(value) = variables.get(key) else {
+        cold_path();
+        return Err(PyKeyError::new_err(format!("'{key}'")));
+    };
+    value.parse::<i32>().map_err(|_| {
+        PyValueError::new_err(format!("invalid literal for int() with base 10: {value}"))
+    })
+}
+
+fn log_unknown_game_states(py: Python<'_>, old_state: &str, new_state: &str) -> PyResult<()> {
+    let logger = pyshinqlx_get_logger(py, None)?;
+    let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
+    let warning_level = py
+        .import(intern!(py, "logging"))
+        .and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
+    let log_record = logger.call_method(
+        intern!(py, "makeRecord"),
+        (
+            intern!(py, "shinqlx"),
+            warning_level,
+            intern!(py, ""),
+            -1,
+            warning,
+            py.None(),
+            py.None(),
+        ),
+        Some(&[(intern!(py, "func"), intern!(py, "handle_set_configstring"))].into_py_dict(py)?),
+    )?;
+    logger.call_method1(intern!(py, "handle"), (log_record,))?;
+    Ok(())
+}
+
+fn handle_vote_string(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
+    let (vote, args) = configstring_value
+        .split_once(' ')
+        .unwrap_or((configstring_value, ""));
+    event_dispatcher(
+        py,
+        intern!(py, "vote_started"),
+        "could not get access to vote started dispatcher",
+    )
+    .and_then(|vote_started_dispatcher| {
+        VoteStartedDispatcherMethods::dispatch(
+            vote_started_dispatcher.cast()?,
+            vote,
+            PyString::new(py, args).as_any(),
+        )?;
+
+        Ok(py.None())
+    })
+}
+
+fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
+    let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+        cold_path();
+        return Ok(py.None());
+    };
+    let old_configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+    if old_configstring.is_empty() {
+        return Ok(py.None());
+    }
+    let old_cvars = parse_variables(&old_configstring);
+    let opt_old_state = old_cvars.get("g_gameState");
+    let old_state = opt_old_state.as_deref().unwrap_or("");
+
+    let new_cvars = parse_variables(configstring_value);
+    let opt_new_state = new_cvars.get("g_gameState");
+    let new_state = opt_new_state.as_deref().unwrap_or("");
+
+    if old_state == new_state {
+        return Ok(passed_on(py, configstring_value));
+    }
+    if (old_state, new_state) == ("PRE_GAME", "COUNT_DOWN") {
+        AD_ROUND_NUMBER.store(1, Ordering::Release);
+        event_dispatcher(
+            py,
+            intern!(py, "game_countdown"),
+            "could not get access to game countdown dispatcher",
+        )
+        .and_then(|game_countdown_dispatcher| {
+            GameCountdownDispatcherMethods::dispatch(game_countdown_dispatcher.cast()?).map(|_| ())
+        })?;
+    }
+    if ![
+        ("PRE_GAME", "IN_PROGRESS"),
+        ("PRE_GAME", "COUNT_DOWN"),
+        ("COUNT_DOWN", "IN_PROGRESS"),
+        ("IN_PROGRESS", "PRE_GAME"),
+        ("COUNT_DOWN", "PRE_GAME"),
+    ]
+    .contains(&(old_state, new_state))
+    {
+        log_unknown_game_states(py, old_state, new_state)?;
+    }
+    Ok(passed_on(py, configstring_value))
+}
+
+fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
+    let cvars = parse_variables(configstring_value);
+    if cvars.is_empty() {
+        return Ok(passed_on(py, configstring_value));
+    }
+
+    let cs_round_number = int_variable(&cvars, "round")?;
+    let round_number = if cvars.contains("turn") {
+        if int_variable(&cvars, "state")? == 0 {
+            return Ok(py.None());
+        }
+
+        let ad_round_number = cs_round_number * 2 + 1 + int_variable(&cvars, "turn")?;
+        AD_ROUND_NUMBER.store(ad_round_number, Ordering::Release);
+        AD_ROUND_NUMBER.load(Ordering::Acquire)
+    } else {
+        if cs_round_number == 0 {
+            return Ok(passed_on(py, configstring_value));
+        }
+        cs_round_number
+    };
+
+    if cvars.contains("time") {
+        event_dispatcher(
+            py,
+            intern!(py, "round_countdown"),
+            "could not get access to round countdown dispatcher",
+        )
+        .and_then(|round_dispatcher| {
+            RoundCountdownDispatcherMethods::dispatch(round_dispatcher.cast()?, round_number)
+                .map(|_| py.None())
+        })
+    } else {
+        event_dispatcher(
+            py,
+            intern!(py, "round_start"),
+            "could not get access to round start dispatcher",
+        )
+        .and_then(|round_dispatcher| {
+            RoundStartDispatcherMethods::dispatch(round_dispatcher.cast()?, round_number)
+                .map(|_| py.None())
+        })
+    }
+}
+
 fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<Py<PyAny>> {
     let result = event_dispatcher(
         py,
@@ -5031,7 +5186,7 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         .as_ref()
         .is_some_and(|result_value| is_false(result_value))
     {
-        return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
+        return Ok(blocked(py));
     }
 
     let configstring_value = result
@@ -5039,184 +5194,11 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         .unwrap_or_else(|| value.to_string());
     match index {
         CS_VOTE_STRING if !configstring_value.is_empty() => {
-            let (vote, args) = configstring_value
-                .split_once(' ')
-                .unwrap_or((configstring_value.as_str(), ""));
-            event_dispatcher(
-                py,
-                intern!(py, "vote_started"),
-                "could not get access to vote started dispatcher",
-            )
-            .and_then(|vote_started_dispatcher| {
-                VoteStartedDispatcherMethods::dispatch(
-                    vote_started_dispatcher.cast()?,
-                    vote,
-                    PyString::new(py, args).as_any(),
-                )?;
-
-                Ok(py.None())
-            })
+            handle_vote_string(py, &configstring_value)
         }
-        CS_SERVERINFO => {
-            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-                cold_path();
-                return Ok(py.None());
-            };
-            let old_configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
-            if old_configstring.is_empty() {
-                return Ok(py.None());
-            }
-            let old_cvars = parse_variables(&old_configstring);
-            let opt_old_state = old_cvars.get("g_gameState");
-            let old_state = opt_old_state.as_deref().unwrap_or("");
-
-            let new_cvars = parse_variables(&configstring_value);
-            let opt_new_state = new_cvars.get("g_gameState");
-            let new_state = opt_new_state.as_deref().unwrap_or("");
-
-            if old_state == new_state {
-                return Ok(PyString::new(py, &configstring_value).into_any().unbind());
-            }
-            if (old_state, new_state) == ("PRE_GAME", "COUNT_DOWN") {
-                AD_ROUND_NUMBER.store(1, Ordering::Release);
-                event_dispatcher(
-                    py,
-                    intern!(py, "game_countdown"),
-                    "could not get access to game countdown dispatcher",
-                )
-                .and_then(|game_countdown_dispatcher| {
-                    GameCountdownDispatcherMethods::dispatch(game_countdown_dispatcher.cast()?)
-                        .map(|_| ())
-                })?;
-            }
-            if ![
-                ("PRE_GAME", "IN_PROGRESS"),
-                ("PRE_GAME", "COUNT_DOWN"),
-                ("COUNT_DOWN", "IN_PROGRESS"),
-                ("IN_PROGRESS", "PRE_GAME"),
-                ("COUNT_DOWN", "PRE_GAME"),
-            ]
-            .contains(&(old_state, new_state))
-            {
-                pyshinqlx_get_logger(py, None).and_then(|logger| {
-                    let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
-                    let warning_level =
-                        py.import(intern!(py, "logging"))
-                            .and_then(|logging_module| {
-                                logging_module.getattr(intern!(py, "WARNING"))
-                            })?;
-                    logger
-                        .call_method(
-                            intern!(py, "makeRecord"),
-                            (
-                                intern!(py, "shinqlx"),
-                                warning_level,
-                                intern!(py, ""),
-                                -1,
-                                warning,
-                                py.None(),
-                                py.None(),
-                            ),
-                            Some(
-                                &[(intern!(py, "func"), intern!(py, "handle_set_configstring"))]
-                                    .into_py_dict(py)?,
-                            ),
-                        )
-                        .and_then(|log_record| {
-                            logger.call_method1(intern!(py, "handle"), (log_record,))
-                        })
-                })?;
-            }
-            Ok(PyString::new(py, &configstring_value).into_any().unbind())
-        }
-        CS_ROUND_STATUS => {
-            let cvars = parse_variables(&configstring_value);
-            if cvars.is_empty() {
-                return Ok(PyString::intern(py, &configstring_value)
-                    .into_any()
-                    .unbind());
-            }
-
-            let cs_round_number = cvars.get("round").map_or(
-                {
-                    cold_path();
-                    Err(PyKeyError::new_err("'round'"))
-                },
-                |round_str| {
-                    round_str.parse::<i32>().map_err(|_| {
-                        let error_msg =
-                            format!("invalid literal for int() with base 10: {round_str}");
-                        PyValueError::new_err(error_msg)
-                    })
-                },
-            )?;
-            let round_number = if cvars.contains("turn") {
-                let cs_state = cvars.get("state").map_or(
-                    {
-                        cold_path();
-                        Err(PyKeyError::new_err("'state'"))
-                    },
-                    |state_str| {
-                        state_str.parse::<i32>().map_err(|_| {
-                            let error_msg =
-                                format!("invalid literal for int() with base 10: {state_str}");
-                            PyValueError::new_err(error_msg)
-                        })
-                    },
-                )?;
-                if cs_state == 0 {
-                    return Ok(py.None());
-                }
-
-                let cs_turn = cvars.get("turn").map_or(
-                    {
-                        cold_path();
-                        Err(PyKeyError::new_err("'turn'"))
-                    },
-                    |turn_str| {
-                        turn_str.parse::<i32>().map_err(|_| {
-                            let error_msg =
-                                format!("invalid literal for int() with base 10: {turn_str}");
-                            PyValueError::new_err(error_msg)
-                        })
-                    },
-                )?;
-                let ad_round_number = cs_round_number * 2 + 1 + cs_turn;
-                AD_ROUND_NUMBER.store(ad_round_number, Ordering::Release);
-                AD_ROUND_NUMBER.load(Ordering::Acquire)
-            } else {
-                if cs_round_number == 0 {
-                    return Ok(PyString::new(py, &configstring_value).into_any().unbind());
-                }
-                cs_round_number
-            };
-
-            if cvars.contains("time") {
-                event_dispatcher(
-                    py,
-                    intern!(py, "round_countdown"),
-                    "could not get access to round countdown dispatcher",
-                )
-                .and_then(|round_dispatcher| {
-                    RoundCountdownDispatcherMethods::dispatch(
-                        round_dispatcher.cast()?,
-                        round_number,
-                    )
-                    .map(|_| py.None())
-                })
-            } else {
-                event_dispatcher(
-                    py,
-                    intern!(py, "round_start"),
-                    "could not get access to round start dispatcher",
-                )
-                .and_then(|round_dispatcher| {
-                    RoundStartDispatcherMethods::dispatch(round_dispatcher.cast()?, round_number)
-                        .map(|_| py.None())
-                })
-            }
-        }
-        _ => Ok(PyString::new(py, &configstring_value).into_any().unbind()),
+        CS_SERVERINFO => handle_server_info(py, &configstring_value),
+        CS_ROUND_STATUS => handle_round_status(py, &configstring_value),
+        _ => Ok(passed_on(py, &configstring_value)),
     }
 }
 
