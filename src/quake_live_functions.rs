@@ -16,7 +16,11 @@ where
 {
     module_info
         .iter()
-        .filter(|memory_map| memory_map.perms.contains(MMPermissions::READ))
+        .filter(|memory_map| {
+            memory_map
+                .perms
+                .contains(MMPermissions::READ | MMPermissions::EXECUTE)
+        })
         .filter_map(|memory_map| {
             pattern_search(
                 memory_map.address.0 as usize,
@@ -237,9 +241,10 @@ impl QuakeLiveFunction {
 #[cfg(test)]
 mod quake_live_function_tests {
     use pretty_assertions::assert_eq;
+    use procfs::process::{MMPermissions, MMapExtension, MMapPath, MemoryMap};
     use rstest::*;
 
-    use super::{QuakeLiveFunction, pattern_search};
+    use super::{QuakeLiveFunction, pattern_search, pattern_search_module};
 
     const CMD_ARGC_BYTES: [u8; 7] = [0x8b, 0x05, 0x01, 0x02, 0x03, 0x04, 0xc3];
 
@@ -292,6 +297,44 @@ mod quake_live_function_tests {
         assert_eq!(
             pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
             None
+        );
+    }
+
+    fn memory_map_of(bytes: &[u8], perms: MMPermissions) -> MemoryMap {
+        let (start, end) = region_bounds(bytes);
+        MemoryMap {
+            address: (start as u64, end as u64),
+            perms,
+            offset: 0,
+            dev: (0, 0),
+            inode: 0,
+            pathname: MMapPath::Anonymous,
+            extension: MMapExtension::default(),
+        }
+    }
+
+    #[test]
+    fn pattern_search_module_skips_regions_that_are_not_executable() {
+        let mut bytes = vec![0x90; 16];
+        bytes[5..12].copy_from_slice(&CMD_ARGC_BYTES);
+        let data_map = memory_map_of(&bytes, MMPermissions::READ | MMPermissions::WRITE);
+
+        assert_eq!(
+            pattern_search_module(&[&data_map], QuakeLiveFunction::Cmd_Argc),
+            None
+        );
+    }
+
+    #[test]
+    fn pattern_search_module_searches_readable_executable_regions() {
+        let mut bytes = vec![0x90; 16];
+        bytes[5..12].copy_from_slice(&CMD_ARGC_BYTES);
+        let code_map = memory_map_of(&bytes, MMPermissions::READ | MMPermissions::EXECUTE);
+        let (start, _) = region_bounds(&bytes);
+
+        assert_eq!(
+            pattern_search_module(&[&code_map], QuakeLiveFunction::Cmd_Argc),
+            Some(start + 5)
         );
     }
 
