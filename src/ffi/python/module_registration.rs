@@ -342,6 +342,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<Vector3>()?;
     m.add_class::<Flight>()?;
+    m.add_class::<ConfigString>()?;
     m.add_class::<Powerups>()?;
     m.add_class::<Weapons>()?;
     m.add_class::<PlayerInfo>()?;

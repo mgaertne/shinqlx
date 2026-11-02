@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, ClassVar, SupportsIndex, overload
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -101,6 +101,88 @@ class Vector3(tuple):
     y: int
     z: int
 
+class ConfigString:
+    SERVERINFO: ClassVar[ConfigString]
+    SYSTEMINFO: ClassVar[ConfigString]
+    MUSIC: ClassVar[ConfigString]
+    MESSAGE: ClassVar[ConfigString]
+    MOTD: ClassVar[ConfigString]
+    WARMUP: ClassVar[ConfigString]
+    SCORES1: ClassVar[ConfigString]
+    SCORES2: ClassVar[ConfigString]
+    VOTE_TIME: ClassVar[ConfigString]
+    VOTE_STRING: ClassVar[ConfigString]
+    VOTE_YES: ClassVar[ConfigString]
+    VOTE_NO: ClassVar[ConfigString]
+    GAME_VERSION: ClassVar[ConfigString]
+    LEVEL_START_TIME: ClassVar[ConfigString]
+    INTERMISSION: ClassVar[ConfigString]
+    ITEMS: ClassVar[ConfigString]
+    MODELS: ClassVar[ConfigString]
+    SOUNDS: ClassVar[ConfigString]
+    PLAYERS: ClassVar[ConfigString]
+    LOCATIONS: ClassVar[ConfigString]
+    PARTICLES: ClassVar[ConfigString]
+    FLAGSTATUS: ClassVar[ConfigString]
+    FIRSTPLACE: ClassVar[ConfigString]
+    SECONDPLACE: ClassVar[ConfigString]
+    ROUND_STATUS: ClassVar[ConfigString]
+    ROUND_TIME: ClassVar[ConfigString]
+    RED_PLAYERS_LEFT: ClassVar[ConfigString]
+    BLUE_PLAYERS_LEFT: ClassVar[ConfigString]
+    SHADERSTATE: ClassVar[ConfigString]
+    NEXTMAP: ClassVar[ConfigString]
+    PRACTICE: ClassVar[ConfigString]
+    FREECAM: ClassVar[ConfigString]
+    PAUSE_START_TIME: ClassVar[ConfigString]
+    PAUSE_END_TIME: ClassVar[ConfigString]
+    TIMEOUTS_RED: ClassVar[ConfigString]
+    TIMEOUTS_BLUE: ClassVar[ConfigString]
+    MODEL_OVERRIDE: ClassVar[ConfigString]
+    PLAYER_CYLINDERS: ClassVar[ConfigString]
+    DEBUGFLAGS: ClassVar[ConfigString]
+    ENABLEBREATH: ClassVar[ConfigString]
+    DMGTHROUGHDEPTH: ClassVar[ConfigString]
+    AUTHOR: ClassVar[ConfigString]
+    AUTHOR2: ClassVar[ConfigString]
+    ADVERT_DELAY: ClassVar[ConfigString]
+    PMOVEINFO: ClassVar[ConfigString]
+    ARMORINFO: ClassVar[ConfigString]
+    WEAPONINFO: ClassVar[ConfigString]
+    PLAYERINFO: ClassVar[ConfigString]
+    SCORE1STPLAYER: ClassVar[ConfigString]
+    SCORE2NDPLAYER: ClassVar[ConfigString]
+    CLIENTNUM1STPLAYER: ClassVar[ConfigString]
+    CLIENTNUM2NDPLAYER: ClassVar[ConfigString]
+    NAME1STPLAYER: ClassVar[ConfigString]
+    NAME2NDPLAYER: ClassVar[ConfigString]
+    ATMOSEFFECT: ClassVar[ConfigString]
+    MOST_DAMAGEDEALT_PLYR: ClassVar[ConfigString]
+    MOST_ACCURATE_PLYR: ClassVar[ConfigString]
+    REDTEAMBASE: ClassVar[ConfigString]
+    BLUETEAMBASE: ClassVar[ConfigString]
+    BEST_ITEMCONTROL_PLYR: ClassVar[ConfigString]
+    MOST_VALUABLE_OFFENSIVE_PLYR: ClassVar[ConfigString]
+    MOST_VALUABLE_DEFENSIVE_PLYR: ClassVar[ConfigString]
+    MOST_VALUABLE_PLYR: ClassVar[ConfigString]
+    GENERIC_COUNT_RED: ClassVar[ConfigString]
+    GENERIC_COUNT_BLUE: ClassVar[ConfigString]
+    AD_SCORES: ClassVar[ConfigString]
+    ROUND_WINNER: ClassVar[ConfigString]
+    CUSTOM_SETTINGS: ClassVar[ConfigString]
+    ROTATIONMAPS: ClassVar[ConfigString]
+    ROTATIONVOTES: ClassVar[ConfigString]
+    DISABLE_VOTE_UI: ClassVar[ConfigString]
+    ALLREADY_TIME: ClassVar[ConfigString]
+    INFECTED_SURVIVOR_MINSPEED: ClassVar[ConfigString]
+    RACE_POINTS: ClassVar[ConfigString]
+    DISABLE_LOADOUT: ClassVar[ConfigString]
+    MATCH_GUID: ClassVar[ConfigString]
+    STARTING_WEAPONS: ClassVar[ConfigString]
+    STEAM_ID: ClassVar[ConfigString]
+    STEAM_WORKSHOP_IDS: ClassVar[ConfigString]
+    def __index__(self) -> int: ...
+
 class Flight(tuple):
     fuel: int
     max_fuel: int
@@ -187,8 +269,8 @@ def set_cvar_limit(
 ) -> None: ...
 def kick(_client_id: int, _reason: str | None = None) -> None: ...
 def console_print(_text: str) -> None: ...
-def get_configstring(_config_id: int) -> str: ...
-def set_configstring(_config_id: int, _value: str) -> None: ...
+def get_configstring(_config_id: SupportsIndex) -> str: ...
+def set_configstring(_config_id: SupportsIndex, _value: str) -> None: ...
 def force_vote(_pass: bool) -> bool: ...
 def add_console_command(_command: str) -> None: ...
 @overload

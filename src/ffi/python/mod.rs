@@ -2,6 +2,7 @@
 pub mod bench_support;
 mod channels;
 mod commands;
+mod config_string;
 mod database;
 mod decorators;
 mod deferred;
@@ -127,6 +128,7 @@ pub(crate) mod prelude {
     pub(crate) use super::pyshinqlx_setup_fixture::*;
     pub(crate) use super::{
         ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, PythonInitializationError, clean_text,
+        config_string::ConfigString,
         embed::*,
         events::*,
         flight::Flight,
