@@ -266,7 +266,7 @@ fn callvote_parts(command: &str) -> Option<(&str, &str)> {
     Some((vote, args))
 }
 
-fn handle_say(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyAny>> {
+fn handle_say(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Py<PyAny>> {
     let result = event_dispatcher(
         py,
         intern!(py, "chat"),
@@ -282,7 +282,7 @@ fn handle_say(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyAny>> 
 
         ChatEventDispatcherMethods::dispatch(
             chat_dispatcher.cast()?,
-            &Bound::new(py, player)?,
+            player,
             msg,
             main_chat_channel.bind(py),
         )
@@ -291,14 +291,14 @@ fn handle_say(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyAny>> 
     Ok(blocked_or_passed_on(py, &result, &format!("say \"{msg}\"")))
 }
 
-fn handle_say_team(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyAny>> {
+fn handle_say_team(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Py<PyAny>> {
     let result = event_dispatcher(
         py,
         intern!(py, "chat"),
         "could not get access to chat dispatcher",
     )
     .and_then(|chat_dispatcher| {
-        let channel = match player.get_team(py)?.as_str() {
+        let channel = match player.get().get_team(py)?.as_str() {
             "free" => &FREE_CHAT_CHANNEL,
             "red" => &RED_TEAM_CHAT_CHANNEL,
             "blue" => &BLUE_TEAM_CHAT_CHANNEL,
@@ -312,7 +312,7 @@ fn handle_say_team(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyA
         };
         ChatEventDispatcherMethods::dispatch(
             chat_dispatcher.cast()?,
-            &Bound::new(py, player)?,
+            player,
             msg,
             chat_channel.bind(py),
         )
@@ -327,7 +327,7 @@ fn handle_say_team(py: Python<'_>, player: Player, msg: &str) -> PyResult<Py<PyA
 
 fn handle_callvote(
     py: Python<'_>,
-    player: Player,
+    player: &Bound<'_, Player>,
     cmd: &str,
     vote: &str,
     args: &str,
@@ -341,10 +341,7 @@ fn handle_callvote(
         "could not get access to vote started dispatcher",
     )
     .and_then(|vote_started_dispatcher| {
-        VoteStartedDispatcherMethods::caller(
-            vote_started_dispatcher.cast()?,
-            Bound::new(py, player.to_owned())?.as_any(),
-        );
+        VoteStartedDispatcherMethods::caller(vote_started_dispatcher.cast()?, player.as_any());
         Ok(())
     })?;
     let result = event_dispatcher(
@@ -355,7 +352,7 @@ fn handle_callvote(
     .and_then(|vote_called_dispatcher| {
         VoteCalledDispatcherMethods::dispatch(
             vote_called_dispatcher.cast()?,
-            &Bound::new(py, player)?,
+            player,
             vote,
             PyString::new(py, args).as_any(),
         )
@@ -364,7 +361,12 @@ fn handle_callvote(
     Ok(blocked_or_passed_on(py, &result, cmd))
 }
 
-fn handle_vote(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> PyResult<Py<PyAny>> {
+fn handle_vote(
+    py: Python<'_>,
+    player: &Bound<'_, Player>,
+    cmd: &str,
+    arg: &str,
+) -> PyResult<Py<PyAny>> {
     if !is_vote_active() || !["y", "Y", "1", "n", "N", "2"].contains(&arg) {
         return Ok(passed_on(py, cmd));
     }
@@ -375,14 +377,19 @@ fn handle_vote(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> PyResult
         "could not get access to vote dispatcher",
     )
     .and_then(|vote_dispatcher| {
-        VoteDispatcherMethods::dispatch(vote_dispatcher.cast()?, &Bound::new(py, player)?, vote)
+        VoteDispatcherMethods::dispatch(vote_dispatcher.cast()?, player, vote)
     })?;
 
     Ok(blocked_or_passed_on(py, &result, cmd))
 }
 
-fn handle_team_switch(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> PyResult<Py<PyAny>> {
-    let current_team = player.get_team(py)?;
+fn handle_team_switch(
+    py: Python<'_>,
+    player: &Bound<'_, Player>,
+    cmd: &str,
+    arg: &str,
+) -> PyResult<Py<PyAny>> {
+    let current_team = player.get().get_team(py)?;
     if !["f", "r", "b", "s", "a"].contains(&arg) || current_team.starts_with(arg) {
         return Ok(passed_on(py, cmd));
     }
@@ -402,7 +409,7 @@ fn handle_team_switch(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> P
     .and_then(|team_switch_attempt_dispatcher| {
         TeamSwitchAttemptDispatcherMethods::dispatch(
             team_switch_attempt_dispatcher.cast()?,
-            &Bound::new(py, player)?,
+            player,
             &current_team,
             target_team,
         )
@@ -411,9 +418,14 @@ fn handle_team_switch(py: Python<'_>, player: Player, cmd: &str, arg: &str) -> P
     Ok(blocked_or_passed_on(py, &result, cmd))
 }
 
-fn handle_userinfo(py: Python<'_>, player: Player, cmd: &str, vars: &str) -> PyResult<Py<PyAny>> {
+fn handle_userinfo(
+    py: Python<'_>,
+    player: &Bound<'_, Player>,
+    cmd: &str,
+    vars: &str,
+) -> PyResult<Py<PyAny>> {
     let new_info = parse_variables(vars);
-    let old_info = parse_variables(&player.user_info);
+    let old_info = parse_variables(&player.get().user_info);
 
     let changed = new_info
         .iter()
@@ -435,7 +447,7 @@ fn handle_userinfo(py: Python<'_>, player: Player, cmd: &str, vars: &str) -> PyR
     .and_then(|userinfo_dispatcher| {
         UserinfoDispatcherMethods::dispatch(
             userinfo_dispatcher.cast()?,
-            &Bound::new(py, player)?,
+            player,
             &changed.into_py_dict(py)?,
         )
     })?;
@@ -460,7 +472,7 @@ fn handle_userinfo(py: Python<'_>, player: Player, cmd: &str, vars: &str) -> PyR
 }
 
 fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
-    let player = Player::from_client_id(client_id, None);
+    let player = Bound::new(py, Player::from_client_id(client_id, None))?;
 
     let return_value = event_dispatcher(
         py,
@@ -468,11 +480,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         "could not get access to client command dispatcher",
     )
     .and_then(|client_command_dispatcher| {
-        ClientCommandDispatcherMethods::dispatch(
-            client_command_dispatcher.cast()?,
-            &Bound::new(py, player.to_owned())?,
-            cmd,
-        )
+        ClientCommandDispatcherMethods::dispatch(client_command_dispatcher.cast()?, &player, cmd)
     })?;
     if is_false(&return_value) {
         return Ok(blocked(py));
@@ -481,22 +489,22 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
     let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
 
     if let Some(msg) = chat_message(&RE_SAY, updated_cmd) {
-        return handle_say(py, player, &msg);
+        return handle_say(py, &player, &msg);
     }
     if let Some(msg) = chat_message(&RE_SAY_TEAM, updated_cmd) {
-        return handle_say_team(py, player, &msg);
+        return handle_say_team(py, &player, &msg);
     }
     if let Some((vote, args)) = callvote_parts(updated_cmd) {
-        return handle_callvote(py, player, updated_cmd, vote, args);
+        return handle_callvote(py, &player, updated_cmd, vote, args);
     }
     if let Some(arg) = captured(&RE_VOTE, "arg", updated_cmd) {
-        return handle_vote(py, player, updated_cmd, arg);
+        return handle_vote(py, &player, updated_cmd, arg);
     }
     if let Some(arg) = captured(&RE_TEAM, "arg", updated_cmd) {
-        return handle_team_switch(py, player, updated_cmd, arg);
+        return handle_team_switch(py, &player, updated_cmd, arg);
     }
     if let Some(vars) = captured(&RE_USERINFO, "vars", updated_cmd) {
-        return handle_userinfo(py, player, updated_cmd, vars);
+        return handle_userinfo(py, &player, updated_cmd, vars);
     }
 
     Ok(passed_on(py, updated_cmd))

@@ -192,33 +192,24 @@ impl Player {
         other: &Bound<'py, PyAny>,
         op: CompareOp,
     ) -> PyResult<Borrowed<'py, 'py, PyAny>> {
-        match op {
-            CompareOp::Eq => {
-                if let Ok(other_player) = other.extract::<Self>() {
-                    Ok(
-                        PyBool::new(slf.py(), slf.get().steam_id == other_player.steam_id)
-                            .into_any(),
-                    )
-                } else if let Ok(steam_id) = other.extract::<i64>() {
-                    Ok(PyBool::new(slf.py(), slf.get().steam_id == steam_id).into_any())
-                } else {
-                    Ok(PyBool::new(slf.py(), false).into_any())
-                }
-            }
-            CompareOp::Ne => {
-                if let Ok(other_player) = other.extract::<Self>() {
-                    Ok(
-                        PyBool::new(slf.py(), slf.get().steam_id != other_player.steam_id)
-                            .into_any(),
-                    )
-                } else if let Ok(steam_id) = other.extract::<i64>() {
-                    Ok(PyBool::new(slf.py(), slf.get().steam_id != steam_id).into_any())
-                } else {
-                    Ok(PyBool::new(slf.py(), true).into_any())
-                }
-            }
-            _ => Ok(PyNotImplemented::get(slf.py()).into_any()),
-        }
+        let negate = match op {
+            CompareOp::Eq => false,
+            CompareOp::Ne => true,
+            _ => return Ok(PyNotImplemented::get(slf.py()).into_any()),
+        };
+        let steam_id = slf.get().steam_id;
+        let equal = other
+            .cast::<Self>()
+            .map(|other_player| other_player.get().steam_id == steam_id)
+            .ok()
+            .or_else(|| {
+                other
+                    .extract::<i64>()
+                    .ok()
+                    .map(|other_steam_id| other_steam_id == steam_id)
+            })
+            .unwrap_or(false);
+        Ok(PyBool::new(slf.py(), equal != negate).into_any())
     }
 
     /// Update the player information with the latest data. If the player
@@ -662,16 +653,15 @@ impl Player {
         let players_info = pyshinqlx_players_info(cls.py())?;
         cls.py().detach(|| {
             Ok(players_info
-                .iter()
-                .filter_map(|opt_player_info| {
-                    opt_player_info.as_ref().map(|player_info| Player {
-                        valid: true.into(),
-                        id: player_info.client_id,
-                        user_info: player_info.userinfo.to_owned(),
-                        steam_id: player_info.steam_id,
-                        name: player_info.name.to_owned().into(),
-                        player_info: player_info.to_owned().into(),
-                    })
+                .into_iter()
+                .flatten()
+                .map(|player_info| Player {
+                    valid: true.into(),
+                    id: player_info.client_id,
+                    user_info: player_info.userinfo.to_owned(),
+                    steam_id: player_info.steam_id,
+                    name: player_info.name.to_owned().into(),
+                    player_info: player_info.into(),
                 })
                 .collect())
         })
