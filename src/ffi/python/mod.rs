@@ -13,6 +13,7 @@ mod flight;
 mod game;
 mod handlers;
 mod holdable;
+mod int_tuple;
 mod logging;
 mod module_registration;
 mod native_plugins;
