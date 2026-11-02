@@ -35,7 +35,8 @@ where
 {
     let pattern = ql_func.borrow().pattern();
     let mask = ql_func.borrow().mask();
-    (start..end).find(|i| {
+    let last_start = (end + 1).saturating_sub(pattern.len());
+    (start..last_start).find(|i| {
         (0..pattern.len())
             .filter(|j| mask[*j] == b'X')
             .all(|j| pattern[j] == unsafe { ptr::read((*i + j) as *const u8) })
@@ -238,7 +239,61 @@ mod quake_live_function_tests {
     use pretty_assertions::assert_eq;
     use rstest::*;
 
-    use super::QuakeLiveFunction;
+    use super::{QuakeLiveFunction, pattern_search};
+
+    const CMD_ARGC_BYTES: [u8; 7] = [0x8b, 0x05, 0x01, 0x02, 0x03, 0x04, 0xc3];
+
+    fn region_bounds(bytes: &[u8]) -> (usize, usize) {
+        let start = bytes.as_ptr() as usize;
+        (start, start + bytes.len())
+    }
+
+    #[test]
+    fn pattern_search_finds_a_pattern_in_the_middle_of_the_region() {
+        let mut bytes = vec![0x90; 16];
+        bytes[5..12].copy_from_slice(&CMD_ARGC_BYTES);
+        let (start, end) = region_bounds(&bytes);
+
+        assert_eq!(
+            pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
+            Some(start + 5)
+        );
+    }
+
+    #[test]
+    fn pattern_search_finds_a_pattern_at_the_very_end_of_the_region() {
+        let mut bytes = vec![0x90; 16];
+        bytes[9..].copy_from_slice(&CMD_ARGC_BYTES);
+        let (start, end) = region_bounds(&bytes);
+
+        assert_eq!(
+            pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
+            Some(start + 9)
+        );
+    }
+
+    #[test]
+    fn pattern_search_does_not_match_a_pattern_reaching_beyond_the_region() {
+        let mut bytes = vec![0x90; 16];
+        bytes[9..].copy_from_slice(&CMD_ARGC_BYTES);
+        let (start, end) = region_bounds(&bytes);
+
+        assert_eq!(
+            pattern_search(start, end - 1, QuakeLiveFunction::Cmd_Argc),
+            None
+        );
+    }
+
+    #[test]
+    fn pattern_search_in_a_region_shorter_than_the_pattern_finds_nothing() {
+        let bytes = [0x8b, 0x05, 0x01];
+        let (start, end) = region_bounds(&bytes);
+
+        assert_eq!(
+            pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
+            None
+        );
+    }
 
     #[rstest]
     #[case(QuakeLiveFunction::Com_Printf, "Com_Printf")]
