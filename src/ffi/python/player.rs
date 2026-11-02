@@ -129,28 +129,36 @@ impl PartialEq for Player {
     }
 }
 
-impl Player {
-    /// Creates a player for the client id. Without further information the player data is
-    /// read from the engine. Unlike `py_new` this cannot fail.
-    pub(crate) fn from_client_id(client_id: i32, info: Option<PlayerInfo>) -> Self {
-        let player_info = info.unwrap_or_else(|| PlayerInfo::from(client_id));
-
+impl From<PlayerInfo> for Player {
+    fn from(player_info: PlayerInfo) -> Self {
         // When a player connects, the name field in the client struct has yet to be initialized,
         // so we fall back to the userinfo and try parse it ourselves to get the name if needed.
         let name = if player_info.name.is_empty() {
-            let cvars = parse_variables(&player_info.userinfo);
-            cvars.get("name").unwrap_or_default()
+            parse_variables(&player_info.userinfo)
+                .get("name")
+                .unwrap_or_default()
         } else {
             player_info.name.to_owned()
         };
 
         Player {
             valid: true.into(),
-            id: client_id,
+            id: player_info.client_id,
             user_info: player_info.userinfo.to_owned(),
             steam_id: player_info.steam_id,
             player_info: player_info.into(),
             name: name.into(),
+        }
+    }
+}
+
+impl Player {
+    /// Creates a player for the client id. Without further information the player data is
+    /// read from the engine. Unlike `py_new` this cannot fail.
+    pub(crate) fn from_client_id(client_id: i32, info: Option<PlayerInfo>) -> Self {
+        Player {
+            id: client_id,
+            ..Player::from(info.unwrap_or_else(|| PlayerInfo::from(client_id)))
         }
     }
 }
@@ -655,14 +663,7 @@ impl Player {
             Ok(players_info
                 .into_iter()
                 .flatten()
-                .map(|player_info| Player {
-                    valid: true.into(),
-                    id: player_info.client_id,
-                    user_info: player_info.userinfo.to_owned(),
-                    steam_id: player_info.steam_id,
-                    name: player_info.name.to_owned().into(),
-                    player_info: player_info.into(),
-                })
+                .map(Player::from)
                 .collect())
         })
     }
@@ -1829,6 +1830,17 @@ mod pyshinqlx_player_tests {
                     }
                 );
             });
+    }
+
+    #[test]
+    fn player_from_player_info_with_empty_name_uses_the_userinfo_name() {
+        let player = Player::from(PlayerInfo {
+            userinfo: r"\name\UnnamedPlayer".to_string(),
+            ..default_test_player_info()
+        });
+
+        assert_eq!(*player.name.read(), "UnnamedPlayer");
+        assert_eq!(player.id, default_test_player_info().client_id);
     }
 
     #[test]

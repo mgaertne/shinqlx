@@ -172,17 +172,10 @@ where
 {
     pyshinqlx_players_info(py).ok().and_then(|players_info| {
         players_info
-            .iter()
+            .into_iter()
             .flatten()
             .find(|player_info| predicate(player_info))
-            .map(|player_info| Player {
-                valid: true.into(),
-                id: player_info.client_id,
-                user_info: player_info.userinfo.to_owned(),
-                steam_id: player_info.steam_id,
-                name: player_info.name.to_owned().into(),
-                player_info: player_info.to_owned().into(),
-            })
+            .map(Player::from)
     })
 }
 
