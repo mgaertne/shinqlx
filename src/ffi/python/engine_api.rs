@@ -14,8 +14,24 @@ use crate::hooks::shinqlx_set_configstring;
 use crate::{
     MAIN_ENGINE,
     ffi::c::prelude::*,
+    prelude::QuakeLiveEngine,
     quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarForced},
 };
+
+/// Runs the action with the main engine or raises an `EnvironmentError` if it is not set.
+pub(crate) fn with_main_engine<T>(
+    action: impl FnOnce(&QuakeLiveEngine) -> PyResult<T>,
+) -> PyResult<T> {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
+            cold_path();
+            Err(PyEnvironmentError::new_err(
+                "main quake live engine not set",
+            ))
+        },
+        |main_engine| action(main_engine),
+    )
+}
 
 pub(crate) fn client_id(
     py: Python<'_>,
@@ -60,61 +76,37 @@ pub(crate) fn client_id(
 }
 
 pub(crate) fn get_cvar(cvar: &str) -> PyResult<Option<String>> {
-    MAIN_ENGINE.load().as_ref().map_or_else(
-        || {
-            cold_path();
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ))
-        },
-        |main_engine| {
-            Ok(main_engine
-                .find_cvar(cvar)
-                .map(|cvar_result| cvar_result.get_string()))
-        },
-    )
+    with_main_engine(|main_engine| {
+        Ok(main_engine
+            .find_cvar(cvar)
+            .map(|cvar_result| cvar_result.get_string()))
+    })
 }
 
 pub(crate) fn set_cvar(cvar: &str, value: &str, flags: Option<i32>) -> PyResult<bool> {
-    MAIN_ENGINE.load().as_ref().map_or_else(
-        || {
-            cold_path();
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ))
-        },
-        |main_engine| {
-            main_engine.find_cvar(cvar).as_ref().map_or_else(
-                || {
-                    main_engine.get_cvar(cvar, value, flags);
-                    Ok(true)
-                },
-                |_| {
-                    main_engine.set_cvar_forced(
-                        cvar,
-                        value,
-                        flags.is_some_and(|unwrapped_flags| unwrapped_flags == -1),
-                    );
-                    Ok(false)
-                },
-            )
-        },
-    )
+    with_main_engine(|main_engine| {
+        main_engine.find_cvar(cvar).as_ref().map_or_else(
+            || {
+                main_engine.get_cvar(cvar, value, flags);
+                Ok(true)
+            },
+            |_| {
+                main_engine.set_cvar_forced(
+                    cvar,
+                    value,
+                    flags.is_some_and(|unwrapped_flags| unwrapped_flags == -1),
+                );
+                Ok(false)
+            },
+        )
+    })
 }
 
 pub(crate) fn console_command(cmd: &str) -> PyResult<()> {
-    MAIN_ENGINE.load().as_ref().map_or_else(
-        || {
-            cold_path();
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ))
-        },
-        |main_engine| {
-            main_engine.execute_console_command(cmd);
-            Ok(())
-        },
-    )
+    with_main_engine(|main_engine| {
+        main_engine.execute_console_command(cmd);
+        Ok(())
+    })
 }
 
 pub(crate) fn get_configstring(index: u16) -> PyResult<String> {
@@ -126,15 +118,7 @@ pub(crate) fn get_configstring(index: u16) -> PyResult<String> {
         )));
     }
 
-    MAIN_ENGINE.load().as_ref().map_or_else(
-        || {
-            cold_path();
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ))
-        },
-        |main_engine| Ok(main_engine.get_configstring(index)),
-    )
+    with_main_engine(|main_engine| Ok(main_engine.get_configstring(index)))
 }
 
 pub(crate) fn set_configstring(index: u16, value: &str) -> PyResult<()> {

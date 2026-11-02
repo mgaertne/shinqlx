@@ -1,9 +1,7 @@
-use core::hint::cold_path;
-
-use pyo3::exceptions::PyEnvironmentError;
-
 use crate::{
-    MAIN_ENGINE, commands::cmd_py_command, ffi::python::prelude::*, quake_live_engine::AddCommand,
+    commands::cmd_py_command,
+    ffi::python::{prelude::*, with_main_engine},
+    quake_live_engine::AddCommand,
 };
 
 /// Adds a console command that will be handled by Python code.
@@ -11,19 +9,11 @@ use crate::{
 #[pyo3(name = "add_console_command")]
 pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     py.detach(|| {
-        MAIN_ENGINE.load().as_ref().map_or_else(
-            || {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                ))
-            },
-            |main_engine| {
-                main_engine.add_command(command, cmd_py_command);
+        with_main_engine(|main_engine| {
+            main_engine.add_command(command, cmd_py_command);
 
-                Ok(())
-            },
-        )
+            Ok(())
+        })
     })
 }
 

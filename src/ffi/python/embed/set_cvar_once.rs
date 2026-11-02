@@ -1,10 +1,5 @@
-use core::hint::cold_path;
-
-use pyo3::exceptions::PyEnvironmentError;
-
 use crate::{
-    MAIN_ENGINE,
-    ffi::python::prelude::*,
+    ffi::python::{prelude::*, with_main_engine},
     quake_live_engine::{FindCVar, GetCVar},
 };
 
@@ -20,22 +15,14 @@ pub(crate) fn pyshinqlx_set_cvar_once(
 ) -> PyResult<bool> {
     let value_string = value.to_string();
     py.detach(|| {
-        MAIN_ENGINE.load().as_ref().map_or_else(
-            || {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                ))
-            },
-            |main_engine| {
-                if main_engine.find_cvar(cvar).is_some() {
-                    return Ok(false);
-                }
+        with_main_engine(|main_engine| {
+            if main_engine.find_cvar(cvar).is_some() {
+                return Ok(false);
+            }
 
-                main_engine.get_cvar(cvar, &value_string, Some(flags));
-                Ok(true)
-            },
-        )
+            main_engine.get_cvar(cvar, &value_string, Some(flags));
+            Ok(true)
+        })
     })
 }
 

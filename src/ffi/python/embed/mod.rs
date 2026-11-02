@@ -69,10 +69,7 @@ pub(crate) use player_spawn::pyshinqlx_player_spawn;
 pub(crate) use player_state::pyshinqlx_player_state;
 pub(crate) use player_stats::pyshinqlx_player_stats;
 pub(crate) use players_info::pyshinqlx_players_info;
-use pyo3::{
-    PyResult,
-    exceptions::{PyEnvironmentError, PyValueError},
-};
+use pyo3::{PyResult, exceptions::PyValueError};
 pub(crate) use register_handler::pyshinqlx_register_handler;
 pub(crate) use remove_dropped_items::pyshinqlx_remove_dropped_items;
 pub(crate) use replace_items::pyshinqlx_replace_items;
@@ -98,18 +95,10 @@ pub(crate) use set_weapons::pyshinqlx_set_weapons;
 pub(crate) use slay_with_mod::pyshinqlx_slay_with_mod;
 pub(crate) use spawn_item::pyshinqlx_spawn_item;
 
-use crate::MAIN_ENGINE;
+use crate::ffi::python::with_main_engine;
 
 fn validate_client_id(client_id: i32) -> PyResult<()> {
-    let maxclients = MAIN_ENGINE.load().as_ref().map_or_else(
-        || {
-            cold_path();
-            Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ))
-        },
-        |main_engine| Ok(main_engine.get_max_clients()),
-    )?;
+    let maxclients = with_main_engine(|main_engine| Ok(main_engine.get_max_clients()))?;
     if !(0..maxclients).contains(&client_id) {
         cold_path();
         return Err(PyValueError::new_err(format!(

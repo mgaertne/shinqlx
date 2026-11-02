@@ -1,26 +1,15 @@
-use core::hint::cold_path;
-
-use pyo3::exceptions::PyEnvironmentError;
 use tap::TryConv;
 
-use crate::{
-    MAIN_ENGINE,
-    ffi::{c::prelude::*, python::prelude::*},
+use crate::ffi::{
+    c::prelude::*,
+    python::{prelude::*, with_main_engine},
 };
 
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
 pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     py.detach(|| {
-        let maxclients = MAIN_ENGINE.load().as_ref().map_or_else(
-            || {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                ))
-            },
-            |main_engine| Ok(main_engine.get_max_clients()),
-        )?;
+        let maxclients = with_main_engine(|main_engine| Ok(main_engine.get_max_clients()))?;
 
         Ok((0..maxclients)
             .filter_map(|client_id| {

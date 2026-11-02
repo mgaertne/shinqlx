@@ -1,11 +1,8 @@
-use core::hint::cold_path;
-
-use pyo3::exceptions::PyEnvironmentError;
 use tap::TryConv;
 
-use crate::{
-    MAIN_ENGINE,
-    ffi::{c::prelude::*, python::prelude::*},
+use crate::ffi::{
+    c::prelude::*,
+    python::{prelude::*, with_main_engine},
 };
 
 /// Forces the current vote to either fail or pass.
@@ -21,29 +18,21 @@ pub(crate) fn pyshinqlx_force_vote(py: Python<'_>, _pass: bool) -> PyResult<bool
             return Ok(false);
         }
 
-        MAIN_ENGINE.load().as_ref().map_or_else(
-            || {
-                cold_path();
-                Err(PyEnvironmentError::new_err(
-                    "main quake live engine not set",
-                ))
-            },
-            |main_engine| {
-                let maxclients = main_engine.get_max_clients();
+        with_main_engine(|main_engine| {
+            let maxclients = main_engine.get_max_clients();
 
-                (0..maxclients)
-                    .filter(|i| {
-                        (*i).try_conv::<Client>()
-                            .ok()
-                            .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
-                            .is_some()
-                    })
-                    .filter_map(|client_id| client_id.try_conv::<GameEntity>().ok())
-                    .filter_map(|game_entity| game_entity.get_game_client().ok())
-                    .for_each(|mut game_client| game_client.set_vote_state(_pass));
-                Ok(true)
-            },
-        )
+            (0..maxclients)
+                .filter(|i| {
+                    (*i).try_conv::<Client>()
+                        .ok()
+                        .filter(|client| client.get_state() == clientState_t::CS_ACTIVE)
+                        .is_some()
+                })
+                .filter_map(|client_id| client_id.try_conv::<GameEntity>().ok())
+                .filter_map(|game_entity| game_entity.get_game_client().ok())
+                .for_each(|mut game_client| game_client.set_vote_state(_pass));
+            Ok(true)
+        })
     })
 }
 
