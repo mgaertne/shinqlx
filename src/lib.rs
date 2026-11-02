@@ -188,6 +188,14 @@ mod lib_tests {
 
     #[test]
     #[cfg_attr(miri, ignore)]
+    fn the_shipped_log_configuration_is_a_valid_log4rs_configuration() {
+        let config = log4rs::config::load_config_file("shinqlx_log.yml", Default::default());
+
+        assert!(config.is_ok(), "{config:?}");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn test_initialize_logging_default() {
         let config_path = Path::new("./shinqlx_log.yml");
