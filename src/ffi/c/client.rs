@@ -144,8 +144,8 @@ mod client_tests {
     };
     use std::sync::OnceLock;
 
+    use detour::TypedDetour;
     use pretty_assertions::assert_eq;
-    use retour::GenericDetour;
 
     use super::Client;
     use crate::{ffi::c::prelude::*, prelude::*, quake_live_functions::QuakeLiveFunction};
@@ -368,7 +368,7 @@ mod client_tests {
             reason = "spells out the detour type of the engine function"
         )
     )]
-    static SV_DROPCLIENT_DETOUR: OnceLock<GenericDetour<fn(*mut client_t, *const c_char)>> =
+    static SV_DROPCLIENT_DETOUR: OnceLock<TypedDetour<fn(*mut client_t, *const c_char)>> =
         OnceLock::new();
 
     #[test]
@@ -380,7 +380,7 @@ mod client_tests {
             .expect("this should not happen");
 
         let sv_dropclient_detour = unsafe {
-            GenericDetour::<fn(*mut client_t, *const c_char)>::new(
+            TypedDetour::<fn(*mut client_t, *const c_char)>::new(
                 MockSV_DropcClient::original_func,
                 MockSV_DropcClient::replacement_func,
             )

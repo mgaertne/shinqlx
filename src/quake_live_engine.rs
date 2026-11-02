@@ -8,12 +8,12 @@ use std::sync::OnceLock;
 
 use arc_swap::ArcSwapOption;
 use derive_new::new;
+use detour::{RawDetour, TypedDetour};
 #[cfg(test)]
 use mockall::predicate;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use rayon::prelude::*;
-use retour::{GenericDetour, RawDetour};
 use tap::{Conv, TapFallible, TapOptional};
 
 #[cfg(target_os = "linux")]
@@ -100,23 +100,23 @@ struct StaticFunctions {
 
 #[derive(Debug)]
 struct StaticDetours {
-    cmd_addcommand_detour: GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
-    sys_setmoduleoffset_detour: GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
+    cmd_addcommand_detour: TypedDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
+    sys_setmoduleoffset_detour: TypedDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
     sv_executeclientcommand_detour:
-        GenericDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
-    sv_cliententerworld_detour: GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>,
-    sv_setconfgistring_detour: GenericDetour<extern "C" fn(c_int, *const c_char)>,
-    sv_dropclient_detour: GenericDetour<extern "C" fn(*mut client_t, *const c_char)>,
-    sv_spawnserver_detour: GenericDetour<extern "C" fn(*mut c_char, qboolean)>,
+        TypedDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
+    sv_cliententerworld_detour: TypedDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>,
+    sv_setconfgistring_detour: TypedDetour<extern "C" fn(c_int, *const c_char)>,
+    sv_dropclient_detour: TypedDetour<extern "C" fn(*mut client_t, *const c_char)>,
+    sv_spawnserver_detour: TypedDetour<extern "C" fn(*mut c_char, qboolean)>,
     sv_sendservercommand_detour: RawDetour,
     com_printf_detour: RawDetour,
 }
 
-type ClientSpawnDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
+type ClientSpawnDetourType = TypedDetour<extern "C" fn(*mut gentity_t)>;
 type ClientConnectDetourType =
-    GenericDetour<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>;
-type GStartKamikazeDetourType = GenericDetour<extern "C" fn(*mut gentity_t)>;
-type GDamageDetourType = GenericDetour<
+    TypedDetour<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>;
+type GStartKamikazeDetourType = TypedDetour<extern "C" fn(*mut gentity_t)>;
+type GDamageDetourType = TypedDetour<
     extern "C" fn(
         *mut gentity_t,
         *mut gentity_t,
@@ -455,7 +455,9 @@ impl VmFunctions {
             return;
         }
 
-        patch_callvote_f(cmd_callvote_f_orig);
+        let _ = patch_callvote_f(cmd_callvote_f_orig).tap_err(|e| {
+            error!(target: "shinqlx", "could not patch the callvote command at {cmd_callvote_f_orig:#x}: {e}");
+        });
     }
 
     pub(crate) fn unhook(&self) {
@@ -1662,7 +1664,7 @@ impl QuakeLiveEngine {
     fn cmd_addcommand_detour(
         &self,
     ) -> Result<
-        &GenericDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
+        &TypedDetour<extern "C" fn(*const c_char, unsafe extern "C" fn())>,
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or_else(
@@ -1679,7 +1681,7 @@ impl QuakeLiveEngine {
     fn sys_setmoduleoffset_detour(
         &self,
     ) -> Result<
-        &GenericDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
+        &TypedDetour<extern "C" fn(*mut c_char, unsafe extern "C" fn())>,
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or_else(
@@ -1696,7 +1698,7 @@ impl QuakeLiveEngine {
     fn sv_executeclientcommand_detour(
         &self,
     ) -> Result<
-        &GenericDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
+        &TypedDetour<extern "C" fn(*mut client_t, *const c_char, qboolean)>,
         QuakeLiveEngineError,
     > {
         self.static_detours.get().map_or_else(
@@ -1712,7 +1714,7 @@ impl QuakeLiveEngine {
 
     fn sv_cliententerworld_detour(
         &self,
-    ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError>
+    ) -> Result<&TypedDetour<extern "C" fn(*mut client_t, *mut usercmd_t)>, QuakeLiveEngineError>
     {
         self.static_detours.get().map_or_else(
             || {
@@ -1727,7 +1729,7 @@ impl QuakeLiveEngine {
 
     fn sv_setconfgistring_detour(
         &self,
-    ) -> Result<&GenericDetour<extern "C" fn(c_int, *const c_char)>, QuakeLiveEngineError> {
+    ) -> Result<&TypedDetour<extern "C" fn(c_int, *const c_char)>, QuakeLiveEngineError> {
         self.static_detours.get().map_or_else(
             || {
                 cold_path();
@@ -1741,7 +1743,7 @@ impl QuakeLiveEngine {
 
     pub(crate) fn sv_dropclient_detour(
         &self,
-    ) -> Result<&GenericDetour<extern "C" fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>
+    ) -> Result<&TypedDetour<extern "C" fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>
     {
         self.static_detours.get().map_or_else(
             || {
@@ -1756,7 +1758,7 @@ impl QuakeLiveEngine {
 
     fn sv_spawnserver_detour(
         &self,
-    ) -> Result<&GenericDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
+    ) -> Result<&TypedDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
         self.static_detours.get().map_or_else(
             || {
                 cold_path();
@@ -3397,7 +3399,7 @@ mod quake_live_engine_tests {
 mod quake_live_engine_test_helpers {
     use core::ffi::{c_char, c_int};
 
-    use retour::{GenericDetour, RawDetour};
+    use detour::{RawDetour, TypedDetour};
 
     use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, mock_quake_functions::*};
     use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
@@ -3432,21 +3434,21 @@ mod quake_live_engine_test_helpers {
     pub(crate) fn default_static_detours() -> StaticDetours {
         StaticDetours {
             cmd_addcommand_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     Cmd_AddCommand as extern "C" fn(*const c_char, unsafe extern "C" fn()),
                     detoured_Cmd_AddCommand,
                 )
             }
             .expect("this should not happen"),
             sys_setmoduleoffset_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     Sys_SetModuleOffset as extern "C" fn(*mut c_char, unsafe extern "C" fn()),
                     detoured_Sys_SetModuleOffset,
                 )
             }
             .expect("this should not happen"),
             sv_executeclientcommand_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     SV_ExecuteClientCommand
                         as extern "C" fn(*mut client_t, *const c_char, qboolean),
                     detoured_SV_ExecuteClientCommand,
@@ -3454,28 +3456,28 @@ mod quake_live_engine_test_helpers {
             }
             .expect("this should not happen"),
             sv_cliententerworld_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     SV_ClientEnterWorld as extern "C" fn(*mut client_t, *mut usercmd_t),
                     detoured_SV_ClientEnterWorld,
                 )
             }
             .expect("this should not happen"),
             sv_setconfgistring_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     SV_SetConfigstring as extern "C" fn(c_int, *const c_char),
                     detoured_SV_SetConfigstring,
                 )
             }
             .expect("this should not happen"),
             sv_dropclient_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     SV_DropClient as extern "C" fn(*mut client_t, *const c_char),
                     detoured_SV_DropClient,
                 )
             }
             .expect("this should not happen"),
             sv_spawnserver_detour: unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     SV_SpawnServer as extern "C" fn(*mut c_char, qboolean),
                     detoured_SV_SpawnServer,
                 )
@@ -3904,7 +3906,7 @@ impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
         let _ = self
             .sv_sendservercommand_detour()
             .map(|detour| unsafe {
-                mem::transmute::<&(), extern "C" fn(*const client_t, *const c_char, ...)>(
+                mem::transmute::<*const (), extern "C" fn(*const client_t, *const c_char, ...)>(
                     detour.trampoline(),
                 )
             })
@@ -4118,7 +4120,7 @@ impl ComPrintf for QuakeLiveEngine {
         let _ = self
             .com_printf_detour()
             .map(|detour| unsafe {
-                mem::transmute::<&(), extern "C" fn(*const c_char, ...)>(detour.trampoline())
+                mem::transmute::<*const (), extern "C" fn(*const c_char, ...)>(detour.trampoline())
             })
             .tap_ok(|original_func| {
                 let _ = CString::new(msg).tap_ok(|c_msg| {
@@ -4294,8 +4296,8 @@ impl<T: Into<c_int>, U: Into<qboolean>, V: Into<qboolean>> ClientConnect<T, U, V
 mod client_connect_quake_live_engine_tests {
     use core::ffi::{CStr, c_char, c_int};
 
+    use detour::TypedDetour;
     use pretty_assertions::assert_eq;
-    use retour::GenericDetour;
     use tap::Conv;
 
     use super::{
@@ -4335,7 +4337,7 @@ mod client_connect_quake_live_engine_tests {
         };
         quake_engine.vm_functions.client_connect_detour.store(Some(
             unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     ClientConnect as extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
                     detoured_ClientConnect,
                 )
@@ -4371,7 +4373,7 @@ impl<T: AsMut<gentity_t>> ClientSpawn<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod client_spawn_quake_live_engine_tests {
-    use retour::GenericDetour;
+    use detour::TypedDetour;
 
     use super::{
         ClientSpawn, QuakeLiveEngine,
@@ -4416,7 +4418,7 @@ mod client_spawn_quake_live_engine_tests {
         };
         quake_engine.vm_functions.client_spawn_detour.store(Some(
             unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     ClientSpawn as extern "C" fn(*mut gentity_t),
                     detoured_ClientSpawn,
                 )
@@ -5248,7 +5250,7 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> RegisterDamage<T, U, V> for
 mod register_damage_quake_live_engine_tests {
     use core::{ffi::c_int, ptr};
 
-    use retour::GenericDetour;
+    use detour::TypedDetour;
 
     use super::{
         QuakeLiveEngine, RegisterDamage,
@@ -5306,7 +5308,7 @@ mod register_damage_quake_live_engine_tests {
         };
         quake_engine.vm_functions.g_damage_detour.store(Some(
             unsafe {
-                GenericDetour::new(
+                TypedDetour::new(
                     G_Damage
                         as extern "C" fn(
                             *mut gentity_t,
@@ -5573,7 +5575,7 @@ impl<T: AsMut<gentity_t>> StartKamikaze<T> for QuakeLiveEngine {
 
 #[cfg(test)]
 mod start_kamikaze_quake_live_engine_tests {
-    use retour::GenericDetour;
+    use detour::TypedDetour;
 
     use super::{
         QuakeLiveEngine, StartKamikaze,
@@ -5622,7 +5624,7 @@ mod start_kamikaze_quake_live_engine_tests {
             .g_start_kamikaze_detour
             .store(Some(
                 unsafe {
-                    GenericDetour::new(
+                    TypedDetour::new(
                         G_StartKamikaze as extern "C" fn(*mut gentity_t),
                         detoured_G_StartKamikaze,
                     )
@@ -5665,7 +5667,7 @@ mockall::mock! {
             QuakeLiveEngineError,
         >;
         #[allow(clippy::type_complexity, reason = "spells out the detour type of the engine function")]
-        pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static GenericDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
+        pub(crate) fn sv_dropclient_detour(&self) -> Result<&'static TypedDetour<fn(*mut client_t, *const c_char)>, QuakeLiveEngineError>;
         pub(crate) fn sv_shutdown_orig(&self) -> Result<fn(*const c_char), QuakeLiveEngineError>;
     }
     impl AddCommand<&str> for QuakeEngine {
