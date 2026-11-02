@@ -586,11 +586,13 @@ mod hooks_tests {
     use tap::Conv;
 
     use super::{
-        shinqlx_client_connect, shinqlx_client_spawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
+        ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect,
+        shinqlx_client_spawn, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
         shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
         shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
         shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
-        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring,
+        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
     use crate::{
         ffi::{
@@ -2015,5 +2017,298 @@ mod hooks_tests {
                     2,
                 );
             });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn com_printf_formats_the_variable_arguments() {
+        let console_print_dispatcher_ctx = console_print_dispatcher_context();
+        console_print_dispatcher_ctx
+            .expect()
+            .with(predicate::eq("Hello 42 world"))
+            .return_const(Some("Hello 42 world".to_string()))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::eq("Hello 42 world"), 1)
+            .run(|| unsafe {
+                ShiNQlx_Com_Printf(c"Hello %d %s".as_ptr(), 42 as c_int, c"world".as_ptr());
+            });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn com_printf_with_empty_message_is_not_forwarded() {
+        let console_print_dispatcher_ctx = console_print_dispatcher_context();
+        console_print_dispatcher_ctx.expect().times(0);
+
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::always(), 0)
+            .run(|| unsafe {
+                ShiNQlx_Com_Printf(c"".as_ptr());
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn send_server_command_formats_arguments_for_null_client(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
+        server_command_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(None), predicate::eq("cp 7".to_string()))
+            .return_const(Some("cp 7".to_string()))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_send_server_command(|client, cmd| client.is_none() && cmd == "cp 7", 1)
+            .run(|| unsafe {
+                ShiNQlx_SV_SendServerCommand(ptr::null_mut(), c"cp %d".as_ptr(), 7 as c_int);
+            });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn send_server_command_formats_arguments_for_valid_client() {
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_has_gentity()
+            .return_const(false)
+            .times(1);
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_send_server_command(|client, cmd| client.is_some() && cmd == "print hi", 1)
+            .run(|| unsafe {
+                ShiNQlx_SV_SendServerCommand(
+                    client.borrow_mut(),
+                    c"print %s".as_ptr(),
+                    c"hi".as_ptr(),
+                );
+            });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn send_server_command_for_invalid_client_is_not_forwarded() {
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::NullPointerPassed("null".to_string())));
+
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 0)
+            .run(|| unsafe {
+                ShiNQlx_SV_SendServerCommand(client.borrow_mut(), c"print hi".as_ptr());
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn send_server_command_with_empty_cmd_is_not_forwarded() {
+        MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 0)
+            .run(|| {
+                shinqlx_send_server_command(None, "");
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn execute_client_command_with_empty_cmd_is_not_forwarded() {
+        MockEngineBuilder::default()
+            .with_execute_client_command(|_client, _cmd, _client_ok| true, 0)
+            .run(|| {
+                shinqlx_execute_client_command(None, "", true);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_executeclientcommand_forwards_valid_client() {
+        let mut mock_client = MockClient::new();
+        mock_client
+            .expect_has_gentity()
+            .return_const(false)
+            .times(1);
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_execute_client_command(
+                |client, cmd, &client_ok| client.is_some() && cmd == "cp asdf" && client_ok.into(),
+                1,
+            )
+            .run(|| {
+                shinqlx_sv_executeclientcommand(
+                    client.borrow_mut(),
+                    c"cp asdf".as_ptr(),
+                    qboolean::qtrue,
+                );
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sys_setmoduleoffset_for_unknown_module_still_sets_the_offset() {
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_module_offset()
+                    .withf(|module_name, _offset| module_name == "other")
+                    .times(1);
+                mock_engine
+                    .expect_initialize_vm()
+                    .returning(|_offset| Ok(()))
+                    .times(1);
+            })
+            .run(|| {
+                shinqlx_sys_setmoduleoffset(c"other".as_ptr().cast_mut(), dummy_function);
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    fn sv_set_configstring_with_null_value_uses_empty_string(
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
+        set_configstring_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(42), predicate::eq(""))
+            .return_const(None)
+            .times(1);
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_set_configstring().times(0);
+            })
+            .run(|| {
+                shinqlx_sv_setconfigstring(42 as c_int, ptr::null());
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    fn sv_set_configstring_with_negative_index_is_ignored(
+        set_configstring_dispatcher_ctx: __set_configstring_dispatcher::Context,
+    ) {
+        set_configstring_dispatcher_ctx.expect().times(0);
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_set_configstring().times(0);
+            })
+            .run(|| {
+                shinqlx_sv_setconfigstring(-1 as c_int, c"value".as_ptr());
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_dropclient_dispatches_and_disconnects_valid_client() {
+        let mut mock_client = MockClient::new();
+        mock_client.expect_get_client_id().return_const(42);
+        mock_client
+            .expect_disconnect()
+            .with(predicate::eq("bye"))
+            .times(1);
+        let client_try_from_ctx = MockClient::try_from_context();
+        client_try_from_ctx
+            .expect()
+            .return_once_st(|_| Ok(mock_client));
+
+        let client_disconnect_dispatcher_ctx = client_disconnect_dispatcher_context();
+        client_disconnect_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(42), predicate::eq("bye"))
+            .times(1);
+
+        let mut client = ClientBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        shinqlx_sv_dropclient(client.borrow_mut(), c"bye".as_ptr());
+    }
+
+    #[test]
+    #[serial]
+    fn sv_spawnserver_with_empty_server_name_is_ignored() {
+        let new_game_dispatcher_ctx = new_game_dispatcher_context();
+        new_game_dispatcher_ctx.expect().times(0);
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_spawn_server().times(0);
+            })
+            .run(|| {
+                shinqlx_sv_spawnserver(c"".as_ptr().cast_mut(), qboolean::qfalse);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn clientspawn_forwards_valid_entity() {
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().return_once_st(|_| {
+            let mut mock_entity = MockGameEntity::new();
+            mock_entity.expect_get_entity_id().return_const(42);
+            Ok(mock_entity)
+        });
+        let client_spawn_dispatcher_ctx = client_spawn_dispatcher_context();
+        client_spawn_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(42))
+            .times(1);
+
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_client_spawn().times(1);
+            })
+            .run(|| {
+                shinqlx_clientspawn(gentity.borrow_mut() as *mut gentity_t);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn kamikaze_start_for_invalid_entity_is_ignored() {
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx
+            .expect()
+            .return_once_st(|_| Err(QuakeLiveEngineError::NullPointerPassed("null".to_string())));
+        let kamikaze_use_dispatcher_ctx = kamikaze_use_dispatcher_context();
+        kamikaze_use_dispatcher_ctx.expect().times(0);
+
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        shinqlx_g_startkamikaze(gentity.borrow_mut() as *mut gentity_t);
     }
 }
