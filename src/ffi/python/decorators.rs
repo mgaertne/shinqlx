@@ -1,5 +1,7 @@
+use core::hint::cold_path;
+
 use pyo3::{
-    exceptions::{PyAttributeError, PyTypeError},
+    exceptions::{PyAttributeError, PyTypeError, PyValueError},
     intern,
     prelude::*,
     types::{PyCFunction, PyDict, PyTuple},
@@ -7,6 +9,7 @@ use pyo3::{
 
 use super::{
     commands::CommandPriorities,
+    deferred::{Deferral, DeferredCall},
     plugin::{Plugin, PluginMethods},
 };
 
@@ -248,6 +251,58 @@ pub(crate) fn register_decorated_handlers(plugin: &Bound<'_, PyAny>) -> PyResult
     }
 
     Ok(())
+}
+
+#[pyfunction]
+pub(super) fn next_frame<'py>(func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+    if !func.is_callable() {
+        cold_path();
+        return Err(PyValueError::new_err(
+            "func has to be a callable Python function",
+        ));
+    }
+
+    DeferredCall::wrap(func, Deferral::NextFrame)
+}
+
+/// Delay a function call a certain amount of time.
+///
+///     .. note::
+///         It cannot guarantee you that it will be called right as the timer
+///         expires, but unless some plugin is for some reason blocking, then
+///         you can expect it to be called practically as soon as it expires.
+#[pyfunction]
+pub(super) fn delay<'py>(py: Python<'py>, time: f64) -> PyResult<Bound<'py, PyAny>> {
+    PyCFunction::new_closure(
+        py,
+        Some(c"delay_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let func = only_handler(arguments)?;
+            if !func.is_callable() {
+                cold_path();
+                return Err(PyValueError::new_err("'func' must be callable"));
+            }
+
+            DeferredCall::wrap(&func, Deferral::Delay(time)).map(Bound::unbind)
+        },
+    )
+    .map(Bound::into_any)
+}
+
+/// Starts a thread with the function passed as its target. If a function decorated
+/// with this is called within a function also decorated, it will **not** create a second
+/// thread unless told to do so with the *force* keyword.
+#[pyfunction]
+pub(super) fn thread<'py>(func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+    if !func.is_callable() {
+        cold_path();
+        return Err(PyValueError::new_err(
+            "func has to be a callable Python function",
+        ));
+    }
+
+    DeferredCall::wrap(func, Deferral::Thread)
 }
 
 #[cfg(test)]
@@ -635,6 +690,329 @@ mod decorator_signature_tests {
             let result = register_decorated_handlers(&plugin);
 
             assert!(result.is_err());
+        });
+    }
+}
+#[cfg(test)]
+mod next_frame_tests {
+    use pyo3::{intern, prelude::*, types::PyBool};
+    use rstest::rstest;
+
+    use crate::{
+        ffi::python::{pyshinqlx_setup_fixture::*, pyshinqlx_test_support::run_all_frame_tasks},
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn next_frame_enqueues_function_call(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = py.run(
+                cr#"
+import shinqlx
+
+@shinqlx.next_frame
+def test_func():
+    pass
+
+test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let next_frame_tasks = shinqlx_module
+                .getattr(intern!(py, "next_frame_tasks"))
+                .expect("this should not happen");
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| !bool_value.is_true()))
+            );
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "get_nowait"))
+                    .is_ok()
+            );
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn next_frame_enqueues_function_call_on_an_instance_method(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = py.run(
+                cr#"
+import shinqlx
+
+class TestClass:
+    @shinqlx.next_frame
+    def test_func(self):
+        pass
+
+TestClass().test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let result2 = run_all_frame_tasks(py);
+            assert!(result2.is_ok());
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let next_frame_tasks = shinqlx_module
+                .getattr(intern!(py, "next_frame_tasks"))
+                .expect("this should not happen");
+            assert!(
+                next_frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
+        });
+    }
+}
+
+#[cfg(test)]
+mod delay_tests {
+    use pretty_assertions::assert_eq;
+    use pyo3::{intern, prelude::*, types::PyBool};
+    use rstest::rstest;
+
+    use crate::{ffi::python::pyshinqlx_setup_fixture::*, prelude::*};
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn delay_enqueues_function_call(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = py.run(
+                cr#"
+import shinqlx
+
+@shinqlx.delay(10)
+def test_func():
+    pass
+
+test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let frame_tasks = shinqlx_module
+                .getattr(intern!(py, "frame_tasks"))
+                .expect("this should not happen");
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| !bool_value.is_true()))
+            );
+            let scheduler_queue = frame_tasks
+                .getattr(intern!(py, "queue"))
+                .expect("this should not happen");
+            assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
+            let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
+            let _ = frame_tasks.call_method1(intern!(py, "cancel"), (queue_entry,));
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn delay_with_float_delay(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = py.run(
+                cr#"
+import shinqlx
+
+@shinqlx.delay(5.5)
+def test_func():
+    pass
+
+test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let shinqlx_module = py
+                .import(intern!(py, "shinqlx"))
+                .expect("this should not happen");
+            let frame_tasks = shinqlx_module
+                .getattr(intern!(py, "frame_tasks"))
+                .expect("this should not happen");
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| !bool_value.is_true()))
+            );
+            let scheduler_queue = frame_tasks
+                .getattr(intern!(py, "queue"))
+                .expect("this should not happen");
+            assert_eq!(scheduler_queue.len().expect("this should not happen"), 1);
+            let queue_entry = scheduler_queue.get_item(0).expect("this should not happen");
+            let _ = frame_tasks.call_method1(intern!(py, "cancel"), (queue_entry,));
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn delay_enqueues_function_call_for_class_method(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = py.run(
+                cr#"
+import shinqlx
+
+class TestClass:
+    @shinqlx.delay(0.0001)
+    def test_func(self):
+        pass
+
+TestClass().test_func()
+"#,
+                None,
+                None,
+            );
+            assert!(result.is_ok());
+
+            let frame_tasks = py
+                .import(intern!(py, "shinqlx"))
+                .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "frame_tasks")))
+                .expect("this should not happen");
+            let sched_result = frame_tasks.call_method0(intern!(py, "run"));
+            assert!(sched_result.is_ok());
+            assert!(
+                frame_tasks
+                    .call_method0(intern!(py, "empty"))
+                    .is_ok_and(|value| value
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true()))
+            );
+        });
+    }
+}
+
+#[cfg(test)]
+mod thread_tests {
+    use pyo3::{intern, prelude::*, types::PyBool};
+    use rstest::rstest;
+
+    use crate::{ffi::python::pyshinqlx_setup_fixture::*, prelude::serial};
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn thread_on_callable_function(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let py_test_module = PyModule::from_code(
+                py,
+                cr#"
+import shinqlx
+
+called = False
+
+@shinqlx.thread
+def threaded_func():
+    global called
+    called = True
+"#,
+                c"",
+                c"",
+            )
+            .expect("this should not happen");
+
+            let result = py_test_module.call_method0(intern!(py, "threaded_func"));
+            assert!(result.is_ok());
+
+            assert!(
+                py_test_module
+                    .getattr(intern!(py, "called"))
+                    .is_ok_and(|called| {
+                        called.cast::<PyBool>().is_ok_and(|pybool| pybool.is_true())
+                    })
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn thread_on_nested_thread(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let py_test_module = PyModule::from_code(
+                py,
+                cr#"
+import shinqlx
+
+called = False
+
+@shinqlx.thread
+def inner_thread():
+    global called
+    called = True
+
+@shinqlx.thread
+def threaded_func():
+    inner_thread()
+"#,
+                c"",
+                c"",
+            )
+            .expect("this should not happen");
+
+            let result = py_test_module.call_method0(intern!(py, "threaded_func"));
+            assert!(result.is_ok());
+
+            assert!(
+                py_test_module
+                    .getattr(intern!(py, "called"))
+                    .is_ok_and(|called| {
+                        called.cast::<PyBool>().is_ok_and(|pybool| pybool.is_true())
+                    })
+            );
         });
     }
 }
