@@ -39,8 +39,8 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
             .map(|item| item.to_string())
             .collect::<Vec<_>>();
 
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",

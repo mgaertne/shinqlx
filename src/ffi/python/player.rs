@@ -804,7 +804,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
 
         parse_variables(&self.get().user_info)
             .get(item)
-            .ok_or(PyKeyError::new_err(format!("'{item}'")))
+            .ok_or_else(|| PyKeyError::new_err(format!("'{item}'")))
     }
 
     fn update(&self) -> PyResult<()> {
@@ -867,7 +867,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         parse_variables(&self.get().user_info)
             .get("ip")
             .map(|value| value.split(':').next().unwrap_or("").to_string())
-            .unwrap_or("".to_string())
+            .unwrap_or_default()
     }
 
     fn get_clan(&self) -> String {
@@ -879,7 +879,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                     main_engine.get_configstring(CS_PLAYERS as u16 + self.get().id as u16);
                 parse_variables(&configstring).get("cn")
             })
-            .unwrap_or("".to_string())
+            .unwrap_or_default()
     }
 
     fn set_clan(&self, tag: &str) {
@@ -965,7 +965,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_model(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("model")
-            .ok_or(PyKeyError::new_err("'model'"))
+            .ok_or_else(|| PyKeyError::new_err("'model'"))
     }
 
     fn set_model(&self, value: &str) -> PyResult<()> {
@@ -981,7 +981,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_headmodel(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("headmodel")
-            .ok_or(PyKeyError::new_err("'headmodel'"))
+            .ok_or_else(|| PyKeyError::new_err("'headmodel'"))
     }
 
     fn set_headmodel(&self, value: &str) -> PyResult<()> {
@@ -996,7 +996,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_handicap(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("handicap")
-            .ok_or(PyKeyError::new_err("'handicap'"))
+            .ok_or_else(|| PyKeyError::new_err("'handicap'"))
     }
 
     fn set_handicap(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -1018,8 +1018,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_autohop(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("autohop")
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyKeyError::new_err("'autohop'"))
                 },
@@ -1052,8 +1052,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_autoaction(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("autoaction")
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyKeyError::new_err("'autoaction'"))
                 },
@@ -1086,8 +1086,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_predictitems(&self) -> PyResult<i32> {
         parse_variables(&self.get().user_info)
             .get("cg_predictitems")
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyKeyError::new_err("'cg_predictitems'"))
                 },
@@ -1148,8 +1148,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             .py()
             .detach(|| value.unwrap_or("none").parse::<privileges_t>());
 
-        new_privileges.map_or(
-            {
+        new_privileges.map_or_else(
+            |_| {
                 cold_path();
                 Err(PyValueError::new_err("Invalid privilege level."))
             },
@@ -1162,7 +1162,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     fn get_country(&self) -> PyResult<String> {
         parse_variables(&self.get().user_info)
             .get("country")
-            .ok_or(PyKeyError::new_err("'country'"))
+            .ok_or_else(|| PyKeyError::new_err("'country'"))
     }
 
     fn set_country(&self, value: &str) -> PyResult<()> {
@@ -1326,8 +1326,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 weapon
                     .extract::<i32>()
                     .map_or(
-                        weapon.extract::<String>().map_or(
-                            {
+                        weapon.extract::<String>().map_or_else(
+                            |_| {
                                 cold_path();
                                 Err("invalid weapon".to_string())
                             },
@@ -1335,8 +1335,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                         ),
                         weapon_t::try_from,
                     )
-                    .map_or(
-                        {
+                    .map_or_else(
+                        |_| {
                             cold_path();
                             Err(PyValueError::new_err("invalid new_weapon"))
                         },
@@ -1676,8 +1676,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn tell(&self, msg: &str, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<()> {
-        self.get_channel().map_or(
-            {
+        self.get_channel().map_or_else(
+            || {
                 cold_path();
                 Err(PyNotImplementedError::new_err("Player TellChannel"))
             },
@@ -1700,7 +1700,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                             .flatten()
                             .and_then(|value| value.extract::<String>().ok())
                     })
-                    .unwrap_or(" ".to_owned());
+                    .unwrap_or_else(|| " ".to_owned());
 
                 tell_channel.as_super().reply(msg, limit, &delimiter)
             },
@@ -8249,8 +8249,8 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
     }
 
     fn get_channel(&self) -> PyResult<Bound<'py, ConsoleChannel>> {
-        CONSOLE_CHANNEL.load().as_ref().map_or(
-            {
+        CONSOLE_CHANNEL.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "could not get access to CONSOLE_CHANNEL",
@@ -8269,8 +8269,8 @@ impl<'py> RconDummyPlayerMethods<'py> for Bound<'py, RconDummyPlayer> {
         )]
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<()> {
-        CONSOLE_CHANNEL.load().as_ref().map_or(
-            {
+        CONSOLE_CHANNEL.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "could not get access to CONSOLE_CHANNEL",

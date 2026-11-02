@@ -12,8 +12,8 @@ use crate::{
 #[pyfunction(name = "players_info")]
 pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
     py.detach(|| {
-        let maxclients = MAIN_ENGINE.load().as_ref().map_or(
-            {
+        let maxclients = MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",

@@ -43,12 +43,10 @@ where
 
         match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => None,
-            _ => Some(
-                result
-                    .cast::<PyString>()
-                    .ok()
-                    .map_or(cmd.as_ref().to_string(), |py_string| py_string.to_string()),
-            ),
+            _ => Some(result.cast::<PyString>().ok().map_or_else(
+                || cmd.as_ref().to_string(),
+                |py_string| py_string.to_string(),
+            )),
         }
     })
 }
@@ -156,14 +154,10 @@ where
 
         match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => None,
-            _ => Some(
-                result
-                    .cast::<PyString>()
-                    .ok()
-                    .map_or(value.as_ref().to_string(), |py_string| {
-                        py_string.to_string()
-                    }),
-            ),
+            _ => Some(result.cast::<PyString>().ok().map_or_else(
+                || value.as_ref().to_string(),
+                |py_string| py_string.to_string(),
+            )),
         }
     })
 }
@@ -194,12 +188,10 @@ where
 
         match result.cast::<PyBool>() {
             Ok(py_bool) if !py_bool.is_true() => None,
-            _ => Some(
-                result
-                    .cast::<PyString>()
-                    .ok()
-                    .map_or(text.as_ref().to_string(), |py_string| py_string.to_string()),
-            ),
+            _ => Some(result.cast::<PyString>().ok().map_or_else(
+                || text.as_ref().to_string(),
+                |py_string| py_string.to_string(),
+            )),
         }
     })
 }

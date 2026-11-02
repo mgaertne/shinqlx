@@ -17,8 +17,8 @@ pub(crate) fn pyshinqlx_set_cvar_limit(
     flags: Option<i32>,
 ) -> PyResult<()> {
     py.detach(|| {
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",

@@ -38,9 +38,9 @@ impl TryFrom<*mut gitem_t> for GameItem {
     fn try_from(game_item: *mut gitem_t) -> Result<Self, Self::Error> {
         unsafe { game_item.as_mut() }
             .map(|gitem| Self { gitem_t: gitem })
-            .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string(),
-            ))
+            .ok_or_else(|| {
+                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
+            })
     }
 }
 

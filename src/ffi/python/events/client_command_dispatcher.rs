@@ -129,8 +129,8 @@ fn try_handle_input(py: Python<'_>, player: &Bound<'_, Player>, cmd: &str) -> Py
         py,
         ClientCommandChannel::py_new(py, player.get(), py.None().bind(py), None),
     )?;
-    COMMANDS.load().as_ref().map_or(
-        {
+    COMMANDS.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err(
                 "could not get access to COMMANDS",

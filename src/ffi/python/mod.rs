@@ -886,7 +886,7 @@ fn try_get_plugins_version(path: &str) -> Result<String, git2::Error> {
 }
 
 fn get_plugins_version(path: &str) -> String {
-    try_get_plugins_version(path).unwrap_or("NOT_SET".to_string())
+    try_get_plugins_version(path).unwrap_or_else(|_| "NOT_SET".to_string())
 }
 
 #[pyfunction(name = "set_plugins_version", pass_module)]
@@ -1639,14 +1639,14 @@ fn initialize(py: Python<'_>) {
 }
 
 fn try_get_plugins_path() -> Result<PathBuf, &'static str> {
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err("no main engine found")
         },
         |main_engine| {
-            main_engine.find_cvar("qlx_pluginsPath").map_or(
-                {
+            main_engine.find_cvar("qlx_pluginsPath").map_or_else(
+                || {
                     cold_path();
                     Err("qlx_pluginsPath cvar not found")
                 },

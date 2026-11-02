@@ -33,8 +33,8 @@ pub(crate) static DEFAULT_PLUGINS: [&str; 10] = [
 pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
     try_get_plugins_path().map_err(PluginLoadError::new_err)?;
 
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PluginLoadError::new_err("no main engine found"))
         },
@@ -304,8 +304,8 @@ pub(super) fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                                     .and_then(|event_dispatchers| {
                                         event_dispatchers.bind(py).get_item(&event_name).ok()
                                     })
-                                    .map_or(
-                                        {
+                                    .map_or_else(
+                                        || {
                                             cold_path();
                                             Err(PyAttributeError::new_err(event_name.to_string()))
                                         },
@@ -335,8 +335,8 @@ pub(super) fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
                         let _ = COMMANDS
                             .load()
                             .as_ref()
-                            .map_or(
-                                {
+                            .map_or_else(
+                                || {
                                     cold_path();
                                     Err(PyEnvironmentError::new_err(
                                         "could not get access to commands",

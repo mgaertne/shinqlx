@@ -17,8 +17,8 @@ pub(crate) fn pyshinqlx_slay_with_mod(
     py.detach(|| {
         validate_client_id(client_id)?;
 
-        mean_of_death.try_conv::<meansOfDeath_t>().map_or(
-            {
+        mean_of_death.try_conv::<meansOfDeath_t>().map_or_else(
+            |_| {
                 cold_path();
                 Err(PyValueError::new_err(
                     "means of death needs to be a valid enum value.",

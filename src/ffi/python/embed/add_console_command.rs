@@ -11,8 +11,8 @@ use crate::{
 #[pyo3(name = "add_console_command")]
 pub(crate) fn pyshinqlx_add_console_command(py: Python<'_>, command: &str) -> PyResult<()> {
     py.detach(|| {
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",

@@ -29,9 +29,9 @@ impl TryFrom<*mut client_t> for Client<'_> {
     fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
         unsafe { client.as_mut() }
             .map(|client_t| Self { client_t })
-            .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string(),
-            ))
+            .ok_or_else(|| {
+                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
+            })
     }
 }
 

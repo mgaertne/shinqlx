@@ -291,7 +291,7 @@ impl Plugin {
             .bind(cls.py())
             .getattr(intern!(cls.py(), "__name__"))
             .and_then(|value| value.extract::<String>())
-            .unwrap_or("Python type without __name__".into());
+            .unwrap_or_else(|_| "Python type without __name__".into());
 
         match py_return_type_str.as_str() {
             "str" => match cvar_string {
@@ -380,8 +380,8 @@ impl Plugin {
         let value_str = value.str()?.to_string();
 
         cls.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err("could not get main_engine"))
                 },
@@ -417,8 +417,8 @@ impl Plugin {
         let maximum_str = maximum.str()?.to_string();
 
         cls.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err("could not get main_engine"))
                 },
@@ -451,8 +451,8 @@ impl Plugin {
         let value_str = value.str()?.to_string();
 
         cls.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err("could not get main_engine"))
                 },
@@ -484,8 +484,8 @@ impl Plugin {
         let maximum_str = maximum.str()?.to_string();
 
         cls.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err("could not get main_engine"))
                 },
@@ -568,14 +568,17 @@ impl Plugin {
                 .and_then(|value| value.extract::<i32>().ok())
                 .unwrap_or(100i32)
         });
-        let delimiter = kwargs.map_or(" ".to_owned(), |pydict| {
-            pydict
-                .get_item(intern!(cls.py(), "delimiter"))
-                .ok()
-                .flatten()
-                .and_then(|value| value.extract::<String>().ok())
-                .unwrap_or(" ".to_owned())
-        });
+        let delimiter = kwargs.map_or_else(
+            || " ".to_owned(),
+            |pydict| {
+                pydict
+                    .get_item(intern!(cls.py(), "delimiter"))
+                    .ok()
+                    .flatten()
+                    .and_then(|value| value.extract::<String>().ok())
+                    .unwrap_or_else(|| " ".to_owned())
+            },
+        );
 
         match chat_channel {
             None => {
@@ -882,8 +885,8 @@ impl Plugin {
                     .get_item(intern!(cls.py(), "vote_started"))
                     .ok()
             })
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "could not get access to vote started dispatcher",
@@ -1269,8 +1272,8 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .load()
             .as_ref()
             .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "could not get access to event dispatcher",
@@ -1299,8 +1302,8 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
             .load()
             .as_ref()
             .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "could not get access to event dispatchers",
@@ -1422,8 +1425,8 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
                         .unwrap_or(false)
             })
             .map_or(Ok(()), |command| {
-                COMMANDS.load().as_ref().map_or(
-                    {
+                COMMANDS.load().as_ref().map_or_else(
+                    || {
                         cold_path();
                         Err(PyEnvironmentError::new_err(
                             "could not get access to commands",

@@ -21,16 +21,16 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic<'_> {
             .map(|svs| Self {
                 serverStatic_t: svs,
             })
-            .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string(),
-            ))
+            .ok_or_else(|| {
+                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
+            })
     }
 }
 
 impl ServerStatic<'_> {
     pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError> {
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(QuakeLiveEngineError::MainEngineNotInitialized)
             },

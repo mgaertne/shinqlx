@@ -18,9 +18,9 @@ impl TryFrom<*mut gclient_t> for GameClient {
             .map(|gclient_t| Self {
                 game_client: gclient_t,
             })
-            .ok_or(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string(),
-            ))
+            .ok_or_else(|| {
+                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
+            })
     }
 }
 

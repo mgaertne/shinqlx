@@ -47,8 +47,8 @@ impl Game {
     #[pyo3(signature = (cached = true), text_signature = "(cached = True)")]
     pub(crate) fn py_new(py: Python<'_>, cached: bool) -> PyResult<Self> {
         py.detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",
@@ -95,8 +95,8 @@ impl Game {
     }
 
     fn __contains__(slf: &Bound<'_, Self>, item: &str) -> PyResult<bool> {
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
@@ -119,8 +119,8 @@ impl Game {
     }
 
     fn __getitem__(slf: &Bound<'_, Self>, item: &str) -> PyResult<String> {
-        MAIN_ENGINE.load().as_ref().map_or(
-            {
+        MAIN_ENGINE.load().as_ref().map_or_else(
+            || {
                 cold_path();
                 Err(PyEnvironmentError::new_err(
                     "main quake live engine not set",
@@ -139,7 +139,7 @@ impl Game {
 
                 parse_variables(&configstring)
                     .get(item)
-                    .ok_or(PyKeyError::new_err(format!("'{item}'")))
+                    .ok_or_else(|| PyKeyError::new_err(format!("'{item}'")))
             },
         )
     }
@@ -539,8 +539,8 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
         MAIN_ENGINE
             .load()
             .as_ref()
-            .map_or(
-                {
+            .map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",
@@ -614,8 +614,8 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
     fn get_red_score(&self) -> PyResult<i32> {
         self.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",
@@ -631,8 +631,8 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
     fn get_blue_score(&self) -> PyResult<i32> {
         self.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",
@@ -849,8 +849,8 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
     fn get_workshop_items(&self) -> PyResult<Vec<u64>> {
         self.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",
@@ -880,8 +880,8 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
         };
 
         self.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or(
-                {
+            MAIN_ENGINE.load().as_ref().map_or_else(
+                || {
                     cold_path();
                     Err(PyEnvironmentError::new_err(
                         "main quake live engine not set",

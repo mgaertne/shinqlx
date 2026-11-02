@@ -58,8 +58,8 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize_cvars(module.py())?;
 
-    MAIN_ENGINE.load().as_ref().map_or(
-        {
+    MAIN_ENGINE.load().as_ref().map_or_else(
+        || {
             cold_path();
             Err(PyEnvironmentError::new_err("no main engine found"))
         },
@@ -81,8 +81,8 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                 real_plugins_path
                     .parent()
                     .map(|value| value.to_string_lossy())
-                    .map_or(
-                        {
+                    .map_or_else(
+                        || {
                             cold_path();
                             Err(PyEnvironmentError::new_err(
                                 "could not determine directory name of qlx_pluginsPath",
