@@ -1,11 +1,11 @@
 # shinqlx
 
-![python](https://img.shields.io/badge/python-3.8%7C3.9%7C3.10%7C3.11%7C3.12-blue.svg)
+![python](https://img.shields.io/badge/python-3.9%7C3.10%7C3.11%7C3.12%7C3.13%7C3.14-blue.svg)
 ![Tests](https://github.com/mgaertne/shinqlx/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/mgaertne/shinqlx/branch/main/graph/badge.svg?token=VK9QI52BZX)](https://codecov.io/gh/mgaertne/shinqlx)
 
 ShiN0's Quake Live eXtension, implemented in Rust. Most functionality
-from [minqlx](https://raw.githubusercontent.com/MinoMino/minqlx) should work. Support for Python 3.8 and above should
+from [minqlx](https://raw.githubusercontent.com/MinoMino/minqlx) should work. Support for Python 3.9 and above should
 work out of the box.
 
 Some limitations apply for certain minqlx functions maybe used in plugins.

@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 dynamic = ["version", "summary", "description", "home_page", "author", "project_url"]
 name = "shinqlx"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "BSD-3-Clause" }
 readme = { file = "README.md", content-type = "text/markdown" }
 classifiers = [
