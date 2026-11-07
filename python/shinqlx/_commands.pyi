@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, SupportsIndex
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -83,11 +83,11 @@ class Command:
         plugin: Plugin,
         name: str | Iterable[str],
         handler: Callable,
-        permission: int,
+        permission: SupportsIndex,
         channels: Iterable[AbstractChannel] | None,
         exclude_channels: Iterable[AbstractChannel] | None,
         client_cmd_pass: bool,
-        client_cmd_perm: int,
+        client_cmd_perm: SupportsIndex,
         prefix: bool,
         usage: str,
     ) -> None: ...
@@ -102,7 +102,7 @@ class CommandInvoker:
     def __init__(self) -> None: ...
     @property
     def commands(self) -> list[Command]: ...
-    def add_command(self, command: Command, priority: int) -> None: ...
+    def add_command(self, command: Command, priority: SupportsIndex) -> None: ...
     def remove_command(self, command: Command) -> None: ...
     def is_registered(self, command: Command) -> bool: ...
     def handle_input(self, player: Player, msg: str, channel: AbstractChannel) -> bool: ...

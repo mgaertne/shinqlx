@@ -21,6 +21,7 @@ mod logging;
 mod means_of_death;
 mod module_registration;
 mod native_plugins;
+mod permissions;
 mod player;
 mod player_info;
 mod player_state;
@@ -142,6 +143,7 @@ pub(crate) mod prelude {
         holdable::Holdable,
         means_of_death::MeansOfDeath,
         parse_variables,
+        permissions::Permission,
         player::{
             AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
         },

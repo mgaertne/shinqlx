@@ -337,6 +337,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ReturnCode>()?;
     m.add_class::<VoteState>()?;
     m.add_class::<Weapon>()?;
+    m.add_class::<Permission>()?;
     m.add_class::<CvarFlag>()?;
     m.add_class::<DamageFlag>()?;
     m.add_class::<MeansOfDeath>()?;

@@ -257,6 +257,57 @@ Weapon
         - 15
         - ``"hands"``
 
+Permissions
+-----------
+
+.. class:: Permissions
+
+   The permission levels of the commands of the plugins. The level of a player is stored in the database
+   (:meth:`database.AbstractDatabase.set_permission`) and compared with the ``permission`` of a command. This is not
+   the same as :class:`Privileges`, which are the rights the engine gives to a player.
+
+   Any integer is a valid permission level, the members name the levels that the built-in plugins use. Members compare
+   to each other and to integers, including ordering (``player_level >= Permissions.MODERATOR``), and work as integers
+   wherever the API expects a level. The functions that return a level, like
+   :meth:`database.AbstractDatabase.get_permission`, still return an :class:`int`. The owner (``qlx_owner``) has all
+   permissions, whatever level is stored for them.
+
+   .. list-table::
+      :header-rows: 1
+
+      * - Member
+        - Value
+        - Typical commands
+      * - ``PLAYER``
+        - 0
+        - Information and the settings of oneself: ``!seen``, ``!time``, ``!mappool``, ``!name``, ``!clan``, ``!motd``
+      * - ``MODERATOR``
+        - 1
+        - Directing the running game: ``!id``, ``!players``, ``!shuffle``, ``!pause``, ``!switch``, ``!red``,
+          ``!mute``, ``!lock``
+      * - ``GAME_ADMIN``
+        - 2
+        - Enforcing the rules of a game: ``!kick``, ``!ban``, ``!silence``, ``!slap``, ``!slay``, ``!map``,
+          ``!teamsize``, ``!abort``
+      * - ``COMMUNITY_ADMIN``
+        - 3
+        - Managing data of the community, e.g. ratings. Not used by the built-in plugins.
+      * - ``SERVER_ADMIN``
+        - 4
+        - Managing what the players see on the server: ``!setmotd``, ``!addmotd``, ``!setmotdall``
+      * - ``GOD``
+        - 5
+        - Controlling the bot itself: ``!setperm``, ``!addadmin``, ``!rcon``, ``!db``, ``!load``
+
+   .. code-block:: python
+
+      @shinqlx.command("kick", permission=shinqlx.Permissions.GAME_ADMIN, usage="<id>")
+      def cmd_kick(self, player, msg, channel):
+          ...
+
+   The permission of a single command can be overridden in the configuration of the server with
+   ``perm_<command>`` under the header of the plugin, which is why the levels carry no fixed meaning for the engine.
+
 VoteStates
 ----------
 

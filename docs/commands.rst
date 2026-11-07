@@ -10,11 +10,11 @@ Commands
    :param Plugin plugin: The plugin that created this command.
    :param str | Iterable[str] name: The name or names for the added commands.
    :param Callable handler: The handler for the command. See below for a prototype.
-   :param int permission: The minimum permission a player trying to invoke this command needs.
+   :param int | Permissions permission: The minimum permission a player trying to invoke this command needs.
    :param Iterable[AbstractChannel] channels: The channels this command can be triggered from.
    :param Iterable[AbstractChannel] exclude_channels: Explicit channels this command cannot be triggered from.
    :param bool client_cmd_pass: Flag whether this command should be passed to ``client_command`` and the general quake live engine.
-   :param int client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel.
+   :param int | Permissions client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel.
    :param bool prefix: Flag indicating whether this commands needs to be prefixed with the character in ``qlx_commandPrefix``
    :param str usage: Usage message shown to a player trying to invoke this command when the ``handler`` returns ``RET_USAGE``
 
@@ -78,7 +78,7 @@ Commands
       Adds a command with the given priority.
 
       :param Command command: The command to add.
-      :param int priority: The priority for the added command.
+      :param int | Priorities priority: The priority for the added command.
       :raises ValueError: if a command with the same name is already registered.
 
    .. method:: remove_command(command)

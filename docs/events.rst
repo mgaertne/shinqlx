@@ -95,7 +95,7 @@ Events
 
       :param Plugin | str plugin: The plugin that's hooking the event.
       :param Callable handler: The handler to be called when the event takes place.
-      :param int priority: The priority of the hook. Determines the order the handlers are called in. valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
+      :param int | Priorities priority: The priority of the hook. Determines the order the handlers are called in. valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
       :raises ValueError: when passed an invalid priority, or the event is already registered with the same handler.
       :raises AssertionError: if the hook requires ``zmq_stats_enables`` cvar to be set to ``1``, but it was disabled.
 
@@ -105,7 +105,7 @@ Events
 
       :param Plugin | str plugin: The plugin that hooked the event.
       :param Callable handler: The handler used when hooked.
-      :param int priority: The priority of the hook when hooked.
+      :param int | Priorities priority: The priority of the hook when hooked.
       :raises ValueError: if the event has not been hooks up with the handler provided.
 
 Concrete Event dispatchers

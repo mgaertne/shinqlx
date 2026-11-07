@@ -74,7 +74,7 @@ Plugins
 
       :param str event: The event to hook the ``handler`` up for. See valid values below.
       :param Callable handler: The handler for the ``event`` of this hook. See prototypes below
-      :param int priority: The priority for this hook, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
+      :param int | Priorities priority: The priority for this hook, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
 
       .. _event_hooks:
 
@@ -315,9 +315,9 @@ Plugins
 
       :param str event: The event to remove the hook for ``handler``
       :param Callable handler: The handler for the ``event`` that should be removed from  this hook. See prototypes in :meth:`add_hook`
-      :param int priority: The priority for this hook, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
+      :param int | Priorities priority: The priority for this hook, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
 
-   .. method:: add_command(name, handler, permission = PRIV_NONE, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = "")
+   .. method:: add_command(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = "")
 
       Add a command for this plugin.
 
@@ -326,12 +326,12 @@ Plugins
 
       :param str | Iterable[str] name: The name or names for the added commands.
       :param Callable handler: The handler for the command. See below for a prototype.
-      :param int permission: The minimum permission a player trying to invoke this command needs. (default: ``PRIV_NONE``, i.e. no special permissions needed)
+      :param int | Permissions permission: The minimum permission level a player trying to invoke this command needs, see :class:`Permissions`. (default: ``0``, i.e. everybody)
       :param Iterable[AbstractChannel] | None channels: The channels this command can be triggered from. (default: ``None``, command can be triggered from any channel)
       :param Iterable[AbstractChannel] exclude_channels: Explicit channels this command cannot be triggered from. (default: ``None``, no channels are excluded)
-      :param int priority: The priority for this command, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
+      :param int | Priorities priority: The priority for this command, valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
       :param bool client_cmd_pass: Flag whether this command should be passed to ``client_command`` and the general quake live engine. (default: ``False``)
-      :param int client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel. (default: ``5``, i.e. the owner and super-admins.)
+      :param int | Permissions client_cmd_perm: The minimum permission level needed when triggering this command via the ``client_command`` channel. (default: ``5``, i.e. the owner and super-admins.)
       :param bool prefix: Flag indicating whether this commands needs to be prefixed with the character in ``qlx_commandPrefix``, (default: ``True``)
       :param str usage: Usage message shown to a player trying to invoke this command when the ``handler`` returns ``RET_USAGE``. (default: ``""``)
 
@@ -387,7 +387,7 @@ Plugins
 
       :param str name: The name of the cvar
       :param value: The value to set the cvar to. Type can be anything that supports __str__()
-      :param int flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
+      :param int | CvarFlags flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
       :return: ``True`` if a new cvar was created, ``False`` if an existing cvar was overwritten.
 
    .. method:: set_cvar_limit(name, value, minimum, maximum, flags = 0)
@@ -402,7 +402,7 @@ Plugins
       :param int | float value: The value to set the cvar to.
       :param int | float minimum: The minimum value of the cvar.
       :param int | float maximum: The maximum value of the cvar.
-      :param int flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
+      :param int | CvarFlags flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
 
    .. method:: set_cvar_once(name, value, flags = 0) -> bool
       :classmethod:
@@ -414,7 +414,7 @@ Plugins
 
       :param str name: The name of the cvar
       :param value: The value to set the cvar to. Type can be anything that supports __str__()
-      :param int flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
+      :param int | CvarFlags flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
       :return: ``True`` if a new cvar was created, ``False`` if an existing cvar already existed.
 
    .. method:: set_cvar_limit_once(name, value, minimum, maximum, flags = 0) -> bool
@@ -429,7 +429,7 @@ Plugins
       :param int | float value: The value to set the cvar to.
       :param int | float minimum: The minimum value of the cvar.
       :param int | float maximum: The maximum value of the cvar.
-      :param int flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
+      :param int | CvarFlags flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``0``)
       :return: ``True`` if a new cvar was created, ``False`` if an existing cvar already existed.
 
    .. method:: players() -> list[Player]
@@ -837,7 +837,7 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
    Hooks the decorated method to an event. A method can be decorated multiple times to hook it to several events.
 
    :param str event: The name of the event to hook the method to.
-   :param int priority: The priority of the hook. (default: ``PRI_NORMAL``)
+   :param int | Priorities priority: The priority of the hook. (default: ``PRI_NORMAL``)
 
 .. function:: command(name, **options)
 

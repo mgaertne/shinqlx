@@ -20,7 +20,7 @@ Database
       Should set the permission of a player.
 
       :param Player | int | str player: The player to set the permission for.
-      :param int level: The permission level to grant to the given player.
+      :param int | Permissions level: The permission level to grant to the given player.
 
    .. method:: get_permission(player) -> int
       :abstractmethod:
@@ -36,7 +36,7 @@ Database
       Should return whether or not a player has more than or equal to a certain permission level. Should only take a value of 0 to 5, where 0 is always True.
 
       :param Player | int | str player: The player to check the permission from.
-      :param int level: The permission level to check for. (default: ``5``)
+      :param int | Permissions level: The permission level to check for. (default: ``5``)
       :return: Whether the given player has at least the given permission level.
 
    .. method:: set_flag(player, flag, value = True)
@@ -93,7 +93,7 @@ Database
       Sets the permission of a player.
 
       :param Player | int | str player: The player to set the permission for.
-      :param int level: The permission level to grant to the given player.
+      :param int | Permissions level: The permission level to grant to the given player.
 
    .. method:: get_permission(player) -> int
 
@@ -109,7 +109,7 @@ Database
       Checks if the player has higher than or equal to ``level``.
 
       :param Player | int | str player: The player to check the permission from.
-      :param int level: The permission level to check for. (default: ``5``)
+      :param int | Permissions level: The permission level to check for. (default: ``5``)
       :return: Whether the given player has at least the given permission level.
 
       :raises ValueError: if the ``player`` is not an instance of Player, int, or str.

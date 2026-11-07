@@ -32,7 +32,7 @@ methods that handle them with the :ref:`decorators <plugin>`.
        def greet_new_player(self, player):
            player.tell(f"Welcome, {player.name}^7!")
 
-       @shinqlx.command("hello", permission=0, usage="<name>")
+       @shinqlx.command("hello", permission=shinqlx.Permissions.PLAYER, usage="<name>")
        def cmd_hello(self, player, msg, channel):
            if len(msg) < 2:
                return shinqlx.ReturnCodes.USAGE
@@ -69,7 +69,7 @@ A command to even out the teams by hand can use :meth:`Plugin.put`, which accept
 
 .. code-block:: python
 
-       @shinqlx.command("spec", permission=3, usage="<id>")
+       @shinqlx.command("spec", permission=shinqlx.Permissions.MODERATOR, usage="<id>")
        def cmd_spec(self, player, msg, channel):
            target = self.player(msg[1]) if len(msg) > 1 else None
            if target is None:
@@ -98,7 +98,7 @@ name of :class:`Weapons`.
            player.ammo(rg=25)
            player.weapon(shinqlx.Weapon.RAILGUN)
 
-       @shinqlx.command("rockets", permission=0)
+       @shinqlx.command("rockets", permission=shinqlx.Permissions.PLAYER)
        def cmd_rockets(self, player, msg, channel):
            rockets = getattr(player.ammo(), str(shinqlx.Weapon.ROCKET_LAUNCHER))
            channel.reply(f"{player.name}^7 has {rockets} rockets.")
@@ -149,7 +149,7 @@ To remove a player instantly, :func:`slay_with_mod` takes a member of :class:`Me
 
 .. code-block:: python
 
-       @shinqlx.command("slay", permission=3, usage="<id>")
+       @shinqlx.command("slay", permission=shinqlx.Permissions.GAME_ADMIN, usage="<id>")
        def cmd_slay(self, player, msg, channel):
            target = self.player(msg[1]) if len(msg) > 1 else None
            if target is None:
