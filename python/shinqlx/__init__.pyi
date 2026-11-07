@@ -220,6 +220,7 @@ from ._shinqlx import (
     Teams,
     Vector3,
     VoteStates,
+    Weapon,
     Weapons,
     add_console_command,
     allow_single_player,
@@ -376,7 +377,7 @@ class Vector(TypedDict):
 
 PowerUps = Literal["QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"]
 Holdable = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
-Weapon = Literal[
+StatsWeapon = Literal[
     "GAUNTLET",
     "MACHINEGUN",
     "SHOTGUN",
@@ -410,7 +411,7 @@ class PlayerData(TypedDict):
     SUBMERGED: bool
     TEAM: int
     VIEW: Vector
-    WEAPON: Weapon
+    WEAPON: StatsWeapon
 
 StatsMeansOfDeath = Literal[
     "UNKNOWN",
@@ -881,6 +882,7 @@ __all__ = [
     "StatsDispatcher",
     "StatsListener",
     "StatsMeansOfDeath",
+    "StatsWeapon",
     "TeamChatChannel",
     "TeamSwitchAttemptDispatcher",
     "TeamSwitchDispatcher",

@@ -136,7 +136,9 @@ pub(crate) mod prelude {
         events::*,
         flag_enums::{CvarFlag, DamageFlag},
         flight::Flight,
-        game_enums::{ConnectionState, Priority, Privileges, ReturnCode, Team, VoteState, name_of},
+        game_enums::{
+            ConnectionState, Priority, Privileges, ReturnCode, Team, VoteState, Weapon, name_of,
+        },
         holdable::Holdable,
         means_of_death::MeansOfDeath,
         parse_variables,
@@ -549,63 +551,6 @@ impl From<clientState_t> for ConnectionStates {
             clientState_t::CS_CONNECTED => ConnectionStates::Connected,
             clientState_t::CS_PRIMED => ConnectionStates::Primed,
             clientState_t::CS_ACTIVE => ConnectionStates::Active,
-        }
-    }
-}
-
-#[derive(Copy, Clone, Display)]
-#[repr(i32)]
-enum Weapon {
-    #[display("g")]
-    Gauntlet = weapon_t::WP_GAUNTLET as i32,
-    #[display("mg")]
-    Machinegun = weapon_t::WP_MACHINEGUN as i32,
-    #[display("sg")]
-    Shotgun = weapon_t::WP_SHOTGUN as i32,
-    #[display("gl")]
-    GrenadeLauncher = weapon_t::WP_GRENADE_LAUNCHER as i32,
-    #[display("rl")]
-    RocketLauncher = weapon_t::WP_ROCKET_LAUNCHER as i32,
-    #[display("lg")]
-    Lightning = weapon_t::WP_LIGHTNING as i32,
-    #[display("rg")]
-    Railgun = weapon_t::WP_RAILGUN as i32,
-    #[display("pg")]
-    PlasmaGun = weapon_t::WP_PLASMAGUN as i32,
-    #[display("bfg")]
-    Bfg = weapon_t::WP_BFG as i32,
-    #[display("gh")]
-    GrapplingHook = weapon_t::WP_GRAPPLING_HOOK as i32,
-    #[display("ng")]
-    NailGun = weapon_t::WP_NAILGUN as i32,
-    #[display("pl")]
-    ProximityMainLauncher = weapon_t::WP_PROX_LAUNCHER as i32,
-    #[display("cg")]
-    ChainGun = weapon_t::WP_CHAINGUN as i32,
-    #[display("hmg")]
-    HeavyMachinegun = weapon_t::WP_HMG as i32,
-    #[display("hands")]
-    Hands = weapon_t::WP_HANDS as i32,
-}
-
-impl From<weapon_t> for Weapon {
-    fn from(value: weapon_t) -> Self {
-        match value {
-            weapon_t::WP_GAUNTLET => Weapon::Gauntlet,
-            weapon_t::WP_MACHINEGUN => Weapon::Machinegun,
-            weapon_t::WP_SHOTGUN => Weapon::Shotgun,
-            weapon_t::WP_GRENADE_LAUNCHER => Weapon::GrenadeLauncher,
-            weapon_t::WP_ROCKET_LAUNCHER => Weapon::RocketLauncher,
-            weapon_t::WP_LIGHTNING => Weapon::Lightning,
-            weapon_t::WP_RAILGUN => Weapon::Railgun,
-            weapon_t::WP_PLASMAGUN => Weapon::PlasmaGun,
-            weapon_t::WP_BFG => Weapon::Bfg,
-            weapon_t::WP_GRAPPLING_HOOK => Weapon::GrapplingHook,
-            weapon_t::WP_NAILGUN => Weapon::NailGun,
-            weapon_t::WP_PROX_LAUNCHER => Weapon::ProximityMainLauncher,
-            weapon_t::WP_CHAINGUN => Weapon::ChainGun,
-            weapon_t::WP_HMG => Weapon::HeavyMachinegun,
-            _ => Weapon::Hands,
         }
     }
 }
@@ -1251,8 +1196,8 @@ def differences(stub):
 mod conversion_tests {
     use rstest::rstest;
 
-    use super::{Teams, Weapon, parse_variables};
-    use crate::ffi::c::prelude::{team_t, weapon_t};
+    use super::{Teams, parse_variables};
+    use crate::ffi::c::prelude::team_t;
 
     #[rstest]
     #[case(team_t::TEAM_FREE, Teams::Free)]
@@ -1262,30 +1207,6 @@ mod conversion_tests {
     #[case(team_t::TEAM_NUM_TEAMS, Teams::Invalid)]
     fn teams_are_converted_from_the_engine_teams(#[case] team: team_t, #[case] expected: Teams) {
         assert_eq!(Teams::from(team) as i32, expected as i32);
-    }
-
-    #[rstest]
-    #[case(weapon_t::WP_GAUNTLET, Weapon::Gauntlet)]
-    #[case(weapon_t::WP_MACHINEGUN, Weapon::Machinegun)]
-    #[case(weapon_t::WP_SHOTGUN, Weapon::Shotgun)]
-    #[case(weapon_t::WP_GRENADE_LAUNCHER, Weapon::GrenadeLauncher)]
-    #[case(weapon_t::WP_ROCKET_LAUNCHER, Weapon::RocketLauncher)]
-    #[case(weapon_t::WP_LIGHTNING, Weapon::Lightning)]
-    #[case(weapon_t::WP_RAILGUN, Weapon::Railgun)]
-    #[case(weapon_t::WP_PLASMAGUN, Weapon::PlasmaGun)]
-    #[case(weapon_t::WP_BFG, Weapon::Bfg)]
-    #[case(weapon_t::WP_GRAPPLING_HOOK, Weapon::GrapplingHook)]
-    #[case(weapon_t::WP_NAILGUN, Weapon::NailGun)]
-    #[case(weapon_t::WP_PROX_LAUNCHER, Weapon::ProximityMainLauncher)]
-    #[case(weapon_t::WP_CHAINGUN, Weapon::ChainGun)]
-    #[case(weapon_t::WP_HMG, Weapon::HeavyMachinegun)]
-    #[case(weapon_t::WP_HANDS, Weapon::Hands)]
-    #[case(weapon_t::WP_NONE, Weapon::Hands)]
-    fn weapons_are_converted_from_the_engine_weapons(
-        #[case] weapon: weapon_t,
-        #[case] expected: Weapon,
-    ) {
-        assert_eq!(Weapon::from(weapon) as i32, expected as i32);
     }
 
     #[rstest]

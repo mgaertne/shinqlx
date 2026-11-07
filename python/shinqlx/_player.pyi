@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import Literal, TypedDict
 
-    from ._shinqlx import Privileges, Teams
+    from ._shinqlx import Privileges, Teams, Weapon
 
     if sys.version_info >= (3, 11):
         from typing import NotRequired, Unpack
@@ -197,6 +197,7 @@ class Player:
                 "hmg",
                 "hands",
             ]
+            | Weapon
             | None
         ) = ...,
     ) -> bool | Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]: ...
@@ -219,6 +220,7 @@ class Player:
                 "invulnerability",
                 "none",
             ]
+            | Weapon
             | None
         ),
     ) -> None: ...

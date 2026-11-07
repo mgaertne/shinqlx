@@ -10,11 +10,11 @@ use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, ConnectionStates,
     DEFAULT_PLUGINS, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, GameTypes, MODULES, PluginLoadError,
     PluginUnloadError, RED_TEAM_CHAT_CHANNEL, SHINQLX_THREADNAME, SPECTATOR_CHAT_CHANNEL, Teams,
-    Weapon, decorators, delay, get_stats_listener, handlers, initialize, initialize_cvars,
-    load_plugin, load_preset_plugins, next_frame, prelude::*, pyshinqlx_configure_logger,
-    pyshinqlx_get_logger, pyshinqlx_handle_exception, pyshinqlx_handle_threading_exception,
-    pyshinqlx_log_exception, pyshinqlx_owner, pyshinqlx_parse_variables, reload_plugin,
-    set_map_subtitles, set_plugins_version, thread, try_get_plugins_path, unload_plugin, uptime,
+    decorators, delay, get_stats_listener, handlers, initialize, initialize_cvars, load_plugin,
+    load_preset_plugins, next_frame, prelude::*, pyshinqlx_configure_logger, pyshinqlx_get_logger,
+    pyshinqlx_handle_exception, pyshinqlx_handle_threading_exception, pyshinqlx_log_exception,
+    pyshinqlx_owner, pyshinqlx_parse_variables, reload_plugin, set_map_subtitles,
+    set_plugins_version, thread, try_get_plugins_path, unload_plugin, uptime,
 };
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
@@ -336,6 +336,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Priority>()?;
     m.add_class::<ReturnCode>()?;
     m.add_class::<VoteState>()?;
+    m.add_class::<Weapon>()?;
     m.add_class::<CvarFlag>()?;
     m.add_class::<DamageFlag>()?;
     m.add_class::<MeansOfDeath>()?;
@@ -456,21 +457,21 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add(
         "WEAPONS",
         [
-            &Weapon::Gauntlet,
-            &Weapon::Machinegun,
-            &Weapon::Shotgun,
-            &Weapon::GrenadeLauncher,
-            &Weapon::RocketLauncher,
-            &Weapon::Lightning,
-            &Weapon::Railgun,
-            &Weapon::PlasmaGun,
-            &Weapon::Bfg,
-            &Weapon::GrapplingHook,
-            &Weapon::NailGun,
-            &Weapon::ProximityMainLauncher,
-            &Weapon::ChainGun,
-            &Weapon::HeavyMachinegun,
-            &Weapon::Hands,
+            &Weapon::GAUNTLET,
+            &Weapon::MACHINEGUN,
+            &Weapon::SHOTGUN,
+            &Weapon::GRENADE_LAUNCHER,
+            &Weapon::ROCKET_LAUNCHER,
+            &Weapon::LIGHTNING,
+            &Weapon::RAILGUN,
+            &Weapon::PLASMAGUN,
+            &Weapon::BFG,
+            &Weapon::GRAPPLING_HOOK,
+            &Weapon::NAILGUN,
+            &Weapon::PROX_LAUNCHER,
+            &Weapon::CHAINGUN,
+            &Weapon::HMG,
+            &Weapon::HANDS,
         ]
         .map(|weapon| (*weapon as i32, weapon.to_string()))
         .into_py_dict(m.py())?,

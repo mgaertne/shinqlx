@@ -216,6 +216,72 @@ impl ReturnCode {
     }
 }
 
+/// The weapons of Quake Live.
+///
+/// The string of a member is the short name that :meth:`shinqlx.Player.weapon` accepts and that
+/// the fields of :class:`shinqlx.Weapons` use.
+#[pyclass(module = "_shinqlx", name = "Weapon", frozen, str)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, Display)]
+#[repr(i32)]
+pub(crate) enum Weapon {
+    #[display("none")]
+    NONE = weapon_t::WP_NONE as i32,
+    #[display("g")]
+    GAUNTLET = weapon_t::WP_GAUNTLET as i32,
+    #[display("mg")]
+    MACHINEGUN = weapon_t::WP_MACHINEGUN as i32,
+    #[display("sg")]
+    SHOTGUN = weapon_t::WP_SHOTGUN as i32,
+    #[display("gl")]
+    GRENADE_LAUNCHER = weapon_t::WP_GRENADE_LAUNCHER as i32,
+    #[display("rl")]
+    ROCKET_LAUNCHER = weapon_t::WP_ROCKET_LAUNCHER as i32,
+    #[display("lg")]
+    LIGHTNING = weapon_t::WP_LIGHTNING as i32,
+    #[display("rg")]
+    RAILGUN = weapon_t::WP_RAILGUN as i32,
+    #[display("pg")]
+    PLASMAGUN = weapon_t::WP_PLASMAGUN as i32,
+    #[display("bfg")]
+    BFG = weapon_t::WP_BFG as i32,
+    #[display("gh")]
+    GRAPPLING_HOOK = weapon_t::WP_GRAPPLING_HOOK as i32,
+    #[display("ng")]
+    NAILGUN = weapon_t::WP_NAILGUN as i32,
+    #[display("pl")]
+    PROX_LAUNCHER = weapon_t::WP_PROX_LAUNCHER as i32,
+    #[display("cg")]
+    CHAINGUN = weapon_t::WP_CHAINGUN as i32,
+    #[display("hmg")]
+    HMG = weapon_t::WP_HMG as i32,
+    #[display("hands")]
+    HANDS = weapon_t::WP_HANDS as i32,
+}
+
+#[pymethods]
+impl Weapon {
+    fn __index__(&self) -> i32 {
+        *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let this = slf.get();
+        let equal = other.cast::<Self>().map_or_else(
+            |_| compare_with_name_or_index(*this as i32, &this.to_string(), other),
+            |same| Some(same.get() == this),
+        );
+        richcmp_result(slf.py(), equal, op)
+    }
+}
+
 /// The states of a vote on the server.
 #[pyclass(module = "_shinqlx", name = "VoteStates", frozen, eq, eq_int, hash)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
@@ -351,6 +417,32 @@ mod game_enums_tests {
     }
 
     #[rstest]
+    #[case(Weapon::NONE, 0, "none")]
+    #[case(Weapon::GAUNTLET, 1, "g")]
+    #[case(Weapon::MACHINEGUN, 2, "mg")]
+    #[case(Weapon::SHOTGUN, 3, "sg")]
+    #[case(Weapon::GRENADE_LAUNCHER, 4, "gl")]
+    #[case(Weapon::ROCKET_LAUNCHER, 5, "rl")]
+    #[case(Weapon::LIGHTNING, 6, "lg")]
+    #[case(Weapon::RAILGUN, 7, "rg")]
+    #[case(Weapon::PLASMAGUN, 8, "pg")]
+    #[case(Weapon::BFG, 9, "bfg")]
+    #[case(Weapon::GRAPPLING_HOOK, 10, "gh")]
+    #[case(Weapon::NAILGUN, 11, "ng")]
+    #[case(Weapon::PROX_LAUNCHER, 12, "pl")]
+    #[case(Weapon::CHAINGUN, 13, "cg")]
+    #[case(Weapon::HMG, 14, "hmg")]
+    #[case(Weapon::HANDS, 15, "hands")]
+    fn weapon_has_the_index_and_short_name_of_the_engine(
+        #[case] weapon: Weapon,
+        #[case] index: i32,
+        #[case] name: &str,
+    ) {
+        assert_eq!(weapon.__index__(), index);
+        assert_eq!(weapon.to_string(), name);
+    }
+
+    #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn name_of_accepts_members_and_strings(_pyshinqlx_setup: ()) {
@@ -400,6 +492,12 @@ assert shinqlx.Privileges.ROOT == shinqlx.PRIV_ROOT
 assert shinqlx.ConnectionStates.PRIMED == shinqlx.CS_PRIMED
 assert [10, 20, 30, 40][shinqlx.Teams.BLUE] == 30
 assert shinqlx.VoteStates.FORCE_FAIL == 5
+assert shinqlx.Weapon.ROCKET_LAUNCHER == 5
+assert shinqlx.Weapon.ROCKET_LAUNCHER == "rl"
+assert str(shinqlx.Weapon.RAILGUN) == "rg"
+assert shinqlx.Weapon.RAILGUN != shinqlx.Teams.RED
+assert shinqlx.WEAPONS[shinqlx.Weapon.PLASMAGUN] == "pg"
+
 assert shinqlx.Teams.RED == "red"
 assert "red" == shinqlx.Teams.RED
 assert shinqlx.Teams.RED != "blue"
