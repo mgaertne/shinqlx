@@ -1,4 +1,8 @@
-#![allow(non_camel_case_types, clippy::upper_case_acronyms)]
+#![allow(
+    non_camel_case_types,
+    clippy::upper_case_acronyms,
+    reason = "the variants mirror the names of the C constants of the engine"
+)]
 
 use super::prelude::*;
 use crate::ffi::c::prelude::*;

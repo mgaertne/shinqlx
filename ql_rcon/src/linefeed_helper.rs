@@ -254,3 +254,113 @@ pub(crate) async fn run_terminal(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod linefeed_helper_tests {
+    use clap::Parser;
+    use termcolor::{Buffer, ColorChoice, WriteColor};
+
+    use super::{
+        CommandLineOptions, get_history_file, split_ql_colors, terminal_buffer,
+        write_formatted_ql_colors,
+    };
+
+    fn rendered(buffer: Buffer) -> String {
+        String::from_utf8(buffer.into_inner()).expect("the output is valid UTF-8")
+    }
+
+    fn plain(text: &str) -> String {
+        let mut buffer = Buffer::no_color();
+        write_formatted_ql_colors(&mut buffer, text).expect("writing to a buffer works");
+        rendered(buffer)
+    }
+
+    #[test]
+    fn split_ql_colors_returns_unformatted_text_as_reset() {
+        assert_eq!(split_ql_colors("hello"), vec![("reset", "hello")]);
+    }
+
+    #[test]
+    fn split_ql_colors_splits_at_every_color_code() {
+        assert_eq!(
+            split_ql_colors("pre^1red^2green"),
+            vec![("reset", "pre"), ("^1", "red"), ("^2", "green")]
+        );
+    }
+
+    #[test]
+    fn split_ql_colors_skips_the_empty_leading_part() {
+        assert_eq!(split_ql_colors("^4blue"), vec![("^4", "blue")]);
+    }
+
+    #[test]
+    fn split_ql_colors_of_empty_text_is_empty() {
+        assert!(split_ql_colors("").is_empty());
+    }
+
+    #[test]
+    fn colored_text_loses_its_quake_color_codes() {
+        assert_eq!(plain("^1red ^2green"), "red green");
+    }
+
+    #[test]
+    fn broadcast_prefix_and_print_wrapper_are_removed() {
+        assert_eq!(plain("broadcast: print \"^3hello\n\""), "hello");
+        assert_eq!(plain("print \"plain text\""), "plain text");
+    }
+
+    #[test]
+    fn ansi_buffers_contain_escape_sequences() {
+        let mut buffer = Buffer::ansi();
+        write_formatted_ql_colors(&mut buffer, "^1red").expect("writing to a buffer works");
+
+        let output = rendered(buffer);
+        assert!(
+            output.contains("\u{1b}[") && output.contains("red"),
+            "{output:?}"
+        );
+    }
+
+    #[test]
+    fn all_color_codes_are_rendered() {
+        for code in 0..=7 {
+            let mut buffer = Buffer::ansi();
+            write_formatted_ql_colors(&mut buffer, &format!("^{code}x"))
+                .expect("writing to a buffer works");
+
+            assert!(rendered(buffer).contains('x'));
+        }
+    }
+
+    #[test]
+    fn terminal_buffer_follows_the_color_choice() {
+        assert!(!terminal_buffer(&ColorChoice::Never).supports_color());
+        assert!(terminal_buffer(&ColorChoice::Always).supports_color());
+        assert!(terminal_buffer(&ColorChoice::AlwaysAnsi).supports_color());
+    }
+
+    #[test]
+    fn terminal_buffer_with_auto_does_not_color_without_a_terminal() {
+        assert!(!terminal_buffer(&ColorChoice::Auto).supports_color());
+    }
+
+    #[test]
+    fn history_file_depends_on_the_host() {
+        let tcp = CommandLineOptions::try_parse_from(["ql_rcon", "--host", "tcp://10.0.0.1:27961"])
+            .expect("the options are valid");
+        let ipc = CommandLineOptions::try_parse_from(["ql_rcon", "--host", "ipc:///tmp/ql"])
+            .expect("the options are valid");
+
+        let tcp_file = get_history_file(&tcp).expect("a home directory is set");
+        let ipc_file = get_history_file(&ipc).expect("a home directory is set");
+
+        assert_eq!(
+            tcp_file.file_name().and_then(|name| name.to_str()),
+            Some(".ql_zmq_rcon-10_0_0_1_27961.history")
+        );
+        assert_eq!(
+            ipc_file.file_name().and_then(|name| name.to_str()),
+            Some(".ql_zmq_rcon.history")
+        );
+    }
+}

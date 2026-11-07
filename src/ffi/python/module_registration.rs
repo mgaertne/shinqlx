@@ -9,15 +9,14 @@ use pyo3::{
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, ConnectionStates,
     DEFAULT_PLUGINS, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, GameTypes, MODULES, PluginLoadError,
-    PluginUnloadError, PythonReturnCodes, RED_TEAM_CHAT_CHANNEL, SHINQLX_THREADNAME,
-    SPECTATOR_CHAT_CHANNEL, Teams, Weapon, commands::CommandPriorities, decorators, delay,
-    get_stats_listener, handlers, initialize, initialize_cvars, load_plugin, load_preset_plugins,
-    next_frame, prelude::*, pyshinqlx_configure_logger, pyshinqlx_get_logger,
-    pyshinqlx_handle_exception, pyshinqlx_handle_threading_exception, pyshinqlx_log_exception,
-    pyshinqlx_owner, pyshinqlx_parse_variables, reload_plugin, set_map_subtitles,
-    set_plugins_version, thread, try_get_plugins_path, unload_plugin, uptime,
+    PluginUnloadError, RED_TEAM_CHAT_CHANNEL, SHINQLX_THREADNAME, SPECTATOR_CHAT_CHANNEL, Teams,
+    Weapon, decorators, delay, get_stats_listener, handlers, initialize, initialize_cvars,
+    load_plugin, load_preset_plugins, next_frame, prelude::*, pyshinqlx_configure_logger,
+    pyshinqlx_get_logger, pyshinqlx_handle_exception, pyshinqlx_handle_threading_exception,
+    pyshinqlx_log_exception, pyshinqlx_owner, pyshinqlx_parse_variables, reload_plugin,
+    set_map_subtitles, set_plugins_version, thread, try_get_plugins_path, unload_plugin, uptime,
 };
-use crate::{MAIN_ENGINE, ffi::c::prelude::*, quake_live_engine::FindCVar};
+use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let sched_module = m.py().import(intern!(m.py(), "sched"))?;
@@ -238,111 +237,108 @@ pub(super) fn pyshinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // The constants are exported first because Python functions may use them as keyword defaults.
-    m.add("RET_NONE", PythonReturnCodes::RET_NONE as i32)?;
-    m.add("RET_STOP", PythonReturnCodes::RET_STOP as i32)?;
-    m.add("RET_STOP_EVENT", PythonReturnCodes::RET_STOP_EVENT as i32)?;
-    m.add("RET_STOP_ALL", PythonReturnCodes::RET_STOP_ALL as i32)?;
-    m.add("RET_USAGE", PythonReturnCodes::RET_USAGE as i32)?;
-    m.add("PRI_HIGHEST", CommandPriorities::PRI_HIGHEST as i32)?;
-    m.add("PRI_HIGH", CommandPriorities::PRI_HIGH as i32)?;
-    m.add("PRI_NORMAL", CommandPriorities::PRI_NORMAL as i32)?;
-    m.add("PRI_LOW", CommandPriorities::PRI_LOW as i32)?;
-    m.add("PRI_LOWEST", CommandPriorities::PRI_LOWEST as i32)?;
+    m.add("RET_NONE", ReturnCode::NONE as i32)?;
+    m.add("RET_STOP", ReturnCode::STOP as i32)?;
+    m.add("RET_STOP_EVENT", ReturnCode::STOP_EVENT as i32)?;
+    m.add("RET_STOP_ALL", ReturnCode::STOP_ALL as i32)?;
+    m.add("RET_USAGE", ReturnCode::USAGE as i32)?;
+    m.add("PRI_HIGHEST", Priority::HIGHEST as i32)?;
+    m.add("PRI_HIGH", Priority::HIGH as i32)?;
+    m.add("PRI_NORMAL", Priority::NORMAL as i32)?;
+    m.add("PRI_LOW", Priority::LOW as i32)?;
+    m.add("PRI_LOWEST", Priority::LOWEST as i32)?;
 
-    m.add("CVAR_ARCHIVE", cvar_flags::CVAR_ARCHIVE as i32)?;
-    m.add("CVAR_USERINFO", cvar_flags::CVAR_USERINFO as i32)?;
-    m.add("CVAR_SERVERINFO", cvar_flags::CVAR_SERVERINFO as i32)?;
-    m.add("CVAR_SYSTEMINFO", cvar_flags::CVAR_SYSTEMINFO as i32)?;
-    m.add("CVAR_INIT", cvar_flags::CVAR_INIT as i32)?;
-    m.add("CVAR_LATCH", cvar_flags::CVAR_LATCH as i32)?;
-    m.add("CVAR_ROM", cvar_flags::CVAR_ROM as i32)?;
-    m.add("CVAR_USER_CREATED", cvar_flags::CVAR_USER_CREATED as i32)?;
-    m.add("CVAR_TEMP", cvar_flags::CVAR_TEMP as i32)?;
-    m.add("CVAR_CHEAT", cvar_flags::CVAR_CHEAT as i32)?;
-    m.add("CVAR_NORESTART", cvar_flags::CVAR_NORESTART as i32)?;
+    m.add("CVAR_ARCHIVE", CvarFlag::ARCHIVE as i32)?;
+    m.add("CVAR_USERINFO", CvarFlag::USERINFO as i32)?;
+    m.add("CVAR_SERVERINFO", CvarFlag::SERVERINFO as i32)?;
+    m.add("CVAR_SYSTEMINFO", CvarFlag::SYSTEMINFO as i32)?;
+    m.add("CVAR_INIT", CvarFlag::INIT as i32)?;
+    m.add("CVAR_LATCH", CvarFlag::LATCH as i32)?;
+    m.add("CVAR_ROM", CvarFlag::ROM as i32)?;
+    m.add("CVAR_USER_CREATED", CvarFlag::USER_CREATED as i32)?;
+    m.add("CVAR_TEMP", CvarFlag::TEMP as i32)?;
+    m.add("CVAR_CHEAT", CvarFlag::CHEAT as i32)?;
+    m.add("CVAR_NORESTART", CvarFlag::NORESTART as i32)?;
 
-    m.add("PRIV_NONE", privileges_t::PRIV_NONE as i32)?;
-    m.add("PRIV_MOD", privileges_t::PRIV_MOD as i32)?;
-    m.add("PRIV_ADMIN", privileges_t::PRIV_ADMIN as i32)?;
-    m.add("PRIV_ROOT", privileges_t::PRIV_ROOT as i32)?;
-    m.add("PRIV_BANNED", privileges_t::PRIV_BANNED as i32)?;
+    m.add("PRIV_NONE", Privileges::NONE as i32)?;
+    m.add("PRIV_MOD", Privileges::MOD as i32)?;
+    m.add("PRIV_ADMIN", Privileges::ADMIN as i32)?;
+    m.add("PRIV_ROOT", Privileges::ROOT as i32)?;
+    m.add("PRIV_BANNED", Privileges::BANNED as i32)?;
 
-    m.add("CS_FREE", clientState_t::CS_FREE as i32)?;
-    m.add("CS_ZOMBIE", clientState_t::CS_ZOMBIE as i32)?;
-    m.add("CS_CONNECTED", clientState_t::CS_CONNECTED as i32)?;
-    m.add("CS_PRIMED", clientState_t::CS_PRIMED as i32)?;
-    m.add("CS_ACTIVE", clientState_t::CS_ACTIVE as i32)?;
+    m.add("CS_FREE", ConnectionState::FREE as i32)?;
+    m.add("CS_ZOMBIE", ConnectionState::ZOMBIE as i32)?;
+    m.add("CS_CONNECTED", ConnectionState::CONNECTED as i32)?;
+    m.add("CS_PRIMED", ConnectionState::PRIMED as i32)?;
+    m.add("CS_ACTIVE", ConnectionState::ACTIVE as i32)?;
 
-    m.add("TEAM_FREE", team_t::TEAM_FREE as i32)?;
-    m.add("TEAM_RED", team_t::TEAM_RED as i32)?;
-    m.add("TEAM_BLUE", team_t::TEAM_BLUE as i32)?;
-    m.add("TEAM_SPECTATOR", team_t::TEAM_SPECTATOR as i32)?;
+    m.add("TEAM_FREE", Team::FREE as i32)?;
+    m.add("TEAM_RED", Team::RED as i32)?;
+    m.add("TEAM_BLUE", Team::BLUE as i32)?;
+    m.add("TEAM_SPECTATOR", Team::SPECTATOR as i32)?;
 
-    m.add("MOD_UNKNOWN", meansOfDeath_t::MOD_UNKNOWN as i32)?;
-    m.add("MOD_SHOTGUN", meansOfDeath_t::MOD_SHOTGUN as i32)?;
-    m.add("MOD_GAUNTLET", meansOfDeath_t::MOD_GAUNTLET as i32)?;
-    m.add("MOD_MACHINEGUN", meansOfDeath_t::MOD_MACHINEGUN as i32)?;
-    m.add("MOD_GRENADE", meansOfDeath_t::MOD_GRENADE as i32)?;
-    m.add(
-        "MOD_GRENADE_SPLASH",
-        meansOfDeath_t::MOD_GRENADE_SPLASH as i32,
-    )?;
-    m.add("MOD_ROCKET", meansOfDeath_t::MOD_ROCKET as i32)?;
-    m.add(
-        "MOD_ROCKET_SPLASH",
-        meansOfDeath_t::MOD_ROCKET_SPLASH as i32,
-    )?;
-    m.add("MOD_PLASMA", meansOfDeath_t::MOD_PLASMA as i32)?;
-    m.add(
-        "MOD_PLASMA_SPLASH",
-        meansOfDeath_t::MOD_PLASMA_SPLASH as i32,
-    )?;
-    m.add("MOD_RAILGUN", meansOfDeath_t::MOD_RAILGUN as i32)?;
-    m.add("MOD_LIGHTNING", meansOfDeath_t::MOD_LIGHTNING as i32)?;
-    m.add("MOD_BFG", meansOfDeath_t::MOD_BFG as i32)?;
-    m.add("MOD_BFG_SPLASH", meansOfDeath_t::MOD_BFG_SPLASH as i32)?;
-    m.add("MOD_WATER", meansOfDeath_t::MOD_WATER as i32)?;
-    m.add("MOD_SLIME", meansOfDeath_t::MOD_SLIME as i32)?;
-    m.add("MOD_LAVA", meansOfDeath_t::MOD_LAVA as i32)?;
-    m.add("MOD_CRUSH", meansOfDeath_t::MOD_CRUSH as i32)?;
-    m.add("MOD_TELEFRAG", meansOfDeath_t::MOD_TELEFRAG as i32)?;
-    m.add("MOD_FALLING", meansOfDeath_t::MOD_FALLING as i32)?;
-    m.add("MOD_SUICIDE", meansOfDeath_t::MOD_SUICIDE as i32)?;
-    m.add("MOD_TARGET_LASER", meansOfDeath_t::MOD_TARGET_LASER as i32)?;
-    m.add("MOD_TRIGGER_HURT", meansOfDeath_t::MOD_TRIGGER_HURT as i32)?;
-    m.add("MOD_NAIL", meansOfDeath_t::MOD_NAIL as i32)?;
-    m.add("MOD_CHAINGUN", meansOfDeath_t::MOD_CHAINGUN as i32)?;
-    m.add(
-        "MOD_PROXIMITY_MINE",
-        meansOfDeath_t::MOD_PROXIMITY_MINE as i32,
-    )?;
-    m.add("MOD_KAMIKAZE", meansOfDeath_t::MOD_KAMIKAZE as i32)?;
-    m.add("MOD_JUICED", meansOfDeath_t::MOD_JUICED as i32)?;
-    m.add("MOD_GRAPPLE", meansOfDeath_t::MOD_GRAPPLE as i32)?;
-    m.add("MOD_SWITCH_TEAMS", meansOfDeath_t::MOD_SWITCH_TEAMS as i32)?;
-    m.add("MOD_THAW", meansOfDeath_t::MOD_THAW as i32)?;
+    m.add("MOD_UNKNOWN", MeansOfDeath::UNKNOWN as i32)?;
+    m.add("MOD_SHOTGUN", MeansOfDeath::SHOTGUN as i32)?;
+    m.add("MOD_GAUNTLET", MeansOfDeath::GAUNTLET as i32)?;
+    m.add("MOD_MACHINEGUN", MeansOfDeath::MACHINEGUN as i32)?;
+    m.add("MOD_GRENADE", MeansOfDeath::GRENADE as i32)?;
+    m.add("MOD_GRENADE_SPLASH", MeansOfDeath::GRENADE_SPLASH as i32)?;
+    m.add("MOD_ROCKET", MeansOfDeath::ROCKET as i32)?;
+    m.add("MOD_ROCKET_SPLASH", MeansOfDeath::ROCKET_SPLASH as i32)?;
+    m.add("MOD_PLASMA", MeansOfDeath::PLASMA as i32)?;
+    m.add("MOD_PLASMA_SPLASH", MeansOfDeath::PLASMA_SPLASH as i32)?;
+    m.add("MOD_RAILGUN", MeansOfDeath::RAILGUN as i32)?;
+    m.add("MOD_LIGHTNING", MeansOfDeath::LIGHTNING as i32)?;
+    m.add("MOD_BFG", MeansOfDeath::BFG as i32)?;
+    m.add("MOD_BFG_SPLASH", MeansOfDeath::BFG_SPLASH as i32)?;
+    m.add("MOD_WATER", MeansOfDeath::WATER as i32)?;
+    m.add("MOD_SLIME", MeansOfDeath::SLIME as i32)?;
+    m.add("MOD_LAVA", MeansOfDeath::LAVA as i32)?;
+    m.add("MOD_CRUSH", MeansOfDeath::CRUSH as i32)?;
+    m.add("MOD_TELEFRAG", MeansOfDeath::TELEFRAG as i32)?;
+    m.add("MOD_FALLING", MeansOfDeath::FALLING as i32)?;
+    m.add("MOD_SUICIDE", MeansOfDeath::SUICIDE as i32)?;
+    m.add("MOD_TARGET_LASER", MeansOfDeath::TARGET_LASER as i32)?;
+    m.add("MOD_TRIGGER_HURT", MeansOfDeath::TRIGGER_HURT as i32)?;
+    m.add("MOD_NAIL", MeansOfDeath::NAIL as i32)?;
+    m.add("MOD_CHAINGUN", MeansOfDeath::CHAINGUN as i32)?;
+    m.add("MOD_PROXIMITY_MINE", MeansOfDeath::PROXIMITY_MINE as i32)?;
+    m.add("MOD_KAMIKAZE", MeansOfDeath::KAMIKAZE as i32)?;
+    m.add("MOD_JUICED", MeansOfDeath::JUICED as i32)?;
+    m.add("MOD_GRAPPLE", MeansOfDeath::GRAPPLE as i32)?;
+    m.add("MOD_SWITCH_TEAMS", MeansOfDeath::SWITCH_TEAMS as i32)?;
+    m.add("MOD_THAW", MeansOfDeath::THAW as i32)?;
     m.add(
         "MOD_LIGHTNING_DISCHARGE",
-        meansOfDeath_t::MOD_LIGHTNING_DISCHARGE as i32,
+        MeansOfDeath::LIGHTNING_DISCHARGE as i32,
     )?;
-    m.add("MOD_HMG", meansOfDeath_t::MOD_HMG as i32)?;
+    m.add("MOD_HMG", MeansOfDeath::HMG as i32)?;
     m.add(
         "MOD_RAILGUN_HEADSHOT",
-        meansOfDeath_t::MOD_RAILGUN_HEADSHOT as i32,
+        MeansOfDeath::RAILGUN_HEADSHOT as i32,
     )?;
 
-    m.add("DAMAGE_RADIUS", DAMAGE_RADIUS as i32)?;
-    m.add("DAMAGE_NO_ARMOR", DAMAGE_NO_ARMOR as i32)?;
-    m.add("DAMAGE_NO_KNOCKBACK", DAMAGE_NO_KNOCKBACK as i32)?;
-    m.add("DAMAGE_NO_PROTECTION", DAMAGE_NO_PROTECTION as i32)?;
+    m.add("DAMAGE_RADIUS", DamageFlag::RADIUS as i32)?;
+    m.add("DAMAGE_NO_ARMOR", DamageFlag::NO_ARMOR as i32)?;
+    m.add("DAMAGE_NO_KNOCKBACK", DamageFlag::NO_KNOCKBACK as i32)?;
+    m.add("DAMAGE_NO_PROTECTION", DamageFlag::NO_PROTECTION as i32)?;
     m.add(
         "DAMAGE_NO_TEAM_PROTECTION",
-        DAMAGE_NO_TEAM_PROTECTION as i32,
+        DamageFlag::NO_TEAM_PROTECTION as i32,
     )?;
 
     m.add_class::<Vector3>()?;
     m.add_class::<Flight>()?;
     m.add_class::<ConfigString>()?;
+    m.add_class::<Team>()?;
+    m.add_class::<Privileges>()?;
+    m.add_class::<ConnectionState>()?;
+    m.add_class::<Priority>()?;
+    m.add_class::<ReturnCode>()?;
+    m.add_class::<VoteState>()?;
+    m.add_class::<CvarFlag>()?;
+    m.add_class::<DamageFlag>()?;
+    m.add_class::<MeansOfDeath>()?;
     m.add_class::<Powerups>()?;
     m.add_class::<Weapons>()?;
     m.add_class::<PlayerInfo>()?;

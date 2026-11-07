@@ -183,6 +183,131 @@ class ConfigString:
     STEAM_WORKSHOP_IDS: ClassVar[ConfigString]
     def __index__(self) -> int: ...
 
+class Teams:
+    FREE: ClassVar[Teams]
+    RED: ClassVar[Teams]
+    BLUE: ClassVar[Teams]
+    SPECTATOR: ClassVar[Teams]
+    def __index__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+
+class Privileges:
+    NONE: ClassVar[Privileges]
+    MOD: ClassVar[Privileges]
+    ADMIN: ClassVar[Privileges]
+    ROOT: ClassVar[Privileges]
+    BANNED: ClassVar[Privileges]
+    def __index__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+
+class ConnectionStates:
+    FREE: ClassVar[ConnectionStates]
+    ZOMBIE: ClassVar[ConnectionStates]
+    CONNECTED: ClassVar[ConnectionStates]
+    PRIMED: ClassVar[ConnectionStates]
+    ACTIVE: ClassVar[ConnectionStates]
+    def __index__(self) -> int: ...
+    def __hash__(self) -> int: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+
+class Priorities:
+    HIGHEST: ClassVar[Priorities]
+    HIGH: ClassVar[Priorities]
+    NORMAL: ClassVar[Priorities]
+    LOW: ClassVar[Priorities]
+    LOWEST: ClassVar[Priorities]
+    def __index__(self) -> int: ...
+
+class ReturnCodes:
+    NONE: ClassVar[ReturnCodes]
+    STOP: ClassVar[ReturnCodes]
+    STOP_EVENT: ClassVar[ReturnCodes]
+    STOP_ALL: ClassVar[ReturnCodes]
+    USAGE: ClassVar[ReturnCodes]
+    def __index__(self) -> int: ...
+
+class VoteStates:
+    NONE: ClassVar[VoteStates]
+    PENDING: ClassVar[VoteStates]
+    YES: ClassVar[VoteStates]
+    NO: ClassVar[VoteStates]
+    FORCE_PASS: ClassVar[VoteStates]
+    FORCE_FAIL: ClassVar[VoteStates]
+    EXPIRED: ClassVar[VoteStates]
+    def __index__(self) -> int: ...
+
+class CvarFlags:
+    ARCHIVE: ClassVar[CvarFlags]
+    USERINFO: ClassVar[CvarFlags]
+    SERVERINFO: ClassVar[CvarFlags]
+    SYSTEMINFO: ClassVar[CvarFlags]
+    INIT: ClassVar[CvarFlags]
+    LATCH: ClassVar[CvarFlags]
+    ROM: ClassVar[CvarFlags]
+    USER_CREATED: ClassVar[CvarFlags]
+    TEMP: ClassVar[CvarFlags]
+    CHEAT: ClassVar[CvarFlags]
+    NORESTART: ClassVar[CvarFlags]
+    def __index__(self) -> int: ...
+    def __or__(self, other: SupportsIndex) -> int: ...
+    def __ror__(self, other: SupportsIndex) -> int: ...
+    def __and__(self, other: SupportsIndex) -> int: ...
+    def __rand__(self, other: SupportsIndex) -> int: ...
+
+class DamageFlags:
+    RADIUS: ClassVar[DamageFlags]
+    NO_ARMOR: ClassVar[DamageFlags]
+    NO_KNOCKBACK: ClassVar[DamageFlags]
+    NO_PROTECTION: ClassVar[DamageFlags]
+    NO_TEAM_PROTECTION: ClassVar[DamageFlags]
+    def __index__(self) -> int: ...
+    def __or__(self, other: SupportsIndex) -> int: ...
+    def __ror__(self, other: SupportsIndex) -> int: ...
+    def __and__(self, other: SupportsIndex) -> int: ...
+    def __rand__(self, other: SupportsIndex) -> int: ...
+
+class MeansOfDeath:
+    UNKNOWN: ClassVar[MeansOfDeath]
+    SHOTGUN: ClassVar[MeansOfDeath]
+    GAUNTLET: ClassVar[MeansOfDeath]
+    MACHINEGUN: ClassVar[MeansOfDeath]
+    GRENADE: ClassVar[MeansOfDeath]
+    GRENADE_SPLASH: ClassVar[MeansOfDeath]
+    ROCKET: ClassVar[MeansOfDeath]
+    ROCKET_SPLASH: ClassVar[MeansOfDeath]
+    PLASMA: ClassVar[MeansOfDeath]
+    PLASMA_SPLASH: ClassVar[MeansOfDeath]
+    RAILGUN: ClassVar[MeansOfDeath]
+    LIGHTNING: ClassVar[MeansOfDeath]
+    BFG: ClassVar[MeansOfDeath]
+    BFG_SPLASH: ClassVar[MeansOfDeath]
+    WATER: ClassVar[MeansOfDeath]
+    SLIME: ClassVar[MeansOfDeath]
+    LAVA: ClassVar[MeansOfDeath]
+    CRUSH: ClassVar[MeansOfDeath]
+    TELEFRAG: ClassVar[MeansOfDeath]
+    FALLING: ClassVar[MeansOfDeath]
+    SUICIDE: ClassVar[MeansOfDeath]
+    TARGET_LASER: ClassVar[MeansOfDeath]
+    TRIGGER_HURT: ClassVar[MeansOfDeath]
+    NAIL: ClassVar[MeansOfDeath]
+    CHAINGUN: ClassVar[MeansOfDeath]
+    PROXIMITY_MINE: ClassVar[MeansOfDeath]
+    KAMIKAZE: ClassVar[MeansOfDeath]
+    JUICED: ClassVar[MeansOfDeath]
+    GRAPPLE: ClassVar[MeansOfDeath]
+    SWITCH_TEAMS: ClassVar[MeansOfDeath]
+    THAW: ClassVar[MeansOfDeath]
+    LIGHTNING_DISCHARGE: ClassVar[MeansOfDeath]
+    HMG: ClassVar[MeansOfDeath]
+    RAILGUN_HEADSHOT: ClassVar[MeansOfDeath]
+    def __index__(self) -> int: ...
+
 class Flight(tuple):
     fuel: int
     max_fuel: int

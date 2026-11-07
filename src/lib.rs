@@ -17,6 +17,15 @@
 //!
 //! This library is loaded by the Quake Live dedicated server at startup
 //! and provides a Python API for interacting with the game.
+//!
+//! ## Cargo features
+//!
+//! * `alloc` (default): uses jemalloc, on Windows mimalloc, as global allocator.
+//! * `steam-query-limit` (default): rate limits server queries (`A2S_INFO`, `A2S_PLAYER`, `A2S_RULES`) per source
+//!   address and overall, see `DDOS-PROTECTION.md` in the repository. Configured through the cvars
+//!   `qlx_steamQueryRate`, `qlx_steamQueryBurst` and `qlx_steamQueryGlobalRate`.
+//! * `patches`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by default.
+//! * `bench-support`: exposes internals to the benchmarks. Not meant for production builds.
 
 #![cfg_attr(not(test), no_main)]
 #![allow(
@@ -54,6 +63,8 @@ mod quake_live_engine;
     reason = "the variants of the module are the C symbol names of the engine functions"
 )]
 pub mod quake_live_functions;
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+mod query_rate_limiter;
 
 pub(crate) mod prelude {
     pub(crate) use alloc::format;
@@ -145,6 +156,7 @@ fn initialize() {
         return;
     }
 
+    // SAFETY: the handler only calls exit, which is safe in a signal handler.
     let _ = unsafe {
         signal_hook_registry::register_signal_unchecked(SIGSEGV, move || {
             signal_hook::low_level::exit(1);
@@ -220,6 +232,7 @@ mod lib_tests {
     #[test]
     #[serial]
     fn test_initialize_non_qzeroded_program() {
+        // SAFETY: the tests changing the environment run serially.
         unsafe {
             env::set_var("RUST_TEST_PROGRAM", "some_other_program");
         }

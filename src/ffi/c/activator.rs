@@ -11,6 +11,7 @@ impl TryFrom<*mut gentity_t> for Activator<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { game_entity.as_ref() }
             .map(|gentity| Self { activator: gentity })
             .ok_or_else(|| {

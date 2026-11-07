@@ -1,6 +1,6 @@
 # shinqlx
 
-![python](https://img.shields.io/badge/python-3.9%7C3.10%7C3.11%7C3.12%7C3.13%7C3.14-blue.svg)
+![python](https://img.shields.io/badge/python-3.9%7C3.10%7C3.11%7C3.12%7C3.13%7C3.14%7C3.15-blue.svg)
 ![Tests](https://github.com/mgaertne/shinqlx/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/mgaertne/shinqlx/branch/main/graph/badge.svg?token=VK9QI52BZX)](https://codecov.io/gh/mgaertne/shinqlx)
 
@@ -108,6 +108,24 @@ exec $basepath/run_server_shinqlx.sh \
 ```
 
 `run_server.sh 0` will start a server on port 27960, `run_server.sh 1` on port 27961, and so on.
+
+# Cargo features
+
+| Feature             | Default | Purpose                                                                           |
+|---------------------|---------|-----------------------------------------------------------------------------------|
+| `alloc`             | yes     | jemalloc (mimalloc on Windows) as global allocator                                |
+| `steam-query-limit` | yes     | rate limit for server queries against reflection and floods                       |
+| `patches`           | no      | patch for the callvote clientkick lookup in `qagame`, experimental                |
+| `bench-support`     | no      | exposes internals to the benchmarks, not for production builds                    |
+
+Enable or disable features when building, e.g. `maturin build --release --features patches`, or without the query
+limit: `maturin build --release --no-default-features --features alloc`.
+
+# Protection against query floods
+
+Quake Live servers can be abused as reflectors by forged server queries. shinqlx contains a rate limit for these
+queries (Cargo feature `steam-query-limit`). How it works, how to configure it, and how to combine it with nftables and
+XDP is described in [DDOS-PROTECTION.md](DDOS-PROTECTION.md).
 
 # Supervisor configuration
 

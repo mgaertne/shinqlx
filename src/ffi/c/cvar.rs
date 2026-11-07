@@ -13,6 +13,7 @@ impl TryFrom<*mut cvar_t> for CVar<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { cvar.as_mut() }
             .map(|cvar| Self { cvar })
             .ok_or_else(|| {
@@ -26,6 +27,7 @@ impl CVar<'_> {
         if self.cvar.string.is_null() {
             return "".into();
         }
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(self.cvar.string) }
             .to_string_lossy()
             .to_string()

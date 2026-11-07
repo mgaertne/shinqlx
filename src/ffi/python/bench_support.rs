@@ -27,6 +27,7 @@ use super::{
 
 /// Starts the embedded interpreter with the shinqlx module and some event dispatchers.
 pub fn prepare_python() {
+    // SAFETY: Py_IsInitialized may be called before the interpreter exists.
     if unsafe { Py_IsInitialized() } == 0 {
         append_to_inittab!(pyshinqlx_module);
         Python::initialize();

@@ -17,6 +17,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(server_static: *mut serverStatic_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { server_static.as_mut() }
             .map(|svs| Self {
                 serverStatic_t: svs,
@@ -38,6 +39,7 @@ impl ServerStatic<'_> {
                 let func_pointer = main_engine.sv_shutdown_orig()?;
 
                 let svs_ptr_ptr = func_pointer as usize + 0xAC;
+                // SAFETY: the pointer lies in the data of the engine, which stays mapped.
                 let svs_ptr: u32 = unsafe { ptr::read(svs_ptr_ptr as *const u32) };
                 Self::try_from(svs_ptr as *mut serverStatic_t)
             },
@@ -62,6 +64,7 @@ impl ServerStatic<'_> {
             return Err(QuakeLiveEngineError::InvalidId(client_id));
         }
 
+        // SAFETY: the id was checked against MAX_CLIENTS.
         Ok(unsafe { self.serverStatic_t.clients.offset(client_id as isize) })
     }
 

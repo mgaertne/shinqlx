@@ -14,6 +14,7 @@ impl TryFrom<*mut gclient_t> for GameClient {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_client: *mut gclient_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { game_client.as_mut() }
             .map(|gclient_t| Self {
                 game_client: gclient_t,
@@ -34,6 +35,7 @@ impl GameClient {
     }
 
     pub(crate) fn get_player_name(&self) -> Cow<'_, str> {
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(self.game_client.pers.netname.as_ptr()) }.to_string_lossy()
     }
 

@@ -4029,7 +4029,10 @@ fn lock_with_invalid_team(_pyshinqlx_setup: ()) {
         .configure(|_mock_engine| {})
         .run(|| {
             Python::attach(|py| {
-                let result = Plugin::lock(&py.get_type::<Plugin>(), Some("invalid_team"));
+                let result = Plugin::lock(
+                    &py.get_type::<Plugin>(),
+                    Some(PyString::new(py, "invalid_team").as_any()),
+                );
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -4059,8 +4062,12 @@ fn lock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
     MockEngineBuilder::default()
         .with_execute_console_command(format!("lock {}", locked_team.to_lowercase()), 1)
         .run(|| {
-            let result =
-                Python::attach(|py| Plugin::lock(&py.get_type::<Plugin>(), Some(locked_team)));
+            let result = Python::attach(|py| {
+                Plugin::lock(
+                    &py.get_type::<Plugin>(),
+                    Some(PyString::new(py, locked_team).as_any()),
+                )
+            });
             assert!(result.is_ok());
         });
 }
@@ -4073,7 +4080,10 @@ fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
         .configure(|_mock_engine| {})
         .run(|| {
             Python::attach(|py| {
-                let result = Plugin::unlock(&py.get_type::<Plugin>(), Some("invalid_team"));
+                let result = Plugin::unlock(
+                    &py.get_type::<Plugin>(),
+                    Some(PyString::new(py, "invalid_team").as_any()),
+                );
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -4103,8 +4113,12 @@ fn unlock_a_specific_team(_pyshinqlx_setup: (), #[case] locked_team: &str) {
     MockEngineBuilder::default()
         .with_execute_console_command(format!("unlock {}", locked_team.to_lowercase()), 1)
         .run(|| {
-            let result =
-                Python::attach(|py| Plugin::unlock(&py.get_type::<Plugin>(), Some(locked_team)));
+            let result = Python::attach(|py| {
+                Plugin::unlock(
+                    &py.get_type::<Plugin>(),
+                    Some(PyString::new(py, locked_team).as_any()),
+                )
+            });
             assert!(result.is_ok());
         });
 }
@@ -4117,7 +4131,7 @@ fn put_with_invalid_team(_pyshinqlx_setup: ()) {
         let result = Plugin::put(
             &py.get_type::<Plugin>(),
             PyInt::new(py, 2i32).as_any(),
-            "invalid team",
+            PyString::new(py, "invalid team").as_any(),
         );
         assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
     });
@@ -4131,7 +4145,7 @@ fn put_with_invalid_player(_pyshinqlx_setup: ()) {
         let result = Plugin::put(
             &py.get_type::<Plugin>(),
             PyInt::new(py, 2048i32).as_any(),
-            "red",
+            PyString::new(py, "red").as_any(),
         );
         assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
     });
@@ -4153,7 +4167,7 @@ fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &st
                 Plugin::put(
                     &py.get_type::<Plugin>(),
                     PyInt::new(py, 2i32).as_any(),
-                    new_team,
+                    PyString::new(py, new_team).as_any(),
                 )
             });
             assert!(result.is_ok());
@@ -4409,7 +4423,11 @@ fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
 #[serial]
 fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
-        let result = Plugin::addteamscore(&py.get_type::<Plugin>(), "invalid_team", 42);
+        let result = Plugin::addteamscore(
+            &py.get_type::<Plugin>(),
+            PyString::new(py, "invalid_team").as_any(),
+            42,
+        );
         assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
     });
 }
@@ -4426,8 +4444,13 @@ fn addteamscore_adds_score_to_team(_pyshinqlx_setup: (), #[case] team: &str) {
     MockEngineBuilder::default()
         .with_execute_console_command(format!("addteamscore {} 42", team.to_lowercase()), 1)
         .run(|| {
-            let result =
-                Python::attach(|py| Plugin::addteamscore(&py.get_type::<Plugin>(), team, 42));
+            let result = Python::attach(|py| {
+                Plugin::addteamscore(
+                    &py.get_type::<Plugin>(),
+                    PyString::new(py, team).as_any(),
+                    42,
+                )
+            });
             assert!(result.is_ok());
         });
 }

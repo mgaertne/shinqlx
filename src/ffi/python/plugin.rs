@@ -1020,19 +1020,27 @@ impl Plugin {
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+    fn lock(cls: &Bound<'_, PyType>, team: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        let team = team.map(name_of).transpose()?;
+        let team = team.as_deref();
         cls.py().detach(|| lock(team))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+    fn unlock(cls: &Bound<'_, PyType>, team: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        let team = team.map(name_of).transpose()?;
+        let team = team.as_deref();
         cls.py().detach(|| unlock(team))
     }
 
     #[classmethod]
-    fn put(cls: &Bound<'_, PyType>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
-        put(cls.py(), player, team)
+    fn put(
+        cls: &Bound<'_, PyType>,
+        player: &Bound<'_, PyAny>,
+        team: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
+        put(cls.py(), player, &name_of(team)?)
     }
 
     #[classmethod]
@@ -1091,8 +1099,9 @@ impl Plugin {
     }
 
     #[classmethod]
-    fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
-        cls.py().detach(|| addteamscore(team, score))
+    fn addteamscore(cls: &Bound<'_, PyType>, team: &Bound<'_, PyAny>, score: i32) -> PyResult<()> {
+        let team = name_of(team)?;
+        cls.py().detach(|| addteamscore(&team, score))
     }
 
     #[classmethod]

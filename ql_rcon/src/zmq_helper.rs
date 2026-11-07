@@ -218,3 +218,69 @@ pub(crate) async fn run_zmq(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod zmq_helper_tests {
+    use core::{sync::atomic::Ordering, time::Duration};
+
+    use arzmq::prelude::{ContextBuilder, RouterSocket, Socket};
+    use termcolor::ColorChoice;
+    use tokio::{sync::mpsc::unbounded_channel, time::timeout};
+
+    use super::{CONTINUE_RUNNING, CommandLineOptions, run_zmq, trim_ql_msg};
+
+    #[test]
+    fn trim_ql_msg_removes_line_breaks_and_the_quake_marker() {
+        assert_eq!(trim_ql_msg("a\nb"), "ab");
+        assert_eq!(trim_ql_msg("a\\nb"), "ab");
+        assert_eq!(trim_ql_msg("\u{19}hello"), "hello");
+        assert_eq!(trim_ql_msg("unchanged"), "unchanged");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn run_zmq_stops_when_the_server_does_not_speak_the_configured_security() {
+        let context = ContextBuilder::default()
+            .build()
+            .expect("a context can be created");
+        let router: RouterSocket = Socket::from_context(&context).expect("a router can be created");
+        router
+            .bind("tcp://127.0.0.1:*")
+            .expect("a free port can be bound");
+        let endpoint = router.last_endpoint().expect("the endpoint is known");
+
+        let (_zmq_sender, zmq_receiver) = unbounded_channel();
+        let (display_sender, mut display_receiver) = unbounded_channel();
+        let task = tokio::spawn(run_zmq(
+            CommandLineOptions {
+                host: endpoint.clone(),
+                password: "secret".to_string(),
+                identity: "tester".to_string(),
+                color: ColorChoice::Never,
+            },
+            zmq_receiver,
+            display_sender,
+        ));
+
+        let result = timeout(Duration::from_secs(10), task).await;
+
+        assert!(
+            matches!(result, Ok(Ok(Ok(())))),
+            "run_zmq did not end cleanly: {result:?}"
+        );
+        assert!(!CONTINUE_RUNNING.load(Ordering::Acquire));
+        let mut lines = Vec::new();
+        while let Ok(line) = display_receiver.try_recv() {
+            lines.push(line);
+        }
+        assert_eq!(
+            lines.first(),
+            Some(&format!("ZMQ connecting to {endpoint}..."))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.starts_with("ZMQ socket error")),
+            "{lines:?}"
+        );
+    }
+}

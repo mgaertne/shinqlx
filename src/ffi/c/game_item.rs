@@ -36,6 +36,7 @@ impl TryFrom<*mut gitem_t> for GameItem {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_item: *mut gitem_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { game_item.as_mut() }
             .map(|gitem| Self { gitem_t: gitem })
             .ok_or_else(|| {
@@ -53,6 +54,7 @@ impl TryFrom<i32> for GameItem {
             return Err(QuakeLiveEngineError::InvalidId(item_id));
         }
         let bg_itemlist = GameItem::get_item_list();
+        // SAFETY: the id was checked against the number of items of the list.
         Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) as *mut gitem_t }).map_err(
             |_| {
                 cold_path();
@@ -74,6 +76,7 @@ impl GameItem {
 
         (1..=4096)
             .filter(|index| {
+                // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
                 (unsafe { bg_itemlist.offset((*index) as isize).as_ref() })
                     .is_some_and(|item| !item.classname.is_null())
             })
@@ -100,6 +103,7 @@ impl GameItem {
                 main_engine
                     .launch_item_orig()
                     .map_or(ptr::null_mut(), |launch_item_orig| {
+                        // SAFETY: the address derives from a function of the loaded engine, whose code is readable.
                         let base_address = unsafe {
                             ptr::read_unaligned(
                                 (launch_item_orig as usize + OFFSET_BG_ITEMLIST) as *const i32,
@@ -112,6 +116,7 @@ impl GameItem {
                             + 4;
 
                         let bg_itemlist_ptr =
+                            // SAFETY: the pointer lies in the item list of the engine, which stays mapped.
                             unsafe { ptr::read(bg_itemlist_ptr_ptr as *const u64) };
                         bg_itemlist_ptr as *mut gitem_t
                     })
@@ -119,6 +124,7 @@ impl GameItem {
     }
 
     pub(crate) fn get_classname(&self) -> Cow<'_, str> {
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(self.gitem_t.classname) }.to_string_lossy()
     }
 
@@ -382,6 +388,7 @@ mod game_item_tests {
         let mut function_bytes = FunctionBytes([0; 0x80]);
         function_bytes.0[0x2A..0x2E].copy_from_slice(&0x12i32.to_le_bytes());
         function_bytes.0[0x40..0x48].copy_from_slice(&(item_ptr as u64).to_le_bytes());
+        // SAFETY: the address belongs to a function with this signature.
         let function_pointer = unsafe {
             core::mem::transmute::<
                 usize,

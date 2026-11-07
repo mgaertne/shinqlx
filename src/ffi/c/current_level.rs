@@ -19,6 +19,7 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { level_locals.as_mut() }
             .map(|level| Self { level })
             .ok_or_else(|| {
@@ -45,6 +46,7 @@ impl CurrentLevel<'_> {
             Err(QuakeLiveEngineError::MainEngineNotInitialized),
             |main_engine| {
                 let func_pointer = main_engine.g_init_game_orig()?;
+                // SAFETY: the address derives from a function of the loaded engine, whose code is readable.
                 let base_address = unsafe {
                     ptr::read_unaligned((func_pointer as usize + OFFSET_LEVEL) as *const i32)
                 };
@@ -238,6 +240,7 @@ mod current_level_tests {
             .expect("this should not happen");
         current_level.callvote("map thunderstruck", "map thunderstruck", None);
         assert_eq!(
+            // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
             unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
             ""
         );
@@ -302,10 +305,12 @@ mod current_level_tests {
                     .expect("this should not happen");
             current_level.callvote("map thunderstruck", "map thunderstruck", None);
             assert_eq!(
+                // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
                 unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
                 "map thunderstruck"
             );
             assert_eq!(
+                // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
                 unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
                 "map thunderstruck"
             );
@@ -371,10 +376,12 @@ mod current_level_tests {
                     .expect("this should not happen");
             current_level.callvote("map campgrounds", "map asdf", Some(42));
             assert_eq!(
+                // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
                 unsafe { CStr::from_ptr(level.voteString.as_ptr()) }.to_string_lossy(),
                 "map campgrounds"
             );
             assert_eq!(
+                // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
                 unsafe { CStr::from_ptr(level.voteDisplayString.as_ptr()) }.to_string_lossy(),
                 "map asdf"
             );

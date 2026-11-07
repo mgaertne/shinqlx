@@ -375,19 +375,27 @@ impl Game {
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn lock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+    fn lock(cls: &Bound<'_, PyType>, team: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        let team = team.map(name_of).transpose()?;
+        let team = team.as_deref();
         cls.py().detach(|| lock(team))
     }
 
     #[classmethod]
     #[pyo3(signature = (team = None), text_signature = "(team = None)")]
-    fn unlock(cls: &Bound<'_, PyType>, team: Option<&str>) -> PyResult<()> {
+    fn unlock(cls: &Bound<'_, PyType>, team: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        let team = team.map(name_of).transpose()?;
+        let team = team.as_deref();
         cls.py().detach(|| unlock(team))
     }
 
     #[classmethod]
-    fn put(cls: &Bound<'_, PyType>, player: &Bound<'_, PyAny>, team: &str) -> PyResult<()> {
-        put(cls.py(), player, team)
+    fn put(
+        cls: &Bound<'_, PyType>,
+        player: &Bound<'_, PyAny>,
+        team: &Bound<'_, PyAny>,
+    ) -> PyResult<()> {
+        put(cls.py(), player, &name_of(team)?)
     }
 
     #[classmethod]
@@ -446,8 +454,9 @@ impl Game {
     }
 
     #[classmethod]
-    fn addteamscore(cls: &Bound<'_, PyType>, team: &str, score: i32) -> PyResult<()> {
-        cls.py().detach(|| addteamscore(team, score))
+    fn addteamscore(cls: &Bound<'_, PyType>, team: &Bound<'_, PyAny>, score: i32) -> PyResult<()> {
+        let team = name_of(team)?;
+        cls.py().detach(|| addteamscore(&team, score))
     }
 
     #[classmethod]
@@ -2574,7 +2583,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
             .configure(|_mock_engine| {})
             .run(|| {
                 Python::attach(|py| {
-                    let result = Game::lock(&py.get_type::<Game>(), Some("invalid_team"));
+                    let result = Game::lock(
+                        &py.get_type::<Game>(),
+                        Some(PyString::new(py, "invalid_team").as_any()),
+                    );
                     assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
                 });
             });
@@ -2604,8 +2616,12 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command(format!("lock {}", locked_team.to_lowercase()), 1)
             .run(|| {
-                let result =
-                    Python::attach(|py| Game::lock(&py.get_type::<Game>(), Some(locked_team)));
+                let result = Python::attach(|py| {
+                    Game::lock(
+                        &py.get_type::<Game>(),
+                        Some(PyString::new(py, locked_team).as_any()),
+                    )
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2616,7 +2632,10 @@ shinqlx._map_subtitle2 = "Awesome map!"
     fn unlock_with_invalid_team(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default().run(|| {
             Python::attach(|py| {
-                let result = Game::unlock(&py.get_type::<Game>(), Some("invalid_team"));
+                let result = Game::unlock(
+                    &py.get_type::<Game>(),
+                    Some(PyString::new(py, "invalid_team").as_any()),
+                );
                 assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
             });
         });
@@ -2646,8 +2665,12 @@ shinqlx._map_subtitle2 = "Awesome map!"
         MockEngineBuilder::default()
             .with_execute_console_command(format!("unlock {}", locked_team.to_lowercase()), 1)
             .run(|| {
-                let result =
-                    Python::attach(|py| Game::unlock(&py.get_type::<Game>(), Some(locked_team)));
+                let result = Python::attach(|py| {
+                    Game::unlock(
+                        &py.get_type::<Game>(),
+                        Some(PyString::new(py, locked_team).as_any()),
+                    )
+                });
                 assert!(result.is_ok());
             });
     }
@@ -2660,7 +2683,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             let result = Game::put(
                 &py.get_type::<Game>(),
                 PyInt::new(py, 2i32).as_any(),
-                "invalid team",
+                PyString::new(py, "invalid team").as_any(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2674,7 +2697,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
             let result = Game::put(
                 &py.get_type::<Game>(),
                 PyInt::new(py, 2048i32).as_any(),
-                "red",
+                PyString::new(py, "red").as_any(),
             );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
@@ -2696,7 +2719,7 @@ shinqlx._map_subtitle2 = "Awesome map!"
                     Game::put(
                         &py.get_type::<Game>(),
                         PyInt::new(py, 2i32).as_any(),
-                        new_team,
+                        PyString::new(py, new_team).as_any(),
                     )
                 });
                 assert!(result.is_ok());
@@ -2949,7 +2972,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
     #[serial]
     fn addteamscore_with_invalid_team(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            let result = Game::addteamscore(&py.get_type::<Game>(), "invalid_team", 42);
+            let result = Game::addteamscore(
+                &py.get_type::<Game>(),
+                PyString::new(py, "invalid_team").as_any(),
+                42,
+            );
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }
@@ -2970,7 +2997,11 @@ shinqlx._map_subtitle2 = "Awesome map!"
             )
             .run(|| {
                 let result = Python::attach(|py| {
-                    Game::addteamscore(&py.get_type::<Game>(), locked_team, 42)
+                    Game::addteamscore(
+                        &py.get_type::<Game>(),
+                        PyString::new(py, locked_team).as_any(),
+                        42,
+                    )
                 });
                 assert!(result.is_ok());
             });

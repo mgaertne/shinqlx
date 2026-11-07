@@ -14,7 +14,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo check --workspace
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack check --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run
 
   check-tests:
     name: Check (tests)
@@ -26,7 +28,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
-      - run: cargo check --workspace --tests
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack check --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run --tests
 
   clippy:
     name: Clippy
@@ -39,7 +43,9 @@ jobs:
         with:
           toolchain: nightly
           components: clippy
-      - run: cargo clippy --workspace -- -D warnings
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack clippy --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run -- -D warnings
 
   clippy-tests:
     name: Clippy (tests)
@@ -52,7 +58,28 @@ jobs:
         with:
           toolchain: nightly
           components: clippy
-      - run: cargo clippy --workspace --tests -- -D warnings
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack clippy --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run --tests -- -D warnings
+
+  test-features:
+    name: Test (feature combinations)
+    runs-on: ubuntu-latest
+    needs: [ check-tests, clippy-tests ]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack test --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run
 
   rust-doc:
     name: rust-documentation
@@ -124,7 +151,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14' ]
+        python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.15' ]
         include:
           - os: ubuntu-24.04
             python-version: '3.9'
@@ -149,7 +176,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14' ]
+        python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.15' ]
         include:
           - os: ubuntu-24.04
             python-version: '3.9'
@@ -245,7 +272,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [ check, check-tests, clippy, clippy-tests, rust-doc, python-doc, miri, tarpaulin-coverage, build, python-checks ]
+    needs: [ check, check-tests, clippy, clippy-tests, test-features, rust-doc, python-doc, miri, tarpaulin-coverage, build, python-checks ]
     steps:
       - name: Checkout sources
         uses: actions/checkout@v6

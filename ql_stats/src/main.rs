@@ -48,3 +48,19 @@ async fn receive_json(mut receiver: UnboundedReceiver<String>) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod main_tests {
+    use tokio::sync::mpsc::unbounded_channel;
+
+    use super::receive_json;
+
+    #[tokio::test]
+    async fn receive_json_ends_when_the_sender_is_dropped() {
+        let (sender, receiver) = unbounded_channel();
+        sender.send("line".to_string()).expect("receiver is alive");
+        drop(sender);
+
+        assert!(receive_json(receiver).await.is_ok());
+    }
+}

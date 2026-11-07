@@ -194,3 +194,88 @@ pub(crate) async fn run_zmq(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod zmq_helper_tests {
+    use core::{sync::atomic::Ordering, time::Duration};
+
+    use arzmq::prelude::{ContextBuilder, PublishSocket, Socket};
+    use tokio::{sync::mpsc::unbounded_channel, time::timeout};
+
+    use super::{CONTINUE_RUNNING, CommandLineOptions, format_ql_json, run_zmq};
+
+    fn options(pretty_print: bool) -> CommandLineOptions {
+        CommandLineOptions {
+            host: String::new(),
+            password: String::new(),
+            pretty_print,
+        }
+    }
+
+    #[test]
+    fn format_ql_json_compacts_valid_json() {
+        let formatted = format_ql_json(
+            "{ \"TYPE\" : \"PLAYER_KILL\",\n \"DATA\": {} }",
+            &options(false),
+        );
+
+        assert_eq!(formatted, "{\"DATA\":{},\"TYPE\":\"PLAYER_KILL\"}");
+    }
+
+    #[test]
+    fn format_ql_json_pretty_prints_on_request() {
+        let formatted = format_ql_json("{\"a\":1}", &options(true));
+
+        assert_eq!(formatted, "{\n  \"a\": 1\n}");
+    }
+
+    #[test]
+    fn format_ql_json_passes_other_text_through() {
+        assert_eq!(format_ql_json("no json", &options(true)), "no json");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn run_zmq_stops_when_the_server_does_not_speak_the_configured_security() {
+        let context = ContextBuilder::default()
+            .build()
+            .expect("a context can be created");
+        let publisher: PublishSocket =
+            Socket::from_context(&context).expect("a publisher can be created");
+        publisher
+            .bind("tcp://127.0.0.1:*")
+            .expect("a free port can be bound");
+        let endpoint = publisher.last_endpoint().expect("the endpoint is known");
+
+        let (sender, mut receiver) = unbounded_channel();
+        let task = tokio::spawn(run_zmq(
+            CommandLineOptions {
+                host: endpoint.clone(),
+                password: "secret".to_string(),
+                pretty_print: false,
+            },
+            sender,
+        ));
+
+        let result = timeout(Duration::from_secs(10), task).await;
+
+        assert!(
+            matches!(result, Ok(Ok(Ok(())))),
+            "run_zmq did not end cleanly: {result:?}"
+        );
+        assert!(!CONTINUE_RUNNING.load(Ordering::Acquire));
+        let mut lines = Vec::new();
+        while let Ok(line) = receiver.try_recv() {
+            lines.push(line);
+        }
+        assert_eq!(
+            lines.first(),
+            Some(&format!("ZMQ connecting to {endpoint}..."))
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.starts_with("ZMQ socket error")),
+            "{lines:?}"
+        );
+    }
+}

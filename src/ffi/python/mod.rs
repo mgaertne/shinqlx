@@ -10,12 +10,15 @@ mod dispatchers;
 mod embed;
 mod engine_api;
 mod events;
+mod flag_enums;
 mod flight;
 mod game;
+mod game_enums;
 mod handlers;
 mod holdable;
 mod int_tuple;
 mod logging;
+mod means_of_death;
 mod module_registration;
 mod native_plugins;
 mod player;
@@ -131,8 +134,11 @@ pub(crate) mod prelude {
         config_string::ConfigString,
         embed::*,
         events::*,
+        flag_enums::{CvarFlag, DamageFlag},
         flight::Flight,
+        game_enums::{ConnectionState, Priority, Privileges, ReturnCode, Team, VoteState, name_of},
         holdable::Holdable,
+        means_of_death::MeansOfDeath,
         parse_variables,
         player::{
             AbstractDummyPlayer, NonexistentPlayerError, Player, PlayerMethods, RconDummyPlayer,
@@ -1553,6 +1559,23 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
         0,
     )?;
 
+    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+    {
+        let defaults = crate::query_rate_limiter::QueryLimits::DEFAULT;
+        for (name, value) in [
+            ("qlx_steamQueryRate", defaults.per_source_rate),
+            ("qlx_steamQueryBurst", defaults.burst),
+            ("qlx_steamQueryGlobalRate", defaults.global_rate),
+        ] {
+            pyshinqlx_set_cvar_once(
+                py,
+                name,
+                PyString::intern(py, &value.to_string()).as_any(),
+                0,
+            )?;
+        }
+    }
+
     pyshinqlx_set_cvar_once(
         py,
         "qlx_redisAddress",
@@ -1599,6 +1622,9 @@ mod initialize_cvars_tests {
     #[case("qlx_commandPrefix", "!")]
     #[case("qlx_logs", "2")]
     #[case("qlx_logsSize", "3000000")]
+    #[case("qlx_steamQueryRate", "1")]
+    #[case("qlx_steamQueryBurst", "10")]
+    #[case("qlx_steamQueryGlobalRate", "10")]
     #[case("qlx_redisAddress", "127.0.0.1")]
     #[case("qlx_redisDatabase", "0")]
     #[case("qlx_redisUnixSocket", "0")]
@@ -1780,6 +1806,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     }
 
     debug!(target: "shinqlx", "Initializing Python...");
+    // SAFETY: Py_IsInitialized may be called before the interpreter exists.
     if unsafe { Py_IsInitialized() } == 0 {
         append_to_inittab!(pyshinqlx_module);
     }
@@ -2344,6 +2371,7 @@ pub(crate) mod pyshinqlx_setup_fixture {
     #[fixture]
     #[once]
     pub(crate) fn pyshinqlx_setup() {
+        // SAFETY: Py_IsInitialized may be called before the interpreter exists.
         if unsafe { Py_IsInitialized() } == 0 {
             append_to_inittab!(pyshinqlx_module);
             Python::initialize();

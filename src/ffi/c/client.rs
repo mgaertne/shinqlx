@@ -27,6 +27,7 @@ impl TryFrom<*mut client_t> for Client<'_> {
     type Error = QuakeLiveEngineError;
 
     fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { client.as_mut() }
             .map(|client_t| Self { client_t })
             .ok_or_else(|| {
@@ -93,10 +94,12 @@ impl<'a> Client<'a> {
     }
 
     pub(crate) fn get_name(&self) -> Cow<'a, str> {
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(&self.client_t.name as *const c_char) }.to_string_lossy()
     }
 
     pub(crate) fn get_user_info(&self) -> Cow<'a, str> {
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(self.client_t.userinfo.as_ptr()) }.to_string_lossy()
     }
 
@@ -379,6 +382,7 @@ mod client_tests {
             .build()
             .expect("this should not happen");
 
+        // SAFETY: the mock original and the replacement have the same signature.
         let sv_dropclient_detour = unsafe {
             TypedDetour::<fn(*mut client_t, *const c_char)>::new(
                 MockSV_DropcClient::original_func,
@@ -393,6 +397,7 @@ mod client_tests {
         let dropclient_original_ctx = MockSV_DropcClient::original_func_context();
         dropclient_original_ctx
             .expect()
+            // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
             .withf(|_client, &reason| unsafe { CStr::from_ptr(reason) } == c"disconnected");
 
         MockEngineBuilder::default()

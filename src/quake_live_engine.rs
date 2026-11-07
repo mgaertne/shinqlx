@@ -18,6 +18,8 @@ use tap::{Conv, TapFallible, TapOptional};
 
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+use crate::hooks::shinqlx_sv_handlesteampacket;
 #[cfg(feature = "patches")]
 use crate::patches::patch_callvote_f;
 #[cfg(target_os = "linux")]
@@ -96,7 +98,12 @@ struct StaticFunctions {
     sv_spawnserver_orig: extern "C" fn(*mut c_char, qboolean),
     cmd_executestring_orig: extern "C" fn(*const c_char),
     cmd_argc_orig: extern "C" fn() -> c_int,
+    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+    sv_handlesteampacket_orig: Option<SteamPacketHandlerType>,
 }
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+type SteamPacketHandlerType = extern "C" fn(*const netadr_t, *const msg_t) -> c_int;
 
 #[derive(Debug)]
 struct StaticDetours {
@@ -108,6 +115,8 @@ struct StaticDetours {
     sv_setconfgistring_detour: TypedDetour<extern "C" fn(c_int, *const c_char)>,
     sv_dropclient_detour: TypedDetour<extern "C" fn(*mut client_t, *const c_char)>,
     sv_spawnserver_detour: TypedDetour<extern "C" fn(*mut c_char, qboolean)>,
+    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+    sv_handlesteampacket_detour: Option<TypedDetour<SteamPacketHandlerType>>,
     sv_sendservercommand_detour: RawDetour,
     com_printf_detour: RawDetour,
 }
@@ -261,12 +270,14 @@ impl VmFunctions {
 
     #[cfg(target_os = "linux")]
     fn read_vm_call_table(&self, module_offset: usize) {
+        // SAFETY: the address derives from a function of the loaded engine, whose code is readable.
         let base_address = unsafe {
             ptr::read_unaligned((module_offset as u64 + OFFSET_VM_CALL_TABLE as u64) as *const i32)
         };
         let vm_call_table = base_address as usize + module_offset + OFFSET_VM_CALL_TABLE + 4;
         self.vm_call_table.store(vm_call_table, Ordering::Release);
 
+        // SAFETY: the call table of the qagame module is readable.
         let g_initgame_orig = unsafe {
             ptr::read(
                 (vm_call_table + OFFSET_INITGAME)
@@ -278,11 +289,13 @@ impl VmFunctions {
             .store(g_initgame_orig as usize, Ordering::Release);
 
         let g_shutdowngame_orig =
+            // SAFETY: the call table of the qagame module is readable.
             unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
         debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
         self.g_shutdown_game_orig
             .store(g_shutdowngame_orig as usize, Ordering::Release);
 
+        // SAFETY: the call table of the qagame module is readable.
         let g_runframe_orig = unsafe {
             ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
         };
@@ -305,6 +318,7 @@ impl VmFunctions {
         let vm_call_table = self.vm_call_table.load(Ordering::Acquire);
 
         debug!(target: "shinqlx", "Hooking VM functions...");
+        // SAFETY: the call table of the qagame module is writable after the memory protection was lifted.
         unsafe {
             ptr::write(
                 (vm_call_table + 0x18) as *mut usize,
@@ -312,6 +326,7 @@ impl VmFunctions {
             );
         }
 
+        // SAFETY: the call table of the qagame module is writable after the memory protection was lifted.
         unsafe {
             ptr::write(
                 (vm_call_table + 0x8) as *mut usize,
@@ -319,6 +334,7 @@ impl VmFunctions {
             );
         }
 
+        // SAFETY: the call table of the qagame module is writable after the memory protection was lifted.
         unsafe {
             ptr::write(
                 vm_call_table as *mut usize,
@@ -327,17 +343,20 @@ impl VmFunctions {
         }
 
         let client_connect_orig = self.client_connect_orig.load(Ordering::Acquire);
+        // SAFETY: the address was found in the engine and has the signature of the function type.
         let client_connect_func = unsafe {
             function_at::<extern "C" fn(c_int, qboolean, qboolean) -> *const c_char>(
                 client_connect_orig,
             )
         };
         let client_connect_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientConnectDetourType::new(client_connect_func, shinqlx_client_connect) }
                 .map_err(|_| {
                     cold_path();
                     QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientConnect)
                 })?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { client_connect_detour.enable() }.map_err(|_| {
             cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
@@ -347,6 +366,7 @@ impl VmFunctions {
             .swap(Some(client_connect_detour.into()))
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
                     error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
@@ -355,7 +375,9 @@ impl VmFunctions {
 
         let g_start_kamikaze_orig = self.g_start_kamikaze_orig.load(Ordering::Acquire);
         let g_start_kamikaze_func =
+            // SAFETY: the address was found in the engine and has the signature of the function type.
             unsafe { function_at::<extern "C" fn(*mut gentity_s)>(g_start_kamikaze_orig) };
+        // SAFETY: the original is a function of the engine and the replacement has the same signature.
         let g_start_kamikaze_detour = unsafe {
             GStartKamikazeDetourType::new(g_start_kamikaze_func, shinqlx_g_startkamikaze)
         }
@@ -363,6 +385,7 @@ impl VmFunctions {
             cold_path();
             QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StartKamikaze)
         })?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { g_start_kamikaze_detour.enable() }.map_err(|_| {
             cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
@@ -372,6 +395,7 @@ impl VmFunctions {
             .swap(Some(g_start_kamikaze_detour.into()))
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
                     error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
@@ -380,14 +404,17 @@ impl VmFunctions {
 
         let client_spawn_orig = self.client_spawn_orig.load(Ordering::Acquire);
         let client_spawn_func =
+            // SAFETY: the address was found in the engine and has the signature of the function type.
             unsafe { function_at::<extern "C" fn(*mut gentity_s)>(client_spawn_orig) };
         let client_spawn_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientSpawnDetourType::new(client_spawn_func, shinqlx_clientspawn) }.map_err(
                 |_| {
                     cold_path();
                     QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn)
                 },
             )?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { client_spawn_detour.enable() }.map_err(|_| {
             cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
@@ -397,6 +424,7 @@ impl VmFunctions {
             .swap(Some(client_spawn_detour.into()))
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
                     error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
@@ -404,6 +432,7 @@ impl VmFunctions {
             });
 
         let g_damage_orig = self.g_damage_orig.load(Ordering::Acquire);
+        // SAFETY: the address was found in the engine and has the signature of the function type.
         let g_damage_func = unsafe {
             function_at::<
                 extern "C" fn(
@@ -418,11 +447,13 @@ impl VmFunctions {
                 ),
             >(g_damage_orig)
         };
+        // SAFETY: the original and the replacement are functions with the same signature.
         let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, shinqlx_g_damage) }
             .map_err(|_| {
                 cold_path();
                 QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_Damage)
             })?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { g_damage_detour.enable() }.map_err(|_| {
             cold_path();
             QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
@@ -432,6 +463,7 @@ impl VmFunctions {
             .swap(Some(g_damage_detour.into()))
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
                     error!(target: "shinqlx", "error when disabling damage detour: {e}");
@@ -455,9 +487,13 @@ impl VmFunctions {
             return;
         }
 
-        let _ = patch_callvote_f(cmd_callvote_f_orig).tap_err(|e| {
-            error!(target: "shinqlx", "could not patch the callvote command at {cmd_callvote_f_orig:#x}: {e}");
-        });
+        let _ = patch_callvote_f(cmd_callvote_f_orig)
+            .tap_ok(|outcome| {
+                debug!(target: "shinqlx", "callvote command patch at {cmd_callvote_f_orig:#x}: {outcome:?}");
+            })
+            .tap_err(|e| {
+                error!(target: "shinqlx", "could not patch the callvote command at {cmd_callvote_f_orig:#x}: {e}");
+            });
     }
 
     pub(crate) fn unhook(&self) {
@@ -487,6 +523,7 @@ impl VmFunctions {
             .swap(None)
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
                 });
@@ -496,6 +533,7 @@ impl VmFunctions {
             .swap(None)
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
                 });
@@ -505,6 +543,7 @@ impl VmFunctions {
             .swap(None)
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
                 });
@@ -514,6 +553,7 @@ impl VmFunctions {
             .swap(None)
             .filter(|detour| detour.is_enabled())
             .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     error!(target: "shinqlx", "error when disabling damage detour: {e}");
                 });
@@ -631,6 +671,7 @@ mod vm_functions_tests {
         let result = vm_functions.hook();
 
         assert!(result.is_ok());
+        // SAFETY: the table holds at least as many entries as the index.
         let read_entry = |index: usize| unsafe { ptr::read_volatile(table.as_ptr().add(index)) };
         assert_eq!(read_entry(0), shinqlx_g_shutdowngame as *const () as usize);
         assert_eq!(read_entry(1), shinqlx_g_runframe as *const () as usize);
@@ -754,23 +795,27 @@ mod vm_functions_tests {
         };
 
         let client_connect_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientConnectDetourType::new(ClientConnect, detoured_ClientConnect) }
                 .expect("this should not happen");
         vm_functions
             .client_connect_detour
             .store(Some(client_connect_detour.into()));
         let g_start_kamikaze_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { GStartKamikazeDetourType::new(G_StartKamikaze, detoured_G_StartKamikaze) }
                 .expect("this should not happen");
         vm_functions
             .g_start_kamikaze_detour
             .store(Some(g_start_kamikaze_detour.into()));
         let client_spawn_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientSpawnDetourType::new(ClientSpawn, detoured_ClientSpawn) }
                 .expect("this should not happen");
         vm_functions
             .client_spawn_detour
             .store(Some(client_spawn_detour.into()));
+        // SAFETY: the original and the replacement are functions with the same signature.
         let g_damage_detour = unsafe { GDamageDetourType::new(G_Damage, detoured_G_Damage) }
             .expect("this should not happen");
         vm_functions
@@ -827,28 +872,36 @@ mod vm_functions_tests {
         };
 
         let client_connect_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientConnectDetourType::new(ClientConnect, detoured_ClientConnect) }
                 .expect("this should not happen");
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { client_connect_detour.enable() }.expect("this should not happen");
         vm_functions
             .client_connect_detour
             .store(Some(client_connect_detour.into()));
         let g_start_kamikaze_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { GStartKamikazeDetourType::new(G_StartKamikaze, detoured_G_StartKamikaze) }
                 .expect("this should not happen");
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { g_start_kamikaze_detour.enable() }.expect("this should not happen");
         vm_functions
             .g_start_kamikaze_detour
             .store(Some(g_start_kamikaze_detour.into()));
         let client_spawn_detour =
+            // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientSpawnDetourType::new(ClientSpawn, detoured_ClientSpawn) }
                 .expect("this should not happen");
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { client_spawn_detour.enable() }.expect("this should not happen");
         vm_functions
             .client_spawn_detour
             .store(Some(client_spawn_detour.into()));
+        // SAFETY: the original and the replacement are functions with the same signature.
         let g_damage_detour = unsafe { GDamageDetourType::new(G_Damage, detoured_G_Damage) }
             .expect("this should not happen");
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe { g_damage_detour.enable() }.expect("this should not happen");
         vm_functions
             .g_damage_detour
@@ -889,6 +942,7 @@ mod vm_functions_tests {
 unsafe fn function_at<FuncType: Copy>(address: usize) -> FuncType {
     const { assert!(size_of::<FuncType>() == size_of::<*const ()>()) };
     let function_pointer = ptr::with_exposed_provenance::<()>(address);
+    // SAFETY: the pointer is a function address with the signature of FuncType.
     unsafe { mem::transmute_copy::<*const (), FuncType>(&function_pointer) }
 }
 
@@ -904,6 +958,7 @@ fn try_find_static_function<FuncType: Copy>(
         },
         |result| {
             debug!(target: "shinqlx", "{}: {:#X}", func, result);
+            // SAFETY: the address was found in the engine and has the signature of the function type.
             Ok(unsafe { function_at::<FuncType>(result) })
         },
     )
@@ -1094,7 +1149,24 @@ impl QuakeLiveEngine {
                 QuakeLiveFunction::Cmd_ExecuteString,
             )?;
 
+            // Not essential for the game, so a changed engine only costs the query protection.
+            #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+            let sv_handlesteampacket_orig = try_find_static_function::<SteamPacketHandlerType>(
+                &qzeroded_maps,
+                QuakeLiveFunction::SV_HandleSteamPacket,
+            )
+            .tap_err(|err| {
+                cold_path();
+                error!(target: "shinqlx", "{err:?}");
+                error!(
+                    target: "shinqlx",
+                    "Steam query handler not found. The server is NOT protected against query floods."
+                );
+            })
+            .ok();
+
             // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
+            // SAFETY: the address derives from a function of the loaded engine, whose code is readable.
             let base_address = unsafe {
                 ptr::read_unaligned(
                     (sv_map_f_orig as usize + OFFSET_CMD_ARGC as usize) as *const i32,
@@ -1107,6 +1179,7 @@ impl QuakeLiveEngine {
             let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + OFFSET_CMD_ARGC + 4;
             debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr);
             let cmd_argc_orig =
+                // SAFETY: the address was found in the engine and has the signature of the function type.
                 unsafe { function_at::<extern "C" fn() -> c_int>(cmd_argc_ptr as usize) };
 
             self.static_functions
@@ -1133,6 +1206,8 @@ impl QuakeLiveEngine {
                     sv_spawnserver_orig,
                     cmd_executestring_orig,
                     cmd_argc_orig,
+                    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+                    sv_handlesteampacket_orig,
                 })
                 .expect("the static functions are searched only once per engine");
 
@@ -1173,6 +1248,7 @@ impl QuakeLiveEngine {
                 shinqlx_sv_cliententerworld,
             )?;
 
+        // SAFETY: the original is a function of the engine and the replacement has the same signature.
         let sv_sendservercommand_detour = unsafe {
             RawDetour::new(
                 self.sv_sendservercommand_orig()? as *const (),
@@ -1185,6 +1261,7 @@ impl QuakeLiveEngine {
                 )
             })?
         };
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe {
             sv_sendservercommand_detour.enable().map_err(|_| {
                 cold_path();
@@ -1203,6 +1280,7 @@ impl QuakeLiveEngine {
         let sv_dropclient_detour = QuakeLiveFunction::SV_DropClient
             .create_and_enable_generic_detour(self.sv_dropclient_orig()?, shinqlx_sv_dropclient)?;
 
+        // SAFETY: the original is a function of the engine and the replacement has the same signature.
         let com_printf_detour = unsafe {
             RawDetour::new(
                 self.com_printf_orig()? as *const (),
@@ -1213,6 +1291,7 @@ impl QuakeLiveEngine {
                 QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::Com_Printf)
             })?
         };
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe {
             com_printf_detour.enable().map_err(|_| {
                 cold_path();
@@ -1226,6 +1305,16 @@ impl QuakeLiveEngine {
                 shinqlx_sv_spawnserver,
             )?;
 
+        #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+        let sv_handlesteampacket_detour = self
+            .sv_handlesteampacket_orig()
+            .ok()
+            .map(|orig| {
+                QuakeLiveFunction::SV_HandleSteamPacket
+                    .create_and_enable_generic_detour(orig, shinqlx_sv_handlesteampacket)
+            })
+            .transpose()?;
+
         self.static_detours
             .set(StaticDetours {
                 cmd_addcommand_detour,
@@ -1235,6 +1324,8 @@ impl QuakeLiveEngine {
                 sv_setconfgistring_detour,
                 sv_dropclient_detour,
                 sv_spawnserver_detour,
+                #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+                sv_handlesteampacket_detour,
                 sv_sendservercommand_detour,
                 com_printf_detour,
             })
@@ -1609,6 +1700,19 @@ impl QuakeLiveEngine {
         )
     }
 
+    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+    fn sv_handlesteampacket_orig(&self) -> Result<SteamPacketHandlerType, QuakeLiveEngineError> {
+        self.static_functions
+            .get()
+            .and_then(|static_functions| static_functions.sv_handlesteampacket_orig)
+            .ok_or_else(|| {
+                cold_path();
+                QuakeLiveEngineError::StaticFunctionNotFound(
+                    QuakeLiveFunction::SV_HandleSteamPacket,
+                )
+            })
+    }
+
     fn sys_setmoduleoffset_orig(
         &self,
     ) -> Result<extern "C" fn(*mut c_char, unsafe extern "C" fn()), QuakeLiveEngineError> {
@@ -1756,6 +1860,19 @@ impl QuakeLiveEngine {
         )
     }
 
+    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+    fn sv_handlesteampacket_detour(
+        &self,
+    ) -> Result<&TypedDetour<SteamPacketHandlerType>, QuakeLiveEngineError> {
+        self.static_detours
+            .get()
+            .and_then(|static_detours| static_detours.sv_handlesteampacket_detour.as_ref())
+            .ok_or_else(|| {
+                cold_path();
+                QuakeLiveEngineError::StaticDetourNotFound(QuakeLiveFunction::SV_HandleSteamPacket)
+            })
+    }
+
     fn sv_spawnserver_detour(
         &self,
     ) -> Result<&TypedDetour<extern "C" fn(*mut c_char, qboolean)>, QuakeLiveEngineError> {
@@ -1806,6 +1923,7 @@ impl QuakeLiveEngine {
             }
             g_init_game_orig => {
                 let g_init_game_func =
+                    // SAFETY: the address was found in the engine and has the signature of the function type.
                     unsafe { function_at::<extern "C" fn(c_int, c_int, c_int)>(g_init_game_orig) };
                 Ok(g_init_game_func)
             }
@@ -1826,6 +1944,7 @@ impl QuakeLiveEngine {
             }
             g_shutdown_game_orig => {
                 let g_shutdown_game_func =
+                    // SAFETY: the address was found in the engine and has the signature of the function type.
                     unsafe { function_at::<extern "C" fn(c_int)>(g_shutdown_game_orig) };
                 Ok(g_shutdown_game_func)
             }
@@ -1842,6 +1961,7 @@ impl QuakeLiveEngine {
             }
             g_run_frame_orig => {
                 let g_run_frame_func =
+                    // SAFETY: the address was found in the engine and has the signature of the function type.
                     unsafe { function_at::<extern "C" fn(c_int)>(g_run_frame_orig) };
                 Ok(g_run_frame_func)
             }
@@ -1859,6 +1979,7 @@ impl QuakeLiveEngine {
                 ))
             }
             g_addevent_orig => {
+                // SAFETY: the address was found in the engine and has the signature of the function type.
                 let g_addevent_func = unsafe {
                     function_at::<extern "C" fn(*mut gentity_t, entity_event_t, c_int)>(
                         g_addevent_orig,
@@ -1881,6 +2002,7 @@ impl QuakeLiveEngine {
             }
             g_free_entity_orig => {
                 let g_free_entity_func =
+                    // SAFETY: the address was found in the engine and has the signature of the function type.
                     unsafe { function_at::<extern "C" fn(*mut gentity_t)>(g_free_entity_orig) };
                 Ok(g_free_entity_func)
             }
@@ -1901,6 +2023,7 @@ impl QuakeLiveEngine {
                 ))
             }
             launch_item_orig => {
+                // SAFETY: the address was found in the engine and has the signature of the function type.
                 let launch_item_func = unsafe {
                     function_at::<
                         extern "C" fn(*mut gitem_t, *mut vec3_t, *mut vec3_t) -> *mut gentity_t,
@@ -1930,6 +2053,7 @@ impl QuakeLiveEngine {
                 ))
             }
             touch_item_orig => {
+                // SAFETY: the address was found in the engine and has the signature of the function type.
                 let touch_item_func = unsafe {
                     function_at::<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>(
                         touch_item_orig,
@@ -2003,6 +2127,7 @@ mod quake_live_engine_tests {
         cvar_find_var_ctx
             .expect()
             .withf_st(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
             .returning_st(move |_| returned.borrow_mut())
@@ -2038,6 +2163,7 @@ mod quake_live_engine_tests {
         cvar_find_var_ctx
             .expect()
             .withf_st(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
             .returning_st(move |_| returned1.borrow_mut())
@@ -2048,8 +2174,10 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cvar_name, &cvar_value, &forced| {
                 !cvar_name.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
                     && !cvar_value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar_value) } == c"shinqlx,ca,elo"
                     && !forced.conv::<bool>()
             })
@@ -2083,6 +2211,7 @@ mod quake_live_engine_tests {
         cvar_find_var_ctx
             .expect()
             .withf_st(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
             })
             .returning_st(move |_| returned1.borrow_mut())
@@ -2093,8 +2222,10 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cvar_name, &cvar_value, &forced| {
                 !cvar_name.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar_name) } == c"sv_tags"
                     && !cvar_value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar_value) } == c"shinqlx"
                     && !forced.conv::<bool>()
             })
@@ -2118,6 +2249,7 @@ mod quake_live_engine_tests {
         cvar_find_var_ctx
             .expect()
             .withf_st(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_maxclients"
             })
             .returning_st(move |_| ptr::null_mut())
@@ -2147,6 +2279,7 @@ mod quake_live_engine_tests {
         cvar_find_var_ctx
             .expect()
             .withf_st(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_maxclients"
             })
             .returning_st(move |_| returned.borrow_mut())
@@ -2181,6 +2314,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"cmd"
                     && ptr::fn_addr_eq(func, cmd_send_server_command as extern "C" fn())
             })
@@ -2189,6 +2323,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"cp"
                     && ptr::fn_addr_eq(func, cmd_center_print as extern "C" fn())
             })
@@ -2197,6 +2332,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"print"
                     && ptr::fn_addr_eq(func, cmd_regular_print as extern "C" fn())
             })
@@ -2205,6 +2341,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"slap"
                     && ptr::fn_addr_eq(func, cmd_slap as extern "C" fn())
             })
@@ -2213,6 +2350,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"slay"
                     && ptr::fn_addr_eq(func, cmd_slay as extern "C" fn())
             })
@@ -2221,6 +2359,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"qlx"
                     && ptr::fn_addr_eq(func, cmd_py_rcon as extern "C" fn())
             })
@@ -2229,6 +2368,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"pycmd"
                     && ptr::fn_addr_eq(func, cmd_py_command as extern "C" fn())
             })
@@ -2237,6 +2377,7 @@ mod quake_live_engine_tests {
             .expect()
             .withf(|&cmd, &func| {
                 !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"pyrestart"
                     && ptr::fn_addr_eq(func, cmd_restart_python as extern "C" fn())
             })
@@ -3401,7 +3542,10 @@ mod quake_live_engine_test_helpers {
 
     use detour::{RawDetour, TypedDetour};
 
-    use super::{QuakeLiveEngine, StaticDetours, StaticFunctions, mock_quake_functions::*};
+    use super::{
+        QuakeLiveEngine, StaticDetours, StaticFunctions, SteamPacketHandlerType,
+        mock_quake_functions::*,
+    };
     use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
 
     pub(crate) fn default_static_functions() -> StaticFunctions {
@@ -3428,11 +3572,13 @@ mod quake_live_engine_test_helpers {
             sv_spawnserver_orig: SV_SpawnServer,
             cmd_executestring_orig: Cmd_ExecuteString,
             cmd_argc_orig: Cmd_Argc,
+            sv_handlesteampacket_orig: Some(SV_HandleSteamPacket),
         }
     }
 
     pub(crate) fn default_static_detours() -> StaticDetours {
         StaticDetours {
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             cmd_addcommand_detour: unsafe {
                 TypedDetour::new(
                     Cmd_AddCommand as extern "C" fn(*const c_char, unsafe extern "C" fn()),
@@ -3440,6 +3586,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sys_setmoduleoffset_detour: unsafe {
                 TypedDetour::new(
                     Sys_SetModuleOffset as extern "C" fn(*mut c_char, unsafe extern "C" fn()),
@@ -3447,6 +3594,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sv_executeclientcommand_detour: unsafe {
                 TypedDetour::new(
                     SV_ExecuteClientCommand
@@ -3455,6 +3603,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sv_cliententerworld_detour: unsafe {
                 TypedDetour::new(
                     SV_ClientEnterWorld as extern "C" fn(*mut client_t, *mut usercmd_t),
@@ -3462,6 +3611,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sv_setconfgistring_detour: unsafe {
                 TypedDetour::new(
                     SV_SetConfigstring as extern "C" fn(c_int, *const c_char),
@@ -3469,6 +3619,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sv_dropclient_detour: unsafe {
                 TypedDetour::new(
                     SV_DropClient as extern "C" fn(*mut client_t, *const c_char),
@@ -3476,6 +3627,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sv_spawnserver_detour: unsafe {
                 TypedDetour::new(
                     SV_SpawnServer as extern "C" fn(*mut c_char, qboolean),
@@ -3483,6 +3635,17 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            sv_handlesteampacket_detour: Some(
+                // SAFETY: the original is a function of the engine and the replacement has the same signature.
+                unsafe {
+                    TypedDetour::new(
+                        SV_HandleSteamPacket as SteamPacketHandlerType,
+                        detoured_SV_HandleSteamPacket,
+                    )
+                }
+                .expect("this should not happen"),
+            ),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             sv_sendservercommand_detour: unsafe {
                 RawDetour::new(
                     SV_SendServerCommand as *const (),
@@ -3490,6 +3653,7 @@ mod quake_live_engine_test_helpers {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
             com_printf_detour: unsafe {
                 RawDetour::new(Com_Printf as *const (), detoured_Com_Printf as *const ())
             }
@@ -3551,6 +3715,7 @@ mod find_cvar_quake_live_engine_tests {
         find_cvar_ctx
             .expect()
             .withf(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_maxclients"
             })
             .returning_st(move |_| cvar.borrow_mut())
@@ -3572,6 +3737,7 @@ mod find_cvar_quake_live_engine_tests {
         find_cvar_ctx
             .expect()
             .withf(|&cvar_name| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"sv_maxclients"
             })
             .returning(|_| ptr::null_mut())
@@ -3624,6 +3790,7 @@ mod add_command_quake_live_engine_tests {
         add_command_ctx
             .expect()
             .withf(|&cvar_name, _| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"spank"
             })
             .times(1);
@@ -3677,6 +3844,7 @@ mod set_module_offset_quake_live_engine_tests {
         set_module_offset_ctx
             .expect()
             .withf(|&cvar_name, _| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !cvar_name.is_null() && unsafe { CStr::from_ptr(cvar_name) } == c"qagame"
             })
             .times(1);
@@ -3851,6 +4019,7 @@ mod execute_client_command_quake_live_engine_tests {
             .withf(|&client, &cmd, &client_ok| {
                 client.is_null()
                     && !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"asdf"
                     && client_ok.into()
             })
@@ -3882,6 +4051,7 @@ mod execute_client_command_quake_live_engine_tests {
             .withf(|&client, &cmd, &client_ok| {
                 !client.is_null()
                     && !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"asdf"
                     && client_ok.into()
             })
@@ -3905,6 +4075,7 @@ impl<T: AsRef<client_t>> SendServerCommand<T> for QuakeLiveEngine {
     fn send_server_command(&self, client: Option<T>, command: &str) {
         let _ = self
             .sv_sendservercommand_detour()
+            // SAFETY: the trampoline has the signature of the detoured function.
             .map(|detour| unsafe {
                 mem::transmute::<*const (), extern "C" fn(*const client_t, *const c_char, ...)>(
                     detour.trampoline(),
@@ -3947,6 +4118,7 @@ mod send_server_command_quake_live_engine_tests {
         sv_send_server_command_ctx
             .expect()
             .withf(|&client, &cmd| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 client.is_null() && !cmd.is_null() && unsafe { CStr::from_ptr(cmd) } == c"asdf"
             })
             .times(1);
@@ -3975,6 +4147,7 @@ mod send_server_command_quake_live_engine_tests {
         sv_send_server_command_ctx
             .expect()
             .withf(|&client, &cmd| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 !client.is_null() && !cmd.is_null() && unsafe { CStr::from_ptr(cmd) } == c"asdf"
             })
             .times(1);
@@ -4058,6 +4231,70 @@ mod client_enter_world_quake_live_engine_tests {
     }
 }
 
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+pub(crate) trait HandleSteamPacket {
+    fn handle_steam_packet(&self, from: *const netadr_t, msg: *const msg_t) -> bool;
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+impl HandleSteamPacket for QuakeLiveEngine {
+    fn handle_steam_packet(&self, from: *const netadr_t, msg: *const msg_t) -> bool {
+        self.sv_handlesteampacket_detour()
+            .is_ok_and(|detour| detour.call(from, msg) != 0)
+    }
+}
+
+#[cfg(test)]
+mod handle_steam_packet_quake_live_engine_tests {
+    use core::ptr;
+
+    use super::{
+        HandleSteamPacket, QuakeLiveEngine, mock_quake_functions::SV_HandleSteamPacket_context,
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::prelude::serial;
+
+    #[test]
+    #[serial]
+    fn handle_steam_packet_with_no_detour_set() {
+        let quake_engine = default_quake_engine();
+
+        assert!(!quake_engine.handle_steam_packet(ptr::null(), ptr::null()));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_steam_packet_with_valid_detour_function() {
+        let sv_handle_steam_packet_ctx = SV_HandleSteamPacket_context();
+        sv_handle_steam_packet_ctx.expect().times(1).return_const(1);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        assert!(quake_engine.handle_steam_packet(ptr::null(), ptr::null()));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_steam_packet_reports_unhandled_packets() {
+        let sv_handle_steam_packet_ctx = SV_HandleSteamPacket_context();
+        sv_handle_steam_packet_ctx.expect().times(1).return_const(0);
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+
+        assert!(!quake_engine.handle_steam_packet(ptr::null(), ptr::null()));
+    }
+}
+
 pub(crate) trait SetConfigstring<T: Into<c_int>> {
     fn set_configstring(&self, index: T, value: &str);
 }
@@ -4097,6 +4334,7 @@ mod set_confgistring_quake_live_engine_tests {
         sv_set_configstring_ctx
             .expect()
             .withf(|&index, &value| {
+                // SAFETY: the engine passes a valid, NUL-terminated C string.
                 index == 42 && !value.is_null() && unsafe { CStr::from_ptr(value) } == c"asdf"
             })
             .times(1);
@@ -4119,6 +4357,7 @@ impl ComPrintf for QuakeLiveEngine {
     fn com_printf(&self, msg: &str) {
         let _ = self
             .com_printf_detour()
+            // SAFETY: the trampoline has the signature of the detoured function.
             .map(|detour| unsafe {
                 mem::transmute::<*const (), extern "C" fn(*const c_char, ...)>(detour.trampoline())
             })
@@ -4154,6 +4393,7 @@ mod com_printf_quake_live_engine_tests {
         let com_printf_ctx = Com_Printf_context();
         com_printf_ctx
             .expect()
+            // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
             .withf(|&value| !value.is_null() && unsafe { CStr::from_ptr(value) } == c"asdf")
             .times(1);
 
@@ -4207,6 +4447,7 @@ mod spawn_server_quake_live_engine_tests {
             .expect()
             .withf(|&server_name, &kill_bots| {
                 !server_name.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(server_name) } == c"asdf"
                     && kill_bots.into()
             })
@@ -4336,6 +4577,7 @@ mod client_connect_quake_live_engine_tests {
             ..default_quake_engine()
         };
         quake_engine.vm_functions.client_connect_detour.store(Some(
+            // SAFETY: the mock original and the replacement have the same signature.
             unsafe {
                 TypedDetour::new(
                     ClientConnect as extern "C" fn(c_int, qboolean, qboolean) -> *const c_char,
@@ -4349,6 +4591,7 @@ mod client_connect_quake_live_engine_tests {
         let result = quake_engine.client_connect(42, true, false);
         assert!(!result.is_null());
         assert_eq!(
+            // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
             unsafe { CStr::from_ptr(result) },
             c"expected connect return"
         );
@@ -4417,6 +4660,7 @@ mod client_spawn_quake_live_engine_tests {
             ..default_quake_engine()
         };
         quake_engine.vm_functions.client_spawn_detour.store(Some(
+            // SAFETY: the mock original and the replacement have the same signature.
             unsafe {
                 TypedDetour::new(
                     ClientSpawn as extern "C" fn(*mut gentity_t),
@@ -4441,6 +4685,7 @@ impl CmdArgs for QuakeLiveEngine {
             .map(|original_func| original_func())
             .ok()
             .filter(|cmd_args| !cmd_args.is_null())
+            // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
             .map(|cmd_args| unsafe { CStr::from_ptr(cmd_args) }.to_string_lossy().into())
     }
 }
@@ -4564,6 +4809,7 @@ impl<T: Into<c_int> + PartialOrd<c_int>> CmdArgv<T> for QuakeLiveEngine {
             .map(|original_func| original_func(argno.into()))
             .ok()
             .filter(|cmd_argv| !cmd_argv.is_null())
+            // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
             .map(|cmd_argv| unsafe { CStr::from_ptr(cmd_argv) }.to_string_lossy().into())
     }
 }
@@ -4757,6 +5003,7 @@ mod console_command_quake_live_engine_tests {
         let cmd_execute_string_ctx = Cmd_ExecuteString_context();
         cmd_execute_string_ctx
             .expect()
+            // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
             .withf(|&cmd| !cmd.is_null() && unsafe { CStr::from_ptr(cmd) } == c"!slap 0 100")
             .times(1);
 
@@ -4835,8 +5082,10 @@ mod get_cvar_quake_live_engine_tests {
             .expect()
             .withf(|&cvar, &value, &flags| {
                 !cvar.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar) } == c"sv_maxclients"
                     && !value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && flags == CVAR_CHEAT as c_int
             })
@@ -4871,8 +5120,10 @@ mod get_cvar_quake_live_engine_tests {
             .expect()
             .withf(|&cvar, &value, &flags| {
                 !cvar.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar) } == c"sv_maxclients"
                     && !value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && flags == 0
             })
@@ -4945,8 +5196,10 @@ mod set_cvar_forced_quake_live_engine_tests {
             .expect()
             .withf(|&cvar, &value, &forced| {
                 !cvar.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar) } == c"sv_maxclients"
                     && !value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && forced.into()
             })
@@ -5058,12 +5311,16 @@ mod set_cvar_limit_quake_live_engine_tests {
             .expect()
             .withf(|&cvar, &value, &min, &max, &flags| {
                 !cvar.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar) } == c"sv_maxclients"
                     && !value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && !min.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(min) } == c"2"
                     && !max.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(max) } == c"64"
                     && flags == CVAR_CHEAT as c_int
             })
@@ -5104,12 +5361,16 @@ mod set_cvar_limit_quake_live_engine_tests {
             .expect()
             .withf(|&cvar, &value, &min, &max, &flags| {
                 !cvar.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cvar) } == c"sv_maxclients"
                     && !value.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(value) } == c"16"
                     && !min.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(min) } == c"2"
                     && !max.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(max) } == c"64"
                     && flags == 0
             })
@@ -5179,6 +5440,7 @@ mod get_configstring_quake_live_engine_tests {
             .withf(|&index, &_buffer, &_buffer_len| index == 42)
             .returning(|_, buffer, buffer_len| {
                 let returned = c"asdf";
+                // SAFETY: the buffer has room for buffer_len bytes and does not overlap the source.
                 unsafe { returned.as_ptr().copy_to(buffer, buffer_len as usize) };
             })
             .times(1);
@@ -5307,6 +5569,7 @@ mod register_damage_quake_live_engine_tests {
             ..default_quake_engine()
         };
         quake_engine.vm_functions.g_damage_detour.store(Some(
+            // SAFETY: the mock original and the replacement have the same signature.
             unsafe {
                 TypedDetour::new(
                     G_Damage
@@ -5623,6 +5886,7 @@ mod start_kamikaze_quake_live_engine_tests {
             .vm_functions
             .g_start_kamikaze_detour
             .store(Some(
+                // SAFETY: the mock original and the replacement have the same signature.
                 unsafe {
                     TypedDetour::new(
                         G_StartKamikaze as extern "C" fn(*mut gentity_t),
@@ -5690,6 +5954,9 @@ mockall::mock! {
     }
     impl ClientEnterWorld<&mut Client> for QuakeEngine {
         fn client_enter_world(&self, client: &mut Client, cmd: * mut usercmd_t);
+    }
+    impl HandleSteamPacket for QuakeEngine {
+        fn handle_steam_packet(&self, from: *const netadr_t, msg: *const msg_t) -> bool;
     }
     impl SetConfigstring<c_int> for QuakeEngine {
         fn set_configstring(&self, index: c_int, value: &str);
@@ -5922,9 +6189,35 @@ mod quake_functions {
     };
 
     use crate::ffi::c::prelude::{
-        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, qboolean, trace_t,
-        usercmd_t, vec3_t,
+        cbufExec_t, client_t, cvar_t, entity_event_t, gentity_t, gitem_t, msg_t, netadr_t,
+        qboolean, trace_t, usercmd_t, vec3_t,
     };
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn SV_HandleSteamPacket(
+        _from: *const netadr_t,
+        _msg: *const msg_t,
+    ) -> c_int {
+        0
+    }
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_SV_HandleSteamPacket(
+        _from: *const netadr_t,
+        _msg: *const msg_t,
+    ) -> c_int {
+        0
+    }
 
     #[allow(
         unused_attributes,

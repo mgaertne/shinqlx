@@ -1,9 +1,13 @@
 use alloc::borrow::Cow;
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+use core::sync::atomic::{AtomicU64, Ordering};
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
     hint::cold_path,
 };
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+use std::{sync::LazyLock, time::Instant};
 
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
@@ -16,6 +20,11 @@ use crate::{
         InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
         ShutdownGame, SpawnServer,
     },
+};
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+use crate::{
+    quake_live_engine::{FindCVar, HandleSteamPacket},
+    query_rate_limiter::{QueryLimits, QueryRateLimiter},
 };
 
 fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
@@ -34,6 +43,7 @@ pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe
             });
         }
 
+        // SAFETY: the engine passes a valid, NUL-terminated C string.
         let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
         if !command.is_empty() {
             main_engine.add_command(&command, func);
@@ -46,6 +56,7 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
     offset: unsafe extern "C" fn(),
 ) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        // SAFETY: the engine passes a valid, NUL-terminated C string.
         let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
 
         // We should be getting qagame, but check just in case.
@@ -89,6 +100,7 @@ pub(crate) extern "C" fn shinqlx_sv_executeclientcommand(
     cmd: *const c_char,
     client_ok: qboolean,
 ) {
+    // SAFETY: the engine passes a valid, NUL-terminated C string.
     let rust_cmd = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
     shinqlx_execute_client_command(Client::try_from(client).ok(), rust_cmd, client_ok);
 }
@@ -178,6 +190,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     }
 
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
+    // SAFETY: the buffer is writable for its length, the format and arguments come from the engine's variadic call.
     let result = unsafe {
         vsnprintf(
             buffer.as_mut_ptr() as *mut c_char,
@@ -262,6 +275,7 @@ pub(crate) extern "C" fn shinqlx_sv_cliententerworld(client: *mut client_t, cmd:
 
 pub(crate) extern "C" fn shinqlx_sv_setconfigstring(index: c_int, value: *const c_char) {
     let safe_value = if !value.is_null() {
+        // SAFETY: the engine passes a valid, NUL-terminated C string.
         unsafe { CStr::from_ptr(value) }.to_string_lossy()
     } else {
         "".into()
@@ -298,10 +312,131 @@ where
     });
 }
 
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_LIMITER: parking_lot::Mutex<QueryRateLimiter> =
+    parking_lot::Mutex::new(QueryRateLimiter::new(QueryLimits::DEFAULT));
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_CLOCK: LazyLock<Instant> = LazyLock::new(Instant::now);
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_LIMITS_REFRESHED_MS: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+const QUERY_LIMITS_REFRESH_INTERVAL_MS: u64 = 5_000;
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+const STEAM_QUERY_HEADER: [u8; 4] = [0xFF; 4];
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+const STEAM_QUERY_OPCODES: &[u8; 3] = b"TUV";
+
+/// The message buffer as the engine hands it to Steam; it has no `oob` field between the two
+/// flags and `data`, unlike `msg_t`.
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+#[repr(C)]
+struct SteamPacketBuffer {
+    allowoverflow: c_int,
+    overflowed: c_int,
+    data: *const u8,
+    maxsize: c_int,
+    cursize: c_int,
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+fn is_steam_query(msg: *const msg_t) -> bool {
+    // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
+    let Some(msg) = (unsafe { msg.cast::<SteamPacketBuffer>().as_ref() }) else {
+        return false;
+    };
+    let Ok(size) = usize::try_from(msg.cursize) else {
+        return false;
+    };
+    let fits_buffer = msg.cursize <= msg.maxsize;
+    if msg.data.is_null() || !fits_buffer || size <= STEAM_QUERY_HEADER.len() {
+        return false;
+    }
+
+    // SAFETY: data was checked as non-null and cursize as non-negative and within maxsize.
+    let packet = unsafe { core::slice::from_raw_parts(msg.data, size) };
+    packet.starts_with(&STEAM_QUERY_HEADER)
+        && packet
+            .get(STEAM_QUERY_HEADER.len())
+            .is_some_and(|opcode| STEAM_QUERY_OPCODES.contains(opcode))
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+fn query_limits_from_cvars<T>(main_engine: &T) -> QueryLimits
+where
+    T: FindCVar<&'static str>,
+{
+    let read = |name: &'static str, default: f64| {
+        main_engine
+            .find_cvar(name)
+            .and_then(|cvar| cvar.get_string().trim().parse::<f64>().ok())
+            .filter(|value| value.is_finite() && *value >= 0.0)
+            .unwrap_or(default)
+    };
+    QueryLimits {
+        per_source_rate: read("qlx_steamQueryRate", QueryLimits::DEFAULT.per_source_rate),
+        burst: read("qlx_steamQueryBurst", QueryLimits::DEFAULT.burst),
+        global_rate: read("qlx_steamQueryGlobalRate", QueryLimits::DEFAULT.global_rate),
+    }
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+fn steam_query_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
+where
+    T: FindCVar<&'static str>,
+{
+    if from.type_ != netadrtype_t::NA_IP {
+        return true;
+    }
+
+    let mut limiter = QUERY_LIMITER.lock();
+    let refreshed_ms = QUERY_LIMITS_REFRESHED_MS.load(Ordering::Acquire);
+    if refreshed_ms == 0 || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
+    {
+        limiter.set_limits(query_limits_from_cvars(main_engine));
+        QUERY_LIMITS_REFRESHED_MS.store(now_ms.max(1), Ordering::Release);
+    }
+
+    let allowed = limiter.allow(from.ip, now_ms);
+    if let Some(dropped) = limiter.take_dropped_summary(now_ms) {
+        warn!(
+            target: "shinqlx",
+            "Dropped {dropped} Steam query packets that exceeded the rate limit."
+        );
+    }
+    allowed
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+/// Hook of the engine function that hands connectionless packets to the Steam game server API.
+///
+/// Steam answers server queries with packets larger than the request, which makes the server a
+/// reflector for spoofed sources. Requests above the rate limit are reported as handled without
+/// ever reaching Steam.
+pub(crate) extern "C" fn shinqlx_sv_handlesteampacket(
+    from: *const netadr_t,
+    msg: *const msg_t,
+) -> c_int {
+    MAIN_ENGINE.load().as_ref().map_or(0, |main_engine| {
+        let now_ms = u64::try_from(QUERY_CLOCK.elapsed().as_millis()).unwrap_or(u64::MAX);
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
+        match unsafe { from.as_ref() } {
+            Some(address)
+                if is_steam_query(msg) && !steam_query_allowed(&**main_engine, address, now_ms) =>
+            {
+                1
+            }
+            _ => c_int::from(main_engine.handle_steam_packet(from, msg)),
+        }
+    })
+}
+
 pub(crate) extern "C" fn shinqlx_sv_dropclient(client: *mut client_t, reason: *const c_char) {
     let _ = Client::try_from(client).tap_ok_mut(|safe_client| {
         shinqlx_drop_client(
             safe_client,
+            // SAFETY: the engine passes a valid, NUL-terminated C string.
             unsafe { CStr::from_ptr(reason) }.to_string_lossy(),
         );
     });
@@ -351,6 +486,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     }
 
     let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
+    // SAFETY: the buffer is writable for its length, the format and arguments come from the engine's variadic call.
     let result = unsafe {
         vsnprintf(
             buffer.as_mut_ptr() as *mut c_char,
@@ -384,6 +520,7 @@ where
 }
 
 pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: qboolean) {
+    // SAFETY: the engine passes a valid, NUL-terminated C string.
     let server_str = unsafe { CStr::from_ptr(server) }.to_string_lossy();
     if server_str.is_empty() {
         return;
@@ -586,15 +723,17 @@ mod hooks_tests {
     use tap::Conv;
 
     use super::{
-        ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect,
-        shinqlx_client_spawn, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
-        shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
-        shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
-        shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
-        shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring,
-        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        QUERY_LIMITER, QUERY_LIMITS_REFRESHED_MS, ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
+        SteamPacketBuffer, shinqlx_client_connect, shinqlx_client_spawn, shinqlx_clientspawn,
+        shinqlx_cmd_addcommand, shinqlx_com_printf, shinqlx_drop_client,
+        shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
+        shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_send_server_command,
+        shinqlx_set_configstring, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
+        shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket, shinqlx_sv_setconfigstring,
+        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset, steam_query_allowed,
     };
     use crate::{
+        MAIN_ENGINE,
         ffi::{
             c::prelude::*,
             python::{
@@ -607,6 +746,7 @@ mod hooks_tests {
             },
         },
         prelude::*,
+        query_rate_limiter::{QueryLimits, QueryRateLimiter},
     };
 
     #[fixture]
@@ -651,6 +791,7 @@ mod hooks_tests {
     }
 
     fn is_dummy_address(address: usize) -> bool {
+        // SAFETY: the address belongs to a function with this signature.
         let function = unsafe {
             core::mem::transmute::<*const (), unsafe extern "C" fn()>(
                 core::ptr::with_exposed_provenance(address),
@@ -661,6 +802,7 @@ mod hooks_tests {
 
     fn is_dummy_function(function: unsafe extern "C" fn()) -> bool {
         let calls_before = DUMMY_FUNCTION_CALLS.load(Ordering::SeqCst);
+        // SAFETY: the function is a dummy without arguments that only counts its calls.
         unsafe { function() };
         DUMMY_FUNCTION_CALLS.load(Ordering::SeqCst) == calls_before + 1
     }
@@ -1581,6 +1723,7 @@ mod hooks_tests {
             .run(|| {
                 let result = shinqlx_client_connect(42, qboolean::qtrue, qboolean::qfalse);
                 assert_eq!(
+                    // SAFETY: the mocked engine call passes a valid, NUL-terminated C string.
                     unsafe { CStr::from_ptr(result) },
                     c"you are banned from this server"
                 );
@@ -2032,6 +2175,7 @@ mod hooks_tests {
 
         MockEngineBuilder::default()
             .with_com_printf(predicate::eq("Hello 42 world"), 1)
+            // SAFETY: the format and its variadic arguments match, the strings are NUL-terminated.
             .run(|| unsafe {
                 ShiNQlx_Com_Printf(c"Hello %d %s".as_ptr(), 42 as c_int, c"world".as_ptr());
             });
@@ -2046,6 +2190,7 @@ mod hooks_tests {
 
         MockEngineBuilder::default()
             .with_com_printf(predicate::always(), 0)
+            // SAFETY: the format is a NUL-terminated string without conversions.
             .run(|| unsafe {
                 ShiNQlx_Com_Printf(c"".as_ptr());
             });
@@ -2065,6 +2210,7 @@ mod hooks_tests {
 
         MockEngineBuilder::default()
             .with_send_server_command(|client, cmd| client.is_none() && cmd == "cp 7", 1)
+            // SAFETY: the format and its variadic argument match, a null client is allowed.
             .run(|| unsafe {
                 ShiNQlx_SV_SendServerCommand(ptr::null_mut(), c"cp %d".as_ptr(), 7 as c_int);
             });
@@ -2090,6 +2236,7 @@ mod hooks_tests {
 
         MockEngineBuilder::default()
             .with_send_server_command(|client, cmd| client.is_some() && cmd == "print hi", 1)
+            // SAFETY: the format and its variadic arguments match, the client is valid.
             .run(|| unsafe {
                 ShiNQlx_SV_SendServerCommand(
                     client.borrow_mut(),
@@ -2114,6 +2261,7 @@ mod hooks_tests {
 
         MockEngineBuilder::default()
             .with_send_server_command(|_client, _cmd| true, 0)
+            // SAFETY: the format is a NUL-terminated string without conversions, the client is valid.
             .run(|| unsafe {
                 ShiNQlx_SV_SendServerCommand(client.borrow_mut(), c"print hi".as_ptr());
             });
@@ -2250,6 +2398,337 @@ mod hooks_tests {
             .expect("this should not happen");
 
         shinqlx_sv_dropclient(client.borrow_mut(), c"bye".as_ptr());
+    }
+
+    fn reset_query_limiter() {
+        *QUERY_LIMITER.lock() = QueryRateLimiter::new(QueryLimits::DEFAULT);
+        QUERY_LIMITS_REFRESHED_MS.store(0, Ordering::Release);
+    }
+
+    fn query_address(type_: netadrtype_t) -> netadr_t {
+        NetadrBuilder::default()
+            .type_(type_)
+            .ip([192, 0, 2, 7])
+            .build()
+            .expect("this should not happen")
+    }
+
+    const A2S_INFO: &[u8] = b"\xff\xff\xff\xffTSource Engine Query\0";
+
+    fn packet_buffer(payload: &[u8], maxsize: usize) -> SteamPacketBuffer {
+        SteamPacketBuffer {
+            allowoverflow: 0,
+            overflowed: 0,
+            data: payload.as_ptr(),
+            maxsize: maxsize as c_int,
+            cursize: payload.len() as c_int,
+        }
+    }
+
+    fn send_buffers(
+        from: *const netadr_t,
+        buffer: &SteamPacketBuffer,
+        packets: usize,
+    ) -> Vec<c_int> {
+        let msg = ptr::from_ref(buffer).cast::<msg_t>();
+        (0..packets)
+            .map(|_| shinqlx_sv_handlesteampacket(from, msg))
+            .collect()
+    }
+
+    fn send_packets(from: *const netadr_t, payload: &[u8], packets: usize) -> Vec<c_int> {
+        send_buffers(from, &packet_buffer(payload, payload.len()), packets)
+    }
+
+    #[test]
+    fn the_packet_buffer_matches_the_layout_the_engine_reads() {
+        assert_eq!(core::mem::offset_of!(SteamPacketBuffer, data), 0x8);
+        assert_eq!(core::mem::offset_of!(SteamPacketBuffer, maxsize), 0x10);
+        assert_eq!(core::mem::offset_of!(SteamPacketBuffer, cursize), 0x14);
+    }
+
+    fn send_query_packets(from: *const netadr_t, packets: usize) -> Vec<c_int> {
+        send_packets(from, A2S_INFO, packets)
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_forwards_packets_within_the_burst() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(10);
+            })
+            .run(|| {
+                assert_eq!(send_query_packets(&address, 10), vec![0; 10]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_drops_packets_above_the_burst_without_calling_steam() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(10);
+            })
+            .run(|| {
+                let results = send_query_packets(&address, 12);
+
+                assert_eq!(results, [vec![0; 10], vec![1; 2]].concat());
+            });
+    }
+
+    #[rstest]
+    #[case::info(b"\xff\xff\xff\xffTSource Engine Query\0".as_slice())]
+    #[case::player(b"\xff\xff\xff\xffU\xff\xff\xff\xff".as_slice())]
+    #[case::rules(b"\xff\xff\xff\xffV\xff\xff\xff\xff".as_slice())]
+    #[serial]
+    fn sv_handlesteampacket_limits_every_query_opcode(#[case] payload: &[u8]) {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(10);
+            })
+            .run(|| {
+                let results = send_packets(&address, payload, 11);
+
+                assert_eq!(results, [vec![0; 10], vec![1]].concat());
+            });
+    }
+
+    #[rstest]
+    #[case::other_opcode(b"\xff\xff\xff\xffW\xff\xff\xff\xff".as_slice())]
+    #[case::quake_connectionless(b"\xff\xff\xff\xffgetchallenge\0".as_slice())]
+    #[case::missing_header(b"TSource Engine Query\0".as_slice())]
+    #[case::header_only(b"\xff\xff\xff\xff".as_slice())]
+    #[case::too_short(b"\xff".as_slice())]
+    #[serial]
+    fn sv_handlesteampacket_forwards_packets_that_are_no_queries_unlimited(#[case] payload: &[u8]) {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(30);
+            })
+            .run(|| {
+                assert_eq!(send_packets(&address, payload, 30), vec![0; 30]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_forwards_packets_without_message_unlimited() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(30);
+            })
+            .run(|| {
+                let results: Vec<c_int> = (0..30)
+                    .map(|_| shinqlx_sv_handlesteampacket(&address, ptr::null()))
+                    .collect();
+
+                assert_eq!(results, vec![0; 30]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_does_not_trust_messages_larger_than_their_buffer() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let buffer = packet_buffer(A2S_INFO, 4);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(30);
+            })
+            .run(|| {
+                let results = send_buffers(&address, &buffer, 30);
+
+                assert_eq!(results, vec![0; 30]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_does_not_count_other_packets_against_the_query_limit() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(10 + 50);
+            })
+            .run(|| {
+                send_packets(&address, b"\xff\xff\xff\xffW\xff\xff\xff\xff", 50);
+
+                assert_eq!(send_query_packets(&address, 10), vec![0; 10]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_does_not_limit_other_address_types() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_LOOPBACK);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(20);
+            })
+            .run(|| {
+                assert_eq!(send_query_packets(&address, 20), vec![0; 20]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_forwards_packets_without_source_address() {
+        reset_query_limiter();
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(true)
+                    .times(1);
+            })
+            .run(|| {
+                assert_eq!(send_query_packets(ptr::null(), 1), vec![1]);
+            });
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn sv_handlesteampacket_applies_the_limits_from_the_cvars() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let mut burst_cvar = CVarBuilder::default()
+            .string(c"2".as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |_| true,
+                move |name| {
+                    (name == "qlx_steamQueryBurst")
+                        .then(|| CVar::try_from(burst_cvar.borrow_mut() as *mut cvar_t).ok())
+                        .flatten()
+                },
+                1..,
+            )
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(2);
+            })
+            .run(|| {
+                let results = send_query_packets(&address, 4);
+
+                assert_eq!(results, vec![0, 0, 1, 1]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_does_not_trust_messages_with_negative_size() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let buffer = SteamPacketBuffer {
+            cursize: -1,
+            ..packet_buffer(A2S_INFO, A2S_INFO.len())
+        };
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(30);
+            })
+            .run(|| {
+                assert_eq!(send_buffers(&address, &buffer, 30), vec![0; 30]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn steam_query_allowed_reports_the_dropped_packets_once_per_interval() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let after_interval_ms = 1_000 + 61_000;
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .run(|| {
+                let main_engine = MAIN_ENGINE.load();
+                let main_engine = main_engine
+                    .as_ref()
+                    .expect("the mock engine is registered by run");
+
+                let allowed = (0..12)
+                    .filter(|_| steam_query_allowed(&**main_engine, &address, 1_000))
+                    .count();
+                assert_eq!(allowed, 10);
+
+                assert!(steam_query_allowed(
+                    &**main_engine,
+                    &address,
+                    after_interval_ms
+                ));
+                assert_eq!(
+                    QUERY_LIMITER.lock().take_dropped_summary(after_interval_ms),
+                    None
+                );
+            });
     }
 
     #[test]

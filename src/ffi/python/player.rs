@@ -310,8 +310,8 @@ impl Player {
     }
 
     #[setter(team)]
-    fn set_team(slf: &Bound<'_, Self>, new_team: &str) -> PyResult<()> {
-        slf.set_team(new_team)
+    fn set_team(slf: &Bound<'_, Self>, new_team: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.set_team(&name_of(new_team)?)
     }
 
     #[getter(colors)]
@@ -410,8 +410,9 @@ impl Player {
     }
 
     #[setter(privileges)]
-    fn set_privileges(slf: &Bound<'_, Self>, value: Option<&str>) -> PyResult<()> {
-        slf.set_privileges(value)
+    fn set_privileges(slf: &Bound<'_, Self>, value: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        let value = value.map(name_of).transpose()?;
+        slf.set_privileges(value.as_deref())
     }
 
     #[getter(country)]
@@ -631,8 +632,8 @@ impl Player {
         slf.unmute()
     }
 
-    pub(crate) fn put(slf: &Bound<'_, Self>, team: &str) -> PyResult<()> {
-        slf.put(team)
+    pub(crate) fn put(slf: &Bound<'_, Self>, team: &Bound<'_, PyAny>) -> PyResult<()> {
+        slf.put(&name_of(team)?)
     }
 
     fn addscore(slf: &Bound<'_, Self>, score: i32) -> PyResult<()> {

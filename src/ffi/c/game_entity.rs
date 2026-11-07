@@ -38,6 +38,7 @@ impl TryFrom<*mut gentity_t> for GameEntity {
     type Error = QuakeLiveEngineError;
 
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         unsafe { game_entity.as_mut() }
             .map(|gentity| Self { gentity_t: gentity })
             .ok_or_else(|| {
@@ -63,6 +64,7 @@ impl TryFrom<i32> for GameEntity {
                         "g_entities not initialized".to_string(),
                     ))
                 } else {
+                    // SAFETY: g_entities was checked as non-null and the index lies within the entity range.
                     Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
                         cold_path();
                         QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
@@ -88,6 +90,7 @@ impl TryFrom<u32> for GameEntity {
             ));
         }
 
+        // SAFETY: g_entities was checked as non-null and the index lies within the entity range.
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
             cold_path();
             QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
@@ -103,6 +106,7 @@ pub(crate) extern "C" fn ShiNQlx_Touch_Item(
 ) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let _ = main_engine.touch_item_orig().tap_ok(|original_func| {
+            // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
             (unsafe { ent.as_ref() }).tap_some(|&entity| {
                 if !ptr::eq(entity.parent, other) {
                     original_func(ent, other, trace);
@@ -119,6 +123,7 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
             main_engine.touch_item_orig(),
             main_engine.g_free_entity_orig(),
         ) {
+            // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
             (unsafe { ent.as_mut() }).tap_some_mut(|mut_ent| {
                 let level_time = CurrentLevel::try_get()
                     .map(|current_level| current_level.get_leveltime())
@@ -153,6 +158,7 @@ impl GameEntity {
                 main_engine
                     .g_run_frame_orig()
                     .map_or(ptr::null_mut(), |func_pointer| {
+                        // SAFETY: the address derives from a function of the loaded engine, whose code is readable.
                         let base_address = unsafe {
                             ptr::read_unaligned(
                                 (func_pointer as usize + OFFSET_G_ENTITIES) as *const i32,
@@ -170,6 +176,7 @@ impl GameEntity {
         if g_entities.is_null() {
             return -1;
         }
+        // SAFETY: g_entities was checked as non-null and the entity points into the same array.
         i32::try_from(unsafe { (self.gentity_t as *const gentity_t).offset_from(g_entities) })
             .unwrap_or(-1)
     }
@@ -264,6 +271,7 @@ impl GameEntity {
     }
 
     pub(crate) fn get_classname(&self) -> Cow<'_, str> {
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(self.gentity_t.classname) }.to_string_lossy()
     }
 
@@ -280,6 +288,7 @@ impl GameEntity {
             return false;
         }
 
+        // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
         let Some(item) = (unsafe { self.gentity_t.item.as_ref() }) else {
             return false;
         };
@@ -356,6 +365,7 @@ impl GameEntity {
 
     pub(crate) fn replace_item(&mut self, item_id: i32) {
         MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+            // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
             let class_name = unsafe { CStr::from_ptr(self.gentity_t.classname) };
             main_engine.com_printf(&class_name.to_string_lossy());
             if item_id != 0 {
@@ -392,6 +402,7 @@ impl GameEntity {
             return vec![];
         }
 
+        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         let my_targetname = unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
 
         (1..MAX_GENTITIES)
@@ -399,6 +410,7 @@ impl GameEntity {
                 GameEntity::try_from(*entity_id).is_ok_and(|other_ent| {
                     !other_ent.gentity_t.target.is_null()
                         && my_targetname
+                            // SAFETY: the engine passes a valid, NUL-terminated C string.
                             == unsafe { CStr::from_ptr(other_ent.gentity_t.target) }
                                 .to_string_lossy()
                 })
@@ -1975,6 +1987,7 @@ mod game_entity_tests {
         function_bytes.0[0x11B..0x11F].copy_from_slice(&0x10i32.to_le_bytes());
         let function_address = function_bytes.0.as_ptr() as usize;
         let function_pointer =
+            // SAFETY: the address belongs to a function with this signature.
             unsafe { core::mem::transmute::<usize, extern "C" fn(c_int)>(function_address) };
 
         MockEngineBuilder::default()

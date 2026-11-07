@@ -43,6 +43,7 @@ where
     (start..last_start).find(|i| {
         (0..pattern.len())
             .filter(|j| mask[*j] == b'X')
+            // SAFETY: the scanned range lies in the mapped code of the engine.
             .all(|j| pattern[j] == unsafe { ptr::read((*i + j) as *const u8) })
     })
 }
@@ -93,6 +94,8 @@ pub enum QuakeLiveFunction {
     G_FreeEntity,
     #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
     Cmd_Callvote_f,
+    #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+    SV_HandleSteamPacket,
 }
 
 impl QuakeLiveFunction {
@@ -107,10 +110,12 @@ impl QuakeLiveFunction {
         T: HookableWith<D>,
         D: Function,
     {
+        // SAFETY: the original and the replacement are functions with the same signature.
         let Ok(detour) = (unsafe { TypedDetour::new(function, replacement) }) else {
             cold_path();
             return Err(QuakeLiveEngineError::DetourCouldNotBeCreated(*self));
         };
+        // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe {
             detour.enable().map_err(|_| {
                 cold_path();
@@ -163,6 +168,8 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::G_FreeEntity => b"\x48\x8b\x05\x00\x00\x00\x00\x53\x48\x89\xfb\x48\x8b\x00\xff\x90\x00\x00\x00\x00\x8b\x83\x00\x00\x00\x00\x85\xc0\x74\x00\x5b\xc3",
             #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
             QuakeLiveFunction::Cmd_Callvote_f => b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x48\x89\xfd\x53\x48\x81\xec\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0\xe8\x00\x00\x00\x00",
+            #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+            QuakeLiveFunction::SV_HandleSteamPacket => b"\x8b\x15\x00\x00\x00\x00\x31\xc0\x85\xd2\x75\x00\xc3\x0f\x1f\x00\x41\x54\x55\x48\x89\xf5\x53\x0f\xb6\x57\x04\x48\x89\xfb\x0f\xb6\x47\x05\x0f\xb6\x4f\x07\xc1\xe2\x18\xc1\xe0\x10\x01\xc2\x0f\xb6\x47\x06",
         }
     }
 
@@ -234,6 +241,10 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::G_FreeEntity => b"XXX----XXXXXXXXX----XX----XXX-XX",
             #[cfg(any(all(target_os = "linux", feature = "patches"), test))]
             QuakeLiveFunction::Cmd_Callvote_f => b"XXXXXXXXXXXXXXXX----XXXXX----XXXX----XXX----",
+            #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+            QuakeLiveFunction::SV_HandleSteamPacket => {
+                b"XX----XXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            }
         }
     }
 }
@@ -375,6 +386,7 @@ mod quake_live_function_tests {
     #[case(QuakeLiveFunction::Drop_Item, "Drop_Item")]
     #[case(QuakeLiveFunction::G_FreeEntity, "G_FreeEntity")]
     #[case(QuakeLiveFunction::Cmd_Callvote_f, "Cmd_Callvote_f")]
+    #[case(QuakeLiveFunction::SV_HandleSteamPacket, "SV_HandleSteamPacket")]
     fn function_can_be_formatted(#[case] func: QuakeLiveFunction, #[case] output: &str) {
         let result = format!("{func}");
         assert_eq!(result, output);
@@ -420,6 +432,7 @@ mod quake_live_function_tests {
     #[case(QuakeLiveFunction::Drop_Item, b"\x41\x54\x31\xc9\x31\xd2\x49\x89\xf4\x55\x53\x48\x89\xfb\x48\x83\xec\x00\xf3\x0f\x10\x4f\x00\x48\x8d\x6c\x24\x00\xc7\x44\x24\x20\x00\x00\x00\x00\xf3\x0f\x58\xc8\xf3\x0f\x10\x57\x00\x48\x8d\x7c\x24\x00")]
     #[case(QuakeLiveFunction::G_FreeEntity, b"\x48\x8b\x05\x00\x00\x00\x00\x53\x48\x89\xfb\x48\x8b\x00\xff\x90\x00\x00\x00\x00\x8b\x83\x00\x00\x00\x00\x85\xc0\x74\x00\x5b\xc3")]
     #[case(QuakeLiveFunction::Cmd_Callvote_f, b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x48\x89\xfd\x53\x48\x81\xec\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0\xe8\x00\x00\x00\x00")]
+    #[case(QuakeLiveFunction::SV_HandleSteamPacket, b"\x8b\x15\x00\x00\x00\x00\x31\xc0\x85\xd2\x75\x00\xc3\x0f\x1f\x00\x41\x54\x55\x48\x89\xf5\x53\x0f\xb6\x57\x04\x48\x89\xfb\x0f\xb6\x47\x05\x0f\xb6\x4f\x07\xc1\xe2\x18\xc1\xe0\x10\x01\xc2\x0f\xb6\x47\x06")]
     fn function_patterns(#[case] func: QuakeLiveFunction, #[case] expected_pattern: &[u8]) {
         assert_eq!(func.pattern(), expected_pattern);
     }
@@ -550,6 +563,10 @@ mod quake_live_function_tests {
     #[case(
         QuakeLiveFunction::Cmd_Callvote_f,
         b"XXXXXXXXXXXXXXXX----XXXXX----XXXX----XXX----"
+    )]
+    #[case(
+        QuakeLiveFunction::SV_HandleSteamPacket,
+        b"XX----XXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
     )]
     fn function_masks(#[case] func: QuakeLiveFunction, #[case] expected_mask: &[u8]) {
         assert_eq!(func.mask(), expected_mask);

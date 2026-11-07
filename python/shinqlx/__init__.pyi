@@ -205,12 +205,21 @@ from ._shinqlx import (
     TEAM_RED,
     TEAM_SPECTATOR,
     ConfigString,
+    ConnectionStates,
+    CvarFlags,
+    DamageFlags,
     Flight,
+    MeansOfDeath,
     PlayerInfo,
     PlayerState,
     PlayerStats,
     Powerups,
+    Priorities,
+    Privileges,
+    ReturnCodes,
+    Teams,
     Vector3,
+    VoteStates,
     Weapons,
     add_console_command,
     allow_single_player,
@@ -403,7 +412,7 @@ class PlayerData(TypedDict):
     VIEW: Vector
     WEAPON: Weapon
 
-MeansOfDeath = Literal[
+StatsMeansOfDeath = Literal[
     "UNKNOWN",
     "SHOTGUN",
     "GAUNTLET",
@@ -444,7 +453,7 @@ class KillData(TypedDict):
     KILLER: PlayerData
     VICTIM: PlayerData
     MATCH_GUID: str
-    MOD: MeansOfDeath
+    MOD: StatsMeansOfDeath
     OTHER_TEAM_ALIVE: int
     OTHER_TEAM_DEAD: int
     ROUND: int
@@ -459,7 +468,7 @@ class DeathData(TypedDict):
     KILLER: PlayerData | None
     VICTIM: PlayerData
     MATCH_GUID: str
-    MOD: MeansOfDeath
+    MOD: StatsMeansOfDeath
     OTHER_TEAM_ALIVE: int
     OTHER_TEAM_DEAD: int
     ROUND: int
@@ -798,10 +807,13 @@ __all__ = [
     "CommandDispatcher",
     "CommandInvoker",
     "ConfigString",
+    "ConnectionStates",
     "ConsoleChannel",
     "ConsolePrintDispatcher",
+    "CvarFlags",
     "DamageDispatcher",
     "DamageEntry",
+    "DamageFlags",
     "DeathData",
     "DeathDispatcher",
     "EventDispatcher",
@@ -853,7 +865,10 @@ __all__ = [
     "PluginUnloadError",
     "PowerUps",
     "Powerups",
+    "Priorities",
+    "Privileges",
     "RconDummyPlayer",
+    "ReturnCodes",
     "RoundCountdownDispatcher",
     "RoundEndData",
     "RoundEndDispatcher",
@@ -865,10 +880,12 @@ __all__ = [
     "StatsData",
     "StatsDispatcher",
     "StatsListener",
+    "StatsMeansOfDeath",
     "TeamChatChannel",
     "TeamSwitchAttemptDispatcher",
     "TeamSwitchDispatcher",
     "TeamSwitchGameData",
+    "Teams",
     "TellChannel",
     "UncancellableEventReturn",
     "UnloadDispatcher",
@@ -881,6 +898,7 @@ __all__ = [
     "VoteDispatcher",
     "VoteEndedDispatcher",
     "VoteStartedDispatcher",
+    "VoteStates",
     "Weapon",
     "Weapons",
     "WeaponsStatsEntry",
