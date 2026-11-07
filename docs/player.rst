@@ -59,7 +59,8 @@ Players
    .. property:: team
       :type: str
 
-      The team of the player.
+      The team of the player. Can be set to the name of a team or a member of :class:`Teams`, e.g.
+      ``player.team = Teams.RED``.
 
    .. property:: colors
       :type: tuple[float, float]
@@ -112,7 +113,7 @@ Players
    .. property:: privileges
       :type: str
 
-      The privileges of the player.
+      The privileges of the player. Can be set to the name of a privilege level or a member of :class:`Privileges`.
 
    .. property:: country
       :type: str
@@ -255,9 +256,9 @@ Players
       When ``new_weapon`` is provided, the player's weapon is switched.
 
       .. seealso::
-         :data:`WEAPONS <shinqlx.WEAPONS>` for the different weapon integer and string values.
+         :class:`Weapon` and :data:`WEAPONS <shinqlx.WEAPONS>` for the different weapon integer and string values.
 
-      :param int | str new_weapon: The new weapons to switch to.
+      :param int | str | Weapon new_weapon: The new weapons to switch to.
       :return:
          When called without any arguments, the currently held weapon of the player is returned.
          Otherwise returns ``False`` if the player is no longer valid, ``True`` otherwise.
@@ -382,7 +383,7 @@ Players
 
       Put a player on a specific team.
 
-      :param str team: The team the player should be put onto.
+      :param str | Teams team: The team the player should be put onto.
 
    .. method:: addscore(score)
 

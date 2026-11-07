@@ -1,0 +1,158 @@
+.. _examples:
+.. currentmodule:: shinqlx
+
+#################
+Plugin examples
+#################
+
+The examples show the typical building blocks of a plugin. A plugin is a Python file in the directory of
+``qlx_pluginsPath`` whose class has the same name as the file, e.g. ``greeter.py`` contains ``class greeter``.
+Add the name to ``qlx_plugins`` to load it at startup, or load it at runtime with ``!load greeter``.
+
+More plugins to learn from can be found in the
+`minqlx plugin repository <https://github.com/MinoMino/minqlx-plugins>`_.
+
+.. note::
+   The examples use the :ref:`enumerations <enums>` of ``shinqlx``. A plugin that has to run on ``minqlx`` as well
+   uses the integer constants like :data:`PRI_LOW` and the strings ``"red"`` instead; their values are the same.
+
+A greeting
+==========
+
+Hooks react to events of the server, commands react to chat messages and console input. Both can be declared on the
+methods that handle them with the :ref:`decorators <plugin>`.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class greeter(shinqlx.Plugin):
+       @shinqlx.hook("player_loaded", priority=shinqlx.Priorities.LOW)
+       def greet_new_player(self, player):
+           player.tell(f"Welcome, {player.name}^7!")
+
+       @shinqlx.command("hello", permission=0, usage="<name>")
+       def cmd_hello(self, player, msg, channel):
+           if len(msg) < 2:
+               return shinqlx.ReturnCodes.USAGE
+
+           channel.reply(f"Hello {msg[1]}^7!")
+
+Returning :attr:`ReturnCodes.USAGE` from a command replies with its ``usage``. A hook that returns
+:attr:`ReturnCodes.STOP_ALL` stops the event for the engine as well, which is shown in the next example.
+
+Keeping teams even
+==================
+
+The ``team_switch_attempt`` event happens before the player changes the team, so a handler can veto it. The teams
+are given as strings, and the :class:`Teams` members compare equal to them.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class team_guard(shinqlx.Plugin):
+       @shinqlx.hook("team_switch_attempt")
+       def keep_teams_even(self, player, old_team, new_team):
+           if new_team not in (shinqlx.Teams.RED, shinqlx.Teams.BLUE):
+               return shinqlx.ReturnCodes.NONE
+
+           teams = self.teams()
+           other = shinqlx.Teams.BLUE if new_team == shinqlx.Teams.RED else shinqlx.Teams.RED
+           if len(teams[new_team]) > len(teams[str(other)]):
+               player.tell("The teams would be uneven, please wait.")
+               return shinqlx.ReturnCodes.STOP_ALL
+
+A command to even out the teams by hand can use :meth:`Plugin.put`, which accepts the members as well:
+
+.. code-block:: python
+
+       @shinqlx.command("spec", permission=3, usage="<id>")
+       def cmd_spec(self, player, msg, channel):
+           target = self.player(msg[1]) if len(msg) > 1 else None
+           if target is None:
+               return shinqlx.ReturnCodes.USAGE
+
+           self.put(target, shinqlx.Teams.SPECTATOR)
+
+Weapons
+=======
+
+:class:`Weapon` names the weapon, :class:`Weapons` holds the amount per weapon. The string of a member is the field
+name of :class:`Weapons`.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class railgun_start(shinqlx.Plugin):
+       def __init__(self):
+           super().__init__()
+           self.add_hook("player_spawn", self.give_railgun)
+
+       def give_railgun(self, player):
+           player.weapons(rg=1, mg=0)
+           player.ammo(rg=25)
+           player.weapon(shinqlx.Weapon.RAILGUN)
+
+       @shinqlx.command("rockets", permission=0)
+       def cmd_rockets(self, player, msg, channel):
+           rockets = getattr(player.ammo(), str(shinqlx.Weapon.ROCKET_LAUNCHER))
+           channel.reply(f"{player.name}^7 has {rockets} rockets.")
+
+Cvars and flags
+===============
+
+Flags of a cvar are combined with ``|``; :meth:`Plugin.set_cvar_once` only sets the cvar if it does not exist yet,
+which is the usual way to provide a default for a setting of the plugin.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class announcer(shinqlx.Plugin):
+       def __init__(self):
+           super().__init__()
+           flags = shinqlx.CvarFlags.ARCHIVE | shinqlx.CvarFlags.LATCH
+           self.set_cvar_once("qlx_announcerText", "Have fun!", flags)
+
+           self.add_hook("game_countdown", self.announce)
+
+       def announce(self):
+           self.msg(self.get_cvar("qlx_announcerText"))
+
+Connection states and slaying
+=============================
+
+A player in the list of players is not necessarily in the game yet. :attr:`Player.connection_state` tells how far the
+connection is, and compares equal to the members of :class:`ConnectionStates`.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class leave_notice(shinqlx.Plugin):
+       def __init__(self):
+           super().__init__()
+           self.add_hook("player_disconnect", self.announce_leave)
+
+       def announce_leave(self, player, reason):
+           if player.connection_state == shinqlx.ConnectionStates.ACTIVE:
+               self.msg(f"{player.name}^7 left the game.")
+
+To remove a player instantly, :func:`slay_with_mod` takes a member of :class:`MeansOfDeath`:
+
+.. code-block:: python
+
+       @shinqlx.command("slay", permission=3, usage="<id>")
+       def cmd_slay(self, player, msg, channel):
+           target = self.player(msg[1]) if len(msg) > 1 else None
+           if target is None:
+               return shinqlx.ReturnCodes.USAGE
+
+           shinqlx.slay_with_mod(target.id, shinqlx.MeansOfDeath.SUICIDE)

@@ -884,7 +884,7 @@ Constants
 .. data:: WEAPONS
    :type: dict[int, str]
 
-   dictionary mapping integer weapons to their short names.
+   dictionary mapping integer weapons to their short names. The keys are the values of :class:`Weapon`.
 
 .. data:: DEFAULT_PLUGINS
    :type: tuple[str, ...]
@@ -893,6 +893,9 @@ Constants
 
 Return values for hooks and commands
 ------------------------------------
+
+.. seealso::
+   :class:`ReturnCodes`, the enumeration with the same values.
 
 .. data:: RET_NONE
    :type: int
@@ -922,6 +925,9 @@ Return values for hooks and commands
 Priority values for hooks and commands
 --------------------------------------
 
+.. seealso::
+   :class:`Priorities`, the enumeration with the same values.
+
 .. data:: PRI_HIGHEST
    :type: int
 
@@ -941,6 +947,9 @@ Priority values for hooks and commands
 
 CVar flags
 ----------
+
+.. seealso::
+   :class:`CvarFlags`, the enumeration with the same values.
 
 Descriptions from the quake live C-source comments.
 
@@ -1004,6 +1013,9 @@ Descriptions from the quake live C-source comments.
 Privileges
 ----------
 
+.. seealso::
+   :class:`Privileges`, the enumeration with the same values.
+
 .. data:: PRIV_NONE
    :type: int
 
@@ -1023,6 +1035,9 @@ Privileges
 
 Connection states
 -----------------
+
+.. seealso::
+   :class:`ConnectionStates`, the enumeration with the same values.
 
 Descriptions from the quake live C-source comments.
 
@@ -1061,6 +1076,9 @@ Descriptions from the quake live C-source comments.
 Teams
 -----
 
+.. seealso::
+   :class:`Teams`, the enumeration with the same values.
+
 .. data:: TEAM_FREE
    :type: int
 
@@ -1082,6 +1100,9 @@ Teams
 
 Means of Death
 --------------
+
+.. seealso::
+   :class:`MeansOfDeath`, the enumeration with the same values.
 
 .. data:: MOD_UNKNOWN
    :type: int

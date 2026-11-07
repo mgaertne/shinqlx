@@ -698,14 +698,14 @@ Plugins
 
       Lock all teams or just the given team.
 
-      :param str | None team: The team to lock. If ``None``, all teams will be locked. (default: ``None``)
+      :param str | Teams | None team: The team to lock. If ``None``, all teams will be locked. (default: ``None``)
 
    .. method:: unlock(team=None)
       :classmethod:
 
       Unlock all teams or just the given team.
 
-      :param str | None team: The team to unlock. If ``None``, all teams will be unlocked. (default: ``None``)
+      :param str | Teams | None team: The team to unlock. If ``None``, all teams will be unlocked. (default: ``None``)
 
    .. method:: put(player, team)
       :classmethod:
@@ -713,7 +713,7 @@ Plugins
       Put a player on a specific team.
 
       :param Player player: The player to move.
-      :param str team: The team the player should be put onto.
+      :param str | Teams team: The team the player should be put onto.
 
    .. method:: mute(player)
       :classmethod:
@@ -796,7 +796,7 @@ Plugins
 
       Add the given score to the given team.
 
-      :param str team: The team to add score points to.
+      :param str | Teams team: The team to add score points to.
       :param int score: The amount of score points to add to the team. Can be negative.
 
    .. method:: setmatchtime(time)

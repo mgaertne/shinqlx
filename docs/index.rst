@@ -17,12 +17,14 @@ High-level classes and functions
 * :ref:`Channels <channels>`
 * :ref:`Database <database>`
 * :ref:`Built-in Rust plugins <native_plugins>`
+* :ref:`Plugin examples <examples>`
 
 *******************************
 Low-level classes and functions
 *******************************
 
 * :ref:`Core functions <core>`
+* :ref:`Enumerations <enums>`
 * :ref:`Commands <commands>`
 * :ref:`EventDispatcher <events>`
 * :ref:`Handlers <handlers>`
@@ -42,7 +44,9 @@ Indices and tables
    channels
    database
    native_plugins
+   examples
    shinqlx
+   enums
    commands
    events
    handlers
