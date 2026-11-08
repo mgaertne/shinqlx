@@ -151,8 +151,9 @@ shinqlx ships a filter written in Rust ([Aya](https://aya-rs.dev)) with its load
 `xdp/` (see its `README.md`); it has its own cargo workspace and is not part of the shinqlx build. It was tried on a
 Debian 13 server (virtio_net, native mode): tests with crafted packets pass, and an A2S flood of 200 packets/s from one
 source was banned after the first second (about 4000 packets dropped in 30 s) while normal game traffic kept passing.
-Operators who run such a program report that it works as a game-protocol aware filter in front of the server. What such
-a program typically does:
+The README explains how to measure the smallest legitimate game packet for the optional `min_payload` and how to test
+the filter against a flood. Operators who run such a program report that it works as a game-protocol aware filter in
+front of the server. What such a program typically does:
 
 * classify packets by UDP destination port, so game traffic and query traffic can be handled differently,
 * recognize connectionless Quake packets (`FF FF FF FF` followed by `getstatus`, `getinfo`, `getchallenge`, `connect`)
