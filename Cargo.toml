@@ -50,7 +50,7 @@ required-features = ["bench-support"]
 
 [profile.release]
 strip = "symbols"
-opt-level = "z"
+opt-level = 3
 lto = "fat"
 codegen-units = 1
 rustflags = ["-Zlocation-detail=none"]
