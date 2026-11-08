@@ -7,7 +7,7 @@
 use derive_more::Display;
 use pyo3::{IntoPyObjectExt, class::basic::CompareOp, types::PyInt};
 
-use super::{PythonReturnCodes, commands::CommandPriorities, prelude::*};
+use super::{PythonReturnCodes, commands::CommandPriorities, holdable::Holdable, prelude::*};
 use crate::ffi::c::prelude::*;
 
 /// Compares a member that behaves like an integer with another member of the same enumeration or
@@ -36,10 +36,17 @@ pub(crate) fn name_of(value: &Bound<'_, PyAny>) -> PyResult<String> {
     if let Ok(privileges) = value.cast::<Privileges>() {
         return Ok(privileges.get().to_string());
     }
+    if let Ok(holdable) = value.cast::<Holdable>() {
+        return Ok(holdable.get().to_string().to_lowercase());
+    }
     value.extract::<String>()
 }
 
-fn compare_with_name_or_index(value: i32, name: &str, other: &Bound<'_, PyAny>) -> Option<bool> {
+pub(super) fn compare_with_name_or_index(
+    value: i32,
+    name: &str,
+    other: &Bound<'_, PyAny>,
+) -> Option<bool> {
     if let Ok(other_name) = other.extract::<&str>() {
         return Some(other_name == name);
     }
@@ -49,7 +56,11 @@ fn compare_with_name_or_index(value: i32, name: &str, other: &Bound<'_, PyAny>) 
     None
 }
 
-fn richcmp_result(py: Python<'_>, equal: Option<bool>, op: CompareOp) -> PyResult<Py<PyAny>> {
+pub(super) fn richcmp_result(
+    py: Python<'_>,
+    equal: Option<bool>,
+    op: CompareOp,
+) -> PyResult<Py<PyAny>> {
     match (op, equal) {
         (CompareOp::Eq, Some(equal)) => equal.into_py_any(py),
         (CompareOp::Ne, Some(equal)) => (!equal).into_py_any(py),
@@ -343,6 +354,47 @@ impl Weapon {
     }
 }
 
+/// The states of a game, as :attr:`shinqlx.Game.state` returns them.
+///
+/// The string of a member is the value of :attr:`shinqlx.Game.state`. Members compare equal to
+/// that string and have its hash, so they find the string as key of a dictionary and vice versa.
+#[pyclass(module = "_shinqlx", name = "GameStates", frozen, str)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, Display)]
+#[repr(i32)]
+pub(crate) enum GameState {
+    #[display("warmup")]
+    WARMUP = 0,
+    #[display("countdown")]
+    COUNTDOWN = 1,
+    #[display("in_progress")]
+    IN_PROGRESS = 2,
+}
+
+#[pymethods]
+impl GameState {
+    fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
+        pyo3::types::PyString::new(py, &self.to_string()).hash()
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let this = slf.get();
+        let equal = other.cast::<Self>().map_or_else(
+            |_| {
+                other
+                    .extract::<&str>()
+                    .ok()
+                    .map(|name| name == this.to_string())
+            },
+            |same| Some(same.get() == this),
+        );
+        richcmp_result(slf.py(), equal, op)
+    }
+}
+
 /// The states of a vote on the server.
 #[pyclass(module = "_shinqlx", name = "VoteStates", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
@@ -383,8 +435,8 @@ mod game_enums_tests {
     use rstest::rstest;
 
     use super::{
-        ConnectionState, Priority, Privileges, PythonReturnCodes, ReturnCode, Team, VoteState,
-        name_of,
+        ConnectionState, GameState, Priority, Privileges, PythonReturnCodes, ReturnCode, Team,
+        VoteState, name_of,
     };
     use crate::{
         ffi::{c::prelude::*, python::prelude::*},
@@ -456,6 +508,14 @@ mod game_enums_tests {
     #[case(ReturnCode::USAGE, 4)]
     fn return_code_is_the_return_value_of_handlers(#[case] code: ReturnCode, #[case] index: i32) {
         assert_eq!(code.__index__(), index);
+    }
+
+    #[rstest]
+    #[case(GameState::WARMUP, "warmup")]
+    #[case(GameState::COUNTDOWN, "countdown")]
+    #[case(GameState::IN_PROGRESS, "in_progress")]
+    fn game_state_has_the_name_of_game_state(#[case] state: GameState, #[case] name: &str) {
+        assert_eq!(state.to_string(), name);
     }
 
     #[rstest]
@@ -553,6 +613,20 @@ mod game_enums_tests {
 import shinqlx
 
 assert shinqlx.Teams.RED == 1
+assert shinqlx.GameStates.WARMUP == "warmup"
+assert "in_progress" == shinqlx.GameStates.IN_PROGRESS
+assert shinqlx.GameStates.COUNTDOWN != "warmup"
+assert shinqlx.GameStates.COUNTDOWN != 1
+assert shinqlx.GameStates.WARMUP != shinqlx.GameStates.COUNTDOWN
+assert str(shinqlx.GameStates.IN_PROGRESS) == "in_progress"
+assert {"warmup": 5}[shinqlx.GameStates.WARMUP] == 5
+assert {shinqlx.GameStates.COUNTDOWN: 7}["countdown"] == 7
+assert shinqlx.Holdable.TELEPORTER == "teleporter"
+assert shinqlx.Holdable.NONE == "none"
+assert shinqlx.Holdable.KAMIKAZE == 37
+assert shinqlx.Holdable.FLIGHT != shinqlx.Weapon.GAUNTLET
+assert shinqlx.Holdable.MEDKIT != "teleporter"
+assert str(shinqlx.Holdable.PORTAL) == "portal"
 assert shinqlx.ReturnCodes.NONE == None
 assert None == shinqlx.ReturnCodes.NONE
 assert shinqlx.ReturnCodes.STOP != None

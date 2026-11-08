@@ -504,8 +504,9 @@ impl Player {
     }
 
     #[setter(holdable)]
-    fn set_holdable(slf: &Bound<'_, Self>, holdable: Option<&str>) -> PyResult<()> {
-        slf.set_holdable(holdable)
+    fn set_holdable(slf: &Bound<'_, Self>, holdable: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        let holdable = holdable.map(name_of).transpose()?;
+        slf.set_holdable(holdable.as_deref())
     }
 
     fn drop_holdable(slf: &Bound<'_, Self>) -> PyResult<()> {

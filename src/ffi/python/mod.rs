@@ -138,7 +138,8 @@ pub(crate) mod prelude {
         flag_enums::{CvarFlag, DamageFlag},
         flight::Flight,
         game_enums::{
-            ConnectionState, Priority, Privileges, ReturnCode, Team, VoteState, Weapon, name_of,
+            ConnectionState, GameState, Priority, Privileges, ReturnCode, Team, VoteState, Weapon,
+            name_of,
         },
         holdable::Holdable,
         means_of_death::MeansOfDeath,

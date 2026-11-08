@@ -197,15 +197,73 @@ fn command<'py>(
     )
 }
 
-/// The read-only attribute of a plugin that a :func:`cvar` declaration with a ``field`` installs.
-#[pyclass(module = "_shinqlx", name = "CvarField", frozen)]
-struct CvarField {
+/// The declaration of a cvar of a plugin.
+///
+/// Assigned to an attribute of a plugin class, it creates the cvar with the default value when the
+/// plugin is loaded, before the plugin is instantiated, unless the cvar exists already. The
+/// attribute is read-only and returns the current value of the cvar in the declared type on every
+/// access, so type checkers know the type of the attribute.
+///
+/// :param name: The name of the cvar.
+/// :param default: The value to create the cvar with. Without a default, the cvar is not created.
+///     ``bool`` values are written as ``1`` or ``0``, lists, tuples and sets as comma separated values.
+/// :param type: The type that the attribute returns, one of ``str``, ``int``, ``float``, ``bool``,
+///     ``list``, ``set`` and ``tuple``. Defaults to the type of the default value, or ``str``.
+/// :param flags: The cvar flags to create the cvar with, e.g. a :class:`CvarFlags` member.
+/// :param minimum: The lower limit of the value of the cvar. Needs ``maximum`` as well.
+/// :param maximum: The upper limit of the value of the cvar. Needs ``minimum`` as well.
+#[pyclass(module = "_shinqlx", name = "Cvar", frozen)]
+struct Cvar {
     name: String,
+    default: Option<String>,
     value_type: Py<PyAny>,
+    flags: i32,
+    minimum: Option<Py<PyAny>>,
+    maximum: Option<Py<PyAny>>,
 }
 
 #[pymethods]
-impl CvarField {
+impl Cvar {
+    #[new]
+    #[pyo3(
+        signature = (name, default = None, *, r#type = None, flags = 0, minimum = None, maximum = None),
+        text_signature = "(name, default=None, *, type=None, flags=0, minimum=None, maximum=None)"
+    )]
+    fn new<'py>(
+        py: Python<'py>,
+        name: String,
+        default: Option<Bound<'py, PyAny>>,
+        r#type: Option<Bound<'py, PyAny>>,
+        flags: i32,
+        minimum: Option<Bound<'py, PyAny>>,
+        maximum: Option<Bound<'py, PyAny>>,
+    ) -> PyResult<Self> {
+        if name.is_empty() {
+            cold_path();
+            return Err(PyValueError::new_err(
+                "the name of a cvar must not be empty",
+            ));
+        }
+        if minimum.is_some() != maximum.is_some() {
+            cold_path();
+            return Err(PyValueError::new_err(
+                "minimum and maximum have to be given together",
+            ));
+        }
+
+        let value_type = cvar_value_type(py, r#type, default.as_ref())?.unbind();
+        let default = default.as_ref().map(cvar_default_string).transpose()?;
+
+        Ok(Self {
+            name,
+            default,
+            value_type,
+            flags,
+            minimum: minimum.map(Bound::unbind),
+            maximum: maximum.map(Bound::unbind),
+        })
+    }
+
     fn __get__<'py>(
         slf: &Bound<'py, Self>,
         instance: &Bound<'py, PyAny>,
@@ -215,10 +273,13 @@ impl CvarField {
             return Ok(slf.clone().into_any());
         }
 
-        let field = slf.get();
+        let declaration = slf.get();
         instance.call_method1(
             intern!(slf.py(), "get_cvar"),
-            (field.name.as_str(), field.value_type.bind(slf.py())),
+            (
+                declaration.name.as_str(),
+                declaration.value_type.bind(slf.py()),
+            ),
         )
     }
 
@@ -227,6 +288,34 @@ impl CvarField {
             "the cvar '{}' is read-only, use set_cvar to change it",
             self.name
         )))
+    }
+}
+
+impl Cvar {
+    fn create_unless_existing(&self, plugin_class: &Bound<'_, PyAny>) -> PyResult<()> {
+        let py = plugin_class.py();
+        let Some(default) = &self.default else {
+            return Ok(());
+        };
+
+        match (&self.minimum, &self.maximum) {
+            (Some(minimum), Some(maximum)) => plugin_class.call_method1(
+                intern!(py, "set_cvar_limit_once"),
+                (
+                    self.name.as_str(),
+                    default,
+                    minimum.bind(py),
+                    maximum.bind(py),
+                    self.flags,
+                ),
+            )?,
+            _ => plugin_class.call_method1(
+                intern!(py, "set_cvar_once"),
+                (self.name.as_str(), default, self.flags),
+            )?,
+        };
+
+        Ok(())
     }
 }
 
@@ -295,6 +384,9 @@ fn is_identifier(name: &str) -> bool {
 /// when the plugin is loaded, before the plugin is instantiated, unless the cvar already exists. The
 /// decorator can be applied several times to a class.
 ///
+/// With a ``field``, the plugin gets a read-only attribute of that name, like a :class:`Cvar` that is
+/// assigned in the class body. Type checkers only know the attribute of a :class:`Cvar`.
+///
 /// :param name: The name of the cvar.
 /// :param default: The value to create the cvar with. Without a default, the cvar is not created.
 ///     ``bool`` values are written as ``1`` or ``0``, lists, tuples and sets as comma separated values.
@@ -324,18 +416,6 @@ fn cvar<'py>(
     minimum: Option<Bound<'py, PyAny>>,
     maximum: Option<Bound<'py, PyAny>>,
 ) -> PyResult<Bound<'py, PyCFunction>> {
-    if name.is_empty() {
-        cold_path();
-        return Err(PyValueError::new_err(
-            "the name of a cvar must not be empty",
-        ));
-    }
-    if minimum.is_some() != maximum.is_some() {
-        cold_path();
-        return Err(PyValueError::new_err(
-            "minimum and maximum have to be given together",
-        ));
-    }
     if field.as_deref().is_some_and(|field| !is_identifier(field)) {
         cold_path();
         return Err(PyValueError::new_err(
@@ -343,10 +423,11 @@ fn cvar<'py>(
         ));
     }
 
-    let value_type = cvar_value_type(py, r#type, default.as_ref())?.unbind();
-    let default = default.as_ref().map(cvar_default_string).transpose()?;
-    let minimum = minimum.map(Bound::unbind);
-    let maximum = maximum.map(Bound::unbind);
+    let declaration = Bound::new(
+        py,
+        Cvar::new(py, name, default, r#type, flags, minimum, maximum)?,
+    )?
+    .unbind();
 
     PyCFunction::new_closure(
         py,
@@ -360,68 +441,58 @@ fn cvar<'py>(
                 return Err(PyTypeError::new_err("cvar decorates a plugin class"));
             }
 
-            if let Some(field) = &field {
-                if plugin_class
-                    .getattr(field.as_str())
-                    .is_ok_and(|existing| !existing.is_instance_of::<CvarField>())
-                {
-                    cold_path();
-                    return Err(PyValueError::new_err(format!(
-                        "{} already has an attribute '{field}'",
-                        plugin_class.getattr(intern!(py, "__qualname__"))?
-                    )));
+            match &field {
+                Some(field) => {
+                    if plugin_class
+                        .getattr(field.as_str())
+                        .is_ok_and(|existing| !existing.is_instance_of::<Cvar>())
+                    {
+                        cold_path();
+                        return Err(PyValueError::new_err(format!(
+                            "{} already has an attribute '{field}'",
+                            plugin_class.getattr(intern!(py, "__qualname__"))?
+                        )));
+                    }
+                    plugin_class.setattr(field.as_str(), declaration.bind(py))?;
                 }
-
-                let cvar_field = CvarField {
-                    name: name.clone(),
-                    value_type: value_type.clone_ref(py),
-                };
-                plugin_class.setattr(field.as_str(), Bound::new(py, cvar_field)?)?;
+                None => mark(
+                    &plugin_class,
+                    CVARS_MARKER,
+                    declaration.bind(py).clone().into_any(),
+                )?,
             }
 
-            let entry = (
-                name.as_str(),
-                default.as_deref(),
-                flags,
-                minimum.as_ref().map(|minimum| minimum.bind(py)),
-                maximum.as_ref().map(|maximum| maximum.bind(py)),
-            )
-                .into_pyobject(py)?;
-            mark(&plugin_class, CVARS_MARKER, entry.into_any())?;
             Ok::<_, PyErr>(plugin_class.unbind())
         },
     )
 }
 
-/// Adds the `hook`, `command` and `cvar` decorators to the shinqlx module.
+/// Adds the `hook`, `command` and `cvar` decorators and the `Cvar` declaration to the shinqlx module.
 pub(crate) fn register_decorators(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hook, m)?)?;
     m.add_function(wrap_pyfunction!(command, m)?)?;
-    m.add_function(wrap_pyfunction!(cvar, m)?)
+    m.add_function(wrap_pyfunction!(cvar, m)?)?;
+    m.add_class::<Cvar>()
 }
 
-/// Creates the cvars that were declared by decorating the plugin class, unless they exist already.
+/// Creates the cvars that were declared on the plugin class, unless they exist already.
+///
+/// The declarations are the :class:`Cvar` attributes of the class and the ones of the
+/// :func:`cvar` decorators without a ``field``.
 pub(crate) fn register_declared_cvars(plugin_class: &Bound<'_, PyAny>) -> PyResult<()> {
-    let py = plugin_class.py();
-    for entry in markers(plugin_class, CVARS_MARKER) {
-        let (name, default, flags, minimum, maximum) = entry.extract::<(
-            String,
-            Option<String>,
-            i32,
-            Option<Bound<'_, PyAny>>,
-            Option<Bound<'_, PyAny>>,
-        )>()?;
-        let Some(default) = default else {
-            continue;
-        };
+    let attributes = plugin_class
+        .dir()?
+        .iter()
+        .filter_map(|attribute_name| attribute_name.extract::<String>().ok())
+        .filter_map(|attribute_name| plugin_class.getattr(attribute_name.as_str()).ok());
+    let declared = markers(plugin_class, CVARS_MARKER)
+        .into_iter()
+        .chain(attributes);
 
-        match (minimum, maximum) {
-            (Some(minimum), Some(maximum)) => plugin_class.call_method1(
-                intern!(py, "set_cvar_limit_once"),
-                (name, default, minimum, maximum, flags),
-            )?,
-            _ => plugin_class.call_method1(intern!(py, "set_cvar_once"), (name, default, flags))?,
-        };
+    for declaration in declared {
+        if let Ok(declaration) = declaration.cast::<Cvar>() {
+            declaration.get().create_unless_existing(plugin_class)?;
+        }
     }
 
     Ok(())
@@ -1511,10 +1582,7 @@ mod cvar_decorator_tests {
             assert!(
                 plugin_class
                     .getattr(intern!(py, "value"))
-                    .is_ok_and(|field| field
-                        .get_type()
-                        .name()
-                        .is_ok_and(|name| name == "CvarField"))
+                    .is_ok_and(|field| field.get_type().name().is_ok_and(|name| name == "Cvar"))
             );
         });
     }
@@ -1598,5 +1666,72 @@ mod cvar_decorator_tests {
                     assert!(plugin_class.hasattr(intern!(py, "base")).unwrap_or(false));
                 });
             });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_assigned_in_the_class_body_is_created_and_readable(_pyshinqlx_setup: ()) {
+        let value = c"12";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_count",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        "class declared_plugin(shinqlx.Plugin):\n    count = shinqlx.Cvar('qlx_count', 3)",
+                    );
+
+                    assert!(register_declared_cvars(&plugin_class).is_ok());
+                    let read = plugin_class
+                        .call0()
+                        .and_then(|instance| instance.getattr(intern!(py, "count")))
+                        .and_then(|value| value.extract::<i32>());
+                    assert_eq!(read.expect("could not read the cvar"), 12);
+                });
+            });
+    }
+
+    #[rstest]
+    #[case("shinqlx.Cvar('')")]
+    #[case("shinqlx.Cvar('qlx_x', 1, minimum=0)")]
+    #[case("shinqlx.Cvar('qlx_x', 1, type=dict)")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn invalid_cvar_declarations_are_rejected(_pyshinqlx_setup: (), #[case] declaration: &str) {
+        Python::attach(|py| {
+            let result = plugin_module(
+                py,
+                &format!("class declared_plugin(shinqlx.Plugin):\n    value = {declaration}"),
+            );
+
+            assert!(result.is_err_and(|error| error.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_assigned_in_the_class_body_is_read_only(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let plugin_class = plugin_class(
+                py,
+                "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', 1)",
+            );
+            let instance = plugin_class.call0().expect("could not create plugin");
+
+            let result = instance.setattr(intern!(py, "value"), 3);
+
+            assert!(result.is_err_and(|error| error.is_instance_of::<PyAttributeError>(py)));
+        });
     }
 }

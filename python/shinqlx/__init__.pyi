@@ -128,7 +128,7 @@ from ._player import (
     Player,
     RconDummyPlayer,
 )
-from ._plugin import Plugin, command, cvar, hook
+from ._plugin import Cvar, Plugin, command, cvar, hook
 from ._shinqlx import (
     CS_ACTIVE,
     CS_CONNECTED,
@@ -209,6 +209,8 @@ from ._shinqlx import (
     CvarFlags,
     DamageFlags,
     Flight,
+    GameStates,
+    Holdable,
     MeansOfDeath,
     Permissions,
     PlayerInfo,
@@ -377,7 +379,7 @@ class Vector(TypedDict):
     z: float
 
 PowerUps = Literal["QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"]
-Holdable = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
+StatsHoldable = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
 StatsWeapon = Literal[
     "GAUNTLET",
     "MACHINEGUN",
@@ -403,7 +405,7 @@ class PlayerData(TypedDict):
     BOT: bool
     BOT_SKILL: int | None
     HEALTH: int
-    HOLDABLE: Holdable | None
+    HOLDABLE: StatsHoldable | None
     NAME: str
     POSITION: Vector
     POWERUPS: list[PowerUps] | None
@@ -812,6 +814,7 @@ __all__ = [
     "ConnectionStates",
     "ConsoleChannel",
     "ConsolePrintDispatcher",
+    "Cvar",
     "CvarFlags",
     "DamageDispatcher",
     "DamageEntry",
@@ -828,6 +831,7 @@ __all__ = [
     "GameEndDispatcher",
     "GameStartData",
     "GameStartDispatcher",
+    "GameStates",
     "Holdable",
     "KamikazeExplodeDispatcher",
     "KamikazeUseDispatcher",

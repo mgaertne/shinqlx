@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import Literal, TypedDict
 
-    from ._shinqlx import Privileges, Teams, Weapon
+    from ._shinqlx import Holdable, Privileges, Teams, Weapon
 
     if sys.version_info >= (3, 11):
         from typing import NotRequired, Unpack
@@ -220,7 +220,7 @@ class Player:
                 "invulnerability",
                 "none",
             ]
-            | Weapon
+            | Holdable
             | None
         ),
     ) -> None: ...

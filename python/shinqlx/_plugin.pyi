@@ -1,10 +1,10 @@
-from typing import TYPE_CHECKING, SupportsIndex, TypeVar, overload
+from typing import TYPE_CHECKING, Generic, SupportsIndex, TypeVar, overload
 
 if TYPE_CHECKING:
     import builtins
     from collections.abc import Iterable, Mapping
     from logging import Logger
-    from typing import Any, Callable, ClassVar, Literal
+    from typing import Any, Callable, ClassVar, Literal, NoReturn
 
     from shinqlx import (
         AbstractChannel,
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from ._shinqlx import Teams
 
 _PluginT = TypeVar("_PluginT", bound="Plugin")
+_CvarT = TypeVar("_CvarT")
 
 _ConsolePrintHookHandler = Callable[[str], str | CancellableEventReturn]
 _ConsolePrintHookMethod = Callable[[_PluginT, str], str | CancellableEventReturn]
@@ -232,6 +233,137 @@ def hook(
 def hook(
     event: Literal["damage"], priority: SupportsIndex | None = ...
 ) -> Callable[[_DamageHookMethod[_PluginT]], _DamageHookMethod[_PluginT]]: ...
+
+class Cvar(Generic[_CvarT]):
+    """Declares a cvar of a plugin as a read-only attribute of the type ``_CvarT``."""
+
+    @overload
+    def __init__(
+        self: Cvar[str],
+        name: str,
+        default: str | None = ...,
+        *,
+        type: None = ...,
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[bool],
+        name: str,
+        default: bool,
+        *,
+        type: None = ...,
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[int],
+        name: str,
+        default: int,
+        *,
+        type: None = ...,
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[float],
+        name: str,
+        default: float,
+        *,
+        type: None = ...,
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[str],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[str],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[int],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[int],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[float],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[float],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[bool],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[bool],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[list[str]],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[list[Any]],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[set[str]],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[set[Any]],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self: Cvar[tuple[str, ...]],
+        name: str,
+        default: object = ...,
+        *,
+        type: builtins.type[tuple[Any, ...]],
+        flags: SupportsIndex = ...,
+        minimum: float | None = ...,
+        maximum: float | None = ...,
+    ) -> None: ...
+    @overload
+    def __get__(self, instance: None, owner: builtins.type[object]) -> Cvar[_CvarT]: ...
+    @overload
+    def __get__(self, instance: object, owner: builtins.type[object]) -> _CvarT: ...
+    def __set__(self, instance: object, value: NoReturn) -> None: ...
+
 def cvar(
     name: str,
     default: object = ...,

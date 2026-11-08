@@ -1,27 +1,67 @@
 use derive_more::Display;
+use pyo3::class::basic::CompareOp;
 
-use super::prelude::*;
+use super::{
+    game_enums::{compare_with_name_or_index, richcmp_result},
+    prelude::*,
+};
 
-#[pyclass(module = "_shinqlx", name = "Holdable", frozen, eq, eq_int, str)]
+/// The holdable items of Quake Live.
+///
+/// The string of a member is the name that :attr:`shinqlx.Player.holdable` accepts. The integer
+/// value is the item index of the engine.
+#[pyclass(module = "_shinqlx", name = "Holdable", frozen, str)]
 #[derive(PartialEq, Debug, Clone, Copy, Display)]
 #[repr(i32)]
 pub(crate) enum Holdable {
     #[display("None")]
+    #[pyo3(name = "NONE")]
     None = 0,
     #[display("teleporter")]
+    #[pyo3(name = "TELEPORTER")]
     Teleporter = 27,
     #[display("medkit")]
+    #[pyo3(name = "MEDKIT")]
     MedKit = 28,
     #[display("kamikaze")]
+    #[pyo3(name = "KAMIKAZE")]
     Kamikaze = 37,
     #[display("portal")]
+    #[pyo3(name = "PORTAL")]
     Portal = 38,
     #[display("invulnerability")]
+    #[pyo3(name = "INVULNERABILITY")]
     Invulnerability = 39,
     #[display("flight")]
+    #[pyo3(name = "FLIGHT")]
     Flight = 34,
     #[display("unknown")]
+    #[pyo3(name = "UNKNOWN")]
     Unknown = 666,
+}
+
+#[pymethods]
+impl Holdable {
+    fn __index__(&self) -> i32 {
+        *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let this = slf.get();
+        let equal = other.cast::<Self>().map_or_else(
+            |_| compare_with_name_or_index(*this as i32, &this.to_string().to_lowercase(), other),
+            |same| Some(same.get() == this),
+        );
+        richcmp_result(slf.py(), equal, op)
+    }
 }
 
 impl From<i32> for Holdable {
