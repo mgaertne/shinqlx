@@ -1,5 +1,4 @@
 use arrayvec::ArrayVec;
-use rayon::prelude::*;
 use tap::TryConv;
 
 use crate::{
@@ -16,7 +15,7 @@ use crate::{
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
     py.detach(|| {
         let formatted_items: ArrayVec<String, { MAX_GENTITIES as usize }> = (0..MAX_GENTITIES)
-            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
+            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)
             })
@@ -35,7 +34,7 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                 str_length += item.len();
                 str_length < 1024
             })
-            .map(|item| item.to_string())
+            .map(String::as_str)
             .collect::<Vec<_>>();
 
         with_main_engine(|main_engine| {
@@ -49,19 +48,14 @@ pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
                 &format!("print \"{}\n\"", printed_items.join("\n")),
             );
 
-            let remaining_items = formatted_items
-                .par_iter()
-                .skip(printed_items.len())
-                .map(|item| item.to_string())
-                .collect::<Vec<_>>();
-
-            if !remaining_items.is_empty() {
+            if formatted_items.len() > printed_items.len() {
                 main_engine.send_server_command(
                     None::<Client>,
                     "print \"Check server console for other items\n\"\n",
                 );
-                remaining_items
-                    .par_iter()
+                formatted_items
+                    .iter()
+                    .skip(printed_items.len())
                     .for_each(|item| main_engine.com_printf(item));
             }
 
