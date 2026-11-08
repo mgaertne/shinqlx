@@ -28,6 +28,25 @@ pub(crate) static DEFAULT_PLUGINS: [&str; 10] = [
     "workshop",
 ];
 
+/// Expands `DEFAULT` in place into the default plugins and keeps only the first occurrence of
+/// each plugin, so that the order of `qlx_plugins` decides the load order.
+fn plugin_load_order(plugins: &str) -> Vec<&str> {
+    let mut ordered = Vec::new();
+    plugins
+        .split(',')
+        .map(str::trim)
+        .flat_map(|name| match name {
+            "DEFAULT" => DEFAULT_PLUGINS.to_vec(),
+            other => vec![other],
+        })
+        .for_each(|name| {
+            if !ordered.contains(&name) {
+                ordered.push(name);
+            }
+        });
+    ordered
+}
+
 #[pyfunction(name = "load_preset_plugins")]
 pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
     try_get_plugins_path().map_err(PluginLoadError::new_err)?;
@@ -42,19 +61,9 @@ pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                 .find_cvar("qlx_plugins")
                 .tap_some(|plugins_cvar| {
                     let plugins_str = plugins_cvar.get_string();
-                    let mut plugins = plugins_str
-                        .split(',')
-                        .map(|value| value.trim())
-                        .collect::<Vec<_>>();
-                    if plugins.contains(&"DEFAULT") {
-                        plugins.extend_from_slice(&DEFAULT_PLUGINS);
-                        plugins.retain(|&value| value != "DEFAULT");
-                    }
-                    plugins
-                        .iter()
-                        .enumerate()
-                        .filter(|&(index, plugin)| !plugins[..index].contains(plugin))
-                        .for_each(|(_, &plugin)| {
+                    plugin_load_order(&plugins_str)
+                        .into_iter()
+                        .for_each(|plugin| {
                             let _ = load_plugin(py, plugin);
                         });
                 });
@@ -464,6 +473,46 @@ mod plugin_source_tests {
     #[case("!balance")]
     fn split_plugin_source_rejects_unknown_prefixes(#[case] plugin: &str) {
         assert!(split_plugin_source(plugin).is_err());
+    }
+}
+
+#[cfg(test)]
+mod plugin_load_order_tests {
+    use rstest::rstest;
+
+    use super::{DEFAULT_PLUGINS, plugin_load_order};
+
+    #[rstest]
+    fn default_is_expanded_in_place() {
+        let mut expected = vec!["first"];
+        expected.extend(DEFAULT_PLUGINS);
+        expected.push("last");
+
+        assert_eq!(plugin_load_order("first, DEFAULT, last"), expected);
+    }
+
+    #[rstest]
+    fn first_occurrence_wins_for_duplicates() {
+        let mut expected = vec!["test_plugin", "ban"];
+        expected.extend(DEFAULT_PLUGINS.iter().filter(|&&plugin| plugin != "ban"));
+
+        assert_eq!(
+            plugin_load_order("test_plugin, ban, DEFAULT, test_plugin"),
+            expected
+        );
+    }
+
+    #[rstest]
+    fn plugins_listed_before_default_keep_their_position() {
+        let order = plugin_load_order("ban, DEFAULT");
+
+        assert_eq!(order.first(), Some(&"ban"));
+        assert_eq!(order.len(), DEFAULT_PLUGINS.len());
+    }
+
+    #[rstest]
+    fn plain_list_keeps_its_order() {
+        assert_eq!(plugin_load_order("b, a, c"), vec!["b", "a", "c"]);
     }
 }
 
