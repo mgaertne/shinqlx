@@ -1,3 +1,5 @@
+//! Remote console for Quake Live servers: sends the lines typed in the terminal to the ZMQ rcon interface and prints the
+//! replies with the Quake color codes rendered.
 mod cmd_line;
 mod linefeed_helper;
 mod zmq_helper;

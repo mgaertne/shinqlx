@@ -128,12 +128,12 @@ patches = ["clientkick-fix", "fps-patch"]
 # expose internals to the benchmarks, not meant for production builds
 bench-support = []
 
-[lints.rust]
+[workspace.lints.rust]
 missing_docs = "warn"
 non_local_definitions = "allow"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly,tarpaulin_include)'] }
 
-[lints.clippy]
+[workspace.lints.clippy]
 dbg_macro = "warn"
 todo = "warn"
 unimplemented = "warn"
@@ -141,5 +141,8 @@ allow_attributes_without_reason = "warn"
 unwrap_used = "warn"
 undocumented_unsafe_blocks = "warn"
 
-[lints.rustdoc]
+[workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"
+
+[lints]
+workspace = true

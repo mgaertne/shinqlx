@@ -15,8 +15,5 @@ clap = { version = ">=4.6", default-features = false, features = ["std", "derive
 
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 
-[lints.rust]
-non_local_definitions = "allow"
-
-[lints.rustdoc]
-broken_intra_doc_links = "deny"
+[lints]
+workspace = true

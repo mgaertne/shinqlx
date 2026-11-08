@@ -20,15 +20,5 @@ pretty_assertions = { version = ">=1.4", default-features = false, features = ["
 rstest = { version = ">=0.28", default-features = false }
 tempfile = { version = ">=3.27", default-features = false }
 
-[lints.rust]
-missing_docs = "warn"
-non_local_definitions = "allow"
-
-[lints.clippy]
-dbg_macro = "warn"
-todo = "warn"
-unimplemented = "warn"
-unwrap_used = "warn"
-
-[lints.rustdoc]
-broken_intra_doc_links = "deny"
+[lints]
+workspace = true

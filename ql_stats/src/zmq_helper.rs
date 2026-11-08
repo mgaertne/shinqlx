@@ -21,7 +21,9 @@ struct MonitoredSubscriber {
     monitor: RwLock<MonitorSocket>,
 }
 
+// SAFETY: only the one task of `run_zmq` uses the sockets; tokio may move it between threads, but never runs it on two.
 unsafe impl Send for MonitoredSubscriber {}
+// SAFETY: see `Send`, the shared references never leave that task.
 unsafe impl Sync for MonitoredSubscriber {}
 
 impl MonitoredSubscriber {

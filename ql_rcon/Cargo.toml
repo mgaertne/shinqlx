@@ -21,8 +21,5 @@ termcolor = { version = ">=1.4", default-features = false }
 [dev-dependencies]
 tokio = { version = ">=1.53", default-features = false, features = ["time"] }
 
-[lints.rust]
-non_local_definitions = "allow"
-
-[lints.rustdoc]
-broken_intra_doc_links = "deny"
+[lints]
+workspace = true
