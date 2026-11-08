@@ -219,6 +219,17 @@ const NO_DEBUG: [&str; 9] = [
     "damage",
 ];
 
+#[cfg(feature = "bench-support")]
+impl EventDispatcher {
+    /// Hooks a handler for the benchmarks, which run without an engine to read the cvars from.
+    pub(super) fn hook_without_checks(&self, plugin: &str, handler: Py<PyAny>) {
+        self.plugins.write().push((
+            plugin.to_string(),
+            [vec![], vec![], vec![handler], vec![], vec![]],
+        ));
+    }
+}
+
 impl Default for EventDispatcher {
     fn default() -> Self {
         Self {
@@ -388,15 +399,15 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
     }
 
     fn dispatch(&self, args: &Bound<'py, PyTuple>) -> Bound<'py, PyAny> {
-        let Ok(dispatcher_name) = self
-            .get_type()
-            .getattr(intern!(self.py(), "name"))
-            .and_then(|py_dispatcher_name| py_dispatcher_name.extract::<String>())
-        else {
+        let Ok(py_dispatcher_name) = self.get_type().getattr(intern!(self.py(), "name")) else {
             cold_path();
             return self.py().None().into_bound(self.py());
         };
-        if !NO_DEBUG.contains(&dispatcher_name.as_str()) {
+        let Ok(dispatcher_name) = py_dispatcher_name.extract::<&str>() else {
+            cold_path();
+            return self.py().None().into_bound(self.py());
+        };
+        if !NO_DEBUG.contains(&dispatcher_name) {
             let dbgstr = format!("{dispatcher_name}{args}");
             dispatcher_debug_log(self.py(), &dbgstr);
         }

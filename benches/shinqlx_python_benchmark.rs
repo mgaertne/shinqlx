@@ -78,6 +78,20 @@ fn python_hook_benchmark(c: &mut Criterion) {
 }
 
 #[criterion]
+fn dispatch_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group("dispatch");
+    for (handlers, arguments) in [(0, 0), (1, 0), (1, 3), (5, 3)] {
+        let case = bench_support::DispatchCase::new(handlers, arguments);
+        group.bench_function(format!("{handlers}_handlers_{arguments}_arguments"), |b| {
+            b.iter(|| case.dispatch())
+        });
+    }
+    group.finish();
+}
+
+#[criterion]
 fn handle_frame_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 

@@ -14,9 +14,9 @@ use super::{
     events::{
         ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
         DamageDispatcher, DeathDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
-        FrameEventDispatcher, KillDispatcher, RoundEndDispatcher, ServerCommandDispatcher,
-        SetConfigstringDispatcher, StatsDispatcher, VoteCalledDispatcher, VoteDispatcher,
-        VoteStartedDispatcher, dispatcher_debug_log as dispatcher_debug_log_impl,
+        EventDispatcherMethods, FrameEventDispatcher, KillDispatcher, RoundEndDispatcher,
+        ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher, VoteCalledDispatcher,
+        VoteDispatcher, VoteStartedDispatcher, dispatcher_debug_log as dispatcher_debug_log_impl,
     },
     handlers::{
         handle_client_command as handle_client_command_impl,
@@ -275,6 +275,55 @@ pub fn handle_stats_message_draining(message: &str) {
                 .expect("could not take a task");
         }
     });
+}
+
+/// A kill dispatcher with Python handlers hooked to it that is dispatched with a fixed number of
+/// arguments, the way the dispatchers of most events call their handlers.
+pub struct DispatchCase {
+    dispatcher: Py<PyAny>,
+    arguments: Py<PyTuple>,
+}
+
+impl DispatchCase {
+    /// Hooks `handlers` handlers that do nothing and prepares `arguments` arguments.
+    pub fn new(handlers: usize, arguments: usize) -> Self {
+        Python::attach(|py| {
+            let noop = PyModule::from_code(py, c"def noop(*args):\n    return None\n", c"", c"")
+                .and_then(|module| module.getattr(intern!(py, "noop")))
+                .expect("could not create handler");
+            let dispatcher = py
+                .get_type::<KillDispatcher>()
+                .call0()
+                .expect("could not create dispatcher");
+            for index in 0..handlers {
+                dispatcher
+                    .cast::<KillDispatcher>()
+                    .expect("this should not happen")
+                    .as_super()
+                    .get()
+                    .hook_without_checks(&format!("bench{index}"), noop.clone().unbind());
+            }
+            let arguments = PyTuple::new(py, (0..arguments).map(|index| PyInt::new(py, index)))
+                .expect("could not create arguments");
+            Self {
+                dispatcher: dispatcher.unbind(),
+                arguments: arguments.unbind(),
+            }
+        })
+    }
+
+    /// Dispatches the event once.
+    pub fn dispatch(&self) {
+        Python::attach(|py| {
+            let _ = self
+                .dispatcher
+                .bind(py)
+                .cast::<KillDispatcher>()
+                .expect("this should not happen")
+                .as_super()
+                .dispatch(self.arguments.bind(py));
+        });
+    }
 }
 
 /// A Python snippet that is run in a loop inside the interpreter, so that operations that take only
