@@ -5146,21 +5146,26 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
         return Ok(passed_on(py, configstring_value));
     }
 
-    let cs_round_number = int_variable(&cvars, "round")?;
     let round_number = if cvars.contains("turn") {
         if int_variable(&cvars, "state")? == 0 {
             return Ok(py.None());
         }
 
-        let ad_round_number = cs_round_number * 2 + 1 + int_variable(&cvars, "turn")?;
-        AD_ROUND_NUMBER.store(ad_round_number, Ordering::Release);
-        AD_ROUND_NUMBER.load(Ordering::Acquire)
-    } else {
-        if cs_round_number == 0 {
-            return Ok(passed_on(py, configstring_value));
+        if cvars.contains("round") {
+            let ad_round_number =
+                int_variable(&cvars, "round")? * 2 + 1 + int_variable(&cvars, "turn")?;
+            AD_ROUND_NUMBER.store(ad_round_number, Ordering::Release);
+            ad_round_number
+        } else {
+            AD_ROUND_NUMBER.load(Ordering::Acquire)
         }
-        cs_round_number
+    } else {
+        int_variable(&cvars, "round")?
     };
+
+    if round_number == 0 {
+        return Ok(passed_on(py, configstring_value));
+    }
 
     if cvars.contains("time") {
         event_dispatcher(
@@ -6327,6 +6332,109 @@ mod handle_set_configstring_tests {
 
             let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\asdf\1\turn\1");
             assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_state_zero_without_round(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let event_dispatcher =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            event_dispatcher
+                .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\turn\0\state\0");
+            assert!(result.is_ok_and(|value| value.is_none(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_without_round_uses_stored_round_number(
+        _pyshinqlx_setup: (),
+    ) {
+        let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "zmq_stats_enable",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
+                    event_dispatcher
+                        .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
+                        .expect("could not add set_configstring dispatcher");
+                    event_dispatcher
+                        .add_dispatcher(&py.get_type::<RoundStartDispatcher>())
+                        .expect("could not add round_start dispatcher");
+                    let capturing_hook = capturing_hook(py);
+                    event_dispatcher
+                        .get_item(intern!(py, "round_start"))
+                        .and_then(|round_start_dispatcher| {
+                            round_start_dispatcher
+                                .cast::<EventDispatcher>()
+                                .expect("this should not happen")
+                                .add_hook(
+                                    "asdf",
+                                    &capturing_hook
+                                        .getattr(intern!(py, "hook"))
+                                        .expect("could not get capturing hook"),
+                                    CommandPriorities::PRI_NORMAL as i32,
+                                )
+                        })
+                        .expect("could not add hook to round_start dispatcher");
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+                    AD_ROUND_NUMBER.store(5, Ordering::Release);
+
+                    let result =
+                        try_handle_set_configstring(py, CS_ROUND_STATUS, r"\turn\1\state\3");
+                    assert!(result.is_ok_and(|value| value.is_none(py)));
+                    assert!(
+                        capturing_hook
+                            .call_method1(intern!(py, "assert_called_with"), (5,))
+                            .is_ok()
+                    );
+                    assert_eq!(AD_ROUND_NUMBER.load(Ordering::Acquire), 5);
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_round_status_change_for_ad_without_round_and_stored_round_zero(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let event_dispatcher =
+                Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+            event_dispatcher
+                .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
+                .expect("could not add set_configstring dispatcher");
+            EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+            AD_ROUND_NUMBER.store(0, Ordering::Release);
+
+            let result = try_handle_set_configstring(py, CS_ROUND_STATUS, r"\turn\1\state\3");
+            assert!(result.is_ok_and(|value| {
+                value
+                    .extract::<String>(py)
+                    .is_ok_and(|str_value| str_value == r"\turn\1\state\3")
+            }));
         });
     }
 
