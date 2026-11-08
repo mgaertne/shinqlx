@@ -172,7 +172,8 @@ pub(crate) async fn run_terminal(
                 writeln!(
                     writer,
                     "{}",
-                    String::from_utf8(buffer.into_inner()).unwrap()
+                    String::from_utf8(buffer.into_inner())
+                        .expect("the buffer only receives text that was written as str")
                 )
             })?;
         }
@@ -251,7 +252,8 @@ pub(crate) async fn run_terminal(
             writeln!(
                 writer,
                 "{}",
-                String::from_utf8(buffer.into_inner()).unwrap()
+                String::from_utf8(buffer.into_inner())
+                    .expect("the buffer only receives text that was written as str")
             )
         })?;
     }
