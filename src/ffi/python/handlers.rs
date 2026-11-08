@@ -390,11 +390,12 @@ fn handle_team_switch(
     arg: &str,
 ) -> PyResult<Py<PyAny>> {
     let current_team = player.get().get_team(py)?;
-    if !["f", "r", "b", "s", "a"].contains(&arg) || current_team.starts_with(arg) {
+    let arg = arg.to_ascii_lowercase();
+    if !["f", "r", "b", "s", "a"].contains(&arg.as_str()) || current_team.starts_with(&arg) {
         return Ok(passed_on(py, cmd));
     }
 
-    let target_team = match arg {
+    let target_team = match arg.as_str() {
         "f" => "free",
         "r" => "red",
         "b" => "blue",
@@ -2336,6 +2337,11 @@ mod handle_client_command_tests {
     #[case("b", "blue", team_t::TEAM_SPECTATOR)]
     #[case("s", "spectator", team_t::TEAM_RED)]
     #[case("a", "any", team_t::TEAM_SPECTATOR)]
+    #[case("F", "free", team_t::TEAM_SPECTATOR)]
+    #[case("R", "red", team_t::TEAM_SPECTATOR)]
+    #[case("B", "blue", team_t::TEAM_SPECTATOR)]
+    #[case("S", "spectator", team_t::TEAM_RED)]
+    #[case("A", "any", team_t::TEAM_SPECTATOR)]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn try_handle_client_command_for_team_switch_command(
@@ -5106,11 +5112,15 @@ fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
     }
     let old_cvars = parse_variables(&old_configstring);
     let opt_old_state = old_cvars.get("g_gameState");
-    let old_state = opt_old_state.as_deref().unwrap_or("");
+    let old_state = opt_old_state
+        .as_deref()
+        .ok_or_else(|| PyKeyError::new_err("'g_gameState'"))?;
 
     let new_cvars = parse_variables(configstring_value);
     let opt_new_state = new_cvars.get("g_gameState");
-    let new_state = opt_new_state.as_deref().unwrap_or("");
+    let new_state = opt_new_state
+        .as_deref()
+        .ok_or_else(|| PyKeyError::new_err("'g_gameState'"))?;
 
     if old_state == new_state {
         return Ok(passed_on(py, configstring_value));
@@ -5681,6 +5691,33 @@ mod handle_set_configstring_tests {
                     let result =
                         try_handle_set_configstring(py, CS_SERVERINFO, r"\g_gameState\PRE_GAME");
                     assert!(result.is_ok_and(|value| value.is_none(py)));
+                });
+            });
+    }
+
+    #[rstest]
+    #[case(r"\sv_hostname\asdf", r"\g_gameState\PRE_GAME")]
+    #[case(r"\g_gameState\PRE_GAME", r"\sv_hostname\asdf")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_set_configstring_for_server_info_without_gamestate_is_a_key_error(
+        _pyshinqlx_setup: (),
+        #[case] old_configstring: &'static str,
+        #[case] new_configstring: &str,
+    ) {
+        MockEngineBuilder::default()
+            .with_get_configstring(CS_SERVERINFO as u16, old_configstring, 1)
+            .run(|| {
+                Python::attach(|py| {
+                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
+                        .expect("this should not happen");
+                    event_dispatcher
+                        .add_dispatcher(&py.get_type::<SetConfigstringDispatcher>())
+                        .expect("could not add set_configstring dispatcher");
+                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
+
+                    let result = try_handle_set_configstring(py, CS_SERVERINFO, new_configstring);
+                    assert!(result.is_err_and(|err| err.is_instance_of::<PyKeyError>(py)));
                 });
             });
     }
@@ -6726,7 +6763,7 @@ fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny
 
 /// This will be called whenever a player has connected and finished loading,
 /// meaning it'll go off a bit later than the usual "X connected" messages.
-/// This will not trigger on bots.his will be called whenever a player tries to connect. If the dispatcher
+/// This will not trigger on bots.
 #[pyfunction]
 pub(crate) fn handle_player_loaded(py: Python<'_>, client_id: i32) -> Py<PyAny> {
     try_handle_player_loaded(py, client_id).unwrap_or_else(|e| {
