@@ -19,6 +19,9 @@ linefeed = { version = ">=0.6", default-features = false }
 termcolor = { version = ">=1.4", default-features = false }
 regex = { workspace = true, default-features = false, features = ["perf", "unicode"] }
 
+[dev-dependencies]
+tokio = { version = ">=1.53", default-features = false, features = ["time"] }
+
 [lints.rust]
 non_local_definitions = "allow"
 
