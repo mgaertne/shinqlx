@@ -891,6 +891,10 @@ Constants
 
    Names of the default plugins being loaded if none are configured otherwise, or ``DEFAULT`` is used.
 
+   ``DEFAULT`` in ``qlx_plugins`` is replaced by these plugins at its position, and every plugin is loaded once, at
+   its first occurrence. With ``qlx_plugins "myplugin, DEFAULT"`` the plugin ``myplugin`` is loaded before the default
+   plugins, with ``"DEFAULT, myplugin"`` after them.
+
 Return values for hooks and commands
 ------------------------------------
 
