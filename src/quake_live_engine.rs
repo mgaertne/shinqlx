@@ -5987,8 +5987,8 @@ mockall::mock! {
     impl ShutdownGame<c_int> for QuakeEngine {
         fn shutdown_game(&self, restart: c_int);
     }
-    impl ExecuteClientCommand<Client, String, qboolean> for QuakeEngine {
-        fn execute_client_command(&self, client: Option<Client>, cmd: String, client_ok: qboolean);
+    impl ExecuteClientCommand<Client, &str, qboolean> for QuakeEngine {
+        fn execute_client_command(&self, client: Option<Client>, cmd: &str, client_ok: qboolean);
     }
     impl SendServerCommand<Client> for QuakeEngine {
         fn send_server_command(&self, client: Option <Client>, cmd: &str);
@@ -6111,7 +6111,7 @@ impl MockEngineBuilder {
 
     pub(crate) fn with_execute_client_command<F, G>(self, matcher: F, times: G) -> Self
     where
-        F: Fn(&Option<MockClient>, &String, &qboolean) -> bool + Send + 'static,
+        F: Fn(&Option<MockClient>, &str, &qboolean) -> bool + Send + 'static,
         G: Into<mockall::TimesRange>,
     {
         self.configure(|mock_engine| {

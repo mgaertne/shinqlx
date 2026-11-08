@@ -2231,6 +2231,8 @@ def raises_exception(*args, **kwargs):
     reason = "mock module, not every function is called in tests"
 )]
 pub(crate) mod python_tests {
+    use alloc::borrow::Cow;
+
     use super::PythonInitializationError;
 
     #[cfg(not(tarpaulin_include))]
@@ -2240,26 +2242,32 @@ pub(crate) mod python_tests {
     {
     }
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn client_command_dispatcher(_client_id: i32, _cmd: String) -> Option<String> {
+    pub(crate) fn client_command_dispatcher(
+        _client_id: i32,
+        _cmd: &str,
+    ) -> Option<Cow<'static, str>> {
         None
     }
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn server_command_dispatcher(
         _client_id: Option<i32>,
-        _cmd: String,
-    ) -> Option<String> {
+        _cmd: &str,
+    ) -> Option<Cow<'static, str>> {
         None
     }
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_loaded_dispatcher(_client_id: i32) {}
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn set_configstring_dispatcher(_index: u32, _value: &str) -> Option<String> {
+    pub(crate) fn set_configstring_dispatcher(
+        _index: u32,
+        _value: &str,
+    ) -> Option<Cow<'static, str>> {
         None
     }
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn client_disconnect_dispatcher(_client_id: i32, _reason: &str) {}
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn console_print_dispatcher(_msg: &str) -> Option<String> {
+    pub(crate) fn console_print_dispatcher(_msg: &str) -> Option<Cow<'static, str>> {
         None
     }
     #[cfg(not(tarpaulin_include))]

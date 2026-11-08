@@ -107,7 +107,7 @@ pub(crate) extern "C" fn shinqlx_sv_executeclientcommand(
 
 pub(crate) fn shinqlx_execute_client_command<T, U>(client: Option<Client>, cmd: T, client_ok: U)
 where
-    T: AsRef<str> + Into<String>,
+    T: AsRef<str>,
     U: Into<qboolean> + Into<bool> + Copy,
 {
     if MAIN_ENGINE.load().is_none() {
@@ -122,21 +122,21 @@ where
         .as_ref()
         .filter(|safe_client| client_ok_flag && safe_client.has_gentity())
         .map(|safe_client| safe_client.get_client_id());
-    let passed_on_cmd_str: String = match dispatching_client_id {
+    let passed_on_cmd_str: Cow<'_, str> = match dispatching_client_id {
         Some(client_id) => {
-            let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd.into()) else {
+            let Some(dispatcher_result) = client_command_dispatcher(client_id, cmd.as_ref()) else {
                 return;
             };
             dispatcher_result
         }
-        None => cmd.into(),
+        None => Cow::Borrowed(cmd.as_ref()),
     };
 
     if !passed_on_cmd_str.is_empty() {
         MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
             main_engine.execute_client_command(
                 client,
-                passed_on_cmd_str,
+                passed_on_cmd_str.as_ref(),
                 client_ok.conv::<qboolean>(),
             )
         });
@@ -216,7 +216,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
 
 pub(crate) fn shinqlx_send_server_command<T>(client: Option<Client>, cmd: T)
 where
-    T: AsRef<str> + Into<String>,
+    T: AsRef<str>,
 {
     if MAIN_ENGINE.load().is_none() {
         cold_path();
@@ -226,18 +226,18 @@ where
     if cmd.as_ref().is_empty() {
         return;
     }
-    let mut passed_on_cmd_str = cmd.into();
+    let mut passed_on_cmd_str = Cow::Borrowed(cmd.as_ref());
 
     match client.as_ref() {
         Some(safe_client) if safe_client.has_gentity() => {
             let client_id = safe_client.get_client_id();
-            let Some(res) = server_command_dispatcher(Some(client_id), passed_on_cmd_str) else {
+            let Some(res) = server_command_dispatcher(Some(client_id), cmd.as_ref()) else {
                 return;
             };
             passed_on_cmd_str = res;
         }
         None => {
-            let Some(res) = server_command_dispatcher(None, passed_on_cmd_str) else {
+            let Some(res) = server_command_dispatcher(None, cmd.as_ref()) else {
                 return;
             };
             passed_on_cmd_str = res;
@@ -1103,8 +1103,8 @@ mod hooks_tests {
 
         client_command_dispatcher_ctx
             .expect()
-            .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
-            .return_const(Some("cp modified".to_string()))
+            .with(predicate::eq(42), predicate::eq("cp asdf"))
+            .return_const(Some("cp modified".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1130,8 +1130,8 @@ mod hooks_tests {
 
         client_command_dispatcher_ctx
             .expect()
-            .with(predicate::eq(42), predicate::eq("cp asdf".to_string()))
-            .return_const(Some("".to_string()))
+            .with(predicate::eq(42), predicate::eq("cp asdf"))
+            .return_const(Some("".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1172,8 +1172,8 @@ mod hooks_tests {
     ) {
         server_command_dispatcher_ctx
             .expect()
-            .with(predicate::eq(None), predicate::eq("cp asdf".to_string()))
-            .return_const(Some("cp modified".to_string()))
+            .with(predicate::eq(None), predicate::eq("cp asdf"))
+            .return_const(Some("cp modified".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1235,11 +1235,8 @@ mod hooks_tests {
 
         server_command_dispatcher_ctx
             .expect()
-            .with(
-                predicate::eq(Some(42)),
-                predicate::eq("cp asdf".to_string()),
-            )
-            .return_const(Some("cp modified".to_string()))
+            .with(predicate::eq(Some(42)), predicate::eq("cp asdf"))
+            .return_const(Some("cp modified".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1260,11 +1257,8 @@ mod hooks_tests {
 
         server_command_dispatcher_ctx
             .expect()
-            .with(
-                predicate::eq(Some(42)),
-                predicate::eq("cp asdf".to_string()),
-            )
-            .return_const(Some("".to_string()))
+            .with(predicate::eq(Some(42)), predicate::eq("cp asdf"))
+            .return_const(Some("".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1424,7 +1418,7 @@ mod hooks_tests {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq(r"\some\value"))
-            .return_const(Some(r"\some\value".to_string()))
+            .return_const(Some(r"\some\value".into()))
             .times(1);
 
         let value = cr"\some\value";
@@ -1505,7 +1499,7 @@ mod hooks_tests {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
-            .return_const(Some("other value".to_string()))
+            .return_const(Some("other value".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1528,7 +1522,7 @@ mod hooks_tests {
         set_configstring_dispatcher_ctx
             .expect()
             .with(predicate::eq(42), predicate::eq("some value"))
-            .return_const(Some("some value".to_string()))
+            .return_const(Some("some value".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -1591,7 +1585,7 @@ mod hooks_tests {
         console_print_dispatcher_ctx
             .expect()
             .with(predicate::eq("Hello World!"))
-            .return_const(Some("Hello you!".to_string()))
+            .return_const(Some("Hello you!".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -2170,7 +2164,7 @@ mod hooks_tests {
         console_print_dispatcher_ctx
             .expect()
             .with(predicate::eq("Hello 42 world"))
-            .return_const(Some("Hello 42 world".to_string()))
+            .return_const(Some("Hello 42 world".into()))
             .times(1);
 
         MockEngineBuilder::default()
@@ -2204,8 +2198,8 @@ mod hooks_tests {
     ) {
         server_command_dispatcher_ctx
             .expect()
-            .with(predicate::eq(None), predicate::eq("cp 7".to_string()))
-            .return_const(Some("cp 7".to_string()))
+            .with(predicate::eq(None), predicate::eq("cp 7"))
+            .return_const(Some("cp 7".into()))
             .times(1);
 
         MockEngineBuilder::default()
