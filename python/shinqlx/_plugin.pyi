@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     )
     from shinqlx.database import Redis
 
-    from ._shinqlx import Teams
+    from ._shinqlx import Events, Teams
 
 _PluginT = TypeVar("_PluginT", bound="Plugin")
 _CvarT = TypeVar("_CvarT")
@@ -103,135 +103,135 @@ _CommandMethod = Callable[[_PluginT, Player, list[str], AbstractChannel], int | 
 
 @overload
 def hook(
-    event: Literal["console_print"], priority: SupportsIndex | None = ...
+    event: Literal["console_print", Events.CONSOLE_PRINT], priority: SupportsIndex | None = ...
 ) -> Callable[[_ConsolePrintHookMethod[_PluginT]], _ConsolePrintHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["command"], priority: SupportsIndex | None = ...
+    event: Literal["command", Events.COMMAND], priority: SupportsIndex | None = ...
 ) -> Callable[[_CommandHookMethod[_PluginT]], _CommandHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["client_command"], priority: SupportsIndex | None = ...
+    event: Literal["client_command", Events.CLIENT_COMMAND], priority: SupportsIndex | None = ...
 ) -> Callable[[_ClientCommandHookMethod[_PluginT]], _ClientCommandHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["server_command"], priority: SupportsIndex | None = ...
+    event: Literal["server_command", Events.SERVER_COMMAND], priority: SupportsIndex | None = ...
 ) -> Callable[[_ServerCommandHookMethod[_PluginT]], _ServerCommandHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["frame"], priority: SupportsIndex | None = ...
+    event: Literal["frame", Events.FRAME], priority: SupportsIndex | None = ...
 ) -> Callable[[_FrameHookMethod[_PluginT]], _FrameHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["set_configstring"], priority: SupportsIndex | None = ...
+    event: Literal["set_configstring", Events.SET_CONFIGSTRING], priority: SupportsIndex | None = ...
 ) -> Callable[[_SetConfigstringHookMethod[_PluginT]], _SetConfigstringHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["chat"], priority: SupportsIndex | None = ...
+    event: Literal["chat", Events.CHAT], priority: SupportsIndex | None = ...
 ) -> Callable[[_ChatHookMethod[_PluginT]], _ChatHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["unload"], priority: SupportsIndex | None = ...
+    event: Literal["unload", Events.UNLOAD], priority: SupportsIndex | None = ...
 ) -> Callable[[_UnloadHookMethod[_PluginT]], _UnloadHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["player_connect"], priority: SupportsIndex | None = ...
+    event: Literal["player_connect", Events.PLAYER_CONNECT], priority: SupportsIndex | None = ...
 ) -> Callable[[_PlayerConnectHookMethod[_PluginT]], _PlayerConnectHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["player_loaded"], priority: SupportsIndex | None = ...
+    event: Literal["player_loaded", Events.PLAYER_LOADED], priority: SupportsIndex | None = ...
 ) -> Callable[[_PlayerLoadedHookMethod[_PluginT]], _PlayerLoadedHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["player_disconnect"], priority: SupportsIndex | None = ...
+    event: Literal["player_disconnect", Events.PLAYER_DISCONNECT], priority: SupportsIndex | None = ...
 ) -> Callable[[_PlayerDisconnectHookMethod[_PluginT]], _PlayerDisconnectHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["player_spawn"], priority: SupportsIndex | None = ...
+    event: Literal["player_spawn", Events.PLAYER_SPAWN], priority: SupportsIndex | None = ...
 ) -> Callable[[_PlayerSpawnHookMethod[_PluginT]], _PlayerSpawnHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["stats"], priority: SupportsIndex | None = ...
+    event: Literal["stats", Events.STATS], priority: SupportsIndex | None = ...
 ) -> Callable[[_StatsHookMethod[_PluginT]], _StatsHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["vote_called"], priority: SupportsIndex | None = ...
+    event: Literal["vote_called", Events.VOTE_CALLED], priority: SupportsIndex | None = ...
 ) -> Callable[[_VoteCalledHookMethod[_PluginT]], _VoteCalledHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["vote_started"], priority: SupportsIndex | None = ...
+    event: Literal["vote_started", Events.VOTE_STARTED], priority: SupportsIndex | None = ...
 ) -> Callable[[_VoteStartedHookMethod[_PluginT]], _VoteStartedHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["vote_ended"], priority: SupportsIndex | None = ...
+    event: Literal["vote_ended", Events.VOTE_ENDED], priority: SupportsIndex | None = ...
 ) -> Callable[[_VoteEndedHookMethod[_PluginT]], _VoteEndedHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["vote"], priority: SupportsIndex | None = ...
+    event: Literal["vote", Events.VOTE], priority: SupportsIndex | None = ...
 ) -> Callable[[_VoteHookMethod[_PluginT]], _VoteHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["game_countdown"], priority: SupportsIndex | None = ...
+    event: Literal["game_countdown", Events.GAME_COUNTDOWN], priority: SupportsIndex | None = ...
 ) -> Callable[[_GameCountdownHookMethod[_PluginT]], _GameCountdownHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["game_start"], priority: SupportsIndex | None = ...
+    event: Literal["game_start", Events.GAME_START], priority: SupportsIndex | None = ...
 ) -> Callable[[_GameStartHookMethod[_PluginT]], _GameStartHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["game_end"], priority: SupportsIndex | None = ...
+    event: Literal["game_end", Events.GAME_END], priority: SupportsIndex | None = ...
 ) -> Callable[[_GameEndHookMethod[_PluginT]], _GameEndHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["round_countdown"], priority: SupportsIndex | None = ...
+    event: Literal["round_countdown", Events.ROUND_COUNTDOWN], priority: SupportsIndex | None = ...
 ) -> Callable[[_RoundCountdownHookMethod[_PluginT]], _RoundCountdownHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["round_start"], priority: SupportsIndex | None = ...
+    event: Literal["round_start", Events.ROUND_START], priority: SupportsIndex | None = ...
 ) -> Callable[[_RoundStartHookMethod[_PluginT]], _RoundStartHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["round_end"], priority: SupportsIndex | None = ...
+    event: Literal["round_end", Events.ROUND_END], priority: SupportsIndex | None = ...
 ) -> Callable[[_RoundEndHookMethod[_PluginT]], _RoundEndHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["team_switch"], priority: SupportsIndex | None = ...
+    event: Literal["team_switch", Events.TEAM_SWITCH], priority: SupportsIndex | None = ...
 ) -> Callable[[_TeamSwitchHookMethod[_PluginT]], _TeamSwitchHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["team_switch_attempt"], priority: SupportsIndex | None = ...
+    event: Literal["team_switch_attempt", Events.TEAM_SWITCH_ATTEMPT], priority: SupportsIndex | None = ...
 ) -> Callable[[_TeamSwitchAttemptHookMethod[_PluginT]], _TeamSwitchAttemptHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["map"], priority: SupportsIndex | None = ...
+    event: Literal["map", Events.MAP], priority: SupportsIndex | None = ...
 ) -> Callable[[_MapHookMethod[_PluginT]], _MapHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["new_game"], priority: SupportsIndex | None = ...
+    event: Literal["new_game", Events.NEW_GAME], priority: SupportsIndex | None = ...
 ) -> Callable[[_NewGameHookMethod[_PluginT]], _NewGameHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["kill"], priority: SupportsIndex | None = ...
+    event: Literal["kill", Events.KILL], priority: SupportsIndex | None = ...
 ) -> Callable[[_KillHookMethod[_PluginT]], _KillHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["death"], priority: SupportsIndex | None = ...
+    event: Literal["death", Events.DEATH], priority: SupportsIndex | None = ...
 ) -> Callable[[_DeathHookMethod[_PluginT]], _DeathHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["userinfo"], priority: SupportsIndex | None = ...
+    event: Literal["userinfo", Events.USERINFO], priority: SupportsIndex | None = ...
 ) -> Callable[[_UserinfoHookMethod[_PluginT]], _UserinfoHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["kamikaze_use"], priority: SupportsIndex | None = ...
+    event: Literal["kamikaze_use", Events.KAMIKAZE_USE], priority: SupportsIndex | None = ...
 ) -> Callable[[_KamikazeUseHookMethod[_PluginT]], _KamikazeUseHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["kamikaze_explode"], priority: SupportsIndex | None = ...
+    event: Literal["kamikaze_explode", Events.KAMIKAZE_EXPLODE], priority: SupportsIndex | None = ...
 ) -> Callable[[_KamikazeExplodeHookMethod[_PluginT]], _KamikazeExplodeHookMethod[_PluginT]]: ...
 @overload
 def hook(
-    event: Literal["damage"], priority: SupportsIndex | None = ...
+    event: Literal["damage", Events.DAMAGE], priority: SupportsIndex | None = ...
 ) -> Callable[[_DamageHookMethod[_PluginT]], _DamageHookMethod[_PluginT]]: ...
 
 class Cvar(Generic[_CvarT]):
@@ -364,16 +364,6 @@ class Cvar(Generic[_CvarT]):
     def __get__(self, instance: object, owner: builtins.type[object]) -> _CvarT: ...
     def __set__(self, instance: object, value: NoReturn) -> None: ...
 
-def cvar(
-    name: str,
-    default: object = ...,
-    *,
-    field: str | None = ...,
-    type: builtins.type[Any] | None = ...,
-    flags: SupportsIndex = ...,
-    minimum: float | None = ...,
-    maximum: float | None = ...,
-) -> Callable[[builtins.type[_PluginT]], builtins.type[_PluginT]]: ...
 def command(
     name: str | Iterable[str],
     *,
@@ -568,462 +558,462 @@ class Plugin:
     @overload
     def add_hook(
         self,
-        event: Literal["console_print"],
+        event: Literal["console_print", Events.CONSOLE_PRINT],
         handler: _ConsolePrintHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["command"],
+        event: Literal["command", Events.COMMAND],
         handler: _CommandHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["client_command"],
+        event: Literal["client_command", Events.CLIENT_COMMAND],
         handler: _ClientCommandHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["server_command"],
+        event: Literal["server_command", Events.SERVER_COMMAND],
         handler: _ServerCommandHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["frame"],
+        event: Literal["frame", Events.FRAME],
         handler: _FrameHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["set_configstring"],
+        event: Literal["set_configstring", Events.SET_CONFIGSTRING],
         handler: _SetConfigstringHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["chat"],
+        event: Literal["chat", Events.CHAT],
         handler: _ChatHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["unload"],
+        event: Literal["unload", Events.UNLOAD],
         handler: _UnloadHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["player_connect"],
+        event: Literal["player_connect", Events.PLAYER_CONNECT],
         handler: _PlayerConnectHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["player_loaded"],
+        event: Literal["player_loaded", Events.PLAYER_LOADED],
         handler: _PlayerLoadedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["player_disconnect"],
+        event: Literal["player_disconnect", Events.PLAYER_DISCONNECT],
         handler: _PlayerDisconnectHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["player_spawn"],
+        event: Literal["player_spawn", Events.PLAYER_SPAWN],
         handler: _PlayerSpawnHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["stats"],
+        event: Literal["stats", Events.STATS],
         handler: _StatsHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["vote_called"],
+        event: Literal["vote_called", Events.VOTE_CALLED],
         handler: _VoteCalledHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["vote_started"],
+        event: Literal["vote_started", Events.VOTE_STARTED],
         handler: _VoteStartedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["vote_ended"],
+        event: Literal["vote_ended", Events.VOTE_ENDED],
         handler: _VoteEndedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["vote"],
+        event: Literal["vote", Events.VOTE],
         handler: _VoteHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["game_countdown"],
+        event: Literal["game_countdown", Events.GAME_COUNTDOWN],
         handler: _GameCountdownHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["game_start"],
+        event: Literal["game_start", Events.GAME_START],
         handler: _GameStartHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["game_end"],
+        event: Literal["game_end", Events.GAME_END],
         handler: _GameEndHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["round_countdown"],
+        event: Literal["round_countdown", Events.ROUND_COUNTDOWN],
         handler: _RoundCountdownHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["round_start"],
+        event: Literal["round_start", Events.ROUND_START],
         handler: _RoundStartHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["round_end"],
+        event: Literal["round_end", Events.ROUND_END],
         handler: _RoundEndHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["team_switch"],
+        event: Literal["team_switch", Events.TEAM_SWITCH],
         handler: _TeamSwitchHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["team_switch_attempt"],
+        event: Literal["team_switch_attempt", Events.TEAM_SWITCH_ATTEMPT],
         handler: _TeamSwitchAttemptHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["map"],
+        event: Literal["map", Events.MAP],
         handler: _MapHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["new_game"],
+        event: Literal["new_game", Events.NEW_GAME],
         handler: _NewGameHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["kill"],
+        event: Literal["kill", Events.KILL],
         handler: _KillHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["death"],
+        event: Literal["death", Events.DEATH],
         handler: _DeathHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["userinfo"],
+        event: Literal["userinfo", Events.USERINFO],
         handler: _UserinfoHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["kamikaze_use"],
+        event: Literal["kamikaze_use", Events.KAMIKAZE_USE],
         handler: _KamikazeUseHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["kamikaze_explode"],
+        event: Literal["kamikaze_explode", Events.KAMIKAZE_EXPLODE],
         handler: _KamikazeExplodeHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def add_hook(
         self,
-        event: Literal["damage"],
+        event: Literal["damage", Events.DAMAGE],
         handler: _DamageHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["console_print"],
+        event: Literal["console_print", Events.CONSOLE_PRINT],
         handler: _ConsolePrintHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["command"],
+        event: Literal["command", Events.COMMAND],
         handler: _CommandHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["client_command"],
+        event: Literal["client_command", Events.CLIENT_COMMAND],
         handler: _ClientCommandHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["server_command"],
+        event: Literal["server_command", Events.SERVER_COMMAND],
         handler: _ServerCommandHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["frame"],
+        event: Literal["frame", Events.FRAME],
         handler: _FrameHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["set_configstring"],
+        event: Literal["set_configstring", Events.SET_CONFIGSTRING],
         handler: _SetConfigstringHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["chat"],
+        event: Literal["chat", Events.CHAT],
         handler: _ChatHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["unload"],
+        event: Literal["unload", Events.UNLOAD],
         handler: _UnloadHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["player_connect"],
+        event: Literal["player_connect", Events.PLAYER_CONNECT],
         handler: _PlayerConnectHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["player_loaded"],
+        event: Literal["player_loaded", Events.PLAYER_LOADED],
         handler: _PlayerLoadedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["player_disconnect"],
+        event: Literal["player_disconnect", Events.PLAYER_DISCONNECT],
         handler: _PlayerDisconnectHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["player_spawn"],
+        event: Literal["player_spawn", Events.PLAYER_SPAWN],
         handler: _PlayerSpawnHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["stats"],
+        event: Literal["stats", Events.STATS],
         handler: _StatsHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["vote_called"],
+        event: Literal["vote_called", Events.VOTE_CALLED],
         handler: _VoteCalledHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["vote_started"],
+        event: Literal["vote_started", Events.VOTE_STARTED],
         handler: _VoteStartedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["vote_ended"],
+        event: Literal["vote_ended", Events.VOTE_ENDED],
         handler: _VoteEndedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["vote"],
+        event: Literal["vote", Events.VOTE],
         handler: _VoteHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["game_countdown"],
+        event: Literal["game_countdown", Events.GAME_COUNTDOWN],
         handler: _GameCountdownHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["game_start"],
+        event: Literal["game_start", Events.GAME_START],
         handler: _GameStartHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["game_end"],
+        event: Literal["game_end", Events.GAME_END],
         handler: _GameEndHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["round_countdown"],
+        event: Literal["round_countdown", Events.ROUND_COUNTDOWN],
         handler: _RoundCountdownHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["round_start"],
+        event: Literal["round_start", Events.ROUND_START],
         handler: _RoundStartHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["round_end"],
+        event: Literal["round_end", Events.ROUND_END],
         handler: _RoundEndHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["team_switch"],
+        event: Literal["team_switch", Events.TEAM_SWITCH],
         handler: _TeamSwitchHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["team_switch_attempt"],
+        event: Literal["team_switch_attempt", Events.TEAM_SWITCH_ATTEMPT],
         handler: _TeamSwitchAttemptHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["map"],
+        event: Literal["map", Events.MAP],
         handler: _MapHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["new_game"],
+        event: Literal["new_game", Events.NEW_GAME],
         handler: _NewGameHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["kill"],
+        event: Literal["kill", Events.KILL],
         handler: _KillHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["death"],
+        event: Literal["death", Events.DEATH],
         handler: _DeathHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["userinfo"],
+        event: Literal["userinfo", Events.USERINFO],
         handler: _UserinfoHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["kamikaze_use"],
+        event: Literal["kamikaze_use", Events.KAMIKAZE_USE],
         handler: _KamikazeUseHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["kamikaze_explode"],
+        event: Literal["kamikaze_explode", Events.KAMIKAZE_EXPLODE],
         handler: _KamikazeExplodeHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload
     def remove_hook(
         self,
-        event: Literal["damage"],
+        event: Literal["damage", Events.DAMAGE],
         handler: _DamageHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...

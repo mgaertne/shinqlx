@@ -10,6 +10,7 @@ mod dispatchers;
 mod embed;
 mod engine_api;
 mod events;
+mod events_enum;
 mod flag_enums;
 mod flight;
 mod game;
@@ -960,7 +961,7 @@ def broken_signatures():
     for name in dir(shinqlx):
         obj = getattr(shinqlx, name)
         targets = [(name, obj)]
-        if inspect.isclass(obj):
+        if inspect.isclass(obj) and not issubclass(obj, str):
             targets += [
                 (f"{name}.{attr}", getattr(obj, attr, None))
                 for attr in dir(obj)
@@ -1089,7 +1090,9 @@ def literal_event(function):
         if argument.arg == "event":
             annotation = argument.annotation
             if getattr(annotation.value, "id", None) == "Literal":
-                return annotation.slice.value
+                name, member = annotation.slice.elts
+                assert member.attr == name.value.upper(), f"{name.value} and {member.attr} differ"
+                return name.value
     return None
 
 
@@ -1165,6 +1168,10 @@ def differences(stub):
         found.append(f"{event}: declared in the stubs, but no dispatcher exists")
     for event in sorted(available - declared):
         found.append(f"{event}: dispatcher exists, but the stubs do not declare it")
+
+    members = {member.value for member in shinqlx.Events}
+    for event in sorted(members ^ available):
+        found.append(f"{event}: differs between shinqlx.Events and the dispatchers")
 
     for event in sorted(declared & available):
         expected = dispatcher_arity(event)

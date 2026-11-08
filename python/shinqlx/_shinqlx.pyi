@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import TYPE_CHECKING, ClassVar, SupportsIndex, overload
 
 if TYPE_CHECKING:
@@ -296,6 +297,43 @@ class Holdable:
     def __hash__(self) -> int: ...
     def __eq__(self, other: object) -> bool: ...
     def __ne__(self, other: object) -> bool: ...
+
+class Events(str, Enum):
+    """The names of the events that plugins can hook."""
+
+    CHAT = "chat"
+    CLIENT_COMMAND = "client_command"
+    COMMAND = "command"
+    CONSOLE_PRINT = "console_print"
+    DAMAGE = "damage"
+    DEATH = "death"
+    FRAME = "frame"
+    GAME_COUNTDOWN = "game_countdown"
+    GAME_END = "game_end"
+    GAME_START = "game_start"
+    KAMIKAZE_EXPLODE = "kamikaze_explode"
+    KAMIKAZE_USE = "kamikaze_use"
+    KILL = "kill"
+    MAP = "map"
+    NEW_GAME = "new_game"
+    PLAYER_CONNECT = "player_connect"
+    PLAYER_DISCONNECT = "player_disconnect"
+    PLAYER_LOADED = "player_loaded"
+    PLAYER_SPAWN = "player_spawn"
+    ROUND_COUNTDOWN = "round_countdown"
+    ROUND_END = "round_end"
+    ROUND_START = "round_start"
+    SERVER_COMMAND = "server_command"
+    SET_CONFIGSTRING = "set_configstring"
+    STATS = "stats"
+    TEAM_SWITCH = "team_switch"
+    TEAM_SWITCH_ATTEMPT = "team_switch_attempt"
+    UNLOAD = "unload"
+    USERINFO = "userinfo"
+    VOTE = "vote"
+    VOTE_CALLED = "vote_called"
+    VOTE_ENDED = "vote_ended"
+    VOTE_STARTED = "vote_started"
 
 class GameStates:
     WARMUP: ClassVar[GameStates]

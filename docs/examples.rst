@@ -9,6 +9,9 @@ The examples show the typical building blocks of a plugin. A plugin is a Python 
 ``qlx_pluginsPath`` whose class has the same name as the file, e.g. ``greeter.py`` contains ``class greeter``.
 Add the name to ``qlx_plugins`` to load it at startup, or load it at runtime with ``!load greeter``.
 
+The events are named with the members of :class:`Events`, e.g. ``shinqlx.Events.PLAYER_LOADED``. They are strings, so
+the plain event name ``"player_loaded"`` keeps working, which is what you find in older plugins.
+
 More plugins to learn from can be found in the
 `minqlx plugin repository <https://github.com/MinoMino/minqlx-plugins>`_.
 
@@ -28,7 +31,7 @@ methods that handle them with the :ref:`decorators <plugin>`.
 
 
    class greeter(shinqlx.Plugin):
-       @shinqlx.hook("player_loaded", priority=shinqlx.Priorities.LOW)
+       @shinqlx.hook(shinqlx.Events.PLAYER_LOADED, priority=shinqlx.Priorities.LOW)
        def greet_new_player(self, player):
            player.tell(f"Welcome, {player.name}^7!")
 
@@ -54,7 +57,7 @@ are given as strings, and the :class:`Teams` members compare equal to them.
 
 
    class team_guard(shinqlx.Plugin):
-       @shinqlx.hook("team_switch_attempt")
+       @shinqlx.hook(shinqlx.Events.TEAM_SWITCH_ATTEMPT)
        def keep_teams_even(self, player, old_team, new_team):
            if new_team not in (shinqlx.Teams.RED, shinqlx.Teams.BLUE):
                return shinqlx.ReturnCodes.NONE
@@ -91,7 +94,7 @@ name of :class:`Weapons`.
    class railgun_start(shinqlx.Plugin):
        def __init__(self):
            super().__init__()
-           self.add_hook("player_spawn", self.give_railgun)
+           self.add_hook(shinqlx.Events.PLAYER_SPAWN, self.give_railgun)
 
        def give_railgun(self, player):
            player.weapons(rg=1, mg=0)
@@ -121,14 +124,13 @@ default, and type checkers know that type.
 
        def __init__(self):
            super().__init__()
-           self.add_hook("game_countdown", self.announce)
+           self.add_hook(shinqlx.Events.GAME_COUNTDOWN, self.announce)
 
        def announce(self):
            for _ in range(self.repeat):
                self.msg(self.text)
 
-The :func:`cvar` decorator does the same for a whole class and is the choice for cvars without an attribute.
-Without either of them, the same is done with :meth:`Plugin.set_cvar_once` and :meth:`Plugin.get_cvar`:
+Without the declaration, the same is done with :meth:`Plugin.set_cvar_once` and :meth:`Plugin.get_cvar`:
 
 .. code-block:: python
 
@@ -150,7 +152,7 @@ connection is, and compares equal to the members of :class:`ConnectionStates`.
    class leave_notice(shinqlx.Plugin):
        def __init__(self):
            super().__init__()
-           self.add_hook("player_disconnect", self.announce_leave)
+           self.add_hook(shinqlx.Events.PLAYER_DISCONNECT, self.announce_leave)
 
        def announce_leave(self, player, reason):
            if player.connection_state == shinqlx.ConnectionStates.ACTIVE:

@@ -15,7 +15,6 @@ use super::{
 
 const HOOKS_MARKER: &str = "_shinqlx_hooks";
 const COMMANDS_MARKER: &str = "_shinqlx_commands";
-const CVARS_MARKER: &str = "_shinqlx_cvars";
 const CVAR_TYPES: [&str; 7] = ["str", "int", "float", "bool", "list", "set", "tuple"];
 const COMMAND_PARAMETERS: [&str; 3] = ["player", "msg", "channel"];
 
@@ -372,124 +371,23 @@ fn cvar_default_string(default: &Bound<'_, PyAny>) -> PyResult<String> {
     default.str().map(|value| value.to_string())
 }
 
-fn is_identifier(name: &str) -> bool {
-    let mut characters = name.chars();
-    characters
-        .next()
-        .is_some_and(|first| first.is_alphabetic() || first == '_')
-        && characters.all(|character| character.is_alphanumeric() || character == '_')
-}
-
-/// Declares a cvar of a plugin. The decorated plugin class creates the cvar with the default value
-/// when the plugin is loaded, before the plugin is instantiated, unless the cvar already exists. The
-/// decorator can be applied several times to a class.
-///
-/// With a ``field``, the plugin gets a read-only attribute of that name, like a :class:`Cvar` that is
-/// assigned in the class body. Type checkers only know the attribute of a :class:`Cvar`.
-///
-/// :param name: The name of the cvar.
-/// :param default: The value to create the cvar with. Without a default, the cvar is not created.
-///     ``bool`` values are written as ``1`` or ``0``, lists, tuples and sets as comma separated values.
-/// :param field: If given, the name of a read-only attribute of the plugin that returns the current
-///     value of the cvar.
-/// :param type: The type that the attribute returns, one of ``str``, ``int``, ``float``, ``bool``,
-///     ``list``, ``set`` and ``tuple``. Defaults to the type of the default value, or ``str``.
-/// :param flags: The cvar flags to create the cvar with, e.g. a :class:`CvarFlags` member.
-/// :param minimum: The lower limit of the value of the cvar. Needs ``maximum`` as well.
-/// :param maximum: The upper limit of the value of the cvar. Needs ``minimum`` as well.
-#[pyfunction]
-#[pyo3(
-    signature = (name, default = None, *, field = None, r#type = None, flags = 0, minimum = None, maximum = None),
-    text_signature = "(name, default=None, *, field=None, type=None, flags=0, minimum=None, maximum=None)"
-)]
-#[allow(
-    clippy::too_many_arguments,
-    reason = "the arguments mirror the keyword arguments of the Python decorator"
-)]
-fn cvar<'py>(
-    py: Python<'py>,
-    name: String,
-    default: Option<Bound<'py, PyAny>>,
-    field: Option<String>,
-    r#type: Option<Bound<'py, PyAny>>,
-    flags: i32,
-    minimum: Option<Bound<'py, PyAny>>,
-    maximum: Option<Bound<'py, PyAny>>,
-) -> PyResult<Bound<'py, PyCFunction>> {
-    if field.as_deref().is_some_and(|field| !is_identifier(field)) {
-        cold_path();
-        return Err(PyValueError::new_err(
-            "field has to be a valid attribute name",
-        ));
-    }
-
-    let declaration = Bound::new(
-        py,
-        Cvar::new(py, name, default, r#type, flags, minimum, maximum)?,
-    )?
-    .unbind();
-
-    PyCFunction::new_closure(
-        py,
-        Some(c"cvar_decorator"),
-        None,
-        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
-            let plugin_class = only_handler(arguments)?;
-            let py = plugin_class.py();
-            if !plugin_class.is_instance_of::<PyType>() {
-                cold_path();
-                return Err(PyTypeError::new_err("cvar decorates a plugin class"));
-            }
-
-            match &field {
-                Some(field) => {
-                    if plugin_class
-                        .getattr(field.as_str())
-                        .is_ok_and(|existing| !existing.is_instance_of::<Cvar>())
-                    {
-                        cold_path();
-                        return Err(PyValueError::new_err(format!(
-                            "{} already has an attribute '{field}'",
-                            plugin_class.getattr(intern!(py, "__qualname__"))?
-                        )));
-                    }
-                    plugin_class.setattr(field.as_str(), declaration.bind(py))?;
-                }
-                None => mark(
-                    &plugin_class,
-                    CVARS_MARKER,
-                    declaration.bind(py).clone().into_any(),
-                )?,
-            }
-
-            Ok::<_, PyErr>(plugin_class.unbind())
-        },
-    )
-}
-
-/// Adds the `hook`, `command` and `cvar` decorators and the `Cvar` declaration to the shinqlx module.
+/// Adds the `hook` and `command` decorators and the `Cvar` declaration to the shinqlx module.
 pub(crate) fn register_decorators(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hook, m)?)?;
     m.add_function(wrap_pyfunction!(command, m)?)?;
-    m.add_function(wrap_pyfunction!(cvar, m)?)?;
     m.add_class::<Cvar>()
 }
 
-/// Creates the cvars that were declared on the plugin class, unless they exist already.
-///
-/// The declarations are the :class:`Cvar` attributes of the class and the ones of the
-/// :func:`cvar` decorators without a ``field``.
+/// Creates the cvars that were declared as :class:`Cvar` attributes of the plugin class, unless they
+/// exist already.
 pub(crate) fn register_declared_cvars(plugin_class: &Bound<'_, PyAny>) -> PyResult<()> {
-    let attributes = plugin_class
+    let declarations = plugin_class
         .dir()?
         .iter()
         .filter_map(|attribute_name| attribute_name.extract::<String>().ok())
         .filter_map(|attribute_name| plugin_class.getattr(attribute_name.as_str()).ok());
-    let declared = markers(plugin_class, CVARS_MARKER)
-        .into_iter()
-        .chain(attributes);
 
-    for declaration in declared {
+    for declaration in declarations {
         if let Ok(declaration) = declaration.cast::<Cvar>() {
             declaration.get().create_unless_existing(plugin_class)?;
         }
@@ -1315,12 +1213,12 @@ def threaded_func():
 }
 
 #[cfg(test)]
-mod cvar_decorator_tests {
+mod cvar_declaration_tests {
     use core::borrow::BorrowMut;
 
     use mockall::predicate;
     use pyo3::{
-        exceptions::{PyAttributeError, PyTypeError, PyValueError},
+        exceptions::{PyAttributeError, PyValueError},
         intern,
         prelude::*,
     };
@@ -1369,7 +1267,7 @@ mod cvar_decorator_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "@shinqlx.cvar('qlx_delay', 5, minimum=0, maximum=60, flags=shinqlx.CvarFlags.ARCHIVE)\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                        "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar('qlx_delay', 5, minimum=0, maximum=60, flags=shinqlx.CvarFlags.ARCHIVE)",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -1408,7 +1306,7 @@ mod cvar_decorator_tests {
                     let plugin_class = plugin_class(
                         py,
                         &format!(
-                            "@shinqlx.cvar('qlx_value', {default})\nclass declared_plugin(shinqlx.Plugin):\n    pass"
+                            "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar('qlx_value', {default})"
                         ),
                     );
 
@@ -1431,7 +1329,7 @@ mod cvar_decorator_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "@shinqlx.cvar('sv_hostname', field='hostname')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                        "class declared_plugin(shinqlx.Plugin):\n    hostname = shinqlx.Cvar('sv_hostname')",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -1460,7 +1358,7 @@ mod cvar_decorator_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "@shinqlx.cvar('qlx_value', 'default')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                        "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar('qlx_value', 'default')",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -1499,7 +1397,7 @@ mod cvar_decorator_tests {
                     let plugin_class = plugin_class(
                         py,
                         &format!(
-                            "@shinqlx.cvar('qlx_value', field='value', type={type_name})\nclass declared_plugin(shinqlx.Plugin):\n    pass"
+                            "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', type={type_name})"
                         ),
                     );
 
@@ -1539,7 +1437,7 @@ mod cvar_decorator_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "@shinqlx.cvar('qlx_value', 1.5, field='value')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                        "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', 1.5)",
                     );
 
                     let read = plugin_class
@@ -1559,7 +1457,7 @@ mod cvar_decorator_tests {
         Python::attach(|py| {
             let plugin_class = plugin_class(
                 py,
-                "@shinqlx.cvar('qlx_value', 1, field='value')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', 1)",
             );
             let instance = plugin_class.call0().expect("could not create plugin");
 
@@ -1576,7 +1474,7 @@ mod cvar_decorator_tests {
         Python::attach(|py| {
             let plugin_class = plugin_class(
                 py,
-                "@shinqlx.cvar('qlx_value', 1, field='value')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', 1)",
             );
 
             assert!(
@@ -1584,58 +1482,6 @@ mod cvar_decorator_tests {
                     .getattr(intern!(py, "value"))
                     .is_ok_and(|field| field.get_type().name().is_ok_and(|name| name == "Cvar"))
             );
-        });
-    }
-
-    #[rstest]
-    #[case("@shinqlx.cvar('')")]
-    #[case("@shinqlx.cvar('qlx_x', 1, minimum=0)")]
-    #[case("@shinqlx.cvar('qlx_x', 1, maximum=0)")]
-    #[case("@shinqlx.cvar('qlx_x', 1, field='not valid')")]
-    #[case("@shinqlx.cvar('qlx_x', 1, field='1value')")]
-    #[case("@shinqlx.cvar('qlx_x', 1, field='value', type=dict)")]
-    #[case("@shinqlx.cvar('qlx_x', 1, field='value', type='int')")]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn invalid_declarations_are_rejected_when_defining_the_class(
-        _pyshinqlx_setup: (),
-        #[case] decorator: &str,
-    ) {
-        Python::attach(|py| {
-            let result = plugin_module(
-                py,
-                &format!("{decorator}\nclass declared_plugin(shinqlx.Plugin):\n    pass"),
-            );
-
-            assert!(result.is_err_and(|error| error.is_instance_of::<PyValueError>(py)));
-        });
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn field_must_not_replace_an_existing_attribute(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            let result = plugin_module(
-                py,
-                "@shinqlx.cvar('qlx_x', 1, field='msg')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
-            );
-
-            assert!(result.is_err_and(|error| error.is_instance_of::<PyValueError>(py)));
-        });
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn cvar_can_only_decorate_classes(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            let result = plugin_module(
-                py,
-                "@shinqlx.cvar('qlx_x', 1)\ndef declared_plugin(shinqlx):\n    pass",
-            );
-
-            assert!(result.is_err_and(|error| error.is_instance_of::<PyTypeError>(py)));
         });
     }
 
@@ -1659,7 +1505,7 @@ mod cvar_decorator_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "@shinqlx.cvar('qlx_base', 1, field='base')\nclass base_plugin(shinqlx.Plugin):\n    pass\n\nclass declared_plugin(base_plugin):\n    pass",
+                        "class base_plugin(shinqlx.Plugin):\n    base = shinqlx.Cvar('qlx_base', 1)\n\nclass declared_plugin(base_plugin):\n    pass",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());

@@ -18,7 +18,7 @@ by the editor and the type checker. They are plain Python classes whose members 
    import shinqlx
 
    # a member is usable wherever the API expects the integer ...
-   self.add_hook("damage", self.handle_damage, priority=shinqlx.Priorities.LOW)
+   self.add_hook(shinqlx.Events.DAMAGE, self.handle_damage, priority=shinqlx.Priorities.LOW)
    shinqlx.set_weapon(player.id, shinqlx.Weapon.RAILGUN)
 
    # ... compares equal to it ...
@@ -31,11 +31,18 @@ by the editor and the type checker. They are plain Python classes whose members 
 
 Members of different enumerations are never equal, even if their integer values are: ``Teams.RED != Privileges.MOD``.
 All members are immutable and hashable. The hash is the one of the integer value, so a dictionary with members as keys
-cannot be searched with the string.
+cannot be searched with the string. The exceptions are :class:`GameStates` and :class:`Events`: their members are or
+hash like the strings they stand for.
 
 The enumerations that stand for a team or a privilege level are also accepted where the API took a string, e.g.
 ``player.team = Teams.BLUE``, ``player.put(Teams.SPECTATOR)``, ``Plugin.lock(Teams.RED)`` or
 ``player.privileges = Privileges.MOD``.
+
+Enumerations of Quake Live
+==========================
+
+These enumerations stand for values that come from the game itself: teams, weapons, damage and so on. Their values are the
+ones of the engine and do not change with the plugin framework.
 
 Teams
 -----
@@ -129,6 +136,239 @@ ConnectionStates
 
       Equal to :data:`CS_ACTIVE`.
 
+VoteStates
+----------
+
+.. class:: VoteStates
+
+   The states of a vote on the server.
+
+   .. attribute:: NONE
+      :value: 0
+
+   .. attribute:: PENDING
+      :value: 1
+
+   .. attribute:: YES
+      :value: 2
+
+   .. attribute:: NO
+      :value: 3
+
+   .. attribute:: FORCE_PASS
+      :value: 4
+
+   .. attribute:: FORCE_FAIL
+      :value: 5
+
+   .. attribute:: EXPIRED
+      :value: 6
+
+GameStates
+----------
+
+.. class:: GameStates
+
+   The states of a game, as :attr:`Game.state` returns them. A member compares equal to that string and has the hash of
+   it, so unlike the other enumerations a dictionary keyed by the strings can be searched with a member and vice versa.
+
+   .. attribute:: WARMUP
+      :value: "warmup"
+
+      The game has yet to start and is waiting for players to ready up.
+
+   .. attribute:: COUNTDOWN
+      :value: "countdown"
+
+      Players recently readied up, and it is counting down until the game starts.
+
+   .. attribute:: IN_PROGRESS
+      :value: "in_progress"
+
+      The game is in progress.
+
+   .. code-block:: python
+
+      if self.game.state == shinqlx.GameStates.IN_PROGRESS:
+          ...
+
+Weapon
+------
+
+.. class:: Weapon
+
+   The weapons of Quake Live. :class:`str` of a member is the short name that :meth:`Player.weapon` accepts and that
+   the fields of :class:`Weapons` use, so ``getattr(player.weapons(), str(Weapon.ROCKET_LAUNCHER))`` is the amount of
+   rockets the player has. The integer value is the key of :data:`WEAPONS`.
+
+   .. list-table::
+      :header-rows: 1
+
+      * - Member
+        - Value
+        - Short name
+      * - ``NONE``
+        - 0
+        - ``"none"``
+      * - ``GAUNTLET``
+        - 1
+        - ``"g"``
+      * - ``MACHINEGUN``
+        - 2
+        - ``"mg"``
+      * - ``SHOTGUN``
+        - 3
+        - ``"sg"``
+      * - ``GRENADE_LAUNCHER``
+        - 4
+        - ``"gl"``
+      * - ``ROCKET_LAUNCHER``
+        - 5
+        - ``"rl"``
+      * - ``LIGHTNING``
+        - 6
+        - ``"lg"``
+      * - ``RAILGUN``
+        - 7
+        - ``"rg"``
+      * - ``PLASMAGUN``
+        - 8
+        - ``"pg"``
+      * - ``BFG``
+        - 9
+        - ``"bfg"``
+      * - ``GRAPPLING_HOOK``
+        - 10
+        - ``"gh"``
+      * - ``NAILGUN``
+        - 11
+        - ``"ng"``
+      * - ``PROX_LAUNCHER``
+        - 12
+        - ``"pl"``
+      * - ``CHAINGUN``
+        - 13
+        - ``"cg"``
+      * - ``HMG``
+        - 14
+        - ``"hmg"``
+      * - ``HANDS``
+        - 15
+        - ``"hands"``
+
+Holdable
+--------
+
+.. class:: Holdable
+
+   The holdable items. ``str(member)`` is the name that :attr:`Player.holdable` returns and accepts, the integer value is
+   the item index of the engine. A member compares equal to its name, to the index and to nothing else.
+
+   .. attribute:: NONE
+      :value: 0
+
+   .. attribute:: TELEPORTER
+      :value: 27
+
+   .. attribute:: MEDKIT
+      :value: 28
+
+   .. attribute:: FLIGHT
+      :value: 34
+
+   .. attribute:: KAMIKAZE
+      :value: 37
+
+   .. attribute:: PORTAL
+      :value: 38
+
+   .. attribute:: INVULNERABILITY
+      :value: 39
+
+   .. attribute:: UNKNOWN
+      :value: 666
+
+      An item that the plugin API does not know.
+
+   .. code-block:: python
+
+      player.holdable = shinqlx.Holdable.TELEPORTER
+      assert player.holdable == shinqlx.Holdable.TELEPORTER
+
+MeansOfDeath
+------------
+
+.. class:: MeansOfDeath
+
+   The causes of a death, e.g. the argument of :func:`slay_with_mod`. See :ref:`means_of_death` for the meaning of
+   the values. The members are named like the constants ``MOD_*`` without the prefix, e.g.
+   ``MeansOfDeath.ROCKET_SPLASH`` is equal to :data:`MOD_ROCKET_SPLASH`.
+
+   Members: ``UNKNOWN``, ``SHOTGUN``, ``GAUNTLET``, ``MACHINEGUN``, ``GRENADE``, ``GRENADE_SPLASH``, ``ROCKET``,
+   ``ROCKET_SPLASH``, ``PLASMA``, ``PLASMA_SPLASH``, ``RAILGUN``, ``LIGHTNING``, ``BFG``, ``BFG_SPLASH``, ``WATER``,
+   ``SLIME``, ``LAVA``, ``CRUSH``, ``TELEFRAG``, ``FALLING``, ``SUICIDE``, ``TARGET_LASER``, ``TRIGGER_HURT``,
+   ``NAIL``, ``CHAINGUN``, ``PROXIMITY_MINE``, ``KAMIKAZE``, ``JUICED``, ``GRAPPLE``, ``SWITCH_TEAMS``, ``THAW``,
+   ``LIGHTNING_DISCHARGE``, ``HMG`` and ``RAILGUN_HEADSHOT``.
+
+CvarFlags
+---------
+
+.. class:: CvarFlags
+
+   The flags of a cvar, e.g. for :meth:`Plugin.set_cvar`. Members can be combined with ``|`` and checked with ``&``,
+   the result is a plain :class:`int`. See :ref:`cvar_flags` for the meaning of the flags.
+
+   .. code-block:: python
+
+      flags = shinqlx.CvarFlags.ARCHIVE | shinqlx.CvarFlags.LATCH
+      shinqlx.Plugin.set_cvar("qlx_myCvar", "1", flags)
+
+   Members: ``ARCHIVE`` (1), ``USERINFO`` (2), ``SERVERINFO`` (4), ``SYSTEMINFO`` (8), ``INIT`` (16), ``LATCH`` (32),
+   ``ROM`` (64), ``USER_CREATED`` (128), ``TEMP`` (256), ``CHEAT`` (512) and ``NORESTART`` (1024). They are equal
+   to the constants ``CVAR_*``.
+
+DamageFlags
+-----------
+
+.. class:: DamageFlags
+
+   The flags of the damage that a player takes, as passed to the ``damage`` event. Members can be combined with
+   ``|`` and checked with ``&``, the result is a plain :class:`int`. See :ref:`damage_flags` for the meaning of
+   the flags.
+
+   Members: ``RADIUS`` (1), ``NO_ARMOR`` (2), ``NO_KNOCKBACK`` (4), ``NO_PROTECTION`` (8) and
+   ``NO_TEAM_PROTECTION`` (16). They are equal to the constants ``DAMAGE_*``.
+
+ConfigString
+------------
+
+.. class:: ConfigString
+
+   The indices of the configstrings of the server, usable wherever :func:`get_configstring` and
+   :func:`set_configstring` expect an index. The members are named like the engine's constants without the ``CS_``
+   prefix and compare equal to their index only.
+
+   .. code-block:: python
+
+      motd = shinqlx.get_configstring(shinqlx.ConfigString.MOTD)
+
+   Members: ``SERVERINFO``, ``SYSTEMINFO``, ``MUSIC``, ``MESSAGE``, ``MOTD``, ``WARMUP``, ``SCORES1``, ``SCORES2``,
+   ``VOTE_TIME``, ``VOTE_STRING``, ``VOTE_YES``, ``VOTE_NO``, ``GAME_VERSION``, ``LEVEL_START_TIME``,
+   ``INTERMISSION``, ``ITEMS``, ``MODELS``, ``SOUNDS``, ``PLAYERS``, ``LOCATIONS``, ``PARTICLES``, ``FLAGSTATUS``,
+   ``FIRSTPLACE``, ``SECONDPLACE``, ``ROUND_STATUS``, ``ROUND_TIME``, ``RED_PLAYERS_LEFT``, ``BLUE_PLAYERS_LEFT``,
+   ``SHADERSTATE``, ``NEXTMAP``, ``PRACTICE``, ``FREECAM``, ``PAUSE_START_TIME``, ``PAUSE_END_TIME``,
+   ``TIMEOUTS_RED``, ``TIMEOUTS_BLUE``, ``MODEL_OVERRIDE``, ``PLAYER_CYLINDERS``, ``DEBUGFLAGS``, ``ENABLEBREATH``,
+   ``DMGTHROUGHDEPTH``, ``AUTHOR``, ``AUTHOR2``, ``ADVERT_DELAY``, ``PMOVEINFO``, ``ARMORINFO``, ``WEAPONINFO``,
+   ``PLAYERINFO``, ``SCORE1STPLAYER``, ``SCORE2NDPLAYER``, ``CLIENTNUM1STPLAYER``, ``CLIENTNUM2NDPLAYER``,
+   ``NAME1STPLAYER``, ``NAME2NDPLAYER``, ``ATMOSEFFECT`` and ``MOST_DAMAGEDEALT_PLYR``.
+
+Enumerations for plugin development
+===================================
+
+These enumerations belong to the plugin framework and are what makes writing a plugin convenient. The engine does not
+know them: priorities, return codes and permission levels are conventions of minqlx, and the events are the names under
+which the plugin loader dispatches what happens in the game.
+
 Priorities
 ----------
 
@@ -197,70 +437,6 @@ ReturnCodes
    that returns nothing is treated as ``RET_NONE``. ``is`` cannot be overloaded in Python, so
    ``ReturnCodes.NONE is None`` stays false; use ``==`` or ``not``.
 
-Weapon
-------
-
-.. class:: Weapon
-
-   The weapons of Quake Live. :class:`str` of a member is the short name that :meth:`Player.weapon` accepts and that
-   the fields of :class:`Weapons` use, so ``getattr(player.weapons(), str(Weapon.ROCKET_LAUNCHER))`` is the amount of
-   rockets the player has. The integer value is the key of :data:`WEAPONS`.
-
-   .. list-table::
-      :header-rows: 1
-
-      * - Member
-        - Value
-        - Short name
-      * - ``NONE``
-        - 0
-        - ``"none"``
-      * - ``GAUNTLET``
-        - 1
-        - ``"g"``
-      * - ``MACHINEGUN``
-        - 2
-        - ``"mg"``
-      * - ``SHOTGUN``
-        - 3
-        - ``"sg"``
-      * - ``GRENADE_LAUNCHER``
-        - 4
-        - ``"gl"``
-      * - ``ROCKET_LAUNCHER``
-        - 5
-        - ``"rl"``
-      * - ``LIGHTNING``
-        - 6
-        - ``"lg"``
-      * - ``RAILGUN``
-        - 7
-        - ``"rg"``
-      * - ``PLASMAGUN``
-        - 8
-        - ``"pg"``
-      * - ``BFG``
-        - 9
-        - ``"bfg"``
-      * - ``GRAPPLING_HOOK``
-        - 10
-        - ``"gh"``
-      * - ``NAILGUN``
-        - 11
-        - ``"ng"``
-      * - ``PROX_LAUNCHER``
-        - 12
-        - ``"pl"``
-      * - ``CHAINGUN``
-        - 13
-        - ``"cg"``
-      * - ``HMG``
-        - 14
-        - ``"hmg"``
-      * - ``HANDS``
-        - 15
-        - ``"hands"``
-
 Permissions
 -----------
 
@@ -312,164 +488,23 @@ Permissions
    The permission of a single command can be overridden in the configuration of the server with
    ``perm_<command>`` under the header of the plugin, which is why the levels carry no fixed meaning for the engine.
 
-VoteStates
-----------
+Events
+------
 
-.. class:: VoteStates
+.. class:: Events
 
-   The states of a vote on the server.
-
-   .. attribute:: NONE
-      :value: 0
-
-   .. attribute:: PENDING
-      :value: 1
-
-   .. attribute:: YES
-      :value: 2
-
-   .. attribute:: NO
-      :value: 3
-
-   .. attribute:: FORCE_PASS
-      :value: 4
-
-   .. attribute:: FORCE_FAIL
-      :value: 5
-
-   .. attribute:: EXPIRED
-      :value: 6
-
-GameStates
-----------
-
-.. class:: GameStates
-
-   The states of a game, as :attr:`Game.state` returns them. A member compares equal to that string and has the hash of
-   it, so unlike the other enumerations a dictionary keyed by the strings can be searched with a member and vice versa.
-
-   .. attribute:: WARMUP
-      :value: "warmup"
-
-      The game has yet to start and is waiting for players to ready up.
-
-   .. attribute:: COUNTDOWN
-      :value: "countdown"
-
-      Players recently readied up, and it is counting down until the game starts.
-
-   .. attribute:: IN_PROGRESS
-      :value: "in_progress"
-
-      The game is in progress.
+   The names of the events that plugins can hook, e.g. ``Events.PLAYER_CONNECT`` for ``"player_connect"``. Unlike the
+   other enumerations, ``Events`` is a string enumeration (``class Events(str, enum.Enum)``): a member *is* the string, so
+   it is accepted wherever the event name is, hashes like it and ``str(member)`` and f-strings give the name.
 
    .. code-block:: python
 
-      if self.game.state == shinqlx.GameStates.IN_PROGRESS:
-          ...
+      class greeter(shinqlx.Plugin):
+          def __init__(self):
+              super().__init__()
+              self.add_hook(shinqlx.Events.PLAYER_LOADED, self.handle_player_loaded)
 
-Holdable
---------
+          @shinqlx.hook(shinqlx.Events.CHAT)
+          def handle_chat(self, player, msg, channel): ...
 
-.. class:: Holdable
-
-   The holdable items. ``str(member)`` is the name that :attr:`Player.holdable` returns and accepts, the integer value is
-   the item index of the engine. A member compares equal to its name, to the index and to nothing else.
-
-   .. attribute:: NONE
-      :value: 0
-
-   .. attribute:: TELEPORTER
-      :value: 27
-
-   .. attribute:: MEDKIT
-      :value: 28
-
-   .. attribute:: FLIGHT
-      :value: 34
-
-   .. attribute:: KAMIKAZE
-      :value: 37
-
-   .. attribute:: PORTAL
-      :value: 38
-
-   .. attribute:: INVULNERABILITY
-      :value: 39
-
-   .. attribute:: UNKNOWN
-      :value: 666
-
-      An item that the plugin API does not know.
-
-   .. code-block:: python
-
-      player.holdable = shinqlx.Holdable.TELEPORTER
-      assert player.holdable == shinqlx.Holdable.TELEPORTER
-
-CvarFlags
----------
-
-.. class:: CvarFlags
-
-   The flags of a cvar, e.g. for :meth:`Plugin.set_cvar`. Members can be combined with ``|`` and checked with ``&``,
-   the result is a plain :class:`int`. See :ref:`cvar_flags` for the meaning of the flags.
-
-   .. code-block:: python
-
-      flags = shinqlx.CvarFlags.ARCHIVE | shinqlx.CvarFlags.LATCH
-      shinqlx.Plugin.set_cvar("qlx_myCvar", "1", flags)
-
-   Members: ``ARCHIVE`` (1), ``USERINFO`` (2), ``SERVERINFO`` (4), ``SYSTEMINFO`` (8), ``INIT`` (16), ``LATCH`` (32),
-   ``ROM`` (64), ``USER_CREATED`` (128), ``TEMP`` (256), ``CHEAT`` (512) and ``NORESTART`` (1024). They are equal
-   to the constants ``CVAR_*``.
-
-DamageFlags
------------
-
-.. class:: DamageFlags
-
-   The flags of the damage that a player takes, as passed to the ``damage`` event. Members can be combined with
-   ``|`` and checked with ``&``, the result is a plain :class:`int`. See :ref:`damage_flags` for the meaning of
-   the flags.
-
-   Members: ``RADIUS`` (1), ``NO_ARMOR`` (2), ``NO_KNOCKBACK`` (4), ``NO_PROTECTION`` (8) and
-   ``NO_TEAM_PROTECTION`` (16). They are equal to the constants ``DAMAGE_*``.
-
-MeansOfDeath
-------------
-
-.. class:: MeansOfDeath
-
-   The causes of a death, e.g. the argument of :func:`slay_with_mod`. See :ref:`means_of_death` for the meaning of
-   the values. The members are named like the constants ``MOD_*`` without the prefix, e.g.
-   ``MeansOfDeath.ROCKET_SPLASH`` is equal to :data:`MOD_ROCKET_SPLASH`.
-
-   Members: ``UNKNOWN``, ``SHOTGUN``, ``GAUNTLET``, ``MACHINEGUN``, ``GRENADE``, ``GRENADE_SPLASH``, ``ROCKET``,
-   ``ROCKET_SPLASH``, ``PLASMA``, ``PLASMA_SPLASH``, ``RAILGUN``, ``LIGHTNING``, ``BFG``, ``BFG_SPLASH``, ``WATER``,
-   ``SLIME``, ``LAVA``, ``CRUSH``, ``TELEFRAG``, ``FALLING``, ``SUICIDE``, ``TARGET_LASER``, ``TRIGGER_HURT``,
-   ``NAIL``, ``CHAINGUN``, ``PROXIMITY_MINE``, ``KAMIKAZE``, ``JUICED``, ``GRAPPLE``, ``SWITCH_TEAMS``, ``THAW``,
-   ``LIGHTNING_DISCHARGE``, ``HMG`` and ``RAILGUN_HEADSHOT``.
-
-ConfigString
-------------
-
-.. class:: ConfigString
-
-   The indices of the configstrings of the server, usable wherever :func:`get_configstring` and
-   :func:`set_configstring` expect an index. The members are named like the engine's constants without the ``CS_``
-   prefix and compare equal to their index only.
-
-   .. code-block:: python
-
-      motd = shinqlx.get_configstring(shinqlx.ConfigString.MOTD)
-
-   Members: ``SERVERINFO``, ``SYSTEMINFO``, ``MUSIC``, ``MESSAGE``, ``MOTD``, ``WARMUP``, ``SCORES1``, ``SCORES2``,
-   ``VOTE_TIME``, ``VOTE_STRING``, ``VOTE_YES``, ``VOTE_NO``, ``GAME_VERSION``, ``LEVEL_START_TIME``,
-   ``INTERMISSION``, ``ITEMS``, ``MODELS``, ``SOUNDS``, ``PLAYERS``, ``LOCATIONS``, ``PARTICLES``, ``FLAGSTATUS``,
-   ``FIRSTPLACE``, ``SECONDPLACE``, ``ROUND_STATUS``, ``ROUND_TIME``, ``RED_PLAYERS_LEFT``, ``BLUE_PLAYERS_LEFT``,
-   ``SHADERSTATE``, ``NEXTMAP``, ``PRACTICE``, ``FREECAM``, ``PAUSE_START_TIME``, ``PAUSE_END_TIME``,
-   ``TIMEOUTS_RED``, ``TIMEOUTS_BLUE``, ``MODEL_OVERRIDE``, ``PLAYER_CYLINDERS``, ``DEBUGFLAGS``, ``ENABLEBREATH``,
-   ``DMGTHROUGHDEPTH``, ``AUTHOR``, ``AUTHOR2``, ``ADVERT_DELAY``, ``PMOVEINFO``, ``ARMORINFO``, ``WEAPONINFO``,
-   ``PLAYERINFO``, ``SCORE1STPLAYER``, ``SCORE2NDPLAYER``, ``CLIENTNUM1STPLAYER``, ``CLIENTNUM2NDPLAYER``,
-   ``NAME1STPLAYER``, ``NAME2NDPLAYER``, ``ATMOSEFFECT`` and ``MOST_DAMAGEDEALT_PLYR``.
+   There is a member for every event of :ref:`events`, named like the event in upper case.

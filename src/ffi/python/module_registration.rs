@@ -10,11 +10,12 @@ use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, ConnectionStates,
     DEFAULT_PLUGINS, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, GameTypes, MODULES, PluginLoadError,
     PluginUnloadError, RED_TEAM_CHAT_CHANNEL, SHINQLX_THREADNAME, SPECTATOR_CHAT_CHANNEL, Teams,
-    decorators, delay, get_stats_listener, handlers, initialize, initialize_cvars, load_plugin,
-    load_preset_plugins, next_frame, prelude::*, pyshinqlx_configure_logger, pyshinqlx_get_logger,
-    pyshinqlx_handle_exception, pyshinqlx_handle_threading_exception, pyshinqlx_log_exception,
-    pyshinqlx_owner, pyshinqlx_parse_variables, reload_plugin, set_map_subtitles,
-    set_plugins_version, thread, try_get_plugins_path, unload_plugin, uptime,
+    decorators, delay, events_enum::register_events_enum, get_stats_listener, handlers, initialize,
+    initialize_cvars, load_plugin, load_preset_plugins, next_frame, prelude::*,
+    pyshinqlx_configure_logger, pyshinqlx_get_logger, pyshinqlx_handle_exception,
+    pyshinqlx_handle_threading_exception, pyshinqlx_log_exception, pyshinqlx_owner,
+    pyshinqlx_parse_variables, reload_plugin, set_map_subtitles, set_plugins_version, thread,
+    try_get_plugins_path, unload_plugin, uptime,
 };
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
@@ -338,6 +339,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<VoteState>()?;
     m.add_class::<Weapon>()?;
     m.add_class::<Permission>()?;
+    register_events_enum(m)?;
     m.add_class::<GameState>()?;
     m.add_class::<Holdable>()?;
     m.add_class::<CvarFlag>()?;

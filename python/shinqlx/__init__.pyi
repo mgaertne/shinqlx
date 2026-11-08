@@ -128,7 +128,7 @@ from ._player import (
     Player,
     RconDummyPlayer,
 )
-from ._plugin import Cvar, Plugin, command, cvar, hook
+from ._plugin import Cvar, Plugin, command, hook
 from ._shinqlx import (
     CS_ACTIVE,
     CS_CONNECTED,
@@ -208,6 +208,7 @@ from ._shinqlx import (
     ConnectionStates,
     CvarFlags,
     DamageFlags,
+    Events,
     Flight,
     GameStates,
     Holdable,
@@ -823,6 +824,7 @@ __all__ = [
     "DeathDispatcher",
     "EventDispatcher",
     "EventDispatcherManager",
+    "Events",
     "Flight",
     "FrameEventDispatcher",
     "Game",
@@ -929,7 +931,6 @@ __all__ = [
     "command",
     "console_command",
     "console_print",
-    "cvar",
     "database",
     "delay",
     "destroy_kamikaze_timers",
