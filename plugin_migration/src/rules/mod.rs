@@ -1,6 +1,7 @@
 mod decorators;
 mod default_plugin_access;
 mod enum_constants;
+mod enum_imports;
 mod event_names;
 mod module_rename;
 mod permission_levels;
@@ -10,6 +11,7 @@ mod slay_with_mod;
 pub(crate) use decorators::Decorators;
 pub(crate) use default_plugin_access::DefaultPluginAccess;
 pub(crate) use enum_constants::EnumConstants;
+pub(crate) use enum_imports::EnumImports;
 pub(crate) use event_names::EventNames;
 pub(crate) use module_rename::ModuleRename;
 pub(crate) use permission_levels::PermissionLevels;
@@ -55,6 +57,7 @@ pub(crate) fn default_rules() -> Vec<Box<dyn Rule>> {
         Box::new(DefaultPluginAccess),
         Box::new(EventNames),
         Box::new(EnumConstants),
+        Box::new(EnumImports),
         Box::new(PermissionLevels),
         Box::new(Decorators),
         Box::new(ModuleRename),

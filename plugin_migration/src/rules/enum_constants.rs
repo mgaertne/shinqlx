@@ -20,7 +20,7 @@ const COMPARISON_OPERATORS: [&str; 5] = ["==", "!=", "in", "not", "not in"];
 /// the member is accepted: in a `return`, a comparison and the arguments that take the enum.
 pub(crate) struct EnumConstants;
 
-fn enum_member(constant: &str) -> Option<(&'static str, &str)> {
+pub(super) fn enum_member(constant: &str) -> Option<(&'static str, &str)> {
     let stub = shinqlx_stub();
     ENUMS.iter().find_map(|(prefix, class)| {
         let member = constant.strip_prefix(prefix)?;
@@ -100,7 +100,7 @@ fn takes_enum_as_keyword(class: &str, keyword_argument: Node<'_>, source: &Sourc
     )
 }
 
-fn is_accepted_here(class: &str, constant: Node<'_>, source: &Source<'_>) -> bool {
+pub(super) fn is_accepted_here(class: &str, constant: Node<'_>, source: &Source<'_>) -> bool {
     let (operand, in_container) = outermost_operand(constant);
     let Some(parent) = operand.parent() else {
         return false;

@@ -25,9 +25,10 @@ The rules run in this order, each on the result of the previous one:
 |---|---|
 | `redis-keywords` | `db.setex(key, time, value)`, `db.lrem(key, count, value)` and `db.zincrby(key, value, amount)` take their arguments by keyword in shinqlx. For `zincrby` the amount is recognised by being a number or a negated value, because redis-py 2.x and 3 differ in the order. |
 | `slay-with-mod` | `mod=` of `slay_with_mod` becomes `means_of_death=` (`mean_of_death=` for the module function). |
-| `default-plugin-access` | Warns about `plugins["essentials"].something` that the Rust default plugins do not provide, and about `next_frame_tasks`. |
+| `default-plugin-access` | Warns about `plugins["essentials"].something` that the Rust default plugins do not provide (the Python plugin of that name is still needed then), and about `next_frame_tasks`. |
 | `event-names` | The event name in `add_hook`/`remove_hook` becomes `Events.X`. Unknown names stay strings. |
 | `enum-constants` | `RET_*`, `PRI_*`, `CVAR_*`, `TEAM_*`, `CS_*`, `MOD_*`, `PRIV_*` and `DAMAGE_*` become members of `ReturnCodes`, `Priorities`, `CvarFlags`, `Teams`, `ConnectionStates`, `MeansOfDeath`, `Privileges` and `DamageFlags`, but only where a member is accepted: in `return`, in `==`/`!=`/`in` comparisons and in the arguments that take the enum. |
+| `enum-imports` | The same for constants imported with `from minqlx import RET_STOP`: the use becomes `ReturnCodes.STOP` and the import brings in `ReturnCodes`. Multi-line imports and imports with `as` are left alone. |
 | `permission-levels` | A permission level 0 to 5 in `add_command` becomes `Permissions.PLAYER` to `Permissions.GOD`. |
 | `decorators` | `self.add_hook(...)` and `self.add_command(...)` directly in `__init__` become `@hook`/`@command` on the handler, if all arguments are constants and the handler is a method of the same class. Other registrations are kept, with a warning that names the reason. |
 | `module-rename` | `minqlx` becomes `shinqlx` in imports and attribute accesses. If a file rebinds the name `minqlx`, it is left alone. |
