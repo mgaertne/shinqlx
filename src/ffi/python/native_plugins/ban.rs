@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use parking_lot::Mutex;
 use pyo3::{
+    PyTraverseError,
     exceptions::{PyKeyError, PyValueError},
+    gc::PyVisit,
     intern,
     prelude::*,
     types::{PyDict, PyFloat, PyInt},
@@ -160,6 +162,13 @@ fn is_in_progress(plugin: &Bound<'_, Ban>) -> PyResult<bool> {
 
 #[pymethods]
 impl Ban {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        self.players_start
+            .lock()
+            .iter()
+            .try_for_each(|(_, started)| visit.call(started))
+    }
+
     /// The expiry and the reason of the longest active ban of the player, for other plugins.
     fn is_banned<'py>(
         slf: &Bound<'py, Self>,

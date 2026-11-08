@@ -1,4 +1,8 @@
-use pyo3::types::{PyString, PyTuple};
+use pyo3::{
+    PyTraverseError,
+    gc::PyVisit,
+    types::{PyString, PyTuple},
+};
 
 use super::{EventDispatcher, prelude::*};
 
@@ -23,6 +27,10 @@ impl VoteStartedDispatcher {
         reason = "exposed to Python as a lower-case class attribute"
     )]
     const need_zmq_stats_enabled: bool = false;
+
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&*self.player.read())
+    }
 
     #[new]
     fn py_new(py: Python<'_>) -> PyClassInitializer<Self> {

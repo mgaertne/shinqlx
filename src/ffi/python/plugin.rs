@@ -234,6 +234,7 @@ impl Plugin {
     fn __clear__(&self) {
         self.hooks.write().clear();
         self.commands.write().clear();
+        Python::attach(|py| *self.db_instance.write() = py.None());
     }
 
     fn __str__(slf: &Bound<'_, Self>) -> PyResult<String> {

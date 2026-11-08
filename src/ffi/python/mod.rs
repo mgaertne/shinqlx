@@ -15,6 +15,8 @@ mod flag_enums;
 mod flight;
 mod game;
 mod game_enums;
+#[cfg(test)]
+mod gc_tests;
 mod handlers;
 mod holdable;
 mod int_tuple;

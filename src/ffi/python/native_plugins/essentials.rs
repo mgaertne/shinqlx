@@ -5,6 +5,8 @@ use std::{
 
 use parking_lot::Mutex;
 use pyo3::{
+    PyTraverseError,
+    gc::PyVisit,
     intern,
     prelude::*,
     types::{IntoPyDict, PyFloat, PyInt},
@@ -182,6 +184,17 @@ impl Essentials {
 
 #[pymethods]
 impl Essentials {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        self.recent_commands
+            .lock()
+            .iter()
+            .try_for_each(|(player, _)| visit.call(player))?;
+        self.recent_disconnects
+            .lock()
+            .iter()
+            .try_for_each(|(player, _)| visit.call(player))
+    }
+
     fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
         update_player(&slf.as_super().get_db()?, player)
     }

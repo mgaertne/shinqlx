@@ -1,7 +1,9 @@
 use core::hint::cold_path;
 
 use pyo3::{
+    PyTraverseError,
     exceptions::{PyAttributeError, PyTypeError, PyValueError},
+    gc::PyVisit,
     intern,
     prelude::*,
     types::{PyBool, PyCFunction, PyDict, PyFloat, PyInt, PyList, PySet, PyTuple, PyType},
@@ -223,6 +225,11 @@ struct Cvar {
 
 #[pymethods]
 impl Cvar {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.minimum)?;
+        visit.call(&self.maximum)
+    }
+
     #[new]
     #[pyo3(
         signature = (name, default = None, *, r#type = None, flags = 0, minimum = None, maximum = None),

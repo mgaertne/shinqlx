@@ -1,4 +1,6 @@
 use pyo3::{
+    PyTraverseError,
+    gc::PyVisit,
     intern,
     prelude::*,
     types::{PyDict, PyTuple},
@@ -86,6 +88,10 @@ impl DeferredCall {
 
 #[pymethods]
 impl DeferredCall {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.func)
+    }
+
     #[pyo3(signature = (*args, **kwargs))]
     fn __call__<'py>(
         &self,

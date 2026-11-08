@@ -1,7 +1,9 @@
 use std::{fs::create_dir_all, path::Path};
 
 use pyo3::{
+    PyTraverseError,
     exceptions::PyEnvironmentError,
+    gc::PyVisit,
     intern,
     prelude::*,
     types::{PyDict, PyInt},
@@ -31,6 +33,10 @@ impl ChatLog {
 
 #[pymethods]
 impl ChatLog {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.chatlog)
+    }
+
     fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
         let py = slf.py();
         let message = format!(
