@@ -1,13 +1,12 @@
-from typing import TYPE_CHECKING
+import sys
+from typing import Literal, TypedDict
 
-if TYPE_CHECKING:
-    import sys
-    from typing import Literal, TypedDict
+from typing_extensions import TypeAlias
 
-    if sys.version_info >= (3, 11):
-        from typing import NotRequired
-    else:
-        from typing_extensions import NotRequired
+if sys.version_info >= (3, 11):
+    from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from . import database
 from ._commands import (
@@ -103,6 +102,7 @@ from ._game import (
     NonexistentGameError,
 )
 from ._handlers import (
+    PrintRedirector,
     frame_tasks,
     handle_client_command,
     handle_console_print,
@@ -312,8 +312,8 @@ class UserInfo(TypedDict):
     handicap: str
     password: NotRequired[str]
 
-UncancellableEventReturn = Literal[0] | None
-CancellableEventReturn = Literal[0, 1, 2, 3] | None
+UncancellableEventReturn: TypeAlias = Literal[0] | None
+CancellableEventReturn: TypeAlias = Literal[0, 1, 2, 3] | None
 
 class PlayerSummaryData(TypedDict):
     NAME: str
@@ -379,9 +379,9 @@ class Vector(TypedDict):
     y: float
     z: float
 
-PowerUps = Literal["QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"]
-StatsHoldable = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
-StatsWeapon = Literal[
+PowerUps: TypeAlias = Literal["QUAD", "BATTLESUIT", "HASTE", "INVISIBILITY", "REGENERATION", "INVULNERABILITY"]
+StatsHoldable: TypeAlias = Literal["TELEPORTER", "MEDKIT", "FLIGHT", "KAMIKAZE", "PORTAL", "INVULNERABILITY"]
+StatsWeapon: TypeAlias = Literal[
     "GAUNTLET",
     "MACHINEGUN",
     "SHOTGUN",
@@ -417,7 +417,7 @@ class PlayerData(TypedDict):
     VIEW: Vector
     WEAPON: StatsWeapon
 
-StatsMeansOfDeath = Literal[
+StatsMeansOfDeath: TypeAlias = Literal[
     "UNKNOWN",
     "SHOTGUN",
     "GAUNTLET",
@@ -697,7 +697,7 @@ class PlayerStatsStats(TypedDict):
     DATA: PlayerStatsEntry
     TYPE: Literal["PLAYER_STATS"]
 
-StatsData = (
+StatsData: TypeAlias = (
     PlayerKillStats
     | PlayerDeathStats
     | PlayerMedalStats
@@ -874,6 +874,7 @@ __all__ = [
     "PluginUnloadError",
     "PowerUps",
     "Powerups",
+    "PrintRedirector",
     "Priorities",
     "Privileges",
     "RconDummyPlayer",

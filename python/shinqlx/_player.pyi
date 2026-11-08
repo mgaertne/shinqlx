@@ -1,33 +1,32 @@
-from typing import TYPE_CHECKING, SupportsIndex
+import sys
+from collections.abc import Iterable
+from typing import Literal, SupportsIndex, TypedDict, final
 
-if TYPE_CHECKING:
-    import sys
-    from collections.abc import Iterable
-    from typing import Literal, TypedDict
+from typing_extensions import Self
 
-    from ._shinqlx import Holdable, Privileges, Teams, Weapon
+from ._shinqlx import Holdable, Privileges, Teams, Weapon
 
-    if sys.version_info >= (3, 11):
-        from typing import NotRequired, Unpack
-    else:
-        from typing_extensions import NotRequired, Unpack
+if sys.version_info >= (3, 11):
+    from typing import NotRequired, Unpack
+else:
+    from typing_extensions import NotRequired, Unpack
 
-    from shinqlx import (
-        AbstractChannel,
-        Flight,
-        PlayerInfo,
-        PlayerState,
-        PlayerStats,
-        Powerups,
-        UserInfo,
-        Vector3,
-        Weapons,
-    )
+from shinqlx import (
+    AbstractChannel,
+    Flight,
+    PlayerInfo,
+    PlayerState,
+    PlayerStats,
+    Powerups,
+    UserInfo,
+    Vector3,
+    Weapons,
+)
 
 class Vector3Kwargs(TypedDict):
-    x: NotRequired[int | float]
-    y: NotRequired[int | float]
-    z: NotRequired[int | float]
+    x: NotRequired[float]
+    y: NotRequired[float]
+    z: NotRequired[float]
 
 class WeaponsKwargs(TypedDict):
     g: NotRequired[bool | int]
@@ -90,13 +89,11 @@ class Player:
     _steam_id = int
     _name: str
 
-    def __init__(self, client_id: int, info: PlayerInfo | None = ...) -> None: ...
-    def __repr__(self) -> str: ...
-    def __str__(self) -> str: ...
-    def __contains__(self, key: str) -> bool: ...
-    def __getitem__(self, key: str) -> str: ...
-    def __eq__(self, other: object) -> bool: ...
-    def __ne__(self, other: object) -> bool: ...
+    def __new__(cls, client_id: int, info: PlayerInfo | None = ...) -> Self: ...
+    def __contains__(self, key: str, /) -> bool: ...
+    def __getitem__(self, key: str, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+    def __ne__(self, other: object, /) -> bool: ...
     def update(self) -> None: ...
     def _invalidate(self, e: str = ...) -> None: ...
     @property
@@ -179,8 +176,22 @@ class Player:
     def weapon(
         self,
         new_weapon: (
-            Literal[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-            | Literal[
+            Literal[
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
                 "g",
                 "mg",
                 "sg",
@@ -267,7 +278,7 @@ class Player:
     def switch(self, other_player: Player) -> None: ...
     def slap(self, damage: int = ...) -> None: ...
     def slay(self) -> None: ...
-    def slay_with_mod(self, mod: SupportsIndex) -> bool: ...
+    def slay_with_mod(self, means_of_death: SupportsIndex) -> bool: ...
 
 _DUMMY_USERINFO: Iterable[str]
 
@@ -282,6 +293,7 @@ class AbstractDummyPlayer(Player):
     def channel(self) -> AbstractChannel: ...
     def tell(self, msg: str, **kwargs: str) -> None: ...
 
+@final
 class RconDummyPlayer(AbstractDummyPlayer):
     def __init__(self) -> None: ...
     @property

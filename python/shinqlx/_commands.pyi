@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, SupportsIndex
+from collections.abc import Iterable
+from re import Pattern
+from typing import Callable, SupportsIndex, final
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from re import Pattern
-    from typing import Callable
-
-    from shinqlx import Player, Plugin
+from shinqlx import Player, Plugin
+from typing_extensions import Self
 
 MAX_MSG_LENGTH: int
 
@@ -14,10 +12,8 @@ re_color_tag: Pattern
 
 class AbstractChannel(ABC):
     def __init__(self, name: str) -> None: ...
-    def __str__(self) -> str: ...
-    def __repr__(self) -> str: ...
-    def __eq__(self, other: object) -> bool: ...
-    def __ne__(self, other: object) -> bool: ...
+    def __eq__(self, other: object, /) -> bool: ...
+    def __ne__(self, other: object, /) -> bool: ...
     @property
     def name(self) -> str: ...
     @abstractmethod
@@ -41,7 +37,8 @@ class TeamChatChannel(ChatChannel):
 
 class TellChannel(ChatChannel):
     def __init__(self, player: Player) -> None: ...
-    def __repr__(self) -> str: ...
+    @property
+    def client_id(self) -> int: ...
     @property
     def recipient(self) -> Player: ...
     def recipients(self) -> list[int] | None: ...
@@ -52,7 +49,8 @@ class ConsoleChannel(AbstractChannel):
 
 class ClientCommandChannel(AbstractChannel):
     def __init__(self, player: Player) -> None: ...
-    def __repr__(self) -> str: ...
+    @property
+    def client_id(self) -> int: ...
     @property
     def recipient(self) -> Player: ...
     @property
@@ -66,6 +64,7 @@ FREE_CHAT_CHANNEL: AbstractChannel
 SPECTATOR_CHAT_CHANNEL: AbstractChannel
 CONSOLE_CHANNEL: AbstractChannel
 
+@final
 class Command:
     name: list[str]
     plugin: Plugin
@@ -78,8 +77,8 @@ class Command:
     prefix: bool
     usage: str
 
-    def __init__(
-        self,
+    def __new__(
+        cls,
         plugin: Plugin,
         name: str | Iterable[str],
         handler: Callable,
@@ -90,12 +89,13 @@ class Command:
         client_cmd_perm: SupportsIndex,
         prefix: bool,
         usage: str,
-    ) -> None: ...
+    ) -> Self: ...
     def execute(self, player: Player, msg: str, channel: AbstractChannel) -> int | None: ...
     def is_eligible_name(self, name: str) -> bool: ...
     def is_eligible_channel(self, channel: AbstractChannel) -> bool: ...
     def is_eligible_player(self, player: Player, is_client_cmd: bool) -> bool: ...
 
+@final
 class CommandInvoker:
     _commands: tuple[list[Command], list[Command], list[Command], list[Command], list[Command]]
 

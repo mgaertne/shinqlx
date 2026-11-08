@@ -1,3 +1,6 @@
+from typing import final
+
+@final
 class StatsListener:
     done: bool
     address: str

@@ -68,7 +68,7 @@ line-length = 120
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["B", "C4", "C40", "E", "F", "I", "PERF", "PIE", "RUF", "SIM", "TCH", "UP"]
+select = ["B", "C4", "C40", "E", "F", "I", "PERF", "PIE", "PYI", "RUF", "SIM", "TCH", "UP"]
 ignore = []
 fixable = [
     "B", "C", "COM", "E", "F", "FA", "FAST", "FLY", "I", "ICN", "ISC", "NPY",
@@ -108,7 +108,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [tool.tox]
-env_list = ["ruff", "mypy", "ty", "docs"]
+env_list = ["ruff", "mypy", "ty", "stubtest", "docs"]
 
 [tool.tox.env_run_base]
 package = "editable"
@@ -125,6 +125,18 @@ commands = [
 package = "deps-only"
 extras = [ "mypy" ]
 commands = [[ "mypy", { replace = "posargs", default = [], extend = true } ]]
+
+[tool.tox.env.stubtest]
+package = "deps-only"
+extras = [ "mypy" ]
+allowlist_externals = [ "cargo" ]
+pass_env = [ "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN" ]
+set_env = { MYPYPATH = "{toxinidir}/python", PYO3_PYTHON = "{env_python}", PYTHONPATH = "{env_dir}{/}runtime" }
+commands_pre = [
+    [ "cargo", "build", "--no-default-features", "--features", "steam-query-limit", "--target-dir", "{env_dir}{/}target" ],
+    [ "python", "-c", "import os, shutil, sys, sysconfig; runtime = sys.argv[1] + '/runtime'; os.makedirs(runtime, exist_ok=True); shutil.copyfile(sys.argv[1] + '/target/debug/libshinqlx.so', runtime + '/shinqlx' + sysconfig.get_config_var('EXT_SUFFIX'))", "{env_dir}" ],
+]
+commands = [[ "python", "{toxinidir}{/}tools{/}run_stubtest.py", "shinqlx", "--allowlist", "{toxinidir}{/}stubtest_allowlist.txt", { replace = "posargs", default = [], extend = true } ]]
 
 [tool.tox.env.ty]
 package = "deps-only"

@@ -1,12 +1,9 @@
-from typing import TYPE_CHECKING
+from datetime import timedelta
+from logging import Logger
+from types import ModuleType, TracebackType
+from typing import Callable, Protocol
 
-if TYPE_CHECKING:
-    from datetime import timedelta
-    from logging import Logger
-    from types import ModuleType, TracebackType
-    from typing import Callable, Protocol
-
-    from shinqlx import Plugin, StatsListener
+from shinqlx import Plugin, StatsListener
 
 class PluginLoadError(Exception): ...
 class PluginUnloadError(Exception): ...

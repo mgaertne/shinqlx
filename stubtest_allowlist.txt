@@ -1,0 +1,66 @@
+# Allowlist for mypy.stubtest, run with: uvx tox -e stubtest
+# Every line is a regular expression.
+
+# The stubs declare these names for the type checkers only, they do not exist at runtime.
+shinqlx.__all__
+shinqlx.CancellableEventReturn
+shinqlx._core.ExceptHookArgs
+shinqlx.DamageEntry
+shinqlx.database.Redis.__getattr__
+shinqlx.DeathData
+shinqlx.GameEndData
+shinqlx.GameStartData
+shinqlx.KillData
+shinqlx.MatchReportStats
+shinqlx.MatchStartedStats
+shinqlx.MedalData
+shinqlx.MedalsEntry
+shinqlx.PickupsEntry
+shinqlx._player.AmmoKwargs
+shinqlx.PlayerConnectStats
+shinqlx.PlayerData
+shinqlx.PlayerDeathStats
+shinqlx.PlayerDisconnectStats
+shinqlx._player.FlightKwargs
+shinqlx.PlayerGameData
+shinqlx.PlayerKillStats
+shinqlx.PlayerMedalStats
+shinqlx._player.PowerupsKwargs
+shinqlx.PlayerStatsEntry
+shinqlx.PlayerStatsStats
+shinqlx.PlayerSummaryData
+shinqlx.PlayerSwitchTeamStats
+shinqlx._player.Vector3Kwargs
+shinqlx._player.WeaponsKwargs
+shinqlx.PowerUps
+shinqlx.RoundEndData
+shinqlx.RoundOverStats
+shinqlx.SingleWeaponStatsEntry
+shinqlx.StatsData
+shinqlx.StatsHoldable
+shinqlx.StatsMeansOfDeath
+shinqlx.StatsWeapon
+shinqlx.TeamSwitchEvent
+shinqlx.TeamSwitchGameData
+shinqlx.UncancellableEventReturn
+shinqlx.UserInfo
+shinqlx.UserinfoEventInput
+shinqlx.Vector
+shinqlx.WeaponsStatsEntry
+
+# @disjoint_base needs a recent typing_extensions in the type checkers of the users.
+shinqlx._commands.AbstractChannel
+shinqlx._commands.ChatChannel
+shinqlx._commands.ClientCommandChannel
+shinqlx._commands.TeamChatChannel
+shinqlx._commands.TellChannel
+shinqlx.database.AbstractDatabase
+shinqlx._events.EventDispatcher
+shinqlx._player.Player
+shinqlx._plugin.Plugin
+
+# The typed dispatch overloads narrow the *args signature of the runtime to the arguments of each event.
+shinqlx\._events\..*\.dispatch
+
+# The Enum with the str mixin has a different __new__ signature at runtime.
+shinqlx._shinqlx.Events.__new__

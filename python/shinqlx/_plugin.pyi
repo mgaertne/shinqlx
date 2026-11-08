@@ -1,105 +1,105 @@
-from typing import TYPE_CHECKING, Generic, SupportsIndex, TypeVar, overload
+import builtins
+from collections.abc import Iterable, Mapping
+from logging import Logger
+from typing import Any, Callable, ClassVar, Generic, Literal, SupportsIndex, TypeVar, final, overload
 
-if TYPE_CHECKING:
-    import builtins
-    from collections.abc import Iterable, Mapping
-    from logging import Logger
-    from typing import Any, Callable, ClassVar, Literal, NoReturn
+from shinqlx import (
+    AbstractChannel,
+    CancellableEventReturn,
+    Command,
+    DeathData,
+    Game,
+    GameEndData,
+    GameStartData,
+    KillData,
+    Player,
+    RoundEndData,
+    StatsData,
+    UncancellableEventReturn,
+    UserInfo,
+    UserinfoEventInput,
+)
+from shinqlx.database import Redis
+from typing_extensions import Never, TypeAlias
 
-    from shinqlx import (
-        AbstractChannel,
-        CancellableEventReturn,
-        Command,
-        DeathData,
-        Game,
-        GameEndData,
-        GameStartData,
-        KillData,
-        Player,
-        RoundEndData,
-        StatsData,
-        UncancellableEventReturn,
-        UserInfo,
-        UserinfoEventInput,
-    )
-    from shinqlx.database import Redis
+from ._shinqlx import Events, Teams
 
-    from ._shinqlx import Events, Teams
-
-_PluginT = TypeVar("_PluginT", bound="Plugin")
+_PluginT = TypeVar("_PluginT", bound=Plugin)
 _CvarT = TypeVar("_CvarT")
 
-_ConsolePrintHookHandler = Callable[[str], str | CancellableEventReturn]
-_ConsolePrintHookMethod = Callable[[_PluginT, str], str | CancellableEventReturn]
-_CommandHookHandler = Callable[[Player, Command, str], CancellableEventReturn]
-_CommandHookMethod = Callable[[_PluginT, Player, Command, str], CancellableEventReturn]
-_ClientCommandHookHandler = Callable[[Player | None, str], str | bool | CancellableEventReturn]
-_ClientCommandHookMethod = Callable[[_PluginT, Player | None, str], str | bool | CancellableEventReturn]
-_ServerCommandHookHandler = Callable[[Player | None, str], str | CancellableEventReturn]
-_ServerCommandHookMethod = Callable[[_PluginT, Player | None, str], str | CancellableEventReturn]
-_FrameHookHandler = Callable[[], UncancellableEventReturn]
-_FrameHookMethod = Callable[[_PluginT], UncancellableEventReturn]
-_SetConfigstringHookHandler = Callable[[int, str], str | CancellableEventReturn]
-_SetConfigstringHookMethod = Callable[[_PluginT, int, str], str | CancellableEventReturn]
-_ChatHookHandler = Callable[[Player, str, AbstractChannel], str | CancellableEventReturn]
-_ChatHookMethod = Callable[[_PluginT, Player, str, AbstractChannel], str | CancellableEventReturn]
-_UnloadHookHandler = Callable[[Plugin], UncancellableEventReturn]
-_UnloadHookMethod = Callable[[_PluginT, Plugin], UncancellableEventReturn]
-_PlayerConnectHookHandler = Callable[[Player], str | CancellableEventReturn]
-_PlayerConnectHookMethod = Callable[[_PluginT, Player], str | CancellableEventReturn]
-_PlayerLoadedHookHandler = Callable[[Player], UncancellableEventReturn]
-_PlayerLoadedHookMethod = Callable[[_PluginT, Player], UncancellableEventReturn]
-_PlayerDisconnectHookHandler = Callable[[Player, str | None], UncancellableEventReturn]
-_PlayerDisconnectHookMethod = Callable[[_PluginT, Player, str | None], UncancellableEventReturn]
-_PlayerSpawnHookHandler = Callable[[Player], UncancellableEventReturn]
-_PlayerSpawnHookMethod = Callable[[_PluginT, Player], UncancellableEventReturn]
-_StatsHookHandler = Callable[[StatsData], UncancellableEventReturn]
-_StatsHookMethod = Callable[[_PluginT, StatsData], UncancellableEventReturn]
-_VoteCalledHookHandler = Callable[[Player, str, str | None], CancellableEventReturn]
-_VoteCalledHookMethod = Callable[[_PluginT, Player, str, str | None], CancellableEventReturn]
-_VoteStartedHookHandler = Callable[[Player, str, str | None], CancellableEventReturn]
-_VoteStartedHookMethod = Callable[[_PluginT, Player, str, str | None], CancellableEventReturn]
-_VoteEndedHookHandler = Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn]
-_VoteEndedHookMethod = Callable[[_PluginT, tuple[int, int], str, str | None, bool], CancellableEventReturn]
-_VoteHookHandler = Callable[[Player, bool], CancellableEventReturn]
-_VoteHookMethod = Callable[[_PluginT, Player, bool], CancellableEventReturn]
-_GameCountdownHookHandler = Callable[[], CancellableEventReturn]
-_GameCountdownHookMethod = Callable[[_PluginT], CancellableEventReturn]
-_GameStartHookHandler = Callable[[GameStartData], CancellableEventReturn]
-_GameStartHookMethod = Callable[[_PluginT, GameStartData], CancellableEventReturn]
-_GameEndHookHandler = Callable[[GameEndData], CancellableEventReturn]
-_GameEndHookMethod = Callable[[_PluginT, GameEndData], CancellableEventReturn]
-_RoundCountdownHookHandler = Callable[[int], CancellableEventReturn]
-_RoundCountdownHookMethod = Callable[[_PluginT, int], CancellableEventReturn]
-_RoundStartHookHandler = Callable[[int], CancellableEventReturn]
-_RoundStartHookMethod = Callable[[_PluginT, int], CancellableEventReturn]
-_RoundEndHookHandler = Callable[[RoundEndData], CancellableEventReturn]
-_RoundEndHookMethod = Callable[[_PluginT, RoundEndData], CancellableEventReturn]
-_TeamSwitchHookHandler = Callable[[Player, str, str], CancellableEventReturn]
-_TeamSwitchHookMethod = Callable[[_PluginT, Player, str, str], CancellableEventReturn]
-_TeamSwitchAttemptHookHandler = Callable[[Player, str, str], CancellableEventReturn]
-_TeamSwitchAttemptHookMethod = Callable[[_PluginT, Player, str, str], CancellableEventReturn]
-_MapHookHandler = Callable[[str, str], CancellableEventReturn]
-_MapHookMethod = Callable[[_PluginT, str, str], CancellableEventReturn]
-_NewGameHookHandler = Callable[[], CancellableEventReturn]
-_NewGameHookMethod = Callable[[_PluginT], CancellableEventReturn]
-_KillHookHandler = Callable[[Player, Player, KillData], CancellableEventReturn]
-_KillHookMethod = Callable[[_PluginT, Player, Player, KillData], CancellableEventReturn]
-_DeathHookHandler = Callable[[Player, Player | None, DeathData], CancellableEventReturn]
-_DeathHookMethod = Callable[[_PluginT, Player, Player | None, DeathData], CancellableEventReturn]
-_UserinfoHookHandler = Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
-_UserinfoHookMethod = Callable[[_PluginT, Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
-_KamikazeUseHookHandler = Callable[[Player], CancellableEventReturn]
-_KamikazeUseHookMethod = Callable[[_PluginT, Player], CancellableEventReturn]
-_KamikazeExplodeHookHandler = Callable[[Player, bool], CancellableEventReturn]
-_KamikazeExplodeHookMethod = Callable[[_PluginT, Player, bool], CancellableEventReturn]
-_DamageHookHandler = Callable[[Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn]
-_DamageHookMethod = Callable[
+_ConsolePrintHookHandler: TypeAlias = Callable[[str], str | CancellableEventReturn]
+_ConsolePrintHookMethod: TypeAlias = Callable[[_PluginT, str], str | CancellableEventReturn]
+_CommandHookHandler: TypeAlias = Callable[[Player, Command, str], CancellableEventReturn]
+_CommandHookMethod: TypeAlias = Callable[[_PluginT, Player, Command, str], CancellableEventReturn]
+_ClientCommandHookHandler: TypeAlias = Callable[[Player | None, str], str | bool | CancellableEventReturn]
+_ClientCommandHookMethod: TypeAlias = Callable[[_PluginT, Player | None, str], str | bool | CancellableEventReturn]
+_ServerCommandHookHandler: TypeAlias = Callable[[Player | None, str], str | CancellableEventReturn]
+_ServerCommandHookMethod: TypeAlias = Callable[[_PluginT, Player | None, str], str | CancellableEventReturn]
+_FrameHookHandler: TypeAlias = Callable[[], UncancellableEventReturn]
+_FrameHookMethod: TypeAlias = Callable[[_PluginT], UncancellableEventReturn]
+_SetConfigstringHookHandler: TypeAlias = Callable[[int, str], str | CancellableEventReturn]
+_SetConfigstringHookMethod: TypeAlias = Callable[[_PluginT, int, str], str | CancellableEventReturn]
+_ChatHookHandler: TypeAlias = Callable[[Player, str, AbstractChannel], str | CancellableEventReturn]
+_ChatHookMethod: TypeAlias = Callable[[_PluginT, Player, str, AbstractChannel], str | CancellableEventReturn]
+_UnloadHookHandler: TypeAlias = Callable[[Plugin], UncancellableEventReturn]
+_UnloadHookMethod: TypeAlias = Callable[[_PluginT, Plugin], UncancellableEventReturn]
+_PlayerConnectHookHandler: TypeAlias = Callable[[Player], str | CancellableEventReturn]
+_PlayerConnectHookMethod: TypeAlias = Callable[[_PluginT, Player], str | CancellableEventReturn]
+_PlayerLoadedHookHandler: TypeAlias = Callable[[Player], UncancellableEventReturn]
+_PlayerLoadedHookMethod: TypeAlias = Callable[[_PluginT, Player], UncancellableEventReturn]
+_PlayerDisconnectHookHandler: TypeAlias = Callable[[Player, str | None], UncancellableEventReturn]
+_PlayerDisconnectHookMethod: TypeAlias = Callable[[_PluginT, Player, str | None], UncancellableEventReturn]
+_PlayerSpawnHookHandler: TypeAlias = Callable[[Player], UncancellableEventReturn]
+_PlayerSpawnHookMethod: TypeAlias = Callable[[_PluginT, Player], UncancellableEventReturn]
+_StatsHookHandler: TypeAlias = Callable[[StatsData], UncancellableEventReturn]
+_StatsHookMethod: TypeAlias = Callable[[_PluginT, StatsData], UncancellableEventReturn]
+_VoteCalledHookHandler: TypeAlias = Callable[[Player, str, str | None], CancellableEventReturn]
+_VoteCalledHookMethod: TypeAlias = Callable[[_PluginT, Player, str, str | None], CancellableEventReturn]
+_VoteStartedHookHandler: TypeAlias = Callable[[Player, str, str | None], CancellableEventReturn]
+_VoteStartedHookMethod: TypeAlias = Callable[[_PluginT, Player, str, str | None], CancellableEventReturn]
+_VoteEndedHookHandler: TypeAlias = Callable[[tuple[int, int], str, str | None, bool], CancellableEventReturn]
+_VoteEndedHookMethod: TypeAlias = Callable[[_PluginT, tuple[int, int], str, str | None, bool], CancellableEventReturn]
+_VoteHookHandler: TypeAlias = Callable[[Player, bool], CancellableEventReturn]
+_VoteHookMethod: TypeAlias = Callable[[_PluginT, Player, bool], CancellableEventReturn]
+_GameCountdownHookHandler: TypeAlias = Callable[[], CancellableEventReturn]
+_GameCountdownHookMethod: TypeAlias = Callable[[_PluginT], CancellableEventReturn]
+_GameStartHookHandler: TypeAlias = Callable[[GameStartData], CancellableEventReturn]
+_GameStartHookMethod: TypeAlias = Callable[[_PluginT, GameStartData], CancellableEventReturn]
+_GameEndHookHandler: TypeAlias = Callable[[GameEndData], CancellableEventReturn]
+_GameEndHookMethod: TypeAlias = Callable[[_PluginT, GameEndData], CancellableEventReturn]
+_RoundCountdownHookHandler: TypeAlias = Callable[[int], CancellableEventReturn]
+_RoundCountdownHookMethod: TypeAlias = Callable[[_PluginT, int], CancellableEventReturn]
+_RoundStartHookHandler: TypeAlias = Callable[[int], CancellableEventReturn]
+_RoundStartHookMethod: TypeAlias = Callable[[_PluginT, int], CancellableEventReturn]
+_RoundEndHookHandler: TypeAlias = Callable[[RoundEndData], CancellableEventReturn]
+_RoundEndHookMethod: TypeAlias = Callable[[_PluginT, RoundEndData], CancellableEventReturn]
+_TeamSwitchHookHandler: TypeAlias = Callable[[Player, str, str], CancellableEventReturn]
+_TeamSwitchHookMethod: TypeAlias = Callable[[_PluginT, Player, str, str], CancellableEventReturn]
+_TeamSwitchAttemptHookHandler: TypeAlias = Callable[[Player, str, str], CancellableEventReturn]
+_TeamSwitchAttemptHookMethod: TypeAlias = Callable[[_PluginT, Player, str, str], CancellableEventReturn]
+_MapHookHandler: TypeAlias = Callable[[str, str], CancellableEventReturn]
+_MapHookMethod: TypeAlias = Callable[[_PluginT, str, str], CancellableEventReturn]
+_NewGameHookHandler: TypeAlias = Callable[[], CancellableEventReturn]
+_NewGameHookMethod: TypeAlias = Callable[[_PluginT], CancellableEventReturn]
+_KillHookHandler: TypeAlias = Callable[[Player, Player, KillData], CancellableEventReturn]
+_KillHookMethod: TypeAlias = Callable[[_PluginT, Player, Player, KillData], CancellableEventReturn]
+_DeathHookHandler: TypeAlias = Callable[[Player, Player | None, DeathData], CancellableEventReturn]
+_DeathHookMethod: TypeAlias = Callable[[_PluginT, Player, Player | None, DeathData], CancellableEventReturn]
+_UserinfoHookHandler: TypeAlias = Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
+_UserinfoHookMethod: TypeAlias = Callable[[_PluginT, Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
+_KamikazeUseHookHandler: TypeAlias = Callable[[Player], CancellableEventReturn]
+_KamikazeUseHookMethod: TypeAlias = Callable[[_PluginT, Player], CancellableEventReturn]
+_KamikazeExplodeHookHandler: TypeAlias = Callable[[Player, bool], CancellableEventReturn]
+_KamikazeExplodeHookMethod: TypeAlias = Callable[[_PluginT, Player, bool], CancellableEventReturn]
+_DamageHookHandler: TypeAlias = Callable[
+    [Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
+]
+_DamageHookMethod: TypeAlias = Callable[
     [_PluginT, Player | int | None, Player | int | None, int, int, int], UncancellableEventReturn
 ]
 
-_CommandHandler = Callable[[Player, list[str], AbstractChannel], int | None]
-_CommandMethod = Callable[[_PluginT, Player, list[str], AbstractChannel], int | None]
+_CommandHandler: TypeAlias = Callable[[Player, list[str], AbstractChannel], int | None]
+_CommandMethod: TypeAlias = Callable[[_PluginT, Player, list[str], AbstractChannel], int | None]
 
 @overload
 def hook(
@@ -234,12 +234,11 @@ def hook(
     event: Literal["damage", Events.DAMAGE], priority: SupportsIndex | None = ...
 ) -> Callable[[_DamageHookMethod[_PluginT]], _DamageHookMethod[_PluginT]]: ...
 
+@final
 class Cvar(Generic[_CvarT]):
-    """Declares a cvar of a plugin as a read-only attribute of the type ``_CvarT``."""
-
     @overload
-    def __init__(
-        self: Cvar[str],
+    def __new__(
+        cls: builtins.type[Cvar[str]],
         name: str,
         default: str | None = ...,
         *,
@@ -247,10 +246,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[str]: ...
     @overload
-    def __init__(
-        self: Cvar[bool],
+    def __new__(
+        cls: builtins.type[Cvar[bool]],
         name: str,
         default: bool,
         *,
@@ -258,10 +257,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[bool]: ...
     @overload
-    def __init__(
-        self: Cvar[int],
+    def __new__(
+        cls: builtins.type[Cvar[int]],
         name: str,
         default: int,
         *,
@@ -269,10 +268,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[int]: ...
     @overload
-    def __init__(
-        self: Cvar[float],
+    def __new__(
+        cls: builtins.type[Cvar[float]],
         name: str,
         default: float,
         *,
@@ -280,10 +279,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[float]: ...
     @overload
-    def __init__(
-        self: Cvar[str],
+    def __new__(
+        cls: builtins.type[Cvar[str]],
         name: str,
         default: object = ...,
         *,
@@ -291,10 +290,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[str]: ...
     @overload
-    def __init__(
-        self: Cvar[int],
+    def __new__(
+        cls: builtins.type[Cvar[int]],
         name: str,
         default: object = ...,
         *,
@@ -302,10 +301,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[int]: ...
     @overload
-    def __init__(
-        self: Cvar[float],
+    def __new__(
+        cls: builtins.type[Cvar[float]],
         name: str,
         default: object = ...,
         *,
@@ -313,10 +312,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[float]: ...
     @overload
-    def __init__(
-        self: Cvar[bool],
+    def __new__(
+        cls: builtins.type[Cvar[bool]],
         name: str,
         default: object = ...,
         *,
@@ -324,10 +323,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[bool]: ...
     @overload
-    def __init__(
-        self: Cvar[list[str]],
+    def __new__(
+        cls: builtins.type[Cvar[list[str]]],
         name: str,
         default: object = ...,
         *,
@@ -335,10 +334,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[list[str]]: ...
     @overload
-    def __init__(
-        self: Cvar[set[str]],
+    def __new__(
+        cls: builtins.type[Cvar[set[str]]],
         name: str,
         default: object = ...,
         *,
@@ -346,10 +345,10 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[set[str]]: ...
     @overload
-    def __init__(
-        self: Cvar[tuple[str, ...]],
+    def __new__(
+        cls: builtins.type[Cvar[tuple[str, ...]]],
         name: str,
         default: object = ...,
         *,
@@ -357,19 +356,19 @@ class Cvar(Generic[_CvarT]):
         flags: SupportsIndex = ...,
         minimum: float | None = ...,
         maximum: float | None = ...,
-    ) -> None: ...
+    ) -> Cvar[tuple[str, ...]]: ...
     @overload
-    def __get__(self, instance: None, owner: builtins.type[object]) -> Cvar[_CvarT]: ...
+    def __get__(self, instance: None, owner: builtins.type[object] | None = ..., /) -> Cvar[_CvarT]: ...
     @overload
-    def __get__(self, instance: object, owner: builtins.type[object]) -> _CvarT: ...
-    def __set__(self, instance: object, value: NoReturn) -> None: ...
+    def __get__(self, instance: object, owner: builtins.type[object] | None = ..., /) -> _CvarT: ...
+    def __set__(self, instance: object, value: Never, /) -> None: ...
 
 def command(
     name: str | Iterable[str],
     *,
     permission: SupportsIndex = ...,
     channels: Iterable[AbstractChannel] | None = ...,
-    exclude_channels: Iterable[AbstractChannel] = ...,
+    exclude_channels: Iterable[AbstractChannel] | None = ...,
     priority: SupportsIndex = ...,
     client_cmd_pass: bool = ...,
     client_cmd_perm: SupportsIndex = ...,
@@ -406,32 +405,32 @@ class Plugin:
     def set_cvar(
         cls,
         name: str,
-        value: str | bool | int | float | list | set | tuple,
+        value: str | bool | float | list | set | tuple,
         flags: SupportsIndex = ...,
     ) -> bool: ...
     @classmethod
     def set_cvar_limit(
         cls,
         name: str,
-        value: int | float,
-        minimum: int | float,
-        maximum: int | float,
+        value: float,
+        minimum: float,
+        maximum: float,
         flags: SupportsIndex = ...,
     ) -> bool: ...
     @classmethod
     def set_cvar_once(
         cls,
         name: str,
-        value: str | bool | int | float | list | set | tuple,
+        value: str | bool | float | list | set | tuple,
         flags: SupportsIndex = ...,
     ) -> bool: ...
     @classmethod
     def set_cvar_limit_once(
         cls,
         name: str,
-        value: int | float,
-        minimum: int | float,
-        maximum: int | float,
+        value: float,
+        minimum: float,
+        maximum: float,
         flags: SupportsIndex = ...,
     ) -> bool: ...
     @classmethod
@@ -540,7 +539,6 @@ class Plugin:
     _db_instance: Redis | None
 
     def __init__(self) -> None: ...
-    def __str__(self) -> str: ...
     @property
     def db(self) -> Redis | None: ...
     @property
