@@ -849,6 +849,48 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
 
    The decorated method has the same prototype as the ``handler`` of :meth:`Plugin.add_command`.
 
+.. function:: cvar(name, default = None, *, field = None, type = None, flags = 0, minimum = None, maximum = None)
+
+   Declares a cvar of the plugin. The decorator is applied to the plugin class and can be used several times. When the
+   plugin is loaded, the cvar is created with the default value before the plugin is instantiated, so the constructor
+   can already read it. A cvar that exists already, e.g. from the command line or the server configuration, keeps its
+   value, exactly like :meth:`Plugin.set_cvar_once`.
+
+   .. code-block:: python
+
+      import shinqlx
+
+
+      @shinqlx.cvar("qlx_announcerText", "Have fun!", field="text", flags=shinqlx.CvarFlags.ARCHIVE)
+      @shinqlx.cvar("qlx_announcerDelay", 5, field="delay", minimum=0, maximum=60)
+      class announcer(shinqlx.Plugin):
+          def __init__(self):
+              super().__init__()
+              self.add_hook("game_countdown", self.announce)
+
+          def announce(self):
+              self.msg(f"{self.text} (every {self.delay} s)")
+
+   :param str name: The name of the cvar.
+   :param default: The value to create the cvar with. Without a default, the cvar is not created, which is useful to
+      read a cvar of the server or of another plugin through ``field``. A :class:`bool` is written as ``1`` or ``0``,
+      lists, tuples and sets as comma separated values, everything else with :class:`str`.
+   :param str | None field: The name of a read-only attribute of the plugin. It returns the *current* value of the
+      cvar on every access, so changes by an admin are seen. Assigning to it raises an :class:`AttributeError`.
+      Declaring a ``field`` that the class has already, e.g. a method, raises a :class:`ValueError`.
+   :param type | None type: The type the attribute returns: ``str``, ``int``, ``float``, ``bool``, ``list``,
+      ``set`` or ``tuple``, as for :meth:`Plugin.get_cvar`. Defaults to the type of the default value, or ``str``.
+   :param int | CvarFlags flags: The flags to create the cvar with. (default: ``0``)
+   :param minimum: The lower limit of the value. Needs ``maximum`` as well and creates the cvar like
+      :meth:`Plugin.set_cvar_limit_once`.
+   :param maximum: The upper limit of the value. Needs ``minimum`` as well.
+
+   The declarations are inherited, a plugin that extends another plugin also gets its cvars and attributes.
+
+   .. note::
+      A cvar cannot be removed from the engine, so it stays when the plugin is unloaded. Type checkers do not know the
+      attribute, because the decorator adds it. Add the annotation ``text: str`` to the class body to tell them.
+
 The signature of the decorated method is checked against what is passed to it, as soon as the class is defined:
 a command handler has to accept ``(player, msg, channel)``, and a hook has to accept the arguments of its event, which
 differ from event to event, e.g. ``(player, old_team, new_team)`` for ``team_switch_attempt``. A method that cannot

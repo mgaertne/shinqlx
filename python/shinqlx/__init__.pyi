@@ -128,7 +128,7 @@ from ._player import (
     Player,
     RconDummyPlayer,
 )
-from ._plugin import Plugin, command, hook
+from ._plugin import Plugin, command, cvar, hook
 from ._shinqlx import (
     CS_ACTIVE,
     CS_CONNECTED,
@@ -925,6 +925,7 @@ __all__ = [
     "command",
     "console_command",
     "console_print",
+    "cvar",
     "database",
     "delay",
     "destroy_kamikaze_timers",

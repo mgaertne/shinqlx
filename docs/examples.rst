@@ -106,24 +106,37 @@ name of :class:`Weapons`.
 Cvars and flags
 ===============
 
-Flags of a cvar are combined with ``|``; :meth:`Plugin.set_cvar_once` only sets the cvar if it does not exist yet,
-which is the usual way to provide a default for a setting of the plugin.
+The :func:`cvar` decorator declares the cvars of a plugin. Their defaults are set when the plugin is loaded, but only
+if the cvar does not exist yet, so a value from the server configuration always wins. The ``field`` is a read-only
+attribute that returns the current value in the declared type.
 
 .. code-block:: python
 
    import shinqlx
 
 
+   @shinqlx.cvar("qlx_announcerText", "Have fun!", field="text", flags=shinqlx.CvarFlags.ARCHIVE)
+   @shinqlx.cvar("qlx_announcerRepeat", 3, field="repeat", minimum=1, maximum=10)
    class announcer(shinqlx.Plugin):
+       text: str
+       repeat: int
+
        def __init__(self):
            super().__init__()
-           flags = shinqlx.CvarFlags.ARCHIVE | shinqlx.CvarFlags.LATCH
-           self.set_cvar_once("qlx_announcerText", "Have fun!", flags)
-
            self.add_hook("game_countdown", self.announce)
 
        def announce(self):
-           self.msg(self.get_cvar("qlx_announcerText"))
+           for _ in range(self.repeat):
+               self.msg(self.text)
+
+The annotations in the class body only tell type checkers about the attributes. Without the decorator, the same is done
+with :meth:`Plugin.set_cvar_once` and :meth:`Plugin.get_cvar`:
+
+.. code-block:: python
+
+   flags = shinqlx.CvarFlags.ARCHIVE | shinqlx.CvarFlags.LATCH
+   self.set_cvar_once("qlx_announcerText", "Have fun!", flags)
+   text = self.get_cvar("qlx_announcerText")
 
 Connection states and slaying
 =============================

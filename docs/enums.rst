@@ -193,6 +193,10 @@ ReturnCodes
 
       Equal to :data:`RET_USAGE`. Used for commands: replies to the channel with the command's usage.
 
+   ``ReturnCodes.NONE`` is falsy and compares equal to ``None``, like the integer ``RET_NONE`` is falsy and a handler
+   that returns nothing is treated as ``RET_NONE``. ``is`` cannot be overloaded in Python, so
+   ``ReturnCodes.NONE is None`` stays false; use ``==`` or ``not``.
+
 Weapon
 ------
 

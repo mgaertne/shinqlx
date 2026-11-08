@@ -107,6 +107,8 @@ pub(super) fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path)
         ));
     }
 
+    decorators::register_declared_cvars(&plugin_class)?;
+
     plugin_class.call0().and_then(|loaded_plugin| {
         decorators::register_decorated_handlers(&loaded_plugin)?;
 

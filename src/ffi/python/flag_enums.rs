@@ -4,14 +4,16 @@
     reason = "the variants mirror the names of the C constants of the engine"
 )]
 
-use super::prelude::*;
+use pyo3::class::basic::CompareOp;
+
+use super::{game_enums::richcmp_with_index, prelude::*};
 use crate::ffi::c::prelude::*;
 
 /// The flags of a cvar, e.g. for :func:`shinqlx.set_cvar`.
 ///
 /// Members can be combined with ``|`` and checked with ``&``; the result is a plain integer.
 /// The old constants ``shinqlx.CVAR_*`` have the values of the members.
-#[pyclass(module = "_shinqlx", name = "CvarFlags", frozen, eq, eq_int, hash)]
+#[pyclass(module = "_shinqlx", name = "CvarFlags", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[repr(i32)]
 pub(crate) enum CvarFlag {
@@ -32,6 +34,19 @@ pub(crate) enum CvarFlag {
 impl CvarFlag {
     fn __index__(&self) -> i32 {
         *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let same = other.cast::<Self>().ok().map(|same| *same.get() as i32);
+        richcmp_with_index(slf.py(), *slf.get() as i32, same, other, op)
     }
 
     fn __or__(&self, other: i32) -> i32 {
@@ -55,7 +70,7 @@ impl CvarFlag {
 ///
 /// Members can be combined with ``|`` and checked with ``&``; the result is a plain integer.
 /// The old constants ``shinqlx.DAMAGE_*`` have the values of the members.
-#[pyclass(module = "_shinqlx", name = "DamageFlags", frozen, eq, eq_int, hash)]
+#[pyclass(module = "_shinqlx", name = "DamageFlags", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[repr(i32)]
 pub(crate) enum DamageFlag {
@@ -70,6 +85,19 @@ pub(crate) enum DamageFlag {
 impl DamageFlag {
     fn __index__(&self) -> i32 {
         *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let same = other.cast::<Self>().ok().map(|same| *same.get() as i32);
+        richcmp_with_index(slf.py(), *slf.get() as i32, same, other, op)
     }
 
     fn __or__(&self, other: i32) -> i32 {

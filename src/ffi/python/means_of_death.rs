@@ -4,14 +4,16 @@
     reason = "the variants mirror the names of the C constants of the engine"
 )]
 
-use super::prelude::*;
+use pyo3::class::basic::CompareOp;
+
+use super::{game_enums::richcmp_with_index, prelude::*};
 use crate::ffi::c::prelude::*;
 
 /// The causes of a death, e.g. the ``means_of_death`` of the ``damage`` event and the argument of
 /// :meth:`shinqlx.Player.slay_with_mod`.
 ///
 /// The old constants ``shinqlx.MOD_*`` have the values of the members.
-#[pyclass(module = "_shinqlx", name = "MeansOfDeath", frozen, eq, eq_int, hash)]
+#[pyclass(module = "_shinqlx", name = "MeansOfDeath", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[repr(i32)]
 pub(crate) enum MeansOfDeath {
@@ -55,6 +57,19 @@ pub(crate) enum MeansOfDeath {
 impl MeansOfDeath {
     fn __index__(&self) -> i32 {
         *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let same = other.cast::<Self>().ok().map(|same| *same.get() as i32);
+        richcmp_with_index(slf.py(), *slf.get() as i32, same, other, op)
     }
 }
 

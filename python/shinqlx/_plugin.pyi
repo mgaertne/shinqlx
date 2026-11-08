@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, SupportsIndex, TypeVar, overload
 
 if TYPE_CHECKING:
+    import builtins
     from collections.abc import Iterable, Mapping
     from logging import Logger
-    from typing import Callable, ClassVar, Literal
+    from typing import Any, Callable, ClassVar, Literal
 
     from shinqlx import (
         AbstractChannel,
@@ -231,6 +232,16 @@ def hook(
 def hook(
     event: Literal["damage"], priority: SupportsIndex | None = ...
 ) -> Callable[[_DamageHookMethod[_PluginT]], _DamageHookMethod[_PluginT]]: ...
+def cvar(
+    name: str,
+    default: object = ...,
+    *,
+    field: str | None = ...,
+    type: builtins.type[Any] | None = ...,
+    flags: SupportsIndex = ...,
+    minimum: float | None = ...,
+    maximum: float | None = ...,
+) -> Callable[[builtins.type[_PluginT]], builtins.type[_PluginT]]: ...
 def command(
     name: str | Iterable[str],
     *,

@@ -4,7 +4,7 @@ use pyo3::{
     exceptions::{PyAttributeError, PyTypeError, PyValueError},
     intern,
     prelude::*,
-    types::{PyCFunction, PyDict, PyTuple},
+    types::{PyBool, PyCFunction, PyDict, PyFloat, PyInt, PyList, PySet, PyTuple, PyType},
 };
 
 use super::{
@@ -15,6 +15,8 @@ use super::{
 
 const HOOKS_MARKER: &str = "_shinqlx_hooks";
 const COMMANDS_MARKER: &str = "_shinqlx_commands";
+const CVARS_MARKER: &str = "_shinqlx_cvars";
+const CVAR_TYPES: [&str; 7] = ["str", "int", "float", "bool", "list", "set", "tuple"];
 const COMMAND_PARAMETERS: [&str; 3] = ["player", "msg", "channel"];
 
 pub(super) fn only_handler<'py>(arguments: &Bound<'py, PyTuple>) -> PyResult<Bound<'py, PyAny>> {
@@ -195,10 +197,234 @@ fn command<'py>(
     )
 }
 
-/// Adds the `hook` and `command` decorators to the shinqlx module.
+/// The read-only attribute of a plugin that a :func:`cvar` declaration with a ``field`` installs.
+#[pyclass(module = "_shinqlx", name = "CvarField", frozen)]
+struct CvarField {
+    name: String,
+    value_type: Py<PyAny>,
+}
+
+#[pymethods]
+impl CvarField {
+    fn __get__<'py>(
+        slf: &Bound<'py, Self>,
+        instance: &Bound<'py, PyAny>,
+        _owner: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if instance.is_none() {
+            return Ok(slf.clone().into_any());
+        }
+
+        let field = slf.get();
+        instance.call_method1(
+            intern!(slf.py(), "get_cvar"),
+            (field.name.as_str(), field.value_type.bind(slf.py())),
+        )
+    }
+
+    fn __set__(&self, _instance: &Bound<'_, PyAny>, _value: &Bound<'_, PyAny>) -> PyResult<()> {
+        Err(PyAttributeError::new_err(format!(
+            "the cvar '{}' is read-only, use set_cvar to change it",
+            self.name
+        )))
+    }
+}
+
+fn cvar_value_type<'py>(
+    py: Python<'py>,
+    declared: Option<Bound<'py, PyAny>>,
+    default: Option<&Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyAny>> {
+    if let Some(declared) = declared {
+        let declared_name = declared
+            .getattr(intern!(py, "__name__"))
+            .and_then(|name| name.extract::<String>())
+            .unwrap_or_default();
+        if !declared.is_instance_of::<PyType>() || !CVAR_TYPES.contains(&declared_name.as_str()) {
+            cold_path();
+            return Err(PyValueError::new_err(format!(
+                "type has to be one of {}",
+                CVAR_TYPES.join(", ")
+            )));
+        }
+        return Ok(declared);
+    }
+
+    let inferred = match default {
+        Some(value) if value.is_instance_of::<PyBool>() => "bool",
+        Some(value) if value.is_instance_of::<PyInt>() => "int",
+        Some(value) if value.is_instance_of::<PyFloat>() => "float",
+        Some(value) if value.is_instance_of::<PyList>() => "list",
+        Some(value) if value.is_instance_of::<PyTuple>() => "tuple",
+        Some(value) if value.is_instance_of::<PySet>() => "set",
+        _ => "str",
+    };
+    py.import(intern!(py, "builtins"))?.getattr(inferred)
+}
+
+fn cvar_default_string(default: &Bound<'_, PyAny>) -> PyResult<String> {
+    if let Ok(flag) = default.cast::<PyBool>() {
+        return Ok(if flag.is_true() { "1" } else { "0" }.to_string());
+    }
+    if default.is_instance_of::<PyList>()
+        || default.is_instance_of::<PyTuple>()
+        || default.is_instance_of::<PySet>()
+    {
+        return default
+            .try_iter()?
+            .map(|item| {
+                item.and_then(|item| item.str())
+                    .map(|item| item.to_string())
+            })
+            .collect::<PyResult<Vec<_>>>()
+            .map(|items| items.join(","));
+    }
+
+    default.str().map(|value| value.to_string())
+}
+
+fn is_identifier(name: &str) -> bool {
+    let mut characters = name.chars();
+    characters
+        .next()
+        .is_some_and(|first| first.is_alphabetic() || first == '_')
+        && characters.all(|character| character.is_alphanumeric() || character == '_')
+}
+
+/// Declares a cvar of a plugin. The decorated plugin class creates the cvar with the default value
+/// when the plugin is loaded, before the plugin is instantiated, unless the cvar already exists. The
+/// decorator can be applied several times to a class.
+///
+/// :param name: The name of the cvar.
+/// :param default: The value to create the cvar with. Without a default, the cvar is not created.
+///     ``bool`` values are written as ``1`` or ``0``, lists, tuples and sets as comma separated values.
+/// :param field: If given, the name of a read-only attribute of the plugin that returns the current
+///     value of the cvar.
+/// :param type: The type that the attribute returns, one of ``str``, ``int``, ``float``, ``bool``,
+///     ``list``, ``set`` and ``tuple``. Defaults to the type of the default value, or ``str``.
+/// :param flags: The cvar flags to create the cvar with, e.g. a :class:`CvarFlags` member.
+/// :param minimum: The lower limit of the value of the cvar. Needs ``maximum`` as well.
+/// :param maximum: The upper limit of the value of the cvar. Needs ``minimum`` as well.
+#[pyfunction]
+#[pyo3(
+    signature = (name, default = None, *, field = None, r#type = None, flags = 0, minimum = None, maximum = None),
+    text_signature = "(name, default=None, *, field=None, type=None, flags=0, minimum=None, maximum=None)"
+)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the arguments mirror the keyword arguments of the Python decorator"
+)]
+fn cvar<'py>(
+    py: Python<'py>,
+    name: String,
+    default: Option<Bound<'py, PyAny>>,
+    field: Option<String>,
+    r#type: Option<Bound<'py, PyAny>>,
+    flags: i32,
+    minimum: Option<Bound<'py, PyAny>>,
+    maximum: Option<Bound<'py, PyAny>>,
+) -> PyResult<Bound<'py, PyCFunction>> {
+    if name.is_empty() {
+        cold_path();
+        return Err(PyValueError::new_err(
+            "the name of a cvar must not be empty",
+        ));
+    }
+    if minimum.is_some() != maximum.is_some() {
+        cold_path();
+        return Err(PyValueError::new_err(
+            "minimum and maximum have to be given together",
+        ));
+    }
+    if field.as_deref().is_some_and(|field| !is_identifier(field)) {
+        cold_path();
+        return Err(PyValueError::new_err(
+            "field has to be a valid attribute name",
+        ));
+    }
+
+    let value_type = cvar_value_type(py, r#type, default.as_ref())?.unbind();
+    let default = default.as_ref().map(cvar_default_string).transpose()?;
+    let minimum = minimum.map(Bound::unbind);
+    let maximum = maximum.map(Bound::unbind);
+
+    PyCFunction::new_closure(
+        py,
+        Some(c"cvar_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let plugin_class = only_handler(arguments)?;
+            let py = plugin_class.py();
+            if !plugin_class.is_instance_of::<PyType>() {
+                cold_path();
+                return Err(PyTypeError::new_err("cvar decorates a plugin class"));
+            }
+
+            if let Some(field) = &field {
+                if plugin_class
+                    .getattr(field.as_str())
+                    .is_ok_and(|existing| !existing.is_instance_of::<CvarField>())
+                {
+                    cold_path();
+                    return Err(PyValueError::new_err(format!(
+                        "{} already has an attribute '{field}'",
+                        plugin_class.getattr(intern!(py, "__qualname__"))?
+                    )));
+                }
+
+                let cvar_field = CvarField {
+                    name: name.clone(),
+                    value_type: value_type.clone_ref(py),
+                };
+                plugin_class.setattr(field.as_str(), Bound::new(py, cvar_field)?)?;
+            }
+
+            let entry = (
+                name.as_str(),
+                default.as_deref(),
+                flags,
+                minimum.as_ref().map(|minimum| minimum.bind(py)),
+                maximum.as_ref().map(|maximum| maximum.bind(py)),
+            )
+                .into_pyobject(py)?;
+            mark(&plugin_class, CVARS_MARKER, entry.into_any())?;
+            Ok::<_, PyErr>(plugin_class.unbind())
+        },
+    )
+}
+
+/// Adds the `hook`, `command` and `cvar` decorators to the shinqlx module.
 pub(crate) fn register_decorators(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hook, m)?)?;
-    m.add_function(wrap_pyfunction!(command, m)?)
+    m.add_function(wrap_pyfunction!(command, m)?)?;
+    m.add_function(wrap_pyfunction!(cvar, m)?)
+}
+
+/// Creates the cvars that were declared by decorating the plugin class, unless they exist already.
+pub(crate) fn register_declared_cvars(plugin_class: &Bound<'_, PyAny>) -> PyResult<()> {
+    let py = plugin_class.py();
+    for entry in markers(plugin_class, CVARS_MARKER) {
+        let (name, default, flags, minimum, maximum) = entry.extract::<(
+            String,
+            Option<String>,
+            i32,
+            Option<Bound<'_, PyAny>>,
+            Option<Bound<'_, PyAny>>,
+        )>()?;
+        let Some(default) = default else {
+            continue;
+        };
+
+        match (minimum, maximum) {
+            (Some(minimum), Some(maximum)) => plugin_class.call_method1(
+                intern!(py, "set_cvar_limit_once"),
+                (name, default, minimum, maximum, flags),
+            )?,
+            _ => plugin_class.call_method1(intern!(py, "set_cvar_once"), (name, default, flags))?,
+        };
+    }
+
+    Ok(())
 }
 
 /// Registers the hooks and commands that were declared by decorating methods of the plugin.
@@ -1014,5 +1240,363 @@ def threaded_func():
                     })
             );
         });
+    }
+}
+
+#[cfg(test)]
+mod cvar_decorator_tests {
+    use core::borrow::BorrowMut;
+
+    use mockall::predicate;
+    use pyo3::{
+        exceptions::{PyAttributeError, PyTypeError, PyValueError},
+        intern,
+        prelude::*,
+    };
+    use rstest::rstest;
+
+    use super::register_declared_cvars;
+    use crate::{
+        ffi::{
+            c::prelude::{CVar, CVarBuilder, cvar_t},
+            python::pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    fn plugin_module<'py>(py: Python<'py>, source: &str) -> PyResult<Bound<'py, PyModule>> {
+        let code = std::ffi::CString::new(format!("import shinqlx\n\n{source}\n"))
+            .expect("this should not happen");
+        PyModule::from_code(py, &code, c"", c"")
+    }
+
+    fn plugin_class<'py>(py: Python<'py>, source: &str) -> Bound<'py, PyAny> {
+        plugin_module(py, source)
+            .and_then(|module| module.getattr(intern!(py, "declared_plugin")))
+            .expect("could not create plugin class")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_with_limits_is_created_with_the_limits(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default()
+            .with_find_cvar(|cmd| cmd == "qlx_delay", |_| None, 1..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_cvar_limit()
+                    .with(
+                        predicate::eq("qlx_delay"),
+                        predicate::eq("5"),
+                        predicate::eq("0"),
+                        predicate::eq("60"),
+                        predicate::eq(Some(1)),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        "@shinqlx.cvar('qlx_delay', 5, minimum=0, maximum=60, flags=shinqlx.CvarFlags.ARCHIVE)\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                    );
+
+                    assert!(register_declared_cvars(&plugin_class).is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[case("True", "1")]
+    #[case("False", "0")]
+    #[case("'text'", "text")]
+    #[case("2.5", "2.5")]
+    #[case("['a', 'b']", "a,b")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_default_is_written_as_string(
+        _pyshinqlx_setup: (),
+        #[case] default: &str,
+        #[case] expected: &str,
+    ) {
+        let expected = expected.to_string();
+        MockEngineBuilder::default()
+            .with_find_cvar(|cmd| cmd == "qlx_value", |_| None, 1..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_cvar()
+                    .with(
+                        predicate::eq("qlx_value"),
+                        predicate::eq(expected),
+                        predicate::eq(Some(0)),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        &format!(
+                            "@shinqlx.cvar('qlx_value', {default})\nclass declared_plugin(shinqlx.Plugin):\n    pass"
+                        ),
+                    );
+
+                    assert!(register_declared_cvars(&plugin_class).is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_without_default_is_not_created(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0)
+            .configure(|mock_engine| {
+                mock_engine.expect_get_cvar().times(0);
+                mock_engine.expect_set_cvar_limit().times(0);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        "@shinqlx.cvar('sv_hostname', field='hostname')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                    );
+
+                    assert!(register_declared_cvars(&plugin_class).is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn existing_cvar_keeps_its_value(_pyshinqlx_setup: ()) {
+        let mut raw_cvar = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_value",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .configure(|mock_engine| {
+                mock_engine.expect_get_cvar().times(0);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        "@shinqlx.cvar('qlx_value', 'default')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                    );
+
+                    assert!(register_declared_cvars(&plugin_class).is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[case("int", "7", "7")]
+    #[case("float", "2.5", "2.5")]
+    #[case("str", "text", "'text'")]
+    #[case("bool", "1", "True")]
+    #[case("list", "a,b", "['a', 'b']")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn field_returns_the_current_value_in_the_declared_type(
+        _pyshinqlx_setup: (),
+        #[case] type_name: &str,
+        #[case] cvar_value: &str,
+        #[case] expected: &str,
+    ) {
+        let value = std::ffi::CString::new(cvar_value).expect("this should not happen");
+        let mut raw_cvar = CVarBuilder::default()
+            .string(value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_value",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        &format!(
+                            "@shinqlx.cvar('qlx_value', field='value', type={type_name})\nclass declared_plugin(shinqlx.Plugin):\n    pass"
+                        ),
+                    );
+
+                    let instance = plugin_class.call0().expect("could not create plugin");
+                    let read = instance
+                        .getattr(intern!(py, "value"))
+                        .expect("could not read the field");
+                    let expected = py
+                        .eval(
+                            &std::ffi::CString::new(expected).expect("this should not happen"),
+                            None,
+                            None,
+                        )
+                        .expect("could not evaluate the expectation");
+                    assert!(read.eq(expected).expect("could not compare"));
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn field_takes_its_type_from_the_default(_pyshinqlx_setup: ()) {
+        let value = c"2.5";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_value",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        "@shinqlx.cvar('qlx_value', 1.5, field='value')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+                    );
+
+                    let read = plugin_class
+                        .call0()
+                        .and_then(|instance| instance.getattr(intern!(py, "value")))
+                        .and_then(|value| value.extract::<f64>());
+
+                    assert!(read.is_ok_and(|value| (value - 2.5).abs() < f64::EPSILON));
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn field_is_read_only(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let plugin_class = plugin_class(
+                py,
+                "@shinqlx.cvar('qlx_value', 1, field='value')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+            );
+            let instance = plugin_class.call0().expect("could not create plugin");
+
+            let result = instance.setattr(intern!(py, "value"), 3);
+
+            assert!(result.is_err_and(|error| error.is_instance_of::<PyAttributeError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn field_on_the_class_is_the_descriptor(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let plugin_class = plugin_class(
+                py,
+                "@shinqlx.cvar('qlx_value', 1, field='value')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+            );
+
+            assert!(
+                plugin_class
+                    .getattr(intern!(py, "value"))
+                    .is_ok_and(|field| field
+                        .get_type()
+                        .name()
+                        .is_ok_and(|name| name == "CvarField"))
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("@shinqlx.cvar('')")]
+    #[case("@shinqlx.cvar('qlx_x', 1, minimum=0)")]
+    #[case("@shinqlx.cvar('qlx_x', 1, maximum=0)")]
+    #[case("@shinqlx.cvar('qlx_x', 1, field='not valid')")]
+    #[case("@shinqlx.cvar('qlx_x', 1, field='1value')")]
+    #[case("@shinqlx.cvar('qlx_x', 1, field='value', type=dict)")]
+    #[case("@shinqlx.cvar('qlx_x', 1, field='value', type='int')")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn invalid_declarations_are_rejected_when_defining_the_class(
+        _pyshinqlx_setup: (),
+        #[case] decorator: &str,
+    ) {
+        Python::attach(|py| {
+            let result = plugin_module(
+                py,
+                &format!("{decorator}\nclass declared_plugin(shinqlx.Plugin):\n    pass"),
+            );
+
+            assert!(result.is_err_and(|error| error.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn field_must_not_replace_an_existing_attribute(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = plugin_module(
+                py,
+                "@shinqlx.cvar('qlx_x', 1, field='msg')\nclass declared_plugin(shinqlx.Plugin):\n    pass",
+            );
+
+            assert!(result.is_err_and(|error| error.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_can_only_decorate_classes(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let result = plugin_module(
+                py,
+                "@shinqlx.cvar('qlx_x', 1)\ndef declared_plugin(shinqlx):\n    pass",
+            );
+
+            assert!(result.is_err_and(|error| error.is_instance_of::<PyTypeError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn inherited_declarations_are_registered_for_the_subclass(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default()
+            .with_find_cvar(|cmd| cmd == "qlx_base", |_| None, 1..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_cvar()
+                    .with(
+                        predicate::eq("qlx_base"),
+                        predicate::eq("1"),
+                        predicate::eq(Some(0)),
+                    )
+                    .times(1..);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let plugin_class = plugin_class(
+                        py,
+                        "@shinqlx.cvar('qlx_base', 1, field='base')\nclass base_plugin(shinqlx.Plugin):\n    pass\n\nclass declared_plugin(base_plugin):\n    pass",
+                    );
+
+                    assert!(register_declared_cvars(&plugin_class).is_ok());
+                    assert!(plugin_class.hasattr(intern!(py, "base")).unwrap_or(false));
+                });
+            });
     }
 }

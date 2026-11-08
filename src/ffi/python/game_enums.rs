@@ -10,6 +10,24 @@ use pyo3::{IntoPyObjectExt, class::basic::CompareOp, types::PyInt};
 use super::{PythonReturnCodes, commands::CommandPriorities, prelude::*};
 use crate::ffi::c::prelude::*;
 
+/// Compares a member that behaves like an integer with another member of the same enumeration or
+/// with an integer, but never with the members of other enumerations.
+pub(super) fn richcmp_with_index(
+    py: Python<'_>,
+    this: i32,
+    same: Option<i32>,
+    other: &Bound<'_, PyAny>,
+    op: CompareOp,
+) -> PyResult<Py<PyAny>> {
+    let equal = same.map(|value| value == this).or_else(|| {
+        other
+            .is_exact_instance_of::<PyInt>()
+            .then(|| other.extract::<i32>().ok().map(|value| value == this))
+            .flatten()
+    });
+    richcmp_result(py, equal, op)
+}
+
 /// Returns the name of a team or privilege level, given as enum member or as string.
 pub(crate) fn name_of(value: &Bound<'_, PyAny>) -> PyResult<String> {
     if let Ok(team) = value.cast::<Team>() {
@@ -172,7 +190,7 @@ impl ConnectionState {
 /// The priorities of hooks and commands, the highest priority is called first.
 ///
 /// The old constants ``shinqlx.PRI_*`` have the values of the members.
-#[pyclass(module = "_shinqlx", name = "Priorities", frozen, eq, eq_int, hash)]
+#[pyclass(module = "_shinqlx", name = "Priorities", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[repr(i32)]
 pub(crate) enum Priority {
@@ -188,12 +206,25 @@ impl Priority {
     fn __index__(&self) -> i32 {
         *self as i32
     }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let same = other.cast::<Self>().ok().map(|same| *same.get() as i32);
+        richcmp_with_index(slf.py(), *slf.get() as i32, same, other, op)
+    }
 }
 
 /// The values that handlers of hooks and commands can return.
 ///
 /// The old constants ``shinqlx.RET_*`` have the values of the members.
-#[pyclass(module = "_shinqlx", name = "ReturnCodes", frozen, eq, eq_int, hash)]
+#[pyclass(module = "_shinqlx", name = "ReturnCodes", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[repr(i32)]
 pub(crate) enum ReturnCode {
@@ -213,6 +244,36 @@ pub(crate) enum ReturnCode {
 impl ReturnCode {
     fn __index__(&self) -> i32 {
         *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __bool__(&self) -> bool {
+        *self as i32 != 0
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let this = *slf.get() as i32;
+        let equal = if other.is_none() {
+            Some(*slf.get() == ReturnCode::NONE)
+        } else {
+            other.cast::<Self>().map_or_else(
+                |_| {
+                    other
+                        .is_exact_instance_of::<PyInt>()
+                        .then(|| other.extract::<i32>().ok().map(|value| value == this))
+                        .flatten()
+                },
+                |same| Some(same.get() == slf.get()),
+            )
+        };
+        richcmp_result(slf.py(), equal, op)
     }
 }
 
@@ -283,7 +344,7 @@ impl Weapon {
 }
 
 /// The states of a vote on the server.
-#[pyclass(module = "_shinqlx", name = "VoteStates", frozen, eq, eq_int, hash)]
+#[pyclass(module = "_shinqlx", name = "VoteStates", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
 #[repr(i32)]
 pub(crate) enum VoteState {
@@ -300,6 +361,19 @@ pub(crate) enum VoteState {
 impl VoteState {
     fn __index__(&self) -> i32 {
         *self as i32
+    }
+
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let same = other.cast::<Self>().ok().map(|same| *same.get() as i32);
+        richcmp_with_index(slf.py(), *slf.get() as i32, same, other, op)
     }
 }
 
@@ -479,6 +553,15 @@ mod game_enums_tests {
 import shinqlx
 
 assert shinqlx.Teams.RED == 1
+assert shinqlx.ReturnCodes.NONE == None
+assert None == shinqlx.ReturnCodes.NONE
+assert shinqlx.ReturnCodes.STOP != None
+assert not shinqlx.ReturnCodes.NONE
+assert shinqlx.ReturnCodes.STOP
+assert shinqlx.ReturnCodes.NONE == shinqlx.RET_NONE
+assert shinqlx.ReturnCodes.STOP_ALL == 3
+assert shinqlx.ReturnCodes.USAGE != shinqlx.Priorities.LOWEST
+assert hash(shinqlx.ReturnCodes.STOP_EVENT) == hash(2)
 assert shinqlx.Teams.RED == shinqlx.Teams.RED
 assert shinqlx.Teams.RED != shinqlx.Teams.BLUE
 assert str(shinqlx.Teams.SPECTATOR) == "spectator"
