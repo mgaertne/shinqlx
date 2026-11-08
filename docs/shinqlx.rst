@@ -644,7 +644,7 @@ Functions
 
    :return: ``True``.
 
-.. function:: slay_with_mod(client_id, mod) -> bool
+.. function:: slay_with_mod(client_id, mean_of_death) -> bool
 
    Kill a player in the game with a means of death. The player stays connected to the server.
 
@@ -652,7 +652,7 @@ Functions
       :ref:`means_of_death` for the different means of death value.
 
    :param int client_id: The ``client_id`` of the player to slay.
-   :param int mod: The means of death to slay the player with.
+   :param int mean_of_death: The means of death to slay the player with.
    :return: ``False`` if no valid player could be determined, ``True`` otherwise.
    :raises ValueError: if the ``client_id`` is not in the range between ``0`` and ``sv_maxclients``.
 

@@ -17,6 +17,9 @@ Some limitations apply for certain minqlx functions maybe used in plugins.
   arguments. This might be a breaking change for some plugins, but ensures Python redis 2.0 compatibility for these
   calls to later versions. We stick with redis >= 5.0.
 
+The documentation has a page "Migration from minqlx" that lists all deviations. The tool `plugin_migration` (see
+[plugin_migration/README.md](plugin_migration/README.md)) migrates a whole folder of minqlx plugins.
+
 # Compilation and installation
 
 - Install rust with the default profile and the nightly toolchain and Rust's build tool cargo, and make sure to add the
