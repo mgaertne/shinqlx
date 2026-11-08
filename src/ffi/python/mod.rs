@@ -1499,7 +1499,7 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
 
     #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
     {
-        let defaults = crate::query_rate_limiter::QueryLimits::DEFAULT;
+        let defaults = crate::fixes::query_rate_limiter::QueryLimits::DEFAULT;
         for (name, value) in [
             ("qlx_steamQueryRate", defaults.per_source_rate),
             ("qlx_steamQueryBurst", defaults.burst),

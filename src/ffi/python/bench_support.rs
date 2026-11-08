@@ -439,7 +439,7 @@ impl DeclaredCvarsCase {
 
 /// The limiter that drops the Steam queries of a source that sends too many.
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-pub struct QueryLimiterCase(Box<crate::query_rate_limiter::QueryRateLimiter>);
+pub struct QueryLimiterCase(Box<crate::fixes::query_rate_limiter::QueryRateLimiter>);
 
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 impl QueryLimiterCase {
@@ -450,13 +450,15 @@ impl QueryLimiterCase {
 
     /// A limiter with the given per source rate, burst and global rate. `0` disables a limit.
     pub fn with_limits(per_source_rate: f64, burst: f64, global_rate: f64) -> Self {
-        Self(Box::new(crate::query_rate_limiter::QueryRateLimiter::new(
-            crate::query_rate_limiter::QueryLimits {
-                per_source_rate,
-                burst,
-                global_rate,
-            },
-        )))
+        Self(Box::new(
+            crate::fixes::query_rate_limiter::QueryRateLimiter::new(
+                crate::fixes::query_rate_limiter::QueryLimits {
+                    per_source_rate,
+                    burst,
+                    global_rate,
+                },
+            ),
+        ))
     }
 
     /// Asks whether the packet of `source` may be handed to Steam at `now_ms`.

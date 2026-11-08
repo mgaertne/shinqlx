@@ -11,6 +11,8 @@ use derive_new::new;
 use detour::{RawDetour, TypedDetour};
 #[cfg(test)]
 use mockall::predicate;
+#[cfg(all(feature = "fps-patch", target_os = "linux"))]
+use procfs::process::MMPermissions;
 #[cfg(target_os = "linux")]
 use procfs::process::{MMapPath, MemoryMap, Process};
 use rayon::prelude::*;
@@ -18,10 +20,12 @@ use tap::{Conv, TapFallible, TapOptional};
 
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
+#[cfg(feature = "clientkick-fix")]
+use crate::fixes::clientkick_fix::patch_callvote_f;
+#[cfg(all(feature = "fps-patch", target_os = "linux"))]
+use crate::fixes::sv_fps_patch::{ModuleRegion, patch_sv_fps};
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use crate::hooks::shinqlx_sv_handlesteampacket;
-#[cfg(feature = "patches")]
-use crate::patches::patch_callvote_f;
 #[cfg(target_os = "linux")]
 use crate::quake_live_functions::pattern_search_module;
 use crate::{
@@ -155,7 +159,7 @@ struct VmFunctions {
     g_init_game_orig: AtomicUsize,
     g_shutdown_game_orig: AtomicUsize,
     g_run_frame_orig: AtomicUsize,
-    #[cfg(feature = "patches")]
+    #[cfg(feature = "clientkick-fix")]
     cmd_callvote_f_orig: AtomicUsize,
 
     client_spawn_detour: ArcSwapOption<ClientSpawnDetourType>,
@@ -240,7 +244,7 @@ impl VmFunctions {
                     &self.g_start_kamikaze_orig,
                 ),
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
-                #[cfg(feature = "patches")]
+                #[cfg(feature = "clientkick-fix")]
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
             ]
             .par_iter()
@@ -473,7 +477,7 @@ impl VmFunctions {
         Ok(())
     }
 
-    #[cfg(feature = "patches")]
+    #[cfg(feature = "clientkick-fix")]
     #[cfg_attr(
         test,
         allow(
@@ -511,7 +515,7 @@ impl VmFunctions {
             &self.g_free_entity_orig,
             &self.g_init_game_orig,
             &self.g_run_frame_orig,
-            #[cfg(feature = "patches")]
+            #[cfg(feature = "clientkick-fix")]
             &self.cmd_callvote_f_orig,
         ]
         .iter()
@@ -601,7 +605,7 @@ mod vm_functions_tests {
             g_init_game_orig: Default::default(),
             g_shutdown_game_orig: Default::default(),
             g_run_frame_orig: Default::default(),
-            #[cfg(feature = "patches")]
+            #[cfg(feature = "clientkick-fix")]
             cmd_callvote_f_orig: Default::default(),
             client_spawn_detour: Default::default(),
             client_connect_detour: Default::default(),
@@ -1408,10 +1412,47 @@ impl QuakeLiveEngine {
         self.current_vm.store(module_offset, Ordering::Release);
 
         self.vm_functions.hook()?;
-        #[cfg(feature = "patches")]
+        #[cfg(feature = "clientkick-fix")]
         self.vm_functions.patch();
+        #[cfg(all(feature = "fps-patch", target_os = "linux"))]
+        self.patch_sv_fps();
 
         Ok(())
+    }
+
+    #[cfg(all(feature = "fps-patch", target_os = "linux"))]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
+    fn patch_sv_fps(&self) {
+        let regions = Process::myself()
+            .and_then(|process| process.maps())
+            .map(|maps| {
+                maps.iter()
+                    .filter(|mmap| {
+                        matches!(&mmap.pathname, MMapPath::Path(path)
+                            if path.file_name().is_some_and(|name| name.to_string_lossy() == QAGAME))
+                    })
+                    .filter(|mmap| mmap.perms.contains(MMPermissions::READ))
+                    .map(|mmap| ModuleRegion {
+                        range: mmap.address.0 as usize..mmap.address.1 as usize,
+                        writable: mmap.perms.contains(MMPermissions::WRITE),
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let _ = patch_sv_fps(&regions)
+            .tap_ok(|outcome| {
+                debug!(target: "shinqlx", "sv_fps default value 125: {outcome:?}");
+            })
+            .tap_err(|e| {
+                error!(target: "shinqlx", "could not set the default value of sv_fps to 125: {e}");
+            });
     }
 
     pub(crate) fn unhook_vm(&self, _restart: bool) {

@@ -23,8 +23,8 @@ use crate::{
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use crate::{
+    fixes::query_rate_limiter::{QueryLimits, QueryRateLimiter},
     quake_live_engine::{FindCVar, HandleSteamPacket},
-    query_rate_limiter::{QueryLimits, QueryRateLimiter},
 };
 
 fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
@@ -745,8 +745,8 @@ mod hooks_tests {
                 prelude::*,
             },
         },
+        fixes::query_rate_limiter::{QueryLimits, QueryRateLimiter},
         prelude::*,
-        query_rate_limiter::{QueryLimits, QueryRateLimiter},
     };
 
     #[fixture]

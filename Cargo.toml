@@ -120,7 +120,11 @@ alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 # rate limit for server queries (A2S_INFO, A2S_PLAYER, A2S_RULES) against reflection and flood attacks
 steam-query-limit = []
 # patch the callvote clientkick lookup in qagame, experimental
-patches = ["dep:region"]
+clientkick-fix = ["dep:region"]
+# let qagame register sv_fps with 125 instead of the read-only default 40, experimental
+fps-patch = ["dep:region"]
+# all patches of qagame
+patches = ["clientkick-fix", "fps-patch"]
 # expose internals to the benchmarks, not meant for production builds
 bench-support = []
 

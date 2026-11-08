@@ -1,6 +1,8 @@
-use core::{fmt, ptr};
+use core::ptr;
 
 use region::Protection;
+
+use super::{PatchError, PatchOutcome};
 
 #[cfg_attr(
     test,
@@ -34,34 +36,6 @@ const PTRN_VOTE_CLIENTKICK_FIX: &[u8; 38] = b"\x39\xFE\x0F\x8D\x90\x00\x00\x00\x
     )
 )]
 const MASK_VOTE_CLIENTKICK_FIX: &[u8; 38] = b"XXXXXXXXXXXXXXXXXXXXX-------XXXXXXXXXX";
-
-/// Why a code patch was not applied.
-#[derive(Debug)]
-pub(crate) enum PatchError {
-    /// The memory protection could not be changed.
-    Protect(region::Error),
-    /// Original bytes, patch and mask differ in length.
-    LengthMismatch,
-    /// The code at the target is neither the expected original nor the patched code.
-    UnexpectedCode,
-}
-
-impl fmt::Display for PatchError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Protect(err) => write!(f, "{err}"),
-            Self::LengthMismatch => write!(f, "original bytes, patch and mask differ in length"),
-            Self::UnexpectedCode => write!(f, "the code at the target is not the expected one"),
-        }
-    }
-}
-
-/// What a successful patch run did to the code.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum PatchOutcome {
-    Applied,
-    AlreadyApplied,
-}
 
 fn masked_bytes_equal(actual: &[u8], expected: &[u8], mask: &[u8]) -> bool {
     actual

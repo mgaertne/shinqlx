@@ -24,7 +24,11 @@
 //! * `steam-query-limit` (default): rate limits server queries (`A2S_INFO`, `A2S_PLAYER`, `A2S_RULES`) per source
 //!   address and overall, see `DDOS-PROTECTION.md` in the repository. Configured through the cvars
 //!   `qlx_steamQueryRate`, `qlx_steamQueryBurst` and `qlx_steamQueryGlobalRate`.
-//! * `patches`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by default.
+//! * `patches`: enables `clientkick-fix` and `fps-patch`. Experimental, disabled by default.
+//! * `clientkick-fix`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by
+//!   default.
+//! * `fps-patch`: makes `qagame` register `sv_fps` with the default 125 instead of the read-only 40.
+//!   Experimental, disabled by default.
 //! * `bench-support`: exposes internals to the benchmarks. Not meant for production builds.
 
 #![cfg_attr(not(test), no_main)]
@@ -51,20 +55,17 @@ cfg_if::cfg_if! {
 
 mod commands;
 mod ffi;
+mod fixes;
 mod hooks;
 #[cfg(feature = "bench-support")]
 #[doc(hidden)]
 pub use ffi::python::bench_support;
-#[cfg(feature = "patches")]
-mod patches;
 mod quake_live_engine;
 #[allow(
     missing_docs,
     reason = "the variants of the module are the C symbol names of the engine functions"
 )]
 pub mod quake_live_functions;
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-mod query_rate_limiter;
 
 pub(crate) mod prelude {
     pub(crate) use alloc::format;
