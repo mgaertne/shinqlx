@@ -284,7 +284,7 @@ impl Plugin {
         slf.get_logger()
     }
 
-    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "($self, event, handler, priority = PRI_NORMAL)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
         event: &str,
@@ -294,7 +294,7 @@ impl Plugin {
         slf.add_hook(event, handler, priority)
     }
 
-    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "(event, handler, priority = PRI_NORMAL)")]
+    #[pyo3(signature = (event, handler, priority = CommandPriorities::PRI_NORMAL as i32), text_signature = "($self, event, handler, priority = PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
         event: &str,
@@ -316,7 +316,7 @@ impl Plugin {
         client_cmd_perm = 5,
         prefix = true,
         usage = ""),
-    text_signature = "(name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = \"\")")]
+    text_signature = "($self, name, handler, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 5, prefix = True, usage = \"\")")]
     #[allow(
         clippy::too_many_arguments,
         reason = "mirrors minqlx.Plugin.add_command"

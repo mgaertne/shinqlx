@@ -976,6 +976,9 @@ def broken_signatures():
             text = getattr(target, "__text_signature__", None)
             if text is None:
                 continue
+            if type(target).__name__ == "method_descriptor" and not text.startswith("($self"):
+                found.append(f"{label}: instance method without $self in {text}")
+                continue
             problem = problem_of(text)
             if problem is not None:
                 found.append(f"{label}: {problem}")
@@ -1112,9 +1115,9 @@ def aliased(annotation, aliases):
 def stub_events(stub):
     tree = ast.parse(pathlib.Path(stub).read_text())
     aliases = {
-        node.targets[0].id: node.value
+        node.target.id: node.value
         for node in tree.body
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Subscript)
+        if isinstance(node, ast.AnnAssign) and isinstance(node.value, ast.Subscript)
     }
     plugin = next(
         node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Plugin"
@@ -1456,8 +1459,7 @@ def differences(stub_directory):
         });
     }
 
-    const KNOWN_DIFFERENCES: [&str; 1] =
-        ["_player.pyi: Player.slay_with_mod: parameter name stub=mod runtime=means_of_death"];
+    const KNOWN_DIFFERENCES: [&str; 0] = [];
 }
 
 #[pyfunction(name = "initialize_cvars")]

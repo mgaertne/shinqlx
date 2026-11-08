@@ -92,7 +92,7 @@ impl AbstractChannel {
         slf.get_name()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "($self, msg, limit=100, delimiter=\" \")"
     )]
     fn reply(slf: &Bound<'_, Self>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         slf.reply(msg, limit, delimiter)
@@ -444,7 +444,7 @@ impl ConsoleChannel {
         AbstractChannel::initialize(slf.as_super(), "console");
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "($self, msg, limit=100, delimiter=\" \")"
     )]
     pub(crate) fn reply(
         slf: &Bound<'_, Self>,
@@ -579,7 +579,7 @@ impl ChatChannel {
         slf.recipients()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")"
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "($self, msg, limit=100, delimiter=\" \")"
     )]
     pub(crate) fn reply(
         slf: &Bound<'_, Self>,
@@ -1546,7 +1546,7 @@ impl ClientCommandChannel {
         slf.get_tell_channel()
     }
 
-    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "(msg, limit=100, delimiter=\" \")")]
+    #[pyo3(signature = (msg, limit=100, delimiter=" "), text_signature = "($self, msg, limit=100, delimiter=\" \")")]
     fn reply(slf: &Bound<'_, Self>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
         slf.reply(msg, limit, delimiter)
     }

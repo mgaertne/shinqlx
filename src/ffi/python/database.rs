@@ -57,7 +57,7 @@ impl AbstractDatabase {
     /// Abstract method. Should return whether or not a player has more than or equal
     /// to a certain permission level. Should only take a value of 0 to 5, where 0 is
     /// always True.
-    #[pyo3(signature = (player, level=5), text_signature = "(player, level=5)")]
+    #[pyo3(signature = (player, level=5), text_signature = "($self, player, level=5)")]
     fn has_permission(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -67,7 +67,7 @@ impl AbstractDatabase {
     }
 
     /// Abstract method. Should set specified player flag to value.
-    #[pyo3(signature = (player, flag, value=true), text_signature = "(player, flag, value=True)")]
+    #[pyo3(signature = (player, flag, value=true), text_signature = "($self, player, flag, value=True)")]
     fn set_flag(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -83,7 +83,7 @@ impl AbstractDatabase {
     }
 
     /// Abstract method. Should return specified player flag
-    #[pyo3(signature = (player, flag, default=false), text_signature = "(player, flag, default=False)")]
+    #[pyo3(signature = (player, flag, default=false), text_signature = "($self, player, flag, default=False)")]
     fn get_flag(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -607,7 +607,7 @@ impl Redis {
     }
 
     /// Checks if the player has higher than or equal to *level*.
-    #[pyo3(name = "has_permission", signature = (player, level = 5), text_signature = "(player, level=5)")]
+    #[pyo3(name = "has_permission", signature = (player, level = 5), text_signature = "($self, player, level=5)")]
     fn has_permission(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -617,7 +617,7 @@ impl Redis {
     }
 
     /// Sets specified player flag
-    #[pyo3(name = "set_flag", signature = (player, flag, value = true), text_signature = "(player, flag, value = True)")]
+    #[pyo3(name = "set_flag", signature = (player, flag, value = true), text_signature = "($self, player, flag, value = True)")]
     fn set_flag(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -628,7 +628,7 @@ impl Redis {
     }
 
     /// returns the specified player flag
-    #[pyo3(name = "get_flag", signature = (player, flag, default = false), text_signature = "(player, flag, default=False)")]
+    #[pyo3(name = "get_flag", signature = (player, flag, default = false), text_signature = "($self, player, flag, default=False)")]
     fn get_flag(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
@@ -644,7 +644,7 @@ impl Redis {
     /// configuration. Passing *host* will make it connect to a specific database
     /// that is not shared at all. Subsequent calls to this will return the connection
     /// initialized the first call unless it has been closed.
-    #[pyo3(name = "connect", signature = (host = None, database = 0, unix_socket = false, password = None), text_signature = "(host = None, database = 0, unix_socket = False, password = None)")]
+    #[pyo3(name = "connect", signature = (host = None, database = 0, unix_socket = false, password = None), text_signature = "($self, host = None, database = 0, unix_socket = False, password = None)")]
     fn connect<'py>(
         slf: &Bound<'py, Self>,
         host: Option<&str>,
@@ -694,7 +694,7 @@ impl Redis {
         slf.zadd(name, args, kwargs)
     }
 
-    #[pyo3(name = "zincrby", signature = (name, *, value, amount = None), text_signature = "(name, *, value, amount = 1)")]
+    #[pyo3(name = "zincrby", signature = (name, *, value, amount = None), text_signature = "($self, name, *, value, amount = 1)")]
     fn zincrby<'py>(
         slf: &Bound<'py, Self>,
         name: &str,
@@ -705,7 +705,7 @@ impl Redis {
         slf.zincrby(name, value, amount.unwrap_or(&default_amount))
     }
 
-    #[pyo3(name = "setex", signature = (name, *, value, time), text_signature = "(name, *, value, time)")]
+    #[pyo3(name = "setex", signature = (name, *, value, time), text_signature = "($self, name, *, value, time)")]
     fn setex<'py>(
         slf: &Bound<'py, Self>,
         name: &str,
@@ -715,7 +715,7 @@ impl Redis {
         slf.setex(name, value, time)
     }
 
-    #[pyo3(name = "lrem", signature = (name, *, value, count = 0), text_signature = "(name, *, value, count = 0)")]
+    #[pyo3(name = "lrem", signature = (name, *, value, count = 0), text_signature = "($self, name, *, value, count = 0)")]
     fn lrem<'py>(
         slf: &Bound<'py, Self>,
         name: &str,

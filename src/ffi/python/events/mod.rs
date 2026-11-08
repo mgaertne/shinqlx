@@ -323,7 +323,7 @@ impl EventDispatcher {
 
     /// Hook the event, making the handler get called with relevant arguments
     /// whenever the event is takes place.
-    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "(plugin, handler, priority=PRI_NORMAL)")]
+    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "($self, plugin, handler, priority=PRI_NORMAL)")]
     fn add_hook(
         slf: &Bound<'_, Self>,
         plugin: &str,
@@ -334,7 +334,7 @@ impl EventDispatcher {
     }
 
     /// Removes a previously hooked event.
-    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "(plugin, handler, priority=PRI_NORMAL)")]
+    #[pyo3(signature = (plugin, handler, priority=CommandPriorities::PRI_NORMAL as i32), text_signature = "($self, plugin, handler, priority=PRI_NORMAL)")]
     fn remove_hook(
         slf: &Bound<'_, Self>,
         plugin: &str,

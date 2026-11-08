@@ -233,7 +233,7 @@ impl Player {
     #[pyo3(
     name = "_invalidate",
     signature = (e = "The player does not exist anymore. Did the player disconnect?"),
-    text_signature = "(e = \"The player does not exist anymore. Did the player disconnect?\")"
+    text_signature = "($self, e = \"The player does not exist anymore. Did the player disconnect?\")"
     )]
     fn invalidate(slf: &Bound<'_, Self>, e: &str) -> PyResult<()> {
         slf.invalidate(e)
@@ -445,7 +445,7 @@ impl Player {
         slf.get_ping()
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "($self, reset = False, **kwargs)")]
     fn position<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -454,7 +454,7 @@ impl Player {
         slf.position(reset, kwargs)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "($self, reset = False, **kwargs)")]
     fn velocity<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -463,7 +463,7 @@ impl Player {
         slf.velocity(reset, kwargs)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "($self, reset = False, **kwargs)")]
     fn weapons<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -472,7 +472,7 @@ impl Player {
         slf.weapons(reset, kwargs)
     }
 
-    #[pyo3(signature = (new_weapon = None), text_signature = "(new_weapon = None)")]
+    #[pyo3(signature = (new_weapon = None), text_signature = "($self, new_weapon = None)")]
     fn weapon<'py>(
         slf: &Bound<'py, Self>,
         new_weapon: Option<Bound<'py, PyAny>>,
@@ -480,7 +480,7 @@ impl Player {
         slf.weapon(new_weapon)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "($self, reset = False, **kwargs)")]
     fn ammo<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -489,7 +489,7 @@ impl Player {
         slf.ammo(reset, kwargs)
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "($self, reset = False, **kwargs)")]
     fn powerups<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -513,7 +513,7 @@ impl Player {
         slf.drop_holdable()
     }
 
-    #[pyo3(signature = (reset = false, **kwargs), text_signature = "(reset = False, **kwargs)")]
+    #[pyo3(signature = (reset = false, **kwargs), text_signature = "($self, reset = False, **kwargs)")]
     fn flight<'py>(
         slf: &Bound<'py, Self>,
         reset: bool,
@@ -600,7 +600,7 @@ impl Player {
         slf.tell(msg, kwargs)
     }
 
-    #[pyo3(signature = (reason = ""), text_signature = "(reason = \"\")")]
+    #[pyo3(signature = (reason = ""), text_signature = "($self, reason = \"\")")]
     fn kick(slf: &Bound<'_, Self>, reason: &str) -> PyResult<()> {
         slf.kick(reason)
     }
@@ -645,7 +645,7 @@ impl Player {
         slf.switch(other_player)
     }
 
-    #[pyo3(signature = (damage = 0), text_signature = "(damage = 0)")]
+    #[pyo3(signature = (damage = 0), text_signature = "($self, damage = 0)")]
     fn slap(slf: &Bound<'_, Self>, damage: i32) -> PyResult<()> {
         slf.slap(damage)
     }
