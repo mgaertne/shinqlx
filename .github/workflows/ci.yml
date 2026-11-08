@@ -355,6 +355,7 @@ jobs:
           components: rust-src
       - run: cargo build -p ql_rcon --release --verbose
       - run: cargo build -p ql_stats --release --verbose
+      - run: cargo build -p plugin_migration --release --verbose
       - name: Provide build artifacts
         if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v7
@@ -379,3 +380,15 @@ jobs:
         with:
           name: ql_stats_${{ matrix.os }}
           path: target/release/ql_stats.exe
+      - name: Provide build artifacts
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin_migration_${{ matrix.os }}
+          path: target/release/plugin_migration
+      - name: Provide build artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: plugin_migration_${{ matrix.os }}
+          path: target/release/plugin_migration.exe
