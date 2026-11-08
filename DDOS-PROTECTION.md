@@ -147,8 +147,12 @@ Dropping a packet there is much cheaper than in nftables, which makes it the rig
 hurt the CPU of the machine even though your link is not saturated. It does not help against attacks that saturate the
 link itself, only your hoster can.
 
-shinqlx does not ship an XDP program. Operators who run one report that it works as a game-protocol aware filter in
-front of the server. What such a program typically does:
+shinqlx ships a filter written in Rust ([Aya](https://aya-rs.dev)) with its loader, tests and a systemd unit in
+`xdp/` (see its `README.md`); it has its own cargo workspace and is not part of the shinqlx build. It was tried on a
+Debian 13 server (virtio_net, native mode): tests with crafted packets pass, and an A2S flood of 200 packets/s from one
+source was banned after the first second (about 4000 packets dropped in 30 s) while normal game traffic kept passing.
+Operators who run such a program report that it works as a game-protocol aware filter in front of the server. What such
+a program typically does:
 
 * classify packets by UDP destination port, so game traffic and query traffic can be handled differently,
 * recognize connectionless Quake packets (`FF FF FF FF` followed by `getstatus`, `getinfo`, `getchallenge`, `connect`)
