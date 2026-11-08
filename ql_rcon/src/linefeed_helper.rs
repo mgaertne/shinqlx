@@ -35,31 +35,37 @@ impl Completer<DefaultTerminal> for HistoryCompleter {
     }
 }
 
-fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
-    let split_regex = regex::Regex::new(r"\^[0-7]").unwrap();
-    let mut result = vec![("reset", split_regex.split(input).next())];
+fn is_color_code(bytes: &[u8], at: usize) -> bool {
+    bytes.get(at) == Some(&b'^') && matches!(bytes.get(at + 1), Some(b'0'..=b'7'))
+}
 
-    let capture_regex = regex::Regex::new(r"(\^[0-7])([^\^]+)").unwrap();
-    for (_, [color, string]) in capture_regex
-        .captures_iter(input)
-        .map(|capture| capture.extract())
-    {
-        result.push((color, Some(string)));
+fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
+    let bytes = input.as_bytes();
+    let first_code = (0..bytes.len())
+        .find(|&at| is_color_code(bytes, at))
+        .unwrap_or(bytes.len());
+
+    let mut result = vec![("reset", &input[..first_code])];
+    let mut at = first_code;
+    while at < bytes.len() {
+        if !is_color_code(bytes, at) {
+            at += 1;
+            continue;
+        }
+        let text_start = at + 2;
+        let text_end = input[text_start..]
+            .find('^')
+            .map_or(input.len(), |offset| text_start + offset);
+        if text_end > text_start {
+            result.push((&input[at..text_start], &input[text_start..text_end]));
+            at = text_end;
+        } else {
+            at += 1;
+        }
     }
 
+    result.retain(|(_, text)| !text.is_empty());
     result
-        .into_iter()
-        .filter_map(|(color, string)| match string {
-            None => None,
-            Some(text) => {
-                if text.is_empty() {
-                    None
-                } else {
-                    Some((color, text))
-                }
-            }
-        })
-        .collect::<Vec<(&str, &str)>>()
 }
 
 fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
@@ -296,6 +302,21 @@ mod linefeed_helper_tests {
     #[test]
     fn split_ql_colors_of_empty_text_is_empty() {
         assert!(split_ql_colors("").is_empty());
+    }
+
+    #[test]
+    fn split_ql_colors_ignores_consecutive_color_codes_without_text() {
+        assert_eq!(split_ql_colors("^1^2green"), vec![("^2", "green")]);
+    }
+
+    #[test]
+    fn split_ql_colors_drops_text_after_an_unknown_color_code() {
+        assert_eq!(split_ql_colors("^1red^8lost"), vec![("^1", "red")]);
+    }
+
+    #[test]
+    fn split_ql_colors_keeps_non_ascii_text() {
+        assert_eq!(split_ql_colors("ä^3ö"), vec![("reset", "ä"), ("^3", "ö")]);
     }
 
     #[test]
