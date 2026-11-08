@@ -15,6 +15,7 @@ from shinqlx import (
     StatsData,
     UserinfoEventInput,
 )
+from typing_extensions import disjoint_base
 
 from ._shinqlx import Events
 
@@ -22,6 +23,7 @@ _re_vote: Pattern
 
 _E = TypeVar("_E", bound=EventDispatcher)
 
+@disjoint_base
 class EventDispatcher(Generic[_E]):
     name: str
     plugins: dict[

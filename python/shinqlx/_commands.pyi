@@ -4,12 +4,13 @@ from re import Pattern
 from typing import Callable, SupportsIndex, final
 
 from shinqlx import Player, Plugin
-from typing_extensions import Self
+from typing_extensions import Self, disjoint_base
 
 MAX_MSG_LENGTH: int
 
 re_color_tag: Pattern
 
+@disjoint_base
 class AbstractChannel(ABC):
     def __init__(self, name: str) -> None: ...
     def __eq__(self, other: object, /) -> bool: ...
@@ -21,6 +22,7 @@ class AbstractChannel(ABC):
     @classmethod
     def split_long_lines(cls, msg: str, limit: int = ..., delimiter: str = ...) -> list[str]: ...
 
+@disjoint_base
 class ChatChannel(AbstractChannel):
     def __init__(self, name: str = ..., fmt: str = ...) -> None: ...
     @property
@@ -29,12 +31,14 @@ class ChatChannel(AbstractChannel):
     def recipients(self) -> list[int] | None: ...
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
 
+@disjoint_base
 class TeamChatChannel(ChatChannel):
     def __init__(self, team: str = ..., name: str = ..., fmt: str = ...) -> None: ...
     @property
     def team(self) -> str: ...
     def recipients(self) -> list[int] | None: ...
 
+@disjoint_base
 class TellChannel(ChatChannel):
     def __init__(self, player: Player) -> None: ...
     @property
@@ -47,6 +51,7 @@ class ConsoleChannel(AbstractChannel):
     def __init__(self) -> None: ...
     def reply(self, msg: str, limit: int = ..., delimiter: str = ...) -> None: ...
 
+@disjoint_base
 class ClientCommandChannel(AbstractChannel):
     def __init__(self, player: Player) -> None: ...
     @property

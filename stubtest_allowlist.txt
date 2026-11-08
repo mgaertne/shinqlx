@@ -48,17 +48,6 @@ shinqlx.UserinfoEventInput
 shinqlx.Vector
 shinqlx.WeaponsStatsEntry
 
-# @disjoint_base needs a recent typing_extensions in the type checkers of the users.
-shinqlx._commands.AbstractChannel
-shinqlx._commands.ChatChannel
-shinqlx._commands.ClientCommandChannel
-shinqlx._commands.TeamChatChannel
-shinqlx._commands.TellChannel
-shinqlx.database.AbstractDatabase
-shinqlx._events.EventDispatcher
-shinqlx._player.Player
-shinqlx._plugin.Plugin
-
 # The typed dispatch overloads narrow the *args signature of the runtime to the arguments of each event.
 shinqlx\._events\..*\.dispatch
 

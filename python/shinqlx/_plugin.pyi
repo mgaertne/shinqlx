@@ -20,7 +20,7 @@ from shinqlx import (
     UserinfoEventInput,
 )
 from shinqlx.database import Redis
-from typing_extensions import Never, TypeAlias
+from typing_extensions import Never, TypeAlias, disjoint_base
 
 from ._shinqlx import Events, Teams
 
@@ -376,6 +376,7 @@ def command(
     usage: str = ...,
 ) -> Callable[[_CommandMethod[_PluginT]], _CommandMethod[_PluginT]]: ...
 
+@disjoint_base
 class Plugin:
     _loaded_plugins: ClassVar[dict[str, Plugin]] = ...
     database: ClassVar[type[Redis] | None] = ...

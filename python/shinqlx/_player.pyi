@@ -2,7 +2,7 @@ import sys
 from collections.abc import Iterable
 from typing import Literal, SupportsIndex, TypedDict, final
 
-from typing_extensions import Self
+from typing_extensions import Self, disjoint_base
 
 from ._shinqlx import Holdable, Privileges, Teams, Weapon
 
@@ -78,6 +78,7 @@ class FlightKwargs(TypedDict):
 
 class NonexistentPlayerError(Exception): ...
 
+@disjoint_base
 class Player:
     @classmethod
     def all_players(cls) -> list[Player]: ...

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, SupportsIndex, final, overload
 
-from typing_extensions import Self
+from typing_extensions import Self, disjoint_base
 
 __all__ = ["AbstractDatabase", "Redis"]
 
@@ -13,6 +13,7 @@ from typing import ClassVar
 from redis import ConnectionPool, StrictRedis
 from shinqlx import Player, Plugin
 
+@disjoint_base
 class AbstractDatabase(ABC):
     plugin: Plugin
 
