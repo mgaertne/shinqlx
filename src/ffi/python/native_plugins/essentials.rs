@@ -590,7 +590,9 @@ impl Essentials {
             return reply(channel, &format!("^7I have never seen {name} before."));
         }
 
-        let datetime = py.import(intern!(py, "datetime"))?.getattr("datetime")?;
+        let datetime = py
+            .import(intern!(py, "datetime"))?
+            .getattr(intern!(py, "datetime"))?;
         let then = datetime.call_method1(
             intern!(py, "strptime"),
             (database.get_item(&key)?, DATETIME_FORMAT),
@@ -647,11 +649,11 @@ impl Essentials {
         }
 
         let datetime = py.import(intern!(py, "datetime"))?;
-        let zone = datetime.getattr("timezone")?.call1((datetime
-            .getattr("timedelta")?
+        let zone = datetime.getattr(intern!(py, "timezone"))?.call1((datetime
+            .getattr(intern!(py, "timedelta"))?
             .call1((0, 0, 0, 0, 0, offset))?,))?;
         let current = datetime
-            .getattr("datetime")?
+            .getattr(intern!(py, "datetime"))?
             .call_method1(intern!(py, "now"), (zone,))?
             .call_method1(intern!(py, "strftime"), (TIME_FORMAT,))?;
 
@@ -857,7 +859,9 @@ impl Essentials {
     ) -> PyResult<Option<i32>> {
         let reason = msg.get(2..).unwrap_or_default().join(" ");
         act_on_player(player, &msg, channel, |target| {
-            target.call_method1("kick", (reason,)).map(drop)
+            target
+                .call_method1(intern!(target.py(), "kick"), (reason,))
+                .map(drop)
         })
     }
 
@@ -868,7 +872,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method0("tempban").map(drop)
+            target
+                .call_method0(intern!(target.py(), "tempban"))
+                .map(drop)
         })
     }
 
@@ -943,7 +949,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method1("put", ("red",)).map(drop)
+            target
+                .call_method1(intern!(target.py(), "put"), ("red",))
+                .map(drop)
         })
     }
 
@@ -954,7 +962,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method1("put", ("blue",)).map(drop)
+            target
+                .call_method1(intern!(target.py(), "put"), ("blue",))
+                .map(drop)
         })
     }
 
@@ -965,7 +975,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method1("put", ("spectator",)).map(drop)
+            target
+                .call_method1(intern!(target.py(), "put"), ("spectator",))
+                .map(drop)
         })
     }
 
@@ -976,7 +988,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method1("put", ("free",)).map(drop)
+            target
+                .call_method1(intern!(target.py(), "put"), ("free",))
+                .map(drop)
         })
     }
 
@@ -987,7 +1001,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method0("addmod").map(drop)
+            target
+                .call_method0(intern!(target.py(), "addmod"))
+                .map(drop)
         })
     }
 
@@ -998,7 +1014,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method0("addadmin").map(drop)
+            target
+                .call_method0(intern!(target.py(), "addadmin"))
+                .map(drop)
         })
     }
 
@@ -1009,7 +1027,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method0("demote").map(drop)
+            target
+                .call_method0(intern!(target.py(), "demote"))
+                .map(drop)
         })
     }
 
@@ -1024,7 +1044,9 @@ impl Essentials {
         };
         match lookup_player(player, channel, ident, "Invalid ID.", false)? {
             Lookup::Found(target) if target.eq(player)? => reply(channel, "I refuse."),
-            Lookup::Found(target) => target.call_method0("mute").map(|_| None),
+            Lookup::Found(target) => target
+                .call_method0(intern!(target.py(), "mute"))
+                .map(|_| None),
             Lookup::Finished(code) => Ok(code),
         }
     }
@@ -1036,7 +1058,9 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| {
-            target.call_method0("unmute").map(drop)
+            target
+                .call_method0(intern!(target.py(), "unmute"))
+                .map(drop)
         })
     }
 

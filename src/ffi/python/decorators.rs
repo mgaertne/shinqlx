@@ -48,7 +48,10 @@ fn dispatcher_parameters(py: Python<'_>, event: &str) -> Option<Vec<String>> {
     let signature = py
         .import(intern!(py, "inspect"))
         .and_then(|inspect| {
-            inspect.call_method1(intern!(py, "signature"), (dispatcher.getattr("dispatch")?,))
+            inspect.call_method1(
+                intern!(py, "signature"),
+                (dispatcher.getattr(intern!(py, "dispatch"))?,),
+            )
         })
         .ok()?;
 

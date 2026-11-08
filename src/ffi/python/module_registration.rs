@@ -802,7 +802,7 @@ fn register_database_submodule(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.py()
         .import(intern!(m.py(), "sys"))?
         .getattr(intern!(m.py(), "modules"))?
-        .set_item("shinqlx.database", database_module)?;
+        .set_item(intern!(m.py(), "shinqlx.database"), database_module)?;
 
     Ok(())
 }

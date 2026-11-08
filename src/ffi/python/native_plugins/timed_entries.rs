@@ -158,10 +158,10 @@ pub(super) fn store_entry(
         .call_method1(intern!(py, "zcard"), (key,))?
         .extract::<i64>()?;
     let details = PyDict::new(py);
-    details.set_item("expires", &expires)?;
-    details.set_item("reason", reason)?;
-    details.set_item("issued", local_time(py, issued_at)?)?;
-    details.set_item("issued_by", issued_by)?;
+    details.set_item(intern!(py, "expires"), &expires)?;
+    details.set_item(intern!(py, "reason"), reason)?;
+    details.set_item(intern!(py, "issued"), local_time(py, issued_at)?)?;
+    details.set_item(intern!(py, "issued_by"), issued_by)?;
 
     let pipeline = database.call_method0(intern!(py, "pipeline"))?;
     queue_entry(&pipeline, key, entry_id, score, &details)?;
