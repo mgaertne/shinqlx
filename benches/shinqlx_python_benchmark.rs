@@ -4,7 +4,7 @@
 
 use core::hint::black_box;
 
-use criterion::Criterion;
+use criterion::{Criterion, Throughput};
 use criterion_macro::criterion;
 use shinqlx::bench_support;
 
@@ -89,5 +89,228 @@ fn handle_frame_benchmark(c: &mut Criterion) {
             bench_support::handle_frame();
         })
     });
+    group.finish();
+}
+
+const ITERATIONS: usize = 1_000;
+
+fn python_case_group(
+    c: &mut Criterion,
+    group_name: &str,
+    setup: &str,
+    cases: &[(&str, &str)],
+    iterations: usize,
+) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group(group_name);
+    group.throughput(Throughput::Elements(iterations as u64));
+    for (name, body) in cases {
+        let case = bench_support::PythonCase::new(setup, body);
+        group.bench_function(*name, |b| b.iter(|| case.run(black_box(iterations))));
+    }
+    group.finish();
+}
+
+#[criterion]
+fn enum_comparison_benchmark(c: &mut Criterion) {
+    python_case_group(
+        c,
+        "enum_comparison",
+        "red = shinqlx.Teams.RED\n\
+         blue = shinqlx.Teams.BLUE\n\
+         team = shinqlx.Teams.RED\n\
+         team_int = 1\n\
+         TEAM_RED = shinqlx.TEAM_RED\n\
+         low = shinqlx.Priorities.LOW\n\
+         moderator = shinqlx.Permissions.MODERATOR\n\
+         admin = shinqlx.Permissions.GAME_ADMIN\n\
+         stop = shinqlx.ReturnCodes.STOP\n\
+         none = shinqlx.ReturnCodes.NONE\n\
+         state = shinqlx.GameStates.WARMUP\n\
+         holdable = shinqlx.Holdable.TELEPORTER\n\
+         weapon = shinqlx.Weapon.ROCKET_LAUNCHER\n\
+         by_team = {red: 1, blue: 2}\n",
+        &[
+            ("empty_loop", "pass"),
+            ("int_equals_int", "team_int == TEAM_RED"),
+            ("enum_equals_int", "team == TEAM_RED"),
+            ("enum_equals_enum", "team == red"),
+            ("enum_differs_from_enum", "team == blue"),
+            ("enum_equals_string", "team == \"red\""),
+            ("enum_attribute_lookup", "team == shinqlx.Teams.RED"),
+            ("enum_hash", "hash(team)"),
+            ("enum_as_dict_key", "by_team[team]"),
+            ("priority_equals_int", "low == shinqlx.PRI_LOW"),
+            ("permission_ordering", "admin >= moderator"),
+            ("return_code_equals_none", "none == None"),
+            ("return_code_is_falsy", "not none"),
+            ("return_code_truthy", "not stop"),
+            ("game_state_equals_string", "state == \"warmup\""),
+            ("holdable_equals_string", "holdable == \"teleporter\""),
+            ("holdable_equals_int", "holdable == 27"),
+            ("weapon_equals_string", "weapon == \"rl\""),
+            ("weapon_to_string", "str(weapon)"),
+        ],
+        ITERATIONS,
+    );
+}
+
+#[criterion]
+fn events_benchmark(c: &mut Criterion) {
+    python_case_group(
+        c,
+        "events",
+        "dispatchers = shinqlx.EVENT_DISPATCHERS\n\
+         by_name = {\"frame\": 1}\n\
+         frame = shinqlx.Events.FRAME\n",
+        &[
+            ("dispatcher_by_string", "dispatchers[\"frame\"]"),
+            ("dispatcher_by_member", "dispatchers[frame]"),
+            (
+                "dispatcher_by_member_attribute",
+                "dispatchers[shinqlx.Events.FRAME]",
+            ),
+            ("dict_by_string", "by_name[\"frame\"]"),
+            ("dict_by_member", "by_name[frame]"),
+            ("member_equals_string", "frame == \"frame\""),
+        ],
+        ITERATIONS,
+    );
+}
+
+#[criterion]
+fn name_of_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group("name_of");
+    group.throughput(Throughput::Elements(ITERATIONS as u64));
+    for (name, expression) in [
+        ("string", "\"red\""),
+        ("team", "shinqlx.Teams.RED"),
+        ("privileges", "shinqlx.Privileges.MOD"),
+        ("holdable", "shinqlx.Holdable.TELEPORTER"),
+    ] {
+        let case = bench_support::NameOfCase::new(expression);
+        group.bench_function(name, |b| b.iter(|| case.run(black_box(ITERATIONS))));
+    }
+    group.finish();
+}
+
+#[criterion]
+fn cvar_attribute_benchmark(c: &mut Criterion) {
+    python_case_group(
+        c,
+        "cvar_attribute",
+        "class bench_plugin(shinqlx.Plugin):\n\
+         \x20   number = shinqlx.Cvar(\"qlx_benchNumber\", 3)\n\
+         \x20   text = shinqlx.Cvar(\"qlx_benchText\", \"text\")\n\
+         \x20   names = shinqlx.Cvar(\"qlx_benchNames\", [\"a\", \"b\"])\n\
+         \x20   plain = 3\n\
+         \n\
+         plugin = bench_plugin()\n",
+        &[
+            ("plain_attribute", "plugin.plain"),
+            ("cvar_int_unset", "plugin.number"),
+            ("cvar_str_unset", "plugin.text"),
+            ("cvar_list_unset", "plugin.names"),
+            (
+                "get_cvar_no_type_unset",
+                "plugin.get_cvar(\"qlx_benchNumber\")",
+            ),
+            (
+                "get_cvar_str_unset",
+                "plugin.get_cvar(\"qlx_benchNumber\", str)",
+            ),
+            (
+                "get_cvar_int_unset",
+                "plugin.get_cvar(\"qlx_benchNumber\", int)",
+            ),
+            (
+                "get_cvar_list_unset",
+                "plugin.get_cvar(\"qlx_benchNumber\", list)",
+            ),
+            ("bound_method_only", "plugin.get_cvar"),
+        ],
+        ITERATIONS,
+    );
+}
+
+#[criterion]
+fn plugin_declaration_benchmark(c: &mut Criterion) {
+    let hooked = "compile('class hooked(shinqlx.Plugin):\\n' + ''.join(\
+        f'    @shinqlx.hook(shinqlx.Events.CHAT)\\n    def hook_{i}(self, player, msg, channel):\\n        pass\\n\\n'\
+        for i in range(20)), 'hooked', 'exec')\n";
+    let plain = "compile('class plain(shinqlx.Plugin):\\n' + ''.join(\
+        f'    def hook_{i}(self, player, msg, channel):\\n        pass\\n\\n'\
+        for i in range(20)), 'plain', 'exec')\n";
+    let commands = "compile('class commands(shinqlx.Plugin):\\n' + ''.join(\
+        f'    @shinqlx.command(\"cmd{i}\", permission=1)\\n    def cmd_{i}(self, player, msg, channel):\\n        pass\\n\\n'\
+        for i in range(20)), 'commands', 'exec')\n";
+    python_case_group(
+        c,
+        "plugin_declaration",
+        &format!("hooked = {hooked}plain = {plain}commands = {commands}"),
+        &[
+            (
+                "class_with_20_methods",
+                "exec(plain, {\"shinqlx\": shinqlx})",
+            ),
+            (
+                "class_with_20_hook_decorators",
+                "exec(hooked, {\"shinqlx\": shinqlx})",
+            ),
+            (
+                "class_with_20_command_decorators",
+                "exec(commands, {\"shinqlx\": shinqlx})",
+            ),
+        ],
+        10,
+    );
+
+    let mut group = c.benchmark_group("declared_cvars");
+    for (name, cvars, methods) in [("none_30_methods", 0, 30), ("five_30_methods", 5, 30)] {
+        let case = bench_support::DeclaredCvarsCase::new(cvars, methods);
+        group.bench_function(name, |b| b.iter(|| case.register()));
+    }
+    group.finish();
+}
+
+#[criterion]
+fn more_events_benchmark(c: &mut Criterion) {
+    bench_support::prepare_python();
+
+    let mut group = c.benchmark_group("more_events");
+    group.bench_function("client_command_say", |b| {
+        b.iter(|| bench_support::handle_client_command(black_box(3), black_box("say \"hello\"")))
+    });
+    group.bench_function("client_command_callvote", |b| {
+        b.iter(|| {
+            bench_support::handle_client_command(
+                black_box(3),
+                black_box("callvote map campgrounds"),
+            )
+        })
+    });
+    group.bench_function("client_command_vote", |b| {
+        b.iter(|| bench_support::handle_client_command(black_box(3), black_box("vote y")))
+    });
+    group.bench_function("console_print", |b| {
+        b.iter(|| bench_support::handle_console_print(black_box("broadcast: print \"text\"\n")))
+    });
+    for (name, message) in [
+        (
+            "stats_player_death",
+            r#"{"DATA": {"KILLER": null, "MOD": "HURT", "VICTIM": {"NAME": "player1", "STEAM_ID": "1234"}}, "TYPE": "PLAYER_DEATH"}"#,
+        ),
+        (
+            "stats_round_over",
+            r#"{"DATA": {"MATCH_GUID": "asdf", "ROUND": 10, "TEAM_WON": "RED", "TIME": 539, "WARMUP": false}, "TYPE": "ROUND_OVER"}"#,
+        ),
+    ] {
+        group.bench_function(name, |b| {
+            b.iter(|| bench_support::handle_stats_message_draining(black_box(message)))
+        });
+    }
     group.finish();
 }

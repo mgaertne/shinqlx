@@ -10,18 +10,21 @@ use pyo3::{
 
 use super::{
     EVENT_DISPATCHERS, PythonReturnCodes, clean_text as clean_text_impl,
+    decorators::register_declared_cvars,
     events::{
-        ClientCommandDispatcher, DamageDispatcher, DeathDispatcher, EventDispatcherManager,
-        EventDispatcherManagerMethods, FrameEventDispatcher, KillDispatcher,
-        ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher,
-        dispatcher_debug_log as dispatcher_debug_log_impl,
+        ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
+        DamageDispatcher, DeathDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+        FrameEventDispatcher, KillDispatcher, RoundEndDispatcher, ServerCommandDispatcher,
+        SetConfigstringDispatcher, StatsDispatcher, VoteCalledDispatcher, VoteDispatcher,
+        VoteStartedDispatcher, dispatcher_debug_log as dispatcher_debug_log_impl,
     },
     handlers::{
-        handle_client_command as handle_client_command_impl, handle_damage as handle_damage_impl,
+        handle_client_command as handle_client_command_impl,
+        handle_console_print as handle_console_print_impl, handle_damage as handle_damage_impl,
         handle_frame as handle_frame_impl, handle_server_command as handle_server_command_impl,
         handle_set_configstring as handle_set_configstring_impl,
     },
-    pyshinqlx_module,
+    name_of, pyshinqlx_module,
     stats_listener::handle_zmq_msg,
 };
 
@@ -60,6 +63,27 @@ pub fn prepare_python() {
         dispatchers
             .add_dispatcher(&py.get_type::<KillDispatcher>())
             .expect("could not add kill dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<ChatEventDispatcher>())
+            .expect("could not add chat dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<CommandDispatcher>())
+            .expect("could not add command dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<RoundEndDispatcher>())
+            .expect("could not add round end dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<VoteCalledDispatcher>())
+            .expect("could not add vote called dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<VoteDispatcher>())
+            .expect("could not add vote dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<VoteStartedDispatcher>())
+            .expect("could not add vote started dispatcher");
+        dispatchers
+            .add_dispatcher(&py.get_type::<ConsolePrintDispatcher>())
+            .expect("could not add console print dispatcher");
         EVENT_DISPATCHERS.store(Some(dispatchers.unbind().into()));
 
         py.import(intern!(py, "shinqlx"))
@@ -221,4 +245,173 @@ pub fn queue_next_frame_tasks(count: usize) {
                 .expect("could not queue task");
         }
     });
+}
+
+/// Runs the handler that is called by the server for every line printed to the console.
+pub fn handle_console_print(text: &str) {
+    Python::attach(|py| {
+        handle_console_print_impl(py, text);
+    });
+}
+
+/// Handles a message of the ZMQ stats protocol and empties the queue of the tasks that it has
+/// deferred to the next frame, so that the queue does not grow during a benchmark. Emptying the
+/// queue is part of the measured time.
+pub fn handle_stats_message_draining(message: &str) {
+    Python::attach(|py| {
+        handle_zmq_msg(py, message);
+        let next_frame_tasks = py
+            .import(intern!(py, "shinqlx"))
+            .and_then(|shinqlx_module| shinqlx_module.getattr(intern!(py, "next_frame_tasks")))
+            .expect("could not get next frame tasks");
+        while next_frame_tasks
+            .call_method0(intern!(py, "empty"))
+            .and_then(|empty| empty.is_truthy())
+            .map(|empty| !empty)
+            .expect("could not check the queue")
+        {
+            next_frame_tasks
+                .call_method0(intern!(py, "get_nowait"))
+                .expect("could not take a task");
+        }
+    });
+}
+
+/// A Python snippet that is run in a loop inside the interpreter, so that operations that take only
+/// nanoseconds are not dominated by the cost of entering and leaving the interpreter.
+///
+/// The `setup` runs once at module level after `import shinqlx`, the `body` is the statement that
+/// is repeated.
+pub struct PythonCase(Py<PyAny>);
+
+impl PythonCase {
+    /// Compiles the snippet.
+    pub fn new(setup: &str, body: &str) -> Self {
+        let indented_body = body
+            .lines()
+            .map(|line| format!("        {line}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let source = std::ffi::CString::new(format!(
+            "import shinqlx\n{setup}\n\ndef run(count):\n    for _ in range(count):\n{indented_body}\n"
+        ))
+        .expect("the snippet must not contain a nul byte");
+
+        Python::attach(|py| {
+            PyModule::from_code(py, &source, c"", c"")
+                .and_then(|module| module.getattr(intern!(py, "run")))
+                .map(Bound::unbind)
+                .map(Self)
+                .expect("could not compile the snippet")
+        })
+    }
+
+    /// Runs the body `iterations` times.
+    pub fn run(&self, iterations: usize) {
+        Python::attach(|py| {
+            self.0
+                .call1(py, (iterations,))
+                .expect("could not run the snippet");
+        });
+    }
+}
+
+/// Converts the value of a Python expression to the name that the setters of teams and privileges
+/// use, the way `Player.team` and friends do.
+pub struct NameOfCase(Py<PyAny>);
+
+impl NameOfCase {
+    /// Evaluates the expression, e.g. `shinqlx.Teams.RED` or `"red"`.
+    pub fn new(expression: &str) -> Self {
+        let code =
+            std::ffi::CString::new(expression).expect("the expression must not contain a nul byte");
+        Python::attach(|py| {
+            let globals = PyDict::new(py);
+            globals
+                .set_item(
+                    "shinqlx",
+                    py.import(intern!(py, "shinqlx")).expect("no shinqlx"),
+                )
+                .expect("could not set shinqlx");
+            py.eval(&code, Some(&globals), None)
+                .map(Bound::unbind)
+                .map(Self)
+                .expect("could not evaluate the expression")
+        })
+    }
+
+    /// Converts the value `iterations` times.
+    pub fn run(&self, iterations: usize) {
+        Python::attach(|py| {
+            let value = self.0.bind(py);
+            for _ in 0..iterations {
+                name_of(value).expect("could not determine the name");
+            }
+        });
+    }
+}
+
+/// Registers the `Cvar` declarations of a plugin class that has many methods, the way the plugin
+/// loader does before the plugin is instantiated. The cvars have no default, so no engine is needed.
+pub struct DeclaredCvarsCase(Py<PyAny>);
+
+impl DeclaredCvarsCase {
+    /// Creates a plugin class with `cvars` declarations and `methods` methods.
+    pub fn new(cvars: usize, methods: usize) -> Self {
+        let cvar_lines = (0..cvars)
+            .map(|index| format!("    cvar_{index} = shinqlx.Cvar('qlx_bench{index}')"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let method_lines = (0..methods)
+            .map(|index| format!("    def method_{index}(self):\n        return {index}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let source = std::ffi::CString::new(format!(
+            "import shinqlx\n\nclass bench_plugin(shinqlx.Plugin):\n{cvar_lines}\n{method_lines}\n    pass\n"
+        ))
+        .expect("the class must not contain a nul byte");
+
+        Python::attach(|py| {
+            PyModule::from_code(py, &source, c"", c"")
+                .and_then(|module| module.getattr(intern!(py, "bench_plugin")))
+                .map(Bound::unbind)
+                .map(Self)
+                .expect("could not create the plugin class")
+        })
+    }
+
+    /// Registers the declared cvars once.
+    pub fn register(&self) {
+        Python::attach(|py| {
+            register_declared_cvars(self.0.bind(py)).expect("could not register the cvars");
+        });
+    }
+}
+
+/// The limiter that drops the Steam queries of a source that sends too many.
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+pub struct QueryLimiterCase(Box<crate::query_rate_limiter::QueryRateLimiter>);
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+impl QueryLimiterCase {
+    /// A limiter with the default limits of the server.
+    pub fn with_defaults() -> Self {
+        Self::with_limits(1.0, 10.0, 10.0)
+    }
+
+    /// A limiter with the given per source rate, burst and global rate. `0` disables a limit.
+    pub fn with_limits(per_source_rate: f64, burst: f64, global_rate: f64) -> Self {
+        Self(Box::new(crate::query_rate_limiter::QueryRateLimiter::new(
+            crate::query_rate_limiter::QueryLimits {
+                per_source_rate,
+                burst,
+                global_rate,
+            },
+        )))
+    }
+
+    /// Asks whether the packet of `source` may be handed to Steam at `now_ms`.
+    pub fn allow(&mut self, source: [u8; 4], now_ms: u64) -> bool {
+        self.0.allow(source, now_ms)
+    }
 }

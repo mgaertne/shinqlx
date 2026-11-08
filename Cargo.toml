@@ -42,6 +42,10 @@ crate-type = ["cdylib", "rlib"]
 name = "shinqlx_benchmark"
 
 [[bench]]
+name = "shinqlx_limiter_benchmark"
+required-features = ["bench-support", "steam-query-limit"]
+
+[[bench]]
 name = "shinqlx_python_benchmark"
 required-features = ["bench-support"]
 

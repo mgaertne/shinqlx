@@ -39,6 +39,146 @@ fn tell_caller(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
         .map(|_| ())
 }
 
+/// The types a cvar can be read as.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum CvarType {
+    Str,
+    Int,
+    Float,
+    Bool,
+    List,
+    Set,
+    Tuple,
+}
+
+impl CvarType {
+    /// The type for a Python type object. The builtin types are recognized by identity, other types
+    /// by their `__name__`. Returns the name of the type as error if cvars cannot be read as it.
+    pub(super) fn from_type(python_type: &Bound<'_, PyType>) -> Result<Self, String> {
+        let py = python_type.py();
+        if python_type.is(py.get_type::<PyString>()) {
+            return Ok(Self::Str);
+        }
+        if python_type.is(py.get_type::<PyInt>()) {
+            return Ok(Self::Int);
+        }
+        if python_type.is(py.get_type::<PyBool>()) {
+            return Ok(Self::Bool);
+        }
+        if python_type.is(py.get_type::<PyFloat>()) {
+            return Ok(Self::Float);
+        }
+        if python_type.is(py.get_type::<PyList>()) {
+            return Ok(Self::List);
+        }
+        if python_type.is(py.get_type::<PySet>()) {
+            return Ok(Self::Set);
+        }
+        if python_type.is(py.get_type::<PyTuple>()) {
+            return Ok(Self::Tuple);
+        }
+
+        let type_name = python_type
+            .getattr(intern!(py, "__name__"))
+            .and_then(|value| value.extract::<String>())
+            .unwrap_or_else(|_| "Python type without __name__".into());
+        Self::from_name(&type_name).ok_or(type_name)
+    }
+
+    /// The type for the `__name__` of a Python type, if cvars can be read as it.
+    pub(super) fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "str" => Some(Self::Str),
+            "int" => Some(Self::Int),
+            "float" => Some(Self::Float),
+            "bool" => Some(Self::Bool),
+            "list" => Some(Self::List),
+            "set" => Some(Self::Set),
+            "tuple" => Some(Self::Tuple),
+            _ => None,
+        }
+    }
+}
+
+/// Reads the current value of the cvar `name` and converts it to `cvar_type`.
+pub(super) fn read_cvar_as<'py>(
+    py: Python<'py>,
+    name: &str,
+    cvar_type: CvarType,
+) -> PyResult<Bound<'py, PyAny>> {
+    let cvar_string = MAIN_ENGINE
+        .load()
+        .as_ref()
+        .and_then(|engine| engine.find_cvar(name))
+        .map(|value| value.get_string());
+
+    match cvar_type {
+        CvarType::Str => match cvar_string {
+            None => Ok(py.None().into_bound(py)),
+            Some(value) => Ok(PyString::intern(py, &value).into_any()),
+        },
+        CvarType::Int => match cvar_string {
+            None => Ok(py.None().into_bound(py)),
+            Some(value) => value.parse::<i64>().map_or_else(
+                |_| {
+                    cold_path();
+                    let error_description =
+                        format!("invalid literal for int() with base 10: '{value}'");
+                    Err(PyValueError::new_err(error_description))
+                },
+                |int| Ok(PyInt::new(py, int).into_any()),
+            ),
+        },
+        CvarType::Float => match cvar_string {
+            None => Ok(py.None().into_bound(py)),
+            Some(value) => value.parse::<f64>().map_or_else(
+                |_| {
+                    cold_path();
+                    let error_description = format!("could not convert string to float: '{value}'");
+                    Err(PyValueError::new_err(error_description))
+                },
+                |float| Ok(PyFloat::new(py, float).into_any()),
+            ),
+        },
+        CvarType::Bool => match cvar_string {
+            None => Ok(PyBool::new(py, false).into_any().to_owned()),
+            Some(value) => value.parse::<i64>().map_or_else(
+                |_| {
+                    cold_path();
+                    let error_description =
+                        format!("invalid literal for int() with base 10: '{value}'");
+                    Err(PyValueError::new_err(error_description))
+                },
+                |int| Ok(PyBool::new(py, int != 0).into_any().to_owned()),
+            ),
+        },
+        CvarType::List => match cvar_string {
+            None => Ok(PyList::empty(py).into_any()),
+            Some(value) => {
+                let items = value.split(',').collect::<Vec<_>>();
+                Ok(PyList::new(py, items)?.into_any())
+            }
+        },
+        CvarType::Set => match cvar_string {
+            None => PySet::empty(py).map(|set| set.into_any()),
+            Some(value) => {
+                let items = value
+                    .split(',')
+                    .map(|item| item.to_string())
+                    .collect::<Vec<_>>();
+                Ok(PySet::new::<String>(py, items)?.into_any())
+            }
+        },
+        CvarType::Tuple => match cvar_string {
+            None => Ok(PyTuple::empty(py).into_any()),
+            Some(value) => {
+                let items = value.split(',').collect::<Vec<_>>();
+                Ok(PyTuple::new(py, items)?.into_any())
+            }
+        },
+    }
+}
+
 /// The base plugin class.
 ///
 /// Every plugin must inherit this or a subclass of this. It does not support any database
@@ -223,98 +363,17 @@ impl Plugin {
         name: &str,
         return_type: Option<Py<PyType>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let cvar_string = cls.py().detach(|| {
-            MAIN_ENGINE
-                .load()
-                .as_ref()?
-                .find_cvar(name)
-                .map(|value| value.get_string())
-        });
-
-        let Some(py_return_type) = return_type else {
-            return match cvar_string {
-                None => Ok(cls.py().None().into_bound(cls.py())),
-                Some(value) => Ok(PyString::intern(cls.py(), &value).into_any()),
-            };
-        };
-        let py_return_type_str = py_return_type
-            .bind(cls.py())
-            .getattr(intern!(cls.py(), "__name__"))
-            .and_then(|value| value.extract::<String>())
-            .unwrap_or_else(|_| "Python type without __name__".into());
-
-        match py_return_type_str.as_str() {
-            "str" => match cvar_string {
-                None => Ok(cls.py().None().into_bound(cls.py())),
-                Some(value) => Ok(PyString::intern(cls.py(), &value).into_any()),
-            },
-            "int" => match cvar_string {
-                None => Ok(cls.py().None().into_bound(cls.py())),
-                Some(value) => value.parse::<i64>().map_or_else(
-                    |_| {
-                        cold_path();
-                        let error_description =
-                            format!("invalid literal for int() with base 10: '{value}'");
-                        Err(PyValueError::new_err(error_description))
-                    },
-                    |int| Ok(PyInt::new(cls.py(), int).into_any()),
-                ),
-            },
-            "float" => match cvar_string {
-                None => Ok(cls.py().None().into_bound(cls.py())),
-                Some(value) => value.parse::<f64>().map_or_else(
-                    |_| {
-                        cold_path();
-                        let error_description =
-                            format!("could not convert string to float: '{value}'");
-                        Err(PyValueError::new_err(error_description))
-                    },
-                    |float| Ok(PyFloat::new(cls.py(), float).into_any()),
-                ),
-            },
-            "bool" => match cvar_string {
-                None => Ok(PyBool::new(cls.py(), false).into_any().to_owned()),
-                Some(value) => value.parse::<i64>().map_or_else(
-                    |_| {
-                        cold_path();
-                        let error_description =
-                            format!("invalid literal for int() with base 10: '{value}'");
-                        Err(PyValueError::new_err(error_description))
-                    },
-                    |int| Ok(PyBool::new(cls.py(), int != 0).into_any().to_owned()),
-                ),
-            },
-            "list" => match cvar_string {
-                None => Ok(PyList::empty(cls.py()).into_any()),
-                Some(value) => {
-                    let items = value.split(',').collect::<Vec<_>>();
-                    let returned = PyList::new(cls.py(), items)?;
-                    Ok(PyList::new(cls.py(), returned)?.into_any())
-                }
-            },
-            "set" => match cvar_string {
-                None => PySet::empty(cls.py()).map(|set| set.into_any()),
-                Some(value) => {
-                    let items = value
-                        .split(',')
-                        .map(|item| item.to_string())
-                        .collect::<Vec<_>>();
-                    Ok(PySet::new::<String>(cls.py(), items)?.into_any())
-                }
-            },
-            "tuple" => match cvar_string {
-                None => Ok(PyTuple::empty(cls.py()).into_any()),
-                Some(value) => {
-                    let items = value.split(',').collect::<Vec<_>>();
-                    Ok(PyTuple::new(cls.py(), items)?.into_any())
-                }
-            },
-            value => {
-                cold_path();
-                let error_description = format!("Invalid return type: {value}");
-                Err(PyValueError::new_err(error_description))
+        let cvar_type = match return_type {
+            None => CvarType::Str,
+            Some(py_return_type) => {
+                CvarType::from_type(py_return_type.bind(cls.py())).map_err(|type_name| {
+                    cold_path();
+                    PyValueError::new_err(format!("Invalid return type: {type_name}"))
+                })?
             }
-        }
+        };
+
+        read_cvar_as(cls.py(), name, cvar_type)
     }
 
     /// Sets a cvar. If the cvar exists, it will be set as if set from the console,

@@ -10,7 +10,7 @@ use pyo3::{
 use super::{
     commands::CommandPriorities,
     deferred::{Deferral, DeferredCall},
-    plugin::{Plugin, PluginMethods},
+    plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
 };
 
 const HOOKS_MARKER: &str = "_shinqlx_hooks";
@@ -215,7 +215,7 @@ fn command<'py>(
 struct Cvar {
     name: String,
     default: Option<String>,
-    value_type: Py<PyAny>,
+    value_type: CvarType,
     flags: i32,
     minimum: Option<Py<PyAny>>,
     maximum: Option<Py<PyAny>>,
@@ -250,7 +250,7 @@ impl Cvar {
             ));
         }
 
-        let value_type = cvar_value_type(py, r#type, default.as_ref())?.unbind();
+        let value_type = cvar_value_type(py, r#type, default.as_ref())?;
         let default = default.as_ref().map(cvar_default_string).transpose()?;
 
         Ok(Self {
@@ -273,13 +273,7 @@ impl Cvar {
         }
 
         let declaration = slf.get();
-        instance.call_method1(
-            intern!(slf.py(), "get_cvar"),
-            (
-                declaration.name.as_str(),
-                declaration.value_type.bind(slf.py()),
-            ),
-        )
+        read_cvar_as(slf.py(), &declaration.name, declaration.value_type)
     }
 
     fn __set__(&self, _instance: &Bound<'_, PyAny>, _value: &Bound<'_, PyAny>) -> PyResult<()> {
@@ -322,32 +316,33 @@ fn cvar_value_type<'py>(
     py: Python<'py>,
     declared: Option<Bound<'py, PyAny>>,
     default: Option<&Bound<'py, PyAny>>,
-) -> PyResult<Bound<'py, PyAny>> {
+) -> PyResult<CvarType> {
     if let Some(declared) = declared {
-        let declared_name = declared
-            .getattr(intern!(py, "__name__"))
-            .and_then(|name| name.extract::<String>())
-            .unwrap_or_default();
-        if !declared.is_instance_of::<PyType>() || !CVAR_TYPES.contains(&declared_name.as_str()) {
+        let declared_type = declared
+            .is_instance_of::<PyType>()
+            .then(|| {
+                declared
+                    .getattr(intern!(py, "__name__"))
+                    .and_then(|name| name.extract::<String>())
+                    .ok()
+            })
+            .flatten()
+            .and_then(|name| CvarType::from_name(&name));
+        return declared_type.ok_or_else(|| {
             cold_path();
-            return Err(PyValueError::new_err(format!(
-                "type has to be one of {}",
-                CVAR_TYPES.join(", ")
-            )));
-        }
-        return Ok(declared);
+            PyValueError::new_err(format!("type has to be one of {}", CVAR_TYPES.join(", ")))
+        });
     }
 
-    let inferred = match default {
-        Some(value) if value.is_instance_of::<PyBool>() => "bool",
-        Some(value) if value.is_instance_of::<PyInt>() => "int",
-        Some(value) if value.is_instance_of::<PyFloat>() => "float",
-        Some(value) if value.is_instance_of::<PyList>() => "list",
-        Some(value) if value.is_instance_of::<PyTuple>() => "tuple",
-        Some(value) if value.is_instance_of::<PySet>() => "set",
-        _ => "str",
-    };
-    py.import(intern!(py, "builtins"))?.getattr(inferred)
+    Ok(match default {
+        Some(value) if value.is_instance_of::<PyBool>() => CvarType::Bool,
+        Some(value) if value.is_instance_of::<PyInt>() => CvarType::Int,
+        Some(value) if value.is_instance_of::<PyFloat>() => CvarType::Float,
+        Some(value) if value.is_instance_of::<PyList>() => CvarType::List,
+        Some(value) if value.is_instance_of::<PyTuple>() => CvarType::Tuple,
+        Some(value) if value.is_instance_of::<PySet>() => CvarType::Set,
+        _ => CvarType::Str,
+    })
 }
 
 fn cvar_default_string(default: &Bound<'_, PyAny>) -> PyResult<String> {

@@ -4,8 +4,14 @@
     reason = "the variants mirror the names of the C constants of the engine"
 )]
 
+use core::fmt::{self, Write as _};
+
 use derive_more::Display;
-use pyo3::{IntoPyObjectExt, class::basic::CompareOp, types::PyInt};
+use pyo3::{
+    IntoPyObjectExt,
+    class::basic::CompareOp,
+    types::{PyInt, PyString},
+};
 
 use super::{PythonReturnCodes, commands::CommandPriorities, holdable::Holdable, prelude::*};
 use crate::ffi::c::prelude::*;
@@ -42,18 +48,34 @@ pub(crate) fn name_of(value: &Bound<'_, PyAny>) -> PyResult<String> {
     value.extract::<String>()
 }
 
+/// Whether the display of `name` is exactly `other`, without allocating a string for it.
+fn displays_as(name: &impl fmt::Display, other: &str) -> bool {
+    struct Matcher<'a>(&'a str);
+
+    impl fmt::Write for Matcher<'_> {
+        fn write_str(&mut self, text: &str) -> fmt::Result {
+            self.0 = self.0.strip_prefix(text).ok_or(fmt::Error)?;
+            Ok(())
+        }
+    }
+
+    let mut matcher = Matcher(other);
+    write!(matcher, "{name}").is_ok() && matcher.0.is_empty()
+}
+
 pub(super) fn compare_with_name_or_index(
     value: i32,
-    name: &str,
+    name: &impl fmt::Display,
     other: &Bound<'_, PyAny>,
 ) -> Option<bool> {
-    if let Ok(other_name) = other.extract::<&str>() {
-        return Some(other_name == name);
-    }
     if other.is_exact_instance_of::<PyInt>() {
         return other.extract::<i32>().ok().map(|index| index == value);
     }
-    None
+    other.cast::<PyString>().ok().map(|other_name| {
+        other_name
+            .to_str()
+            .is_ok_and(|other| displays_as(name, other))
+    })
 }
 
 pub(super) fn richcmp_result(
@@ -103,7 +125,7 @@ impl Team {
     ) -> PyResult<Py<PyAny>> {
         let this = slf.get();
         let equal = other.cast::<Self>().map_or_else(
-            |_| compare_with_name_or_index(*this as i32, &this.to_string(), other),
+            |_| compare_with_name_or_index(*this as i32, &this, other),
             |same| Some(same.get() == this),
         );
         richcmp_result(slf.py(), equal, op)
@@ -147,7 +169,7 @@ impl Privileges {
     ) -> PyResult<Py<PyAny>> {
         let this = slf.get();
         let equal = other.cast::<Self>().map_or_else(
-            |_| compare_with_name_or_index(*this as i32, &this.to_string(), other),
+            |_| compare_with_name_or_index(*this as i32, &this, other),
             |same| Some(same.get() == this),
         );
         richcmp_result(slf.py(), equal, op)
@@ -191,7 +213,7 @@ impl ConnectionState {
     ) -> PyResult<Py<PyAny>> {
         let this = slf.get();
         let equal = other.cast::<Self>().map_or_else(
-            |_| compare_with_name_or_index(*this as i32, &this.to_string(), other),
+            |_| compare_with_name_or_index(*this as i32, &this, other),
             |same| Some(same.get() == this),
         );
         richcmp_result(slf.py(), equal, op)
@@ -347,7 +369,7 @@ impl Weapon {
     ) -> PyResult<Py<PyAny>> {
         let this = slf.get();
         let equal = other.cast::<Self>().map_or_else(
-            |_| compare_with_name_or_index(*this as i32, &this.to_string(), other),
+            |_| compare_with_name_or_index(*this as i32, &this, other),
             |same| Some(same.get() == this),
         );
         richcmp_result(slf.py(), equal, op)
@@ -373,7 +395,7 @@ pub(crate) enum GameState {
 #[pymethods]
 impl GameState {
     fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
-        pyo3::types::PyString::new(py, &self.to_string()).hash()
+        PyString::new(py, &self.to_string()).hash()
     }
 
     fn __richcmp__(
@@ -385,9 +407,9 @@ impl GameState {
         let equal = other.cast::<Self>().map_or_else(
             |_| {
                 other
-                    .extract::<&str>()
+                    .cast::<PyString>()
                     .ok()
-                    .map(|name| name == this.to_string())
+                    .map(|name| name.to_str().is_ok_and(|name| displays_as(this, name)))
             },
             |same| Some(same.get() == this),
         );

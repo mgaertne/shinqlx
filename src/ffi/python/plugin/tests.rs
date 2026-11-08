@@ -1608,7 +1608,7 @@ fn get_cvar_with_invalid_type_conversion(_pyshinqlx_setup: ()) {
         .with_find_cvar(
             |cmd| cmd == "sv_maxclients",
             move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-            1,
+            0,
         )
         .run(|| {
             Python::attach(|py| {

@@ -1,3 +1,5 @@
+use core::fmt;
+
 use derive_more::Display;
 use pyo3::class::basic::CompareOp;
 
@@ -40,6 +42,17 @@ pub(crate) enum Holdable {
     Unknown = 666,
 }
 
+struct LowerCase<'a>(&'a Holdable);
+
+impl fmt::Display for LowerCase<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            Holdable::None => formatter.write_str("none"),
+            holdable => fmt::Display::fmt(holdable, formatter),
+        }
+    }
+}
+
 #[pymethods]
 impl Holdable {
     fn __index__(&self) -> i32 {
@@ -57,7 +70,7 @@ impl Holdable {
     ) -> PyResult<Py<PyAny>> {
         let this = slf.get();
         let equal = other.cast::<Self>().map_or_else(
-            |_| compare_with_name_or_index(*this as i32, &this.to_string().to_lowercase(), other),
+            |_| compare_with_name_or_index(*this as i32, &LowerCase(this), other),
             |same| Some(same.get() == this),
         );
         richcmp_result(slf.py(), equal, op)

@@ -646,7 +646,7 @@ Functions
 
 .. function:: slay_with_mod(client_id, mod) -> bool
 
-   Slay player with means of death.
+   Kill a player in the game with a means of death. The player stays connected to the server.
 
    .. seealso::
       :ref:`means_of_death` for the different means of death value.

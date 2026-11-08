@@ -158,10 +158,16 @@ connection is, and compares equal to the members of :class:`ConnectionStates`.
            if player.connection_state == shinqlx.ConnectionStates.ACTIVE:
                self.msg(f"{player.name}^7 left the game.")
 
-To remove a player instantly, :func:`slay_with_mod` takes a member of :class:`MeansOfDeath`:
+To kill a player in the game, :func:`slay_with_mod` takes a member of :class:`MeansOfDeath` as the cause of the death.
+The player stays connected to the server and respawns as usual, which is what distinguishes slaying from kicking
+(:meth:`Player.kick`):
 
 .. code-block:: python
 
+   import shinqlx
+
+
+   class slayer(shinqlx.Plugin):
        @shinqlx.command("slay", permission=shinqlx.Permissions.GAME_ADMIN, usage="<id>")
        def cmd_slay(self, player, msg, channel):
            target = self.player(msg[1]) if len(msg) > 1 else None
