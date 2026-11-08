@@ -125,8 +125,9 @@ impl Rule for DefaultPluginAccess {
                 output.warnings.push(Warning::new(
                     line_of(node),
                     format!(
-                        "the default plugin {} is written in Rust and does not provide `{member_name}`",
-                        plugin.name
+                        "the default plugin {name} is written in Rust and does not provide `{member_name}`, \
+                         keep the Python plugin {name} in the plugins directory",
+                        name = plugin.name
                     ),
                 ));
             }
