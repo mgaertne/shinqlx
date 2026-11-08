@@ -7,8 +7,8 @@ use crate::ffi::{
 
 /// Returns a list with dictionaries with information about all the players on the server.
 #[pyfunction(name = "players_info")]
-pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
-    py.detach(|| {
+pub(crate) fn pyshinqlx_players_info(_py: Python<'_>) -> PyResult<Vec<Option<PlayerInfo>>> {
+    {
         let maxclients = with_main_engine(|main_engine| Ok(main_engine.get_max_clients()))?;
 
         Ok((0..maxclients)
@@ -21,7 +21,7 @@ pub(crate) fn pyshinqlx_players_info(py: Python<'_>) -> PyResult<Vec<Option<Play
                     })
             })
             .collect())
-    })
+    }
 }
 
 #[cfg(test)]

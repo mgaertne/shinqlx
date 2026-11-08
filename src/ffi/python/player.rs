@@ -299,14 +299,14 @@ impl Player {
     }
 
     #[getter(team)]
-    pub(crate) fn get_team(&self, py: Python<'_>) -> PyResult<String> {
-        py.detach(|| match Teams::from(self.player_info.read().team) {
+    pub(crate) fn get_team(&self, _py: Python<'_>) -> PyResult<String> {
+        match Teams::from(self.player_info.read().team) {
             Teams::Invalid => {
                 cold_path();
                 Err(PyValueError::new_err("invalid team"))
             }
             team => Ok(team.to_string()),
-        })
+        }
     }
 
     #[setter(team)]

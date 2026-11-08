@@ -7,8 +7,8 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 
 /// Returns a string with a player's userinfo.
 #[pyfunction(name = "get_userinfo")]
-pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
-    py.detach(|| {
+pub(crate) fn pyshinqlx_get_userinfo(_py: Python<'_>, client_id: i32) -> PyResult<Option<String>> {
+    {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -20,7 +20,7 @@ pub(crate) fn pyshinqlx_get_userinfo(py: Python<'_>, client_id: i32) -> PyResult
                     || allowed_free_clients & (1 << client_id as u64) != 0
             })
             .map(|client| client.get_user_info().into()))
-    })
+    }
 }
 
 #[cfg(test)]

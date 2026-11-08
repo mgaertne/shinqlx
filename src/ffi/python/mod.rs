@@ -565,7 +565,7 @@ create_exception!(pyshinqlx_module, PluginUnloadError, PyException);
 /// Returns a :class:`datetime.timedelta` instance of the time since initialized.
 #[pyfunction]
 fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
-    let (elapsed_days, elapsed_seconds, elapsed_microseconds) = py.detach(|| {
+    let (elapsed_days, elapsed_seconds, elapsed_microseconds) = {
         let elapsed = Utc::now() - *_INIT_TIME;
         let elapsed_days = elapsed.num_days().try_conv::<i32>().unwrap_or_default();
         let elapsed_seconds = (elapsed.num_seconds() % (24 * 60 * 60))
@@ -573,7 +573,7 @@ fn uptime(py: Python<'_>) -> PyResult<Bound<'_, PyDelta>> {
             .unwrap_or_default();
         let elapsed_microseconds = elapsed.subsec_micros();
         (elapsed_days, elapsed_seconds, elapsed_microseconds)
-    });
+    };
     PyDelta::new(
         py,
         elapsed_days,
@@ -610,8 +610,8 @@ mod uptime_tests {
 
 /// Returns the SteamID64 of the owner. This is set in the config.
 #[pyfunction(name = "owner")]
-fn pyshinqlx_owner(py: Python<'_>) -> PyResult<Option<i64>> {
-    py.detach(owner)
+fn pyshinqlx_owner(_py: Python<'_>) -> PyResult<Option<i64>> {
+    owner()
 }
 
 fn owner() -> PyResult<Option<i64>> {

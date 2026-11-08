@@ -3,8 +3,8 @@ use crate::ffi::python::{get_cvar, prelude::*};
 /// Gets a cvar.
 #[pyfunction]
 #[pyo3(name = "get_cvar")]
-pub(crate) fn pyshinqlx_get_cvar(py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
-    py.detach(|| get_cvar(cvar))
+pub(crate) fn pyshinqlx_get_cvar(_py: Python<'_>, cvar: &str) -> PyResult<Option<String>> {
+    get_cvar(cvar)
 }
 
 #[cfg(test)]

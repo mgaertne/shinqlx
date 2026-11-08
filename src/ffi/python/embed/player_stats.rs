@@ -7,10 +7,10 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "player_stats")]
 pub(crate) fn pyshinqlx_player_stats(
-    py: Python<'_>,
+    _py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerStats>> {
-    py.detach(|| {
+    {
         validate_client_id(client_id)?;
 
         Ok(client_id
@@ -18,7 +18,7 @@ pub(crate) fn pyshinqlx_player_stats(
             .ok()
             .and_then(|game_entity| game_entity.get_game_client().ok())
             .map(PlayerStats::from))
-    })
+    }
 }
 
 #[cfg(test)]

@@ -11,10 +11,10 @@ use crate::{
 /// Returns a dictionary with information about a plapub(crate) yer by ID.
 #[pyfunction(name = "player_info")]
 pub(crate) fn pyshinqlx_player_info(
-    py: Python<'_>,
+    _py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerInfo>> {
-    py.detach(|| {
+    {
         if !(0..MAX_CLIENTS as i32).contains(&client_id) {
             cold_path();
             return Err(PyValueError::new_err(format!(
@@ -42,7 +42,7 @@ pub(crate) fn pyshinqlx_player_info(
         };
 
         Ok(Some(PlayerInfo::from(client_id)))
-    })
+    }
 }
 
 #[cfg(test)]

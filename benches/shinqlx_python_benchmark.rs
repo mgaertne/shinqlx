@@ -314,3 +314,18 @@ fn more_events_benchmark(c: &mut Criterion) {
     }
     group.finish();
 }
+
+#[criterion]
+fn lookup_call_benchmark(c: &mut Criterion) {
+    python_case_group(
+        c,
+        "lookup_call",
+        "plugin = shinqlx.Plugin()\n",
+        &[
+            ("plugin_clean_text", "plugin.clean_text(\"^1Red^7Player\")"),
+            ("plugin_is_vote_active", "plugin.is_vote_active()"),
+            ("uptime", "shinqlx.uptime()"),
+        ],
+        ITERATIONS,
+    );
+}

@@ -674,8 +674,8 @@ impl Plugin {
 
     /// Removes color tags from text.
     #[classmethod]
-    fn clean_text(cls: &Bound<'_, PyType>, text: &str) -> String {
-        cls.py().detach(|| clean_text(&text))
+    fn clean_text(_cls: &Bound<'_, PyType>, text: &str) -> String {
+        clean_text(&text)
     }
 
     /// Get the colored name of a decolored name.
@@ -730,7 +730,7 @@ impl Plugin {
     ) -> Vec<Player> {
         let players = player_list.unwrap_or_else(|| Self::players(cls).unwrap_or_default());
 
-        cls.py().detach(|| players_matching_name(players, name))
+        players_matching_name(players, name)
     }
 
     /// Find a player by name or client ID and tell the caller when there is no or more than one
@@ -846,8 +846,8 @@ impl Plugin {
     }
 
     #[classmethod]
-    fn is_vote_active(cls: &Bound<'_, PyType>) -> bool {
-        cls.py().detach(is_vote_active)
+    fn is_vote_active(_cls: &Bound<'_, PyType>) -> bool {
+        is_vote_active()
     }
 
     #[classmethod]

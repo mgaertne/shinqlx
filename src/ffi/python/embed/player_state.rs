@@ -7,17 +7,17 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 #[pyfunction]
 #[pyo3(name = "player_state")]
 pub(crate) fn pyshinqlx_player_state(
-    py: Python<'_>,
+    _py: Python<'_>,
     client_id: i32,
 ) -> PyResult<Option<PlayerState>> {
-    py.detach(|| {
+    {
         validate_client_id(client_id)?;
 
         Ok(client_id
             .try_conv::<GameEntity>()
             .ok()
             .and_then(|game_entity| PlayerState::try_from(game_entity).ok()))
-    })
+    }
 }
 
 #[cfg(test)]

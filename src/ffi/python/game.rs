@@ -589,21 +589,21 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_red_score(&self) -> PyResult<i32> {
-        self.py().detach(|| {
+        {
             with_main_engine(|main_engine| {
                 let configstring = main_engine.get_configstring(CS_SCORES1 as u16);
                 Ok(configstring.parse::<i32>().unwrap_or_default())
             })
-        })
+        }
     }
 
     fn get_blue_score(&self) -> PyResult<i32> {
-        self.py().detach(|| {
+        {
             with_main_engine(|main_engine| {
                 let configstring = main_engine.get_configstring(CS_SCORES2 as u16);
                 Ok(configstring.parse::<i32>().unwrap_or_default())
             })
-        })
+        }
     }
 
     fn get_state(&self) -> PyResult<String> {

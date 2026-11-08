@@ -3,8 +3,8 @@ use crate::ffi::python::{get_configstring, prelude::*};
 /// Get a configstring.
 #[pyfunction]
 #[pyo3(name = "get_configstring")]
-pub(crate) fn pyshinqlx_get_configstring(py: Python<'_>, config_id: u16) -> PyResult<String> {
-    py.detach(|| get_configstring(config_id))
+pub(crate) fn pyshinqlx_get_configstring(_py: Python<'_>, config_id: u16) -> PyResult<String> {
+    get_configstring(config_id)
 }
 
 #[cfg(test)]
