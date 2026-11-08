@@ -55,6 +55,9 @@ fn handle_event_benchmark(c: &mut Criterion) {
     group.bench_function("client_command_scores", |b| {
         b.iter(|| bench_support::handle_client_command(black_box(3), black_box("scores")))
     });
+    group.bench_function("client_command_dispatcher_scores", |b| {
+        b.iter(|| bench_support::client_command_dispatcher(black_box(3), black_box("scores")))
+    });
     group.bench_function("server_command_cs", |b| {
         b.iter(|| bench_support::handle_server_command(black_box(3), black_box("cs 700 \"value\"")))
     });

@@ -189,6 +189,12 @@ pub fn handle_client_command(client_id: i32, command: &str) {
     });
 }
 
+/// Runs the dispatcher the hooks call for every command of a client and returns the length of the command that is passed on.
+pub fn client_command_dispatcher(client_id: i32, command: &str) -> Option<usize> {
+    super::PYSHINQLX_INITIALIZED.store(true, core::sync::atomic::Ordering::Release);
+    super::dispatchers::client_command_dispatcher(client_id, command).map(|passed| passed.len())
+}
+
 /// Runs the handler that is called by the server for every command sent to a client.
 pub fn handle_server_command(client_id: i32, command: &str) {
     Python::attach(|py| {
