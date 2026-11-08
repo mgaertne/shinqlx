@@ -142,7 +142,7 @@ impl GameItem {
                 .tap_ok_mut(|gentity| {
                     gentity.set_next_think(0);
                     gentity.set_think(None);
-                    // make item be scaled up
+                    // The respawn event lets the clients scale the item up instead of showing it abruptly.
                     main_engine.game_add_event(gentity, entity_event_t::EV_ITEM_RESPAWN, 0);
                 });
         });

@@ -135,13 +135,15 @@ pub const MAX_SPAWN_VARS: u32 = 64;
 pub const MAX_SPAWN_VARS_CHARS: u32 = 4096;
 pub const BODY_QUEUE_SIZE: u32 = 8;
 
-// bit field limits
+// The player state sends which of these entries changed as a 16 bit mask, so none of the arrays can hold more
+// than 16 entries.
 pub const MAX_STATS: u32 = 16;
 pub const MAX_PERSISTANT: u32 = 16;
 pub const MAX_POWERUPS: u32 = 16;
 pub const MAX_WEAPONS: u32 = 16;
 
-// Button flags
+// Bits of the buttons that a client sends with every usercmd. The names of the bits that Q3 does not know are
+// guesses, see the notes next to them.
 pub const BUTTON_ATTACK: u32 = 1;
 pub const BUTTON_TALK: u32 = 2; // displkays talk balloon and disables actions
 pub const BUTTON_USE_HOLDABLE: u32 = 4; // Mino +button2
@@ -160,7 +162,8 @@ pub const BUTTON_ANY: u32 = 4096; // any key whatsoever
 pub const BUTTON_IS_ACTIVE: u32 = 65536; // Mino: No idea what it is, but it goes off after a while of being
 //       AFK, then goes on after being active for a while.
 
-// eflags
+// Bits of the eFlags in the entity and player state. They are sent to the clients, which draw the sprites and play
+// the sounds that the flags name.
 pub const EF_DEAD: u32 = 1; // don't draw a foe marker over players with EF_DEAD
 pub const EF_TICKING: u32 = 2; // used to make players play the prox mine ticking sound
 pub const EF_TELEPORT_BIT: u32 = 4; // toggled every time the origin abruptly changes
@@ -183,7 +186,7 @@ pub const EF_AWARD_ASSIST: u32 = 131072; // draw a assist sprite
 pub const EF_AWARD_DENIED: u32 = 262144; // denied
 pub const EF_TEAMVOTED: u32 = 524288; // already cast a team vote
 
-// gentity->flags
+// Flags of a game entity that only the server knows, unlike the eFlags above, which the clients receive.
 pub const FL_GODMODE: u32 = 16;
 pub const FL_NOTARGET: u32 = 32;
 pub const FL_TEAMSLAVE: u32 = 1024; // not the first on the team
@@ -193,7 +196,7 @@ pub const FL_NO_BOTS: u32 = 8192; // spawn point not for bot use
 pub const FL_NO_HUMANS: u32 = 16384; // spawn point just for bots
 pub const FL_FORCE_GESTURE: u32 = 32768; // force gesture on client
 
-// damage flags
+// The dflags of the damage function: they tell how a hit is applied, for example whether armor or knockback count.
 pub const DAMAGE_RADIUS: u32 = 1; // damage was indirect
 pub const DAMAGE_NO_ARMOR: u32 = 2; // armor does not protect from this damage
 pub const DAMAGE_NO_KNOCKBACK: u32 = 4; // do not affect velocity, just view angles

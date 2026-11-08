@@ -1356,7 +1356,7 @@ impl QuakeLiveEngine {
             });
     }
 
-    // Called after the game is initialized.
+    // sv_maxclients is only known once the game is initialized, so it is read here and not at startup.
     pub(crate) fn initialize_cvars(&self) {
         self.find_cvar("sv_maxclients").tap_some(|maxclients| {
             self.sv_maxclients
