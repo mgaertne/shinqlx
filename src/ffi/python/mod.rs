@@ -132,7 +132,8 @@ pub(crate) mod prelude {
     #[cfg(test)]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
     pub(crate) use super::{
-        ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, PythonInitializationError, clean_text,
+        ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, PythonInitializationError, clean_py_text,
+        clean_text,
         config_string::ConfigString,
         embed::*,
         events::*,
@@ -195,7 +196,9 @@ use pyo3::{
 };
 use tap::{TapOptional, TryConv};
 use text::pyshinqlx_parse_variables;
-pub(crate) use text::{ParsedVariables, clean_text, last_color_tag, parse_variables};
+pub(crate) use text::{
+    ParsedVariables, clean_py_text, clean_text, last_color_tag, parse_variables,
+};
 
 use crate::{_INIT_TIME, MAIN_ENGINE, ffi::c::prelude::*, quake_live_engine::FindCVar};
 

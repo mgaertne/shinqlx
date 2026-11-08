@@ -323,6 +323,16 @@ fn lookup_call_benchmark(c: &mut Criterion) {
         "plugin = shinqlx.Plugin()\n",
         &[
             ("plugin_clean_text", "plugin.clean_text(\"^1Red^7Player\")"),
+            (
+                "plugin_clean_text_plain",
+                "plugin.clean_text(\"RedPlayer\")",
+            ),
+            ("plugin_clean_text_empty", "plugin.clean_text(\"\")"),
+            ("plugin_clean_text_bound", "plugin.clean_text"),
+            (
+                "python_re_sub",
+                "shinqlx.re_color_tag.sub(\"\", \"^1Red^7Player\")",
+            ),
             ("plugin_is_vote_active", "plugin.is_vote_active()"),
             ("uptime", "shinqlx.uptime()"),
         ],

@@ -2500,8 +2500,40 @@ fn console_prints_to_console(_pyshinqlx_setup: ()) {
 #[cfg_attr(miri, ignore)]
 fn clean_text_cleans_text_from_color_tags(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
-        let result = Plugin::clean_text(&py.get_type::<Plugin>(), "^0a^1b^2c^3d^4e^5f^6g^7h^8i^9j");
-        assert_eq!(result, "abcdefgh^8i^9j");
+        let result = Plugin::clean_text(
+            &py.get_type::<Plugin>(),
+            &PyString::new(py, "^0a^1b^2c^3d^4e^5f^6g^7h^8i^9j"),
+        );
+        assert!(result.is_ok_and(|cleaned| cleaned == "abcdefgh^8i^9j"));
+    });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+fn clean_text_returns_text_without_color_tags_as_it_is(_pyshinqlx_setup: ()) {
+    Python::attach(|py| {
+        let text = PyString::new(py, "Player ^ name");
+        let result = Plugin::clean_text(&py.get_type::<Plugin>(), &text);
+        assert!(result.is_ok_and(|cleaned| cleaned.is(&text)));
+    });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+fn clean_text_cleans_texts_longer_than_the_stack_buffer(_pyshinqlx_setup: ()) {
+    Python::attach(|py| {
+        let text = "^1ab".repeat(200);
+        let result = Plugin::clean_text(&py.get_type::<Plugin>(), &PyString::new(py, &text));
+        assert!(result.is_ok_and(|cleaned| cleaned == *"ab".repeat(200)));
+    });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+fn clean_text_keeps_multibyte_characters(_pyshinqlx_setup: ()) {
+    Python::attach(|py| {
+        let result = Plugin::clean_text(&py.get_type::<Plugin>(), &PyString::new(py, "ä^1ö^^2ü€^"));
+        assert!(result.is_ok_and(|cleaned| cleaned == "äö^ü€^"));
     });
 }
 

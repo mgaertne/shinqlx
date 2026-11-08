@@ -1,8 +1,9 @@
-use core::{ops::Deref, str::FromStr};
+use core::{fmt, ops::Deref, str::FromStr};
 
+use arrayvec::ArrayString;
 use itertools::Itertools;
 use log::*;
-use pyo3::types::{IntoPyDict, PyDict};
+use pyo3::types::{IntoPyDict, PyDict, PyString};
 
 use super::prelude::*;
 
@@ -10,25 +11,49 @@ fn is_color_tag_digit(byte: Option<&u8>) -> bool {
     byte.is_some_and(|digit| (b'0'..=b'7').contains(digit))
 }
 
+/// Writes the text without its color tags (a caret followed by a digit from 0 to 7).
+fn write_clean_text(text: &str, output: &mut impl fmt::Write) -> fmt::Result {
+    let bytes = text.as_bytes();
+    let mut copied = 0;
+    let mut index = 0;
+    while let Some(window) = bytes.get(index..index + 2) {
+        if window[0] == b'^' && is_color_tag_digit(Some(&window[1])) {
+            output.write_str(&text[copied..index])?;
+            index += 2;
+            copied = index;
+        } else {
+            index += 1;
+        }
+    }
+    output.write_str(&text[copied..])
+}
+
 /// Removes all color tags (a caret followed by a digit from 0 to 7) from a text.
 pub(crate) fn clean_text<T>(text: &T) -> String
 where
     T: AsRef<str>,
 {
-    let mut rest = text.as_ref();
-    let mut cleaned = String::with_capacity(rest.len());
-    while let Some(caret) = rest.find('^') {
-        cleaned.push_str(&rest[..caret]);
-        let after_caret = &rest[caret + 1..];
-        if is_color_tag_digit(after_caret.as_bytes().first()) {
-            rest = &after_caret[1..];
-        } else {
-            cleaned.push('^');
-            rest = after_caret;
-        }
-    }
-    cleaned.push_str(rest);
+    let text = text.as_ref();
+    let mut cleaned = String::with_capacity(text.len());
+    let _ = write_clean_text(text, &mut cleaned);
     cleaned
+}
+
+const STACK_TEXT_CAPACITY: usize = 256;
+
+/// Removes the color tags from a Python string. A string without color tags is returned as it is, and
+/// short strings are cleaned on the stack, so that no intermediate string is allocated.
+pub(crate) fn clean_py_text<'py>(text: &Bound<'py, PyString>) -> PyResult<Bound<'py, PyString>> {
+    let plain = text.to_str()?;
+    if last_color_tag(plain).is_none() && text.is_exact_instance_of::<PyString>() {
+        return Ok(text.clone());
+    }
+
+    let mut buffer = ArrayString::<STACK_TEXT_CAPACITY>::new();
+    if plain.len() <= STACK_TEXT_CAPACITY && write_clean_text(plain, &mut buffer).is_ok() {
+        return Ok(PyString::new(text.py(), &buffer));
+    }
+    Ok(PyString::new(text.py(), &clean_text(&plain)))
 }
 
 /// Returns the last color tag (a caret followed by a digit from 0 to 7) of a text.

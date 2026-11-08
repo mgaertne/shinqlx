@@ -674,8 +674,11 @@ impl Plugin {
 
     /// Removes color tags from text.
     #[classmethod]
-    fn clean_text(_cls: &Bound<'_, PyType>, text: &str) -> String {
-        clean_text(&text)
+    fn clean_text<'py>(
+        _cls: &Bound<'py, PyType>,
+        text: &Bound<'py, PyString>,
+    ) -> PyResult<Bound<'py, PyString>> {
+        clean_py_text(text)
     }
 
     /// Get the colored name of a decolored name.
