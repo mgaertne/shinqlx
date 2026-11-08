@@ -25,7 +25,7 @@ by the editor and the type checker. They are plain Python classes whose members 
    assert shinqlx.Priorities.LOW == shinqlx.PRI_LOW
    assert player.team == shinqlx.Teams.RED
 
-   # ... and, for teams, privileges, connection states and weapons, to the string that the API used before.
+   # ... and, for teams, privileges, connection states, weapons, holdables and game states, to the string that the API used before.
    assert shinqlx.Teams.RED == "red"
    assert str(shinqlx.Weapon.ROCKET_LAUNCHER) == "rl"
 
@@ -340,6 +340,73 @@ VoteStates
    .. attribute:: EXPIRED
       :value: 6
 
+GameStates
+----------
+
+.. class:: GameStates
+
+   The states of a game, as :attr:`Game.state` returns them. A member compares equal to that string and has the hash of
+   it, so unlike the other enumerations a dictionary keyed by the strings can be searched with a member and vice versa.
+
+   .. attribute:: WARMUP
+      :value: "warmup"
+
+      The game has yet to start and is waiting for players to ready up.
+
+   .. attribute:: COUNTDOWN
+      :value: "countdown"
+
+      Players recently readied up, and it is counting down until the game starts.
+
+   .. attribute:: IN_PROGRESS
+      :value: "in_progress"
+
+      The game is in progress.
+
+   .. code-block:: python
+
+      if self.game.state == shinqlx.GameStates.IN_PROGRESS:
+          ...
+
+Holdable
+--------
+
+.. class:: Holdable
+
+   The holdable items. ``str(member)`` is the name that :attr:`Player.holdable` returns and accepts, the integer value is
+   the item index of the engine. A member compares equal to its name, to the index and to nothing else.
+
+   .. attribute:: NONE
+      :value: 0
+
+   .. attribute:: TELEPORTER
+      :value: 27
+
+   .. attribute:: MEDKIT
+      :value: 28
+
+   .. attribute:: FLIGHT
+      :value: 34
+
+   .. attribute:: KAMIKAZE
+      :value: 37
+
+   .. attribute:: PORTAL
+      :value: 38
+
+   .. attribute:: INVULNERABILITY
+      :value: 39
+
+   .. attribute:: UNKNOWN
+      :value: 666
+
+      An item that the plugin API does not know.
+
+   .. code-block:: python
+
+      player.holdable = shinqlx.Holdable.TELEPORTER
+      assert player.holdable == shinqlx.Holdable.TELEPORTER
+
 CvarFlags
 ---------
 
@@ -383,3 +450,26 @@ MeansOfDeath
    ``SLIME``, ``LAVA``, ``CRUSH``, ``TELEFRAG``, ``FALLING``, ``SUICIDE``, ``TARGET_LASER``, ``TRIGGER_HURT``,
    ``NAIL``, ``CHAINGUN``, ``PROXIMITY_MINE``, ``KAMIKAZE``, ``JUICED``, ``GRAPPLE``, ``SWITCH_TEAMS``, ``THAW``,
    ``LIGHTNING_DISCHARGE``, ``HMG`` and ``RAILGUN_HEADSHOT``.
+
+ConfigString
+------------
+
+.. class:: ConfigString
+
+   The indices of the configstrings of the server, usable wherever :func:`get_configstring` and
+   :func:`set_configstring` expect an index. The members are named like the engine's constants without the ``CS_``
+   prefix and compare equal to their index only.
+
+   .. code-block:: python
+
+      motd = shinqlx.get_configstring(shinqlx.ConfigString.MOTD)
+
+   Members: ``SERVERINFO``, ``SYSTEMINFO``, ``MUSIC``, ``MESSAGE``, ``MOTD``, ``WARMUP``, ``SCORES1``, ``SCORES2``,
+   ``VOTE_TIME``, ``VOTE_STRING``, ``VOTE_YES``, ``VOTE_NO``, ``GAME_VERSION``, ``LEVEL_START_TIME``,
+   ``INTERMISSION``, ``ITEMS``, ``MODELS``, ``SOUNDS``, ``PLAYERS``, ``LOCATIONS``, ``PARTICLES``, ``FLAGSTATUS``,
+   ``FIRSTPLACE``, ``SECONDPLACE``, ``ROUND_STATUS``, ``ROUND_TIME``, ``RED_PLAYERS_LEFT``, ``BLUE_PLAYERS_LEFT``,
+   ``SHADERSTATE``, ``NEXTMAP``, ``PRACTICE``, ``FREECAM``, ``PAUSE_START_TIME``, ``PAUSE_END_TIME``,
+   ``TIMEOUTS_RED``, ``TIMEOUTS_BLUE``, ``MODEL_OVERRIDE``, ``PLAYER_CYLINDERS``, ``DEBUGFLAGS``, ``ENABLEBREATH``,
+   ``DMGTHROUGHDEPTH``, ``AUTHOR``, ``AUTHOR2``, ``ADVERT_DELAY``, ``PMOVEINFO``, ``ARMORINFO``, ``WEAPONINFO``,
+   ``PLAYERINFO``, ``SCORE1STPLAYER``, ``SCORE2NDPLAYER``, ``CLIENTNUM1STPLAYER``, ``CLIENTNUM2NDPLAYER``,
+   ``NAME1STPLAYER``, ``NAME2NDPLAYER``, ``ATMOSEFFECT`` and ``MOST_DAMAGEDEALT_PLYR``.

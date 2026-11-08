@@ -888,8 +888,26 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
    The declarations are inherited, a plugin that extends another plugin also gets its cvars and attributes.
 
    .. note::
-      A cvar cannot be removed from the engine, so it stays when the plugin is unloaded. Type checkers do not know the
-      attribute, because the decorator adds it. Add the annotation ``text: str`` to the class body to tell them.
+      A cvar cannot be removed from the engine, so it stays when the plugin is unloaded. Type checkers do not know an
+      attribute that the decorator adds. Use :class:`Cvar` in the class body instead if they should.
+
+.. class:: Cvar(name, default = None, *, type = None, flags = 0, minimum = None, maximum = None)
+
+   The same declaration as the :func:`cvar` decorator with a ``field``, but assigned to the attribute in the class body,
+   which lets type checkers see the type of the attribute: it is the type of the default, or the given ``type``.
+
+   .. code-block:: python
+
+      class announcer(shinqlx.Plugin):
+          text = shinqlx.Cvar("qlx_announcerText", "Have fun!", flags=shinqlx.CvarFlags.ARCHIVE)
+          repeat = shinqlx.Cvar("qlx_announcerRepeat", 3, minimum=1, maximum=10)
+
+          def announce(self):
+              for _ in range(self.repeat):  # an int for mypy and ty
+                  self.msg(self.text)  # a str
+
+   The parameters are the ones of :func:`cvar`. The attribute is read-only; an assignment is reported by the type checker
+   and raises an :class:`AttributeError` at runtime.
 
 The signature of the decorated method is checked against what is passed to it, as soon as the class is defined:
 a command handler has to accept ``(player, msg, channel)``, and a hook has to accept the arguments of its event, which

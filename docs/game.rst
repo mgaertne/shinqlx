@@ -76,7 +76,7 @@ Game
    .. property:: state
       :type: str
 
-      A string describing the state of the game. **Read-only**.
+      A string describing the state of the game, equal to the member of :class:`GameStates`. **Read-only**.
 
       Possible values:
 

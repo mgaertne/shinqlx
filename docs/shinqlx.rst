@@ -408,7 +408,7 @@ Functions
 
    :param int config_id: The id of the configstring to get.
    :return: The value of the configstring.
-   :rasies ValueError: if the ``config_id`` is not between ``0`` and ``MAX_CONFISTRINGS`` (``1024``).
+   :raises ValueError: if the ``config_id`` is not between ``0`` and ``MAX_CONFIGSTRINGS`` (``1024``).
 
 .. function:: set_configstring(config_id, value)
 
@@ -416,7 +416,7 @@ Functions
 
    :param int config_id: The id of the configstring to set.
    :param str value: The value the configstring is set to.
-   :rasies ValueError: if the ``config_id`` is not between ``0`` and ``MAX_CONFISTRINGS`` (``1024``).
+   :raises ValueError: if the ``config_id`` is not between ``0`` and ``MAX_CONFIGSTRINGS`` (``1024``).
 
 .. function:: force_vote(_pass) -> bool
 
@@ -827,7 +827,7 @@ Functions
    Unload a plugin.
 
    :param str plugin: The plugin to unload.
-   :raises PluginUnloadError: if the plugin was not loaded before or another problem occured.
+   :raises PluginUnloadError: if the plugin was not loaded before or another problem occurred.
 
 .. function:: reload_plugin(plugin)
 
@@ -1237,3 +1237,23 @@ Descriptions from the quake live C-source comments.
    :type: int
 
    armor, shields, invulnerability, and godmode have no effect
+
+Scheduling and text helpers
+===========================
+
+.. data:: frame_tasks
+   :type: sched.scheduler
+
+   The scheduler that runs the functions of :func:`delay` and the delayed calls of :func:`next_frame` with a time, once
+   per game frame.
+
+.. data:: next_frame_tasks
+   :type: queue.SimpleQueue
+
+   The queue of the functions that :func:`next_frame` has deferred to the next game frame.
+
+.. data:: re_color_tag
+   :type: re.Pattern
+
+   The compiled regular expression ``\^[0-7]`` that matches a color tag of Quake Live, e.g. to strip colors from a
+   name: ``shinqlx.re_color_tag.sub("", player.name)``.

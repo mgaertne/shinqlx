@@ -106,20 +106,18 @@ name of :class:`Weapons`.
 Cvars and flags
 ===============
 
-The :func:`cvar` decorator declares the cvars of a plugin. Their defaults are set when the plugin is loaded, but only
-if the cvar does not exist yet, so a value from the server configuration always wins. The ``field`` is a read-only
-attribute that returns the current value in the declared type.
+The :class:`Cvar` declaration creates the cvar of a plugin when it is loaded, but only if the cvar does not exist yet,
+so a value from the server configuration always wins. The attribute returns the current value in the type of the
+default, and type checkers know that type.
 
 .. code-block:: python
 
    import shinqlx
 
 
-   @shinqlx.cvar("qlx_announcerText", "Have fun!", field="text", flags=shinqlx.CvarFlags.ARCHIVE)
-   @shinqlx.cvar("qlx_announcerRepeat", 3, field="repeat", minimum=1, maximum=10)
    class announcer(shinqlx.Plugin):
-       text: str
-       repeat: int
+       text = shinqlx.Cvar("qlx_announcerText", "Have fun!", flags=shinqlx.CvarFlags.ARCHIVE)
+       repeat = shinqlx.Cvar("qlx_announcerRepeat", 3, minimum=1, maximum=10)
 
        def __init__(self):
            super().__init__()
@@ -129,8 +127,8 @@ attribute that returns the current value in the declared type.
            for _ in range(self.repeat):
                self.msg(self.text)
 
-The annotations in the class body only tell type checkers about the attributes. Without the decorator, the same is done
-with :meth:`Plugin.set_cvar_once` and :meth:`Plugin.get_cvar`:
+The :func:`cvar` decorator does the same for a whole class and is the choice for cvars without an attribute.
+Without either of them, the same is done with :meth:`Plugin.set_cvar_once` and :meth:`Plugin.get_cvar`:
 
 .. code-block:: python
 

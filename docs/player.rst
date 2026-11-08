@@ -136,9 +136,10 @@ Players
       The player's current ping. **Read-only**.
 
    .. property:: holdable
-      :type: int
+      :type: str | None
 
-      The holdable of the player.
+      The holdable of the player as the name of a :class:`Holdable`. Assign a name or a :class:`Holdable` member, or
+      ``None`` to take it away.
 
    .. property:: noclip
       :type: bool
