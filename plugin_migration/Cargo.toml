@@ -1,0 +1,34 @@
+[package]
+name = "plugin_migration"
+description = "Migrates a folder of minqlx plugins to shinqlx"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+tree-sitter = { version = ">=0.26" }
+tree-sitter-python = { version = ">=0.25" }
+rayon = { version = ">=1.12", default-features = false }
+indicatif = { version = ">=0.18", default-features = false, features = ["rayon"] }
+anyhow = { version = ">=1.0", default-features = false, features = ["std"] }
+clap = { version = ">=4.6", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
+
+[dev-dependencies]
+pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
+rstest = { version = ">=0.28", default-features = false }
+tempfile = { version = ">=3.27", default-features = false }
+
+[lints.rust]
+missing_docs = "warn"
+non_local_definitions = "allow"
+
+[lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+unwrap_used = "warn"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"

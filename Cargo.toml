@@ -1,7 +1,7 @@
 cargo-features = ["profile-rustflags"]
 
 [workspace]
-members = ["ql_rcon", "ql_stats"]
+members = ["ql_rcon", "ql_stats", "plugin_migration"]
 
 [workspace.package]
 rust-version = "1.95"
