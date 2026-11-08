@@ -10,8 +10,9 @@ pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool
     py.detach(|| {
         let mut in_use_entities: ArrayVec<Box<GameEntity>, { MAX_GENTITIES as usize }> = (0
             ..MAX_GENTITIES)
-            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
+            .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| game_entity.in_use())
+            .map(Box::new)
             .collect();
 
         in_use_entities

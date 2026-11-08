@@ -84,12 +84,13 @@ pub(crate) fn pyshinqlx_replace_items(
                     Box<GameEntity>,
                     { MAX_GENTITIES as usize },
                 > = (0..MAX_GENTITIES)
-                    .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok().map(Box::new))
+                    .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
                     .filter(|game_entity| {
                         game_entity.in_use()
                             && game_entity.is_game_item(entityType_t::ET_ITEM)
                             && game_entity.get_classname() == item1_classname
                     })
+                    .map(Box::new)
                     .collect();
 
                 matching_item1_entities
