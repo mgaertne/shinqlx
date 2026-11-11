@@ -162,9 +162,11 @@ What to do about it:
    access from other machines.
 2. Use long random passwords and keep them in a `server.cfg` that only the server user can read. A password on the
    command line is visible to every local user in the process list.
-3. If the ports have to be reachable from outside, allow only known addresses and limit the others. The rules below
-   do this for IPv4; IPv6 was not looked at. Replace the ports with the `zmq_rcon_port` and `zmq_stats_port` of each
-   server, and `192.0.2.10` with your own address:
+3. If the ports have to be reachable from outside, allow only known addresses and limit the others. The XDP filter can
+   limit how fast connections are opened on these ports (`tcp_ports`, see its README); the rules below also tell known
+   from unknown addresses and limit the connections that stay open. They do this for IPv4; IPv6 was not looked at.
+   Replace the ports with the `zmq_rcon_port` and `zmq_stats_port` of each server, and `192.0.2.10` with your own
+   address:
 
 ```
 #!/usr/sbin/nft -f
