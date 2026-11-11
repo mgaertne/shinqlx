@@ -12,6 +12,7 @@ No single layer is enough. Use them together:
 | Upstream mitigation       | your hoster's network            | attacks that saturate the connection                     | a hoster that offers it                |
 | XDP/eBPF filter           | network driver, before the stack | packet floods, many queries, malformed packets           | root, driver or hoster support, effort |
 | nftables rule             | kernel firewall                  | repeated queries from one source                         | root                                   |
+| Rcon/stats port limits    | server cvars, kernel firewall    | password guessing, connection floods on the TCP ports    | root for the firewall rules            |
 | shinqlx query rate limit  | inside the server process        | queries that reach the server, reflection from one source | building shinqlx with a Cargo feature  |
 
 Only the upstream layer helps against attacks that fill your uplink. Everything on the host itself, including shinqlx,
@@ -140,6 +141,73 @@ Things to keep in mind:
 * Keep a way back before you experiment: `sudo nft list ruleset > ruleset-backup.nft` can be restored with
   `sudo nft -f ruleset-backup.nft`, and `sudo nft delete table inet ql_filter` removes just this table.
 
+## Rcon and stats ports
+
+The ZeroMQ rcon and stats ports (`zmq_rcon_port`, `zmq_stats_port`) are TCP ports of the Quake Live server itself. The
+query rate limit of shinqlx does not look at them, and the XDP filter below only handles UDP on the configured game
+ports. The stats port is the one the stats listener of shinqlx connects to. It may carry the same number as the UDP game
+port, because the protocols differ, and a rule on `tcp dport` does not touch the game packets. Give it a number of its
+own anyway: a measure that filters by port number only, such as some filters of hosters or a firewall rule without a
+protocol, would otherwise hit game traffic and stats connection together, and logs and counters stay separate.
+
+These ports are served by the Quake Live server, which shinqlx cannot protect from the inside. Do not rely on the server
+to slow down repeated or parallel connection attempts; put the limits in front of it, as described below. The server can
+also write the rcon password into its own log and into `zmqpass.txt` in the `baseq3` directory of its home path. Keep
+both private, do not post server logs, and check who can read that file.
+
+What to do about it:
+
+1. Listen only where it is needed. `+set zmq_rcon_ip 127.0.0.1` and `+set zmq_stats_ip 127.0.0.1` make the server bind
+   to the loopback address only (checked with `ss -tlnp`; without them it listens on `0.0.0.0`). Use an SSH tunnel for
+   access from other machines.
+2. Use long random passwords and keep them in a `server.cfg` that only the server user can read. A password on the
+   command line is visible to every local user in the process list.
+3. If the ports have to be reachable from outside, allow only known addresses and limit the others. The rules below
+   do this for IPv4; IPv6 was not looked at. Replace the ports with the `zmq_rcon_port` and `zmq_stats_port` of each
+   server, and `192.0.2.10` with your own address:
+
+```
+#!/usr/sbin/nft -f
+
+table inet ql_rcon_filter {
+    set trusted_v4 {
+        type ipv4_addr
+        elements = { 192.0.2.10 }
+    }
+
+    set new_connections_v4 {
+        type ipv4_addr
+        flags dynamic, timeout
+        timeout 2m
+    }
+
+    set open_connections_v4 {
+        type ipv4_addr
+        flags dynamic
+    }
+
+    chain input {
+        type filter hook input priority 0; policy accept;
+
+        tcp dport { 28888, 28889 } ip saddr @trusted_v4 accept
+        tcp dport { 28888, 28889 } ct state new \
+            add @new_connections_v4 { ip saddr limit rate over 6/minute burst 10 packets } \
+            drop
+        tcp dport { 28888, 28889 } ct state new \
+            add @open_connections_v4 { ip saddr ct count over 5 } \
+            drop
+    }
+}
+```
+
+Trusted addresses pass unchecked, every other address may open six new connections per minute (after a burst of ten) and
+hold five at the same time. This is tight for tools that reconnect often from one address, so put those addresses into
+`trusted_v4`.
+
+The rules were loaded and tried in a private network namespace without root rights (`unshare -Urn`): from one source
+address, 5 of 20 simultaneous connections were accepted and further ones were refused once the rate was used up.
+They were not tried on a real server. Test them on your own machine first and keep a way back as described above.
+
 ## XDP
 
 XDP lets an eBPF program decide about a packet in the network driver, before the kernel network stack has done any work.
@@ -249,9 +317,27 @@ Not tried: real filter rules, drops under load, behaviour while a match is runni
 `clang` and `libbpf`, and loading a program permanently at boot. Treat everything beyond the steps above as untested on
 your machine until you have checked it.
 
+## Floods that fill the line
+
+Everything described here acts on the host, after the packets have arrived. If an attack sends more traffic than your
+connection can carry, the line is full before XDP, nftables or shinqlx see a single packet, and none of them can help.
+Only measures upstream of your connection do:
+
+* DDoS protection of your hoster, which filters or diverts attack traffic inside its network. Ask what it covers, since
+  offers differ in what they detect and how fast they react.
+* A filtering service or firewall in front of the server that receives all traffic and forwards only the clean part.
+* As a last resort, a new IP address, which an attacker who targets the address finds again only with some effort.
+
+The measures on the host stay useful for attacks below the capacity of the line, which still cost CPU, and for
+reflection from your server onto a third party. They are the layer behind the upstream one, not a replacement for it.
+
 ## Limits of this documentation
 
 The limiter was developed against the Quake Live dedicated server build available when it was written and checked in
-tests and in live runs with floods from a single address. The behaviour against floods from many addresses is covered by
-unit tests only. Server updates can move the hooked engine function; shinqlx finds it by byte pattern and reports in the
-log when that fails.
+tests and in live runs with floods from a single address. On that build the classic Quake 3 requests `getstatus`,
+`getinfo` and `getservers` are not answered; the Steam queries are the ones that matter for reflection. The behaviour
+against floods from many addresses is covered by unit tests only. Server updates can move the hooked engine function;
+shinqlx finds it by byte pattern and reports in the log when that fails.
+
+Weaknesses of the dedicated server itself that a setting or a firewall rule cannot remove are not described here. If you
+find one, report it to the maintainers directly and not as a public issue.
