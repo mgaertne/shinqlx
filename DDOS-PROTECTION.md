@@ -342,4 +342,4 @@ against floods from many addresses is covered by unit tests only. Server updates
 shinqlx finds it by byte pattern and reports in the log when that fails.
 
 Weaknesses of the dedicated server itself that a setting or a firewall rule cannot remove are not described here. If you
-find one, report it to the maintainers directly and not as a public issue.
+find one, report it as described in [SECURITY.md](SECURITY.md) and not as a public issue.
