@@ -144,9 +144,9 @@ Things to keep in mind:
 ## Rcon and stats ports
 
 The ZeroMQ rcon and stats ports (`zmq_rcon_port`, `zmq_stats_port`) are TCP ports of the Quake Live server itself. The
-query rate limit of shinqlx does not look at them. The stats port is the one the stats listener of shinqlx connects to. It may carry the same number as the UDP game
-port, because the protocols differ, and a rule on `tcp dport` does not touch the game packets. Give it a number of its
-own anyway: a measure that filters by port number only, such as some filters of hosters or a firewall rule without a
+query rate limit of shinqlx does not look at them. The stats port is the one the stats listener of shinqlx connects
+to. It may carry the same number as the UDP game port, because the protocols differ, and a rule on `tcp dport` does not
+touch the game packets. Give it a number of its own anyway: a measure that filters by port number only, such as some filters of hosters or a firewall rule without a
 protocol, would otherwise hit game traffic and stats connection together, and logs and counters stay separate.
 
 These ports are served by the Quake Live server, which shinqlx cannot protect from the inside. Do not rely on the server
@@ -214,7 +214,8 @@ Dropping a packet there is much cheaper than in nftables, which makes it the rig
 hurt the CPU of the machine even though your link is not saturated. It does not help against attacks that saturate the
 link itself, only your hoster can.
 
-shinqlx does not ship an XDP program. If you write or deploy one, these notes may help.
+shinqlx does not ship an XDP program and the layers above do not depend on one. If you write or deploy your own, these
+notes may help.
 
 Practical notes before you write or deploy one:
 
