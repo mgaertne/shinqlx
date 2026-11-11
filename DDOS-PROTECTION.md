@@ -320,10 +320,9 @@ reflection from your server onto a third party. They are the layer behind the up
 ## Limits of this documentation
 
 The limiter was developed against the Quake Live dedicated server build available when it was written and checked in
-tests and in live runs with floods from a single address. On that build the classic Quake 3 requests `getstatus`,
-`getinfo` and `getservers` are not answered; the Steam queries are the ones that matter for reflection. The behaviour
-against floods from many addresses is covered by unit tests only. Server updates can move the hooked engine function;
-shinqlx finds it by byte pattern and reports in the log when that fails.
+tests and in live runs with floods from a single address. The behaviour against floods from many addresses is covered
+by unit tests only. Server updates can move the hooked engine function; shinqlx finds it by byte pattern and reports in
+the log when that fails.
 
 Weaknesses of the dedicated server itself that a setting or a firewall rule cannot remove are not described here. If you
 find one, report it as described in [SECURITY.md](SECURITY.md) and not as a public issue.
