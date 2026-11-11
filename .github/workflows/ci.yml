@@ -62,28 +62,6 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       - run: cargo hack clippy --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run --tests -- -D warnings
 
-  xdp:
-    name: XDP filter
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v6
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: nightly
-          components: clippy, rust-src
-      - name: Install bpf-linker
-        uses: taiki-e/install-action@v2
-        with:
-          tool: bpf-linker
-      - run: cargo clippy --all-targets -- -D warnings
-        working-directory: xdp
-      - run: cargo test
-        working-directory: xdp
-      - run: cargo clippy --release -- -D warnings
-        working-directory: xdp/ebpf
-
   test-features:
     name: Test (feature combinations)
     runs-on: ubuntu-latest

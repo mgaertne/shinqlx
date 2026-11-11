@@ -1,8 +1,4 @@
 /target/
-/xdp/Cargo.lock
-/xdp/target/
-/xdp/ebpf/Cargo.lock
-/xdp/ebpf/target/
 /Cargo.lock
 /uv.lock
 /venv

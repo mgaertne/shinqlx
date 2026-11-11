@@ -15,7 +15,7 @@ This is a project run by volunteers, so answers come on a best effort basis.
 ## What is covered
 
 * shinqlx itself, including the Python API and the native plugins.
-* The tools in this repository: `ql_rcon`, `ql_stats`, `plugin_migration` and the XDP filter in `xdp/`.
+* The tools in this repository: `ql_rcon`, `ql_stats` and `plugin_migration`.
 * The advice in `DDOS-PROTECTION.md`, if following it leaves a server less protected than it says.
 
 Weaknesses of the Quake Live dedicated server itself that cannot be fixed from here are best reported to the

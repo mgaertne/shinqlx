@@ -144,8 +144,7 @@ Things to keep in mind:
 ## Rcon and stats ports
 
 The ZeroMQ rcon and stats ports (`zmq_rcon_port`, `zmq_stats_port`) are TCP ports of the Quake Live server itself. The
-query rate limit of shinqlx does not look at them, and the XDP filter below only handles UDP on the configured game
-ports. The stats port is the one the stats listener of shinqlx connects to. It may carry the same number as the UDP game
+query rate limit of shinqlx does not look at them. The stats port is the one the stats listener of shinqlx connects to. It may carry the same number as the UDP game
 port, because the protocols differ, and a rule on `tcp dport` does not touch the game packets. Give it a number of its
 own anyway: a measure that filters by port number only, such as some filters of hosters or a firewall rule without a
 protocol, would otherwise hit game traffic and stats connection together, and logs and counters stay separate.
@@ -162,11 +161,9 @@ What to do about it:
    access from other machines.
 2. Use long random passwords and keep them in a `server.cfg` that only the server user can read. A password on the
    command line is visible to every local user in the process list.
-3. If the ports have to be reachable from outside, allow only known addresses and limit the others. The XDP filter can
-   limit how fast connections are opened on these ports (`tcp_ports`, see its README); the rules below also tell known
-   from unknown addresses and limit the connections that stay open. They do this for IPv4; IPv6 was not looked at.
-   Replace the ports with the `zmq_rcon_port` and `zmq_stats_port` of each server, and `192.0.2.10` with your own
-   address:
+3. If the ports have to be reachable from outside, allow only known addresses and limit the others. The rules below
+   do this for IPv4; IPv6 was not looked at. Replace the ports with the `zmq_rcon_port` and `zmq_stats_port` of each
+   server, and `192.0.2.10` with your own address:
 
 ```
 #!/usr/sbin/nft -f
@@ -217,21 +214,7 @@ Dropping a packet there is much cheaper than in nftables, which makes it the rig
 hurt the CPU of the machine even though your link is not saturated. It does not help against attacks that saturate the
 link itself, only your hoster can.
 
-shinqlx ships a filter written in Rust ([Aya](https://aya-rs.dev)) with its loader, tests and a systemd unit in
-`xdp/` (see its `README.md`); it has its own cargo workspace and is not part of the shinqlx build. It was tried on a
-Debian 13 server (virtio_net, native mode): tests with crafted packets pass, and an A2S flood of 200 packets/s from one
-source was banned after the first second (about 4000 packets dropped in 30 s) while normal game traffic kept passing.
-The README explains how to measure the smallest legitimate game packet for the optional `min_payload` and how to test
-the filter against a flood. Operators who run such a program report that it works as a game-protocol aware filter in
-front of the server. What such a program typically does:
-
-* classify packets by UDP destination port, so game traffic and query traffic can be handled differently,
-* recognize connectionless Quake packets (`FF FF FF FF` followed by `getstatus`, `getinfo`, `getchallenge`, `connect`)
-  and the query opcodes `T`, `U` and `V`,
-* keep counters per source address in an LRU hash map and compare them with limits for queries and for game traffic,
-* ban a source for some minutes when it exceeds a limit and drop its packets right away,
-* drop packets with implausible sizes or malformed headers,
-* let everything that is not Quake traffic, especially SSH, pass.
+shinqlx does not ship an XDP program. If you write or deploy one, these notes may help.
 
 Practical notes before you write or deploy one:
 
