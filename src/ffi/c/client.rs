@@ -110,32 +110,44 @@ impl<'a> Client<'a> {
 
 #[cfg(test)]
 #[cfg(not(tarpaulin_include))]
-mockall::mock! {
-    pub(crate) Client {
-        pub(crate) fn get_name(&self) -> Cow<'_, str>;
-        pub(crate) fn has_gentity(&self) -> bool;
-        pub(crate) fn get_client_id(&self) -> i32;
-        pub(crate) fn get_state(&self) -> clientState_t;
-        pub(crate) fn disconnect(&mut self, reason: &str);
-        pub(crate) fn get_user_info(&self) -> Cow<'_, str>;
-        pub(crate) fn get_steam_id(&self) -> u64;
-    }
+pub(crate) use client_mock::MockClient;
 
-    impl TryFrom<*mut client_t> for Client {
-        type Error = QuakeLiveEngineError;
-        fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
-    }
+#[cfg(test)]
+#[cfg(not(tarpaulin_include))]
+#[allow(
+    clippy::large_unopt_stack_frames,
+    reason = "the mock only exists in tests and its generated code touches the large engine struct"
+)]
+mod client_mock {
+    use super::*;
 
-    impl From<i32> for Client {
-        fn from(entity_id: i32) -> Self;
-    }
+    mockall::mock! {
+        pub(crate) Client {
+            pub(crate) fn get_name(&self) -> Cow<'_, str>;
+            pub(crate) fn has_gentity(&self) -> bool;
+            pub(crate) fn get_client_id(&self) -> i32;
+            pub(crate) fn get_state(&self) -> clientState_t;
+            pub(crate) fn disconnect(&mut self, reason: &str);
+            pub(crate) fn get_user_info(&self) -> Cow<'_, str>;
+            pub(crate) fn get_steam_id(&self) -> u64;
+        }
 
-    impl AsRef<client_t> for Client {
-        fn as_ref(&self) -> &client_t;
-    }
+        impl TryFrom<*mut client_t> for Client {
+            type Error = QuakeLiveEngineError;
+            fn try_from(client: *mut client_t) -> Result<Self, QuakeLiveEngineError>;
+        }
 
-    impl AsMut<client_t> for Client {
-        fn as_mut(&mut self) -> &mut client_t;
+        impl From<i32> for Client {
+            fn from(entity_id: i32) -> Self;
+        }
+
+        impl AsRef<client_t> for Client {
+            fn as_ref(&self) -> &client_t;
+        }
+
+        impl AsMut<client_t> for Client {
+            fn as_mut(&mut self) -> &mut client_t;
+        }
     }
 }
 

@@ -1591,6 +1591,10 @@ pub struct sharedEntity_t {
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone, Builder)]
 #[builder(name = "ClientBuilder", no_std)]
+#[allow(
+    clippy::large_unopt_stack_frames,
+    reason = "the builder only creates test fixtures of this engine struct, which the engine owns"
+)]
 pub struct client_s {
     #[builder(default = "clientState_t::CS_CONNECTED")]
     pub state: clientState_t,
