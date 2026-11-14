@@ -845,9 +845,48 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
 
    :param str | Iterable[str] name: The name or names of the command.
    :param options: The remaining arguments of :meth:`Plugin.add_command`, i.e. ``permission``, ``channels``,
-      ``exclude_channels``, ``priority``, ``client_cmd_pass``, ``client_cmd_perm``, ``prefix`` and ``usage``.
+      ``exclude_channels``, ``priority``, ``client_cmd_pass``, ``client_cmd_perm``, ``prefix`` and ``usage``, and
+      ``args`` and ``min_args`` below.
 
-   The decorated method has the same prototype as the ``handler`` of :meth:`Plugin.add_command`.
+   The decorated method has the same prototype as the ``handler`` of :meth:`Plugin.add_command`, unless ``args`` is
+   given.
+
+   :param args: The types of the arguments of the command, a sequence of ``int``, ``float``, ``str`` and
+      :class:`Player`. The words of the message after the command name are converted to these types, and the method
+      is called with the converted values after ``channel``, so ``msg`` stays the whole message as before.
+   :param int min_args: The number of arguments that have to be given, without the command name. Defaults to all of
+      ``args``. The method needs defaults for the other parameters.
+
+   The conversion follows these rules:
+
+   - ``int`` and ``float`` accept what Python's ``int()`` and ``float()`` accept for plain numbers. ``float`` rejects
+     ``nan`` and ``inf``. A ``str`` is the word itself, and a :class:`Player` is found by name or id like with
+     :meth:`Plugin.player`.
+   - If there are fewer words than ``min_args``, a word cannot be converted or no player is found, the method is not
+     called and the command returns :attr:`ReturnCodes.USAGE`, so the player gets the ``usage`` as reply.
+   - Words beyond ``args`` are ignored. They are still part of ``msg``.
+   - The ``usage`` is the text after the command name, like ``"<n> [name]"``. If it is not given, it is made from the
+     names of the parameters of the method: ``<n>`` for each required argument and ``[name]`` for each optional one.
+   - Misuse is reported when the decorator is applied. A :class:`TypeError` is raised for ``min_args`` without
+     ``args``, for a string as ``args`` and for a method that cannot take that many parameters, a
+     :class:`ValueError` for a type that is none of the four and for a ``min_args`` larger than the number of ``args``.
+
+.. function:: game(state = None, message = None)
+
+   Runs the decorated method only while a game is running, and with ``state`` only in that state of the game.
+   Otherwise the call is skipped and returns ``None``, so a skipped hook never stops the event for other plugins. It
+   can be combined with :func:`hook` and :func:`command` in any order, and it works the same for a method that the
+   plugin registers itself with :meth:`Plugin.add_hook` or :meth:`Plugin.add_command`, or that it calls directly. It
+   can be applied once per method. If a command also has ``args``, the game is checked before the arguments are parsed.
+
+   :param state: A :class:`GameStates` member, one of the strings ``"warmup"``, ``"countdown"`` and
+      ``"in_progress"``, or a list, tuple or set of them. Without a state, any running game is enough. An unknown
+      string raises a :class:`ValueError` when the decorator is applied.
+   :param str message: The reply of a skipped command, sent to the channel the command came from. Only commands get
+      it, which are recognized by being called with the message as a list. Skipped hooks and methods that are called
+      in another way never reply. Without a message, a skipped command stays silent.
+
+   The name and the documentation of the method are kept.
 
 .. class:: Cvar(name, default = None, *, type = None, flags = 0, minimum = None, maximum = None)
 

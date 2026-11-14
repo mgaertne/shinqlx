@@ -128,7 +128,7 @@ from ._player import (
     Player,
     RconDummyPlayer,
 )
-from ._plugin import Cvar, Plugin, command, hook
+from ._plugin import Cvar, Plugin, command, game, hook
 from ._shinqlx import (
     CS_ACTIVE,
     CS_CONNECTED,
@@ -940,6 +940,7 @@ __all__ = [
     "force_vote",
     "force_weapon_respawn_time",
     "frame_tasks",
+    "game",
     "get_configstring",
     "get_cvar",
     "get_logger",

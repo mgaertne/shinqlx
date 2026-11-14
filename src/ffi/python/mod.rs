@@ -1420,11 +1420,33 @@ def compare_class(stub_name, node, runtime_class):
     return found
 
 
+KEYWORD_OVERLOADS = {"command"}
+
+
+def keyword_overload_differences(label, shapes, runtime):
+    if runtime is None:
+        return [f"{label}: runtime has no signature"]
+    names = {name for stub in shapes for name in stub["keyword_only"]}
+    merged = {
+        name: any(name not in stub["keyword_only"] or stub["keyword_only"][name] for stub in shapes)
+        for name in names
+    }
+    found = []
+    if merged != runtime["keyword_only"]:
+        found.append(f"{label}: keyword_only stub={merged} runtime={runtime['keyword_only']}")
+    for stub in shapes:
+        found += differences_of(label, {**stub, "keyword_only": runtime["keyword_only"]}, runtime)
+    return found
+
+
 def differences(stub_directory):
     found = []
     for stub in sorted(pathlib.Path(stub_directory).glob("*.pyi")):
+        overloads = {}
         for node in ast.parse(stub.read_text()).body:
-            if isinstance(node, ast.FunctionDef) and hasattr(shinqlx, node.name):
+            if isinstance(node, ast.FunctionDef) and node.name in KEYWORD_OVERLOADS:
+                overloads.setdefault(node.name, []).append(shape(node.args, False))
+            elif isinstance(node, ast.FunctionDef) and hasattr(shinqlx, node.name):
                 if inspect.isfunction(getattr(shinqlx, node.name)):
                     continue
                 found += differences_of(
@@ -1438,6 +1460,10 @@ def differences(stub_directory):
                 runtime_class = resolve(node.name)
                 if runtime_class is not None:
                     found += compare_class(stub.name, node, runtime_class)
+        for name, shapes in overloads.items():
+            found += keyword_overload_differences(
+                f"{stub.name}: {name}", shapes, runtime_shape(getattr(shinqlx, name))
+            )
     return sorted(set(found))
 "#,
                 c"",

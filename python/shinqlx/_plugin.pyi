@@ -1,5 +1,5 @@
 import builtins
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from logging import Logger
 from typing import Any, Callable, ClassVar, Generic, Literal, SupportsIndex, TypeVar, final, overload
 
@@ -20,12 +20,13 @@ from shinqlx import (
     UserinfoEventInput,
 )
 from shinqlx.database import Redis
-from typing_extensions import Never, TypeAlias, Unpack, disjoint_base
+from typing_extensions import Concatenate, Never, TypeAlias, Unpack, disjoint_base
 
 from ._commands import ReplyKwargs
-from ._shinqlx import Events, Teams
+from ._shinqlx import Events, GameStates, Teams
 
 _PluginT = TypeVar("_PluginT", bound=Plugin)
+_HandlerT = TypeVar("_HandlerT", bound=Callable[..., object])
 _CvarT = TypeVar("_CvarT")
 
 _ConsolePrintHookHandler: TypeAlias = Callable[[str], str | CancellableEventReturn]
@@ -101,6 +102,8 @@ _DamageHookMethod: TypeAlias = Callable[
 
 _CommandHandler: TypeAlias = Callable[[Player, list[str], AbstractChannel], int | None]
 _CommandMethod: TypeAlias = Callable[[_PluginT, Player, list[str], AbstractChannel], int | None]
+_ParsedCommandMethod: TypeAlias = Callable[Concatenate[_PluginT, Player, list[str], AbstractChannel, ...], int | None]
+_GameStateName: TypeAlias = Literal["warmup", "countdown", "in_progress"]
 
 @overload
 def hook(
@@ -364,6 +367,7 @@ class Cvar(Generic[_CvarT]):
     def __get__(self, instance: object, owner: builtins.type[object] | None = ..., /) -> _CvarT: ...
     def __set__(self, instance: object, value: Never, /) -> None: ...
 
+@overload
 def command(
     name: str | Iterable[str],
     *,
@@ -376,6 +380,25 @@ def command(
     prefix: bool = ...,
     usage: str = ...,
 ) -> Callable[[_CommandMethod[_PluginT]], _CommandMethod[_PluginT]]: ...
+@overload
+def command(
+    name: str | Iterable[str],
+    *,
+    args: Sequence[builtins.type[int | float | str | Player]],
+    min_args: SupportsIndex = ...,
+    permission: SupportsIndex = ...,
+    channels: Iterable[AbstractChannel] | None = ...,
+    exclude_channels: Iterable[AbstractChannel] | None = ...,
+    priority: SupportsIndex = ...,
+    client_cmd_pass: bool = ...,
+    client_cmd_perm: SupportsIndex = ...,
+    prefix: bool = ...,
+    usage: str = ...,
+) -> Callable[[_ParsedCommandMethod[_PluginT]], _ParsedCommandMethod[_PluginT]]: ...
+def game(
+    state: GameStates | _GameStateName | Iterable[GameStates | _GameStateName] | None = ...,
+    message: str | None = ...,
+) -> Callable[[_HandlerT], _HandlerT]: ...
 
 @disjoint_base
 class Plugin:

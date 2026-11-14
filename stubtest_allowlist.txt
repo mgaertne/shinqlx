@@ -52,5 +52,9 @@ shinqlx.WeaponsStatsEntry
 # The typed dispatch overloads narrow the *args signature of the runtime to the arguments of each event.
 shinqlx\._events\..*\.dispatch
 
+# The runtime has one signature with args and min_args optional, the stub splits it into two overloads
+# so that the handler of a command with args is typed to take the parsed arguments.
+shinqlx._plugin.command
+
 # The Enum with the str mixin has a different __new__ signature at runtime.
 shinqlx._shinqlx.Events.__new__

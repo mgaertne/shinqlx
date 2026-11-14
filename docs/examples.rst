@@ -45,6 +45,22 @@ methods that handle them with the :ref:`decorators <plugin>`.
 Returning :attr:`ReturnCodes.USAGE` from a command replies with its ``usage``. A hook that returns
 :attr:`ReturnCodes.STOP_ALL` stops the event for the engine as well, which is shown in the next example.
 
+The command can leave the checking of the arguments to the decorator. With ``args``, the words after the command
+name are converted, and the method receives them after ``channel``. A missing or invalid argument returns
+:attr:`ReturnCodes.USAGE` without calling the method, and without a ``usage`` the reply is made from the parameter
+names. :func:`game` skips the method unless a game is in the given state:
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class slapper(shinqlx.Plugin):
+       @shinqlx.command("slap", permission=shinqlx.Permissions.MODERATOR, args=(shinqlx.Player, int), min_args=1)
+       @shinqlx.game(state=shinqlx.GameStates.IN_PROGRESS, message="There is no match to slap anyone in.")
+       def cmd_slap(self, player, msg, channel, target, damage=1):
+           target.slap(damage)
+
 Keeping teams even
 ==================
 

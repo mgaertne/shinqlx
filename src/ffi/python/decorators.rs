@@ -6,17 +6,26 @@ use pyo3::{
     gc::PyVisit,
     intern,
     prelude::*,
-    types::{PyBool, PyCFunction, PyDict, PyFloat, PyInt, PyList, PySet, PyTuple, PyType},
+    types::{
+        PyBool, PyCFunction, PyDict, PyFloat, PyInt, PyList, PySet, PyString, PyTuple, PyType,
+    },
 };
 
 use super::{
+    PythonReturnCodes,
     commands::CommandPriorities,
     deferred::{Deferral, DeferredCall},
+    game::{Game, GameMethods},
+    game_enums::GameState,
+    player::Player,
     plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
 };
 
 const HOOKS_MARKER: &str = "_shinqlx_hooks";
 const COMMANDS_MARKER: &str = "_shinqlx_commands";
+const GAME_STATES: [&str; 3] = ["warmup", "countdown", "in_progress"];
+const ARGS_OPTION: &str = "args";
+const MIN_ARGS_OPTION: &str = "min_args";
 const CVAR_TYPES: [&str; 7] = ["str", "int", "float", "bool", "list", "set", "tuple"];
 const COMMAND_PARAMETERS: [&str; 3] = ["player", "msg", "channel"];
 
@@ -170,11 +179,18 @@ fn hook(py: Python<'_>, event: String, priority: Option<i32>) -> PyResult<Bound<
 /// :param name: The name of the command, or a list of names.
 /// :param options: The optional arguments of :meth:`Plugin.add_command`, such as ``permission``,
 ///     ``channels``, ``exclude_channels``, ``priority``, ``client_cmd_pass``, ``client_cmd_perm``,
-///     ``prefix`` and ``usage``.
+///     ``prefix`` and ``usage``, and the following two.
+/// :param args: The types of the arguments of the command, a sequence of ``int``, ``float``, ``str``
+///     and :class:`Player`. A player is found by name or id. The handler then takes the parsed
+///     arguments after ``channel``. If there are fewer arguments than ``min_args``, or an argument
+///     cannot be converted or no player is found, the handler is not called and the command returns
+///     :data:`RET_USAGE`. Further arguments are ignored and remain in ``msg``. Without ``usage``,
+///     the usage is made from the names of the parameters of the handler.
+/// :param min_args: The number of arguments that have to be given. Defaults to all of ``args``.
 #[pyfunction]
 #[pyo3(
     signature = (name, **options),
-    text_signature = "(name, *, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 0, prefix = True, usage = \"\")"
+    text_signature = "(name, *, permission = 0, channels = None, exclude_channels = None, priority = PRI_NORMAL, client_cmd_pass = False, client_cmd_perm = 0, prefix = True, usage = \"\", args = None, min_args = None)"
 )]
 fn command<'py>(
     py: Python<'py>,
@@ -183,6 +199,7 @@ fn command<'py>(
 ) -> PyResult<Bound<'py, PyCFunction>> {
     let name = name.unbind();
     let options = options.map_or_else(|| Ok(PyDict::new(py)), |options| options.copy())?;
+    let command_arguments = CommandArguments::from_options(&options)?;
     let options = options.unbind();
 
     PyCFunction::new_closure(
@@ -192,13 +209,448 @@ fn command<'py>(
         move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
             let handler = only_handler(arguments)?;
             let py = handler.py();
-            check_accepts(&handler, &COMMAND_PARAMETERS, "a command handler", 1)?;
+            match &command_arguments {
+                Some(command_arguments) => command_arguments.check_accepted_by(&handler, 1)?,
+                None => check_accepts(&handler, &COMMAND_PARAMETERS, "a command handler", 1)?,
+            }
 
             let entry = (name.bind(py), options.bind(py)).into_pyobject(py)?;
             mark(&handler, COMMANDS_MARKER, entry.into_any())?;
             Ok::<_, PyErr>(handler.unbind())
         },
     )
+}
+
+/// Calls the decorated method only while a game is running, and optionally only in the given
+/// states. Otherwise the call is skipped and returns ``None``, so a skipped hook never stops an
+/// event for other plugins. A skipped command replies with ``message`` if there is one. It works
+/// with :func:`hook` and :func:`command` in any order, and just as well with a method that the
+/// plugin registers itself with :meth:`Plugin.add_hook` or :meth:`Plugin.add_command`.
+///
+/// :param state: The game state, a member of :class:`GameStates` or one of the strings ``"warmup"``,
+///     ``"countdown"`` and ``"in_progress"``, or several of them in a list, tuple or set. Without a
+///     state, any running game is enough.
+/// :param message: The reply to a skipped command. It is only sent for commands, whose handler is
+///     called with the message as a list. Hooks never reply.
+#[pyfunction]
+#[pyo3(
+    signature = (state = None, message = None),
+    text_signature = "(state=None, message=None)"
+)]
+fn game<'py>(
+    py: Python<'py>,
+    state: Option<Bound<'py, PyAny>>,
+    message: Option<String>,
+) -> PyResult<Bound<'py, PyCFunction>> {
+    let guard = GameGuard {
+        states: state.as_ref().map(game_state_names).transpose()?,
+        message,
+    };
+
+    PyCFunction::new_closure(
+        py,
+        Some(c"game_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let handler = only_handler(arguments)?;
+            let py = handler.py();
+            if handler.is_instance_of::<GameGuardedMethod>() {
+                cold_path();
+                return Err(PyTypeError::new_err(
+                    "a handler can only be decorated with game once",
+                ));
+            }
+
+            let guarded = Bound::new(
+                py,
+                GameGuardedMethod {
+                    function: handler.clone().unbind(),
+                    guard: guard.clone(),
+                },
+            )?
+            .into_any();
+            py.import(intern!(py, "functools"))?
+                .call_method1(intern!(py, "update_wrapper"), (&guarded, &handler))?;
+            Ok::<_, PyErr>(guarded.unbind())
+        },
+    )
+}
+
+fn game_state_names(state: &Bound<'_, PyAny>) -> PyResult<Vec<String>> {
+    let is_single = |item: &Bound<'_, PyAny>| {
+        item.is_instance_of::<PyString>() || item.is_instance_of::<GameState>()
+    };
+
+    let items = if is_single(state) {
+        vec![state.clone()]
+    } else {
+        state.try_iter()?.collect::<PyResult<Vec<_>>>()?
+    };
+    if items.is_empty() {
+        cold_path();
+        return Err(PyValueError::new_err("at least one game state is needed"));
+    }
+
+    items
+        .iter()
+        .map(|item| {
+            if !is_single(item) {
+                cold_path();
+                return Err(PyTypeError::new_err(
+                    "game states have to be GameStates members or strings",
+                ));
+            }
+
+            let name = item.str()?.to_string();
+            if GAME_STATES.contains(&name.as_str()) {
+                return Ok(name);
+            }
+            cold_path();
+            Err(PyValueError::new_err(format!(
+                "unknown game state '{name}', it has to be one of {}",
+                GAME_STATES.join(", ")
+            )))
+        })
+        .collect()
+}
+
+/// The check of the ``game`` decorator.
+#[derive(Clone)]
+struct GameGuard {
+    states: Option<Vec<String>>,
+    message: Option<String>,
+}
+
+impl GameGuard {
+    fn permits(&self, py: Python<'_>) -> bool {
+        let Ok(game) = Game::py_new(py, true).and_then(|game| Bound::new(py, game)) else {
+            return false;
+        };
+
+        self.states
+            .as_ref()
+            .is_none_or(|states| game.get_state().is_ok_and(|state| states.contains(&state)))
+    }
+
+    /// Replies to a command with the message. The handler of a command gets the message as a list,
+    /// unlike the handlers of hooks, so only commands are recognized.
+    fn reject(&self, arguments: &Bound<'_, PyTuple>) -> PyResult<()> {
+        let Some(message) = &self.message else {
+            return Ok(());
+        };
+        if arguments.len() < 3 || !arguments.get_item(1)?.is_instance_of::<PyList>() {
+            return Ok(());
+        }
+
+        arguments
+            .get_item(2)?
+            .call_method1(intern!(arguments.py(), "reply"), (message,))
+            .map(|_| ())
+    }
+}
+
+/// A method that ``game`` guards. It binds to the plugin like a function does, and the bound method
+/// checks the game before it calls the method.
+#[pyclass(module = "_shinqlx", name = "GameGuardedMethod", dict, frozen)]
+struct GameGuardedMethod {
+    function: Py<PyAny>,
+    guard: GameGuard,
+}
+
+#[pymethods]
+impl GameGuardedMethod {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.function)
+    }
+
+    fn __get__<'py>(
+        slf: &Bound<'py, Self>,
+        instance: &Bound<'py, PyAny>,
+        owner: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if instance.is_none() {
+            return Ok(slf.clone().into_any());
+        }
+
+        let method = slf
+            .get()
+            .function
+            .bind(slf.py())
+            .call_method1(intern!(slf.py(), "__get__"), (instance, owner))?;
+        DecoratedHandler::wrap(&method, Some(slf.get().guard.clone()), None)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __call__(
+        &self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Py<PyAny>> {
+        if !self.guard.permits(py) {
+            self.guard.reject(args)?;
+            return Ok(py.None());
+        }
+
+        self.function.bind(py).call(args, kwargs).map(Bound::unbind)
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ArgumentType {
+    Int,
+    Float,
+    Str,
+    Player,
+}
+
+impl ArgumentType {
+    fn from_type(declared: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let py = declared.py();
+        [
+            (py.get_type::<PyInt>(), Self::Int),
+            (py.get_type::<PyFloat>(), Self::Float),
+            (py.get_type::<PyString>(), Self::Str),
+            (py.get_type::<Player>(), Self::Player),
+        ]
+        .into_iter()
+        .find(|(known, _)| declared.is(known))
+        .map(|(_, argument_type)| argument_type)
+        .ok_or_else(|| {
+            cold_path();
+            PyValueError::new_err("the type of an argument has to be int, float, str or Player")
+        })
+    }
+
+    fn parse<'py>(self, py: Python<'py>, word: &str) -> PyResult<Option<Bound<'py, PyAny>>> {
+        Ok(match self {
+            Self::Int => word
+                .parse::<i64>()
+                .ok()
+                .map(|value| PyInt::new(py, value).into_any()),
+            Self::Float => word
+                .parse::<f64>()
+                .ok()
+                .filter(|value| value.is_finite())
+                .map(|value| PyFloat::new(py, value).into_any()),
+            Self::Str => Some(PyString::new(py, word).into_any()),
+            Self::Player => Some(
+                py.get_type::<Plugin>()
+                    .call_method1(intern!(py, "player"), (word,))?,
+            )
+            .filter(|player| !player.is_none()),
+        })
+    }
+}
+
+fn positional_parameter_names(handler: &Bound<'_, PyAny>) -> PyResult<Vec<String>> {
+    let py = handler.py();
+    let mut names = vec![];
+    for parameter in py
+        .import(intern!(py, "inspect"))?
+        .call_method1(intern!(py, "signature"), (handler,))?
+        .getattr(intern!(py, "parameters"))?
+        .call_method0(intern!(py, "values"))?
+        .try_iter()?
+    {
+        let parameter = parameter?;
+        let kind = parameter
+            .getattr(intern!(py, "kind"))?
+            .getattr(intern!(py, "name"))?
+            .to_string();
+        if kind == "POSITIONAL_ONLY" || kind == "POSITIONAL_OR_KEYWORD" {
+            names.push(parameter.getattr(intern!(py, "name"))?.to_string());
+        }
+    }
+    Ok(names)
+}
+
+/// The ``args`` and ``min_args`` options of the ``command`` decorator.
+struct CommandArguments {
+    types: Vec<ArgumentType>,
+    min_args: usize,
+}
+
+impl CommandArguments {
+    fn from_options(options: &Bound<'_, PyDict>) -> PyResult<Option<Self>> {
+        let min_args = options.get_item(MIN_ARGS_OPTION)?;
+        let Some(declared) = options.get_item(ARGS_OPTION)? else {
+            if min_args.is_some() {
+                cold_path();
+                return Err(PyTypeError::new_err("min_args needs args"));
+            }
+            return Ok(None);
+        };
+        if declared.is_instance_of::<PyString>() {
+            cold_path();
+            return Err(PyTypeError::new_err(
+                "args has to be a sequence of types, not a string",
+            ));
+        }
+
+        let types = declared
+            .try_iter()?
+            .map(|declared_type| declared_type.and_then(|value| ArgumentType::from_type(&value)))
+            .collect::<PyResult<Vec<_>>>()?;
+        let min_args = min_args.map_or(Ok(types.len()), |value| value.extract::<usize>())?;
+        if min_args > types.len() {
+            cold_path();
+            return Err(PyValueError::new_err(
+                "min_args cannot be larger than the number of args",
+            ));
+        }
+
+        Ok(Some(Self { types, min_args }))
+    }
+
+    fn check_accepted_by(&self, handler: &Bound<'_, PyAny>, receivers: usize) -> PyResult<()> {
+        let accepted = |argument_count: usize| {
+            let names = COMMAND_PARAMETERS
+                .iter()
+                .map(ToString::to_string)
+                .chain((1..=argument_count).map(|index| format!("arg{index}")))
+                .collect::<Vec<_>>();
+            check_accepts(handler, &names, "a command handler", receivers)
+        };
+
+        accepted(self.min_args)?;
+        if self.types.len() != self.min_args {
+            accepted(self.types.len())?;
+        }
+        Ok(())
+    }
+
+    /// The usage from the names of the parameters that take the arguments: required ones in angle
+    /// brackets, optional ones in square brackets.
+    fn usage(&self, handler: &Bound<'_, PyAny>) -> String {
+        let names = positional_parameter_names(handler).unwrap_or_default();
+
+        (0..self.types.len())
+            .map(|index| {
+                let name = names
+                    .get(COMMAND_PARAMETERS.len() + index)
+                    .map_or_else(|| format!("arg{}", index + 1), Clone::clone);
+                if index < self.min_args {
+                    format!("<{name}>")
+                } else {
+                    format!("[{name}]")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    fn parse<'py>(
+        &self,
+        py: Python<'py>,
+        message: &Bound<'py, PyAny>,
+    ) -> PyResult<Option<Vec<Bound<'py, PyAny>>>> {
+        let words = message.extract::<Vec<String>>()?;
+        let words = words.get(1..).unwrap_or_default();
+        if words.len() < self.min_args {
+            return Ok(None);
+        }
+
+        let mut parsed = Vec::with_capacity(self.types.len());
+        for (argument_type, word) in self.types.iter().zip(words) {
+            let Some(value) = argument_type.parse(py, word)? else {
+                return Ok(None);
+            };
+            parsed.push(value);
+        }
+        Ok(Some(parsed))
+    }
+
+    fn call(
+        &self,
+        handler: &Bound<'_, PyAny>,
+        arguments: &Bound<'_, PyTuple>,
+    ) -> PyResult<Py<PyAny>> {
+        let py = handler.py();
+        let Ok(message) = arguments.get_item(1) else {
+            return handler.call1(arguments).map(Bound::unbind);
+        };
+
+        match self.parse(py, &message)? {
+            None => Ok(PyInt::new(py, PythonReturnCodes::RET_USAGE as i32)
+                .into_any()
+                .unbind()),
+            Some(parsed) => {
+                let all_arguments = arguments.iter().chain(parsed).collect::<Vec<_>>();
+                handler
+                    .call1(PyTuple::new(py, all_arguments)?)
+                    .map(Bound::unbind)
+            }
+        }
+    }
+}
+
+/// Wraps a handler of a plugin with the game check and the parsing of the arguments, so the
+/// handler itself does not need to do either. Keeps the name and the documentation of the handler.
+#[pyclass(module = "_shinqlx", name = "DecoratedHandler", dict, frozen)]
+struct DecoratedHandler {
+    handler: Py<PyAny>,
+    guard: Option<GameGuard>,
+    arguments: Option<CommandArguments>,
+}
+
+impl DecoratedHandler {
+    fn wrap<'py>(
+        handler: &Bound<'py, PyAny>,
+        guard: Option<GameGuard>,
+        arguments: Option<CommandArguments>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let py = handler.py();
+        let wrapper = Bound::new(
+            py,
+            Self {
+                handler: handler.clone().unbind(),
+                guard,
+                arguments,
+            },
+        )?
+        .into_any();
+        py.import(intern!(py, "functools"))?
+            .call_method1(intern!(py, "update_wrapper"), (&wrapper, handler))?;
+        Ok(wrapper)
+    }
+}
+
+#[pymethods]
+impl DecoratedHandler {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.handler)
+    }
+
+    #[pyo3(signature = (*args, **kwargs))]
+    fn __call__(
+        &self,
+        py: Python<'_>,
+        args: &Bound<'_, PyTuple>,
+        kwargs: Option<&Bound<'_, PyDict>>,
+    ) -> PyResult<Py<PyAny>> {
+        if let Some(guard) = &self.guard
+            && !guard.permits(py)
+        {
+            guard.reject(args)?;
+            return Ok(py.None());
+        }
+
+        let handler = self.handler.bind(py);
+        let Some(arguments) = &self.arguments else {
+            return handler.call(args, kwargs).map(Bound::unbind);
+        };
+
+        // the game is checked before the arguments, so a command in the wrong state is not parsed
+        if let Ok(guarded) = handler.cast::<Self>()
+            && let Some(guard) = &guarded.get().guard
+            && !guard.permits(py)
+        {
+            guard.reject(args)?;
+            return Ok(py.None());
+        }
+        arguments.call(handler, args)
+    }
 }
 
 /// The declaration of a cvar of a plugin.
@@ -380,6 +832,7 @@ fn cvar_default_string(default: &Bound<'_, PyAny>) -> PyResult<String> {
 pub(crate) fn register_decorators(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(hook, m)?)?;
     m.add_function(wrap_pyfunction!(command, m)?)?;
+    m.add_function(wrap_pyfunction!(game, m)?)?;
     m.add_class::<Cvar>()
 }
 
@@ -429,8 +882,11 @@ pub(crate) fn register_decorated_handlers(plugin: &Bound<'_, PyAny>) -> PyResult
                 check_accepts(&handler, &names, &format!("hooked to '{event}'"), 0)?;
             }
         }
-        if !commands.is_empty() {
-            check_accepts(&handler, &COMMAND_PARAMETERS, "a command handler", 0)?;
+        for (_, options) in &commands {
+            match CommandArguments::from_options(options)? {
+                Some(arguments) => arguments.check_accepted_by(&handler, 0)?,
+                None => check_accepts(&handler, &COMMAND_PARAMETERS, "a command handler", 0)?,
+            }
         }
 
         let plugin_methods = plugin.cast::<Plugin>()?;
@@ -442,10 +898,28 @@ pub(crate) fn register_decorated_handlers(plugin: &Bound<'_, PyAny>) -> PyResult
             )?;
         }
         for (command_name, options) in &commands {
+            let options = options.copy()?;
+            let arguments = CommandArguments::from_options(&options)?;
+            for option in [ARGS_OPTION, MIN_ARGS_OPTION] {
+                if options.contains(option)? {
+                    options.del_item(option)?;
+                }
+            }
+            if let Some(arguments) = &arguments
+                && !options.contains(intern!(py, "usage"))?
+            {
+                options.set_item(intern!(py, "usage"), arguments.usage(&handler))?;
+            }
+
+            let command_handler = if arguments.is_some() {
+                DecoratedHandler::wrap(&handler, None, arguments)?
+            } else {
+                handler.clone()
+            };
             plugin.call_method(
                 intern!(py, "add_command"),
-                (command_name, &handler),
-                Some(options),
+                (command_name, &command_handler),
+                Some(&options),
             )?;
         }
     }
@@ -509,13 +983,17 @@ pub(super) fn thread<'py>(func: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny
 mod decorators_tests {
     use core::borrow::BorrowMut;
 
-    use pyo3::{intern, prelude::*, types::PyList};
+    use pyo3::{
+        intern,
+        prelude::*,
+        types::{PyDict, PyList},
+    };
     use rstest::rstest;
 
     use super::register_decorated_handlers;
     use crate::{
         ffi::{
-            c::prelude::{CVar, CVarBuilder, cvar_t},
+            c::prelude::{CS_SERVERINFO, CVar, CVarBuilder, cvar_t},
             python::{
                 COMMANDS, EVENT_DISPATCHERS,
                 commands::CommandInvoker,
@@ -544,35 +1022,50 @@ mod decorators_tests {
     where
         F: FnOnce(Python<'_>),
     {
+        with_game_state(None, test);
+    }
+
+    fn with_game_state<F>(game_state: Option<&str>, test: F)
+    where
+        F: FnOnce(Python<'_>),
+    {
         let cvar_string = c"0";
         let mut raw_cvar = CVarBuilder::default()
             .string(cvar_string.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
 
-        MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_enable",
-                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                0..,
-            )
-            .run(|| {
-                Python::attach(|py| {
-                    let event_dispatchers = Bound::new(py, EventDispatcherManager::default())
-                        .expect("this should not happen");
-                    event_dispatchers
-                        .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
-                        .expect("could not add team switch attempt dispatcher");
-                    EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
-                    COMMANDS.store(Some(
-                        Py::new(py, CommandInvoker::py_new())
-                            .expect("could not create command invoker")
-                            .into(),
-                    ));
+        let mut engine = MockEngineBuilder::default().with_find_cvar(
+            |cmd| cmd == "zmq_stats_enable",
+            move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+            0..,
+        );
+        if let Some(game_state) = game_state {
+            let serverinfo = if game_state.is_empty() {
+                String::new()
+            } else {
+                format!(r"\g_gameState\{game_state}")
+            };
+            engine = engine.with_get_configstring(CS_SERVERINFO as u16, serverinfo, 0..);
+        }
 
-                    test(py);
-                });
+        engine.run(|| {
+            Python::attach(|py| {
+                let event_dispatchers = Bound::new(py, EventDispatcherManager::default())
+                    .expect("this should not happen");
+                event_dispatchers
+                    .add_dispatcher(&py.get_type::<TeamSwitchAttemptDispatcher>())
+                    .expect("could not add team switch attempt dispatcher");
+                EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
+                COMMANDS.store(Some(
+                    Py::new(py, CommandInvoker::py_new())
+                        .expect("could not create command invoker")
+                        .into(),
+                ));
+
+                test(py);
             });
+        });
     }
 
     fn registered(plugin: &Bound<'_, PyAny>, attribute: &str) -> usize {
@@ -682,6 +1175,347 @@ def handler(self, *args): pass
             );
 
             assert!(register_decorated_handlers(&plugin).is_err());
+        });
+    }
+
+    const COMMAND_WITH_ARGUMENTS: &str = "    def __init__(self):\n        super().__init__()\n        \
+         self.calls = []\n\n    \
+         @shinqlx.command('foo', args=(int, str, float), min_args=1)\n    \
+         def cmd_foo(self, player, msg, channel, n, name=None, ratio=None):\n        \
+         self.calls.append((n, name, ratio, msg))";
+
+    fn run_checks(py: Python<'_>, plugin: &Bound<'_, PyAny>, checks: &str) {
+        let locals = PyDict::new(py);
+        locals
+            .set_item("plugin", plugin)
+            .expect("could not set plugin");
+        locals
+            .set_item("shinqlx", py.import("shinqlx").expect("no shinqlx"))
+            .expect("could not set shinqlx");
+        let code = std::ffi::CString::new(checks).expect("this should not happen");
+        py.run(&code, Some(&locals), Some(&locals))
+            .expect("checks failed");
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn command_arguments_are_parsed_and_passed_after_the_channel(_pyshinqlx_setup: ()) {
+        with_dispatchers_and_commands(|py| {
+            let plugin = decorated_plugin(py, COMMAND_WITH_ARGUMENTS);
+            register_decorated_handlers(&plugin).expect("could not register");
+
+            run_checks(
+                py,
+                &plugin,
+                r#"
+command = plugin.commands[0]
+assert command.handler.__name__ == "cmd_foo"
+msg = ["!foo", "5", "bob", "2.5", "extra"]
+assert command.handler(None, msg, None) is None
+assert plugin.calls == [(5, "bob", 2.5, msg)]
+assert command.handler(None, ["!foo", "7"], None) is None
+assert plugin.calls[-1][:3] == (7, None, None)
+"#,
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("[\"!foo\"]")]
+    #[case("[\"!foo\", \"seven\"]")]
+    #[case("[\"!foo\", \"7\", \"bob\", \"nan\"]")]
+    #[case("[\"!foo\", \"7\", \"bob\", \"inf\"]")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn invalid_command_arguments_return_usage_without_calling_the_handler(
+        _pyshinqlx_setup: (),
+        #[case] msg: &str,
+    ) {
+        with_dispatchers_and_commands(|py| {
+            let plugin = decorated_plugin(py, COMMAND_WITH_ARGUMENTS);
+            register_decorated_handlers(&plugin).expect("could not register");
+
+            run_checks(
+                py,
+                &plugin,
+                &format!(
+                    "assert plugin.commands[0].handler(None, {msg}, None) == shinqlx.RET_USAGE\n\
+                     assert plugin.calls == []"
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn usage_is_made_from_the_parameter_names_unless_given(_pyshinqlx_setup: ()) {
+        with_dispatchers_and_commands(|py| {
+            let plugin = decorated_plugin(
+                py,
+                "    @shinqlx.command('foo', args=(int, str), min_args=1)\n    \
+                 def cmd_foo(self, player, msg, channel, count, *rest): pass\n\n    \
+                 @shinqlx.command('bar', args=(int,), usage='<how many>')\n    \
+                 def cmd_bar(self, player, msg, channel, count): pass\n\n    \
+                 @shinqlx.command('baz')\n    \
+                 def cmd_baz(self, player, msg, channel): pass",
+            );
+            register_decorated_handlers(&plugin).expect("could not register");
+
+            run_checks(
+                py,
+                &plugin,
+                r#"
+usages = {command.name[0]: command.usage for command in plugin.commands}
+assert usages == {"foo": "<count> [arg2]", "bar": "<how many>", "baz": ""}, usages
+"#,
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn command_options_that_are_not_add_command_arguments_are_not_passed_on(_pyshinqlx_setup: ()) {
+        with_dispatchers_and_commands(|py| {
+            let plugin = decorated_plugin(
+                py,
+                "    @shinqlx.command('foo', args=(int,), min_args=0, permission=2)\n    \
+                 def cmd_foo(self, player, msg, channel, count=0): pass",
+            );
+
+            assert!(register_decorated_handlers(&plugin).is_ok());
+            run_checks(py, &plugin, "assert plugin.commands[0].permission == 2");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn invalid_declarations_are_rejected_when_decorating(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let module = PyModule::from_code(
+                py,
+                c"
+import shinqlx
+
+
+def rejected(error, declare):
+    try:
+        declare()
+    except error:
+        return True
+    return False
+
+
+def handler(self, player, msg, channel): pass
+
+
+results = [
+    rejected(ValueError, lambda: shinqlx.command('x', args=(dict,))),
+    rejected(TypeError, lambda: shinqlx.command('x', args='int')),
+    rejected(TypeError, lambda: shinqlx.command('x', min_args=1)),
+    rejected(ValueError, lambda: shinqlx.command('x', args=(int,), min_args=2)),
+    rejected(TypeError, lambda: shinqlx.command('x', args=(int,))(handler)),
+    rejected(ValueError, lambda: shinqlx.game(state='no_such_state')),
+    rejected(ValueError, lambda: shinqlx.game(state=())),
+    rejected(TypeError, lambda: shinqlx.game(state=3)),
+    rejected(TypeError, lambda: shinqlx.game()(shinqlx.game()(handler))),
+]
+",
+                c"",
+                c"",
+            )
+            .expect("could not run the declarations");
+
+            let results = module
+                .getattr(intern!(py, "results"))
+                .and_then(|results| results.extract::<Vec<bool>>())
+                .expect("could not get results");
+            assert!(results.iter().all(|rejected| *rejected), "{results:?}");
+        });
+    }
+
+    #[rstest]
+    #[case("IN_PROGRESS", "'hooked'")]
+    #[case("PRE_GAME", "None")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_guards_methods_that_the_plugin_registers_itself(
+        _pyshinqlx_setup: (),
+        #[case] game_state: &str,
+        #[case] expected: &str,
+    ) {
+        with_game_state(Some(game_state), |py| {
+            let plugin = decorated_plugin(
+                py,
+                "    def __init__(self):\n        super().__init__()\n        \
+                 self.add_hook('team_switch_attempt', self.on_switch)\n\n    \
+                 @shinqlx.game(state='in_progress')\n    \
+                 def on_switch(self, player, old_team, new_team):\n        \
+                 return 'hooked'",
+            );
+
+            run_checks(
+                py,
+                &plugin,
+                &format!(
+                    "assert len(plugin.hooks) == 1\n\
+                     assert plugin.hooks[0][1](None, 'a', 'b') == {expected}\n\
+                     assert plugin.on_switch(None, 'a', 'b') == {expected}\n\
+                     assert type(plugin).on_switch(plugin, None, 'a', 'b') == {expected}\n\
+                     assert plugin.on_switch.__name__ == 'on_switch'"
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("IN_PROGRESS", "['ran']", "[]")]
+    #[case("PRE_GAME", "[]", "['not now']")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_guards_commands_that_the_plugin_registers_itself(
+        _pyshinqlx_setup: (),
+        #[case] game_state: &str,
+        #[case] expected_calls: &str,
+        #[case] expected_replies: &str,
+    ) {
+        with_game_state(Some(game_state), |py| {
+            let plugin = decorated_plugin(
+                py,
+                "    def __init__(self):\n        super().__init__()\n        \
+                 self.calls = []\n        \
+                 self.add_command('foo', self.cmd_foo)\n\n    \
+                 @shinqlx.game(state='in_progress', message='not now')\n    \
+                 def cmd_foo(self, player, msg, channel):\n        \
+                 self.calls.append('ran')",
+            );
+
+            run_checks(
+                py,
+                &plugin,
+                &format!(
+                    "class Channel:\n    \
+                         def __init__(self): self.replies = []\n    \
+                         def reply(self, message): self.replies.append(message)\n\
+                     channel = Channel()\n\
+                     assert len(plugin.commands) == 1\n\
+                     assert plugin.commands[0].handler(None, ['!foo'], channel) is None\n\
+                     assert plugin.calls == {expected_calls}, plugin.calls\n\
+                     assert channel.replies == {expected_replies}, channel.replies"
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_without_hook_or_command_is_a_plain_guard(_pyshinqlx_setup: ()) {
+        with_game_state(Some(""), |py| {
+            let plugin = decorated_plugin(
+                py,
+                "    @shinqlx.game()\n    def handler(self): return 'ran'",
+            );
+
+            assert!(register_decorated_handlers(&plugin).is_ok());
+            assert_eq!(registered(&plugin, "hooks"), 0);
+            run_checks(py, &plugin, "assert plugin.handler() is None");
+        });
+    }
+
+    const GUARDED_HANDLERS: &str = "    def __init__(self):\n        super().__init__()\n        \
+         self.calls = []\n\n    \
+         @shinqlx.hook('team_switch_attempt')\n    \
+         @shinqlx.game(state='in_progress', message='ignored for hooks')\n    \
+         def on_team_switch_attempt(self, player, old_team, new_team):\n        \
+         self.calls.append('hook')\n        return 'hooked'\n\n    \
+         @shinqlx.command('foo', args=(int,))\n    \
+         @shinqlx.game(state=(shinqlx.GameStates.WARMUP, 'countdown'), message='not now')\n    \
+         def cmd_foo(self, player, msg, channel, count):\n        \
+         self.calls.append(count)\n\n    \
+         @shinqlx.command('bar')\n    \
+         @shinqlx.game()\n    \
+         def cmd_bar(self, player, msg, channel):\n        \
+         self.calls.append('bar')";
+
+    const GUARD_CHECKS: &str = r#"
+class Channel:
+    def __init__(self):
+        self.replies = []
+
+    def reply(self, message):
+        self.replies.append(message)
+
+hook = plugin.hooks[0][1]
+handlers = {command.name[0]: command.handler for command in plugin.commands}
+foo, bar = handlers["foo"], handlers["bar"]
+assert hook.__name__ == "on_team_switch_attempt"
+channel = Channel()
+"#;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn skipped_handlers_return_none_and_commands_reply_when_no_game_is_running(
+        _pyshinqlx_setup: (),
+    ) {
+        with_game_state(Some(""), |py| {
+            let plugin = decorated_plugin(py, GUARDED_HANDLERS);
+            register_decorated_handlers(&plugin).expect("could not register");
+
+            run_checks(
+                py,
+                &plugin,
+                &format!(
+                    "{GUARD_CHECKS}\n\
+                     assert hook(None, 'red', 'blue') is None\n\
+                     assert foo(None, ['!foo', '3'], channel) is None\n\
+                     assert bar(None, ['!bar'], channel) is None\n\
+                     assert plugin.calls == []\n\
+                     assert channel.replies == ['not now']"
+                ),
+            );
+        });
+    }
+
+    #[rstest]
+    #[case("IN_PROGRESS", true, false)]
+    #[case("PRE_GAME", false, true)]
+    #[case("COUNT_DOWN", false, true)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handlers_run_only_in_the_declared_game_states(
+        _pyshinqlx_setup: (),
+        #[case] game_state: &str,
+        #[case] hook_runs: bool,
+        #[case] command_runs: bool,
+    ) {
+        with_game_state(Some(game_state), |py| {
+            let plugin = decorated_plugin(py, GUARDED_HANDLERS);
+            register_decorated_handlers(&plugin).expect("could not register");
+
+            run_checks(
+                py,
+                &plugin,
+                &format!(
+                    "{GUARD_CHECKS}\n\
+                     assert hook(None, 'red', 'blue') == ('hooked' if {} else None)\n\
+                     foo(None, ['!foo', '3'], channel)\n\
+                     assert bar(None, ['!bar'], channel) is None\n\
+                     assert plugin.calls == ({}) + ['bar'], plugin.calls\n\
+                     assert channel.replies == ({}), channel.replies",
+                    if hook_runs { "True" } else { "False" },
+                    match (hook_runs, command_runs) {
+                        (true, _) => "['hook']",
+                        (_, true) => "[3]",
+                        _ => "[]",
+                    },
+                    if command_runs { "[]" } else { "['not now']" },
+                ),
+            );
         });
     }
 }
