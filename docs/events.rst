@@ -56,9 +56,9 @@ Events
    .. property:: need_zmq_stats_enabled
       :type: bool
 
-      Whether the event dispatcher needs ``zmq_stats_enables`` to be enabled. **Read-only**.
+      Whether the event dispatcher needs ``zmq_stats_enable`` to be enabled. **Read-only**.
 
-   .. property:: plugins()
+   .. property:: plugins
       :type: dict[Plugin, tuple[list[Callable], list[Callable], list[Callable], list[Callable], list[Callable]]]
 
       Dictionary of the registered plugins for this event dispatcher. **Read-only**.
@@ -97,7 +97,7 @@ Events
       :param Callable handler: The handler to be called when the event takes place.
       :param int | Priorities priority: The priority of the hook. Determines the order the handlers are called in. valid values: :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`, :const:`PRI_LOW <shinqlx.PRI_LOW>`, :const:`PRI_NORMAL <shinqlx.PRI_NORMAL>`, :const:`PRI_HIGH <shinqlx.PRI_HIGH>`, :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` (default: ``PRI_NORMAL``)
       :raises ValueError: when passed an invalid priority, or the event is already registered with the same handler.
-      :raises AssertionError: if the hook requires ``zmq_stats_enables`` cvar to be set to ``1``, but it was disabled.
+      :raises AssertionError: if the hook requires ``zmq_stats_enable`` cvar to be set to ``1``, but it was disabled.
 
    .. method:: remove_hook(plugin, handler, priority = PRI_NORMAL)
 
@@ -193,7 +193,7 @@ Concrete Event dispatchers
       :param AbstractChannel channel: The channel the chat message was sent to.
       :return: Whether to pass on the event to the engine, or a chat message.
 
-.. class:: UnloadDispatcher:
+.. class:: UnloadDispatcher
 
    ``name = "unload"``
 
@@ -252,13 +252,13 @@ Concrete Event dispatchers
 
    ``name = "stats"``
 
-   ``needs_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = True``
 
    Event that triggers whenever the server sends stats over ZMQ.
 
-   .. method:: dispatch(stats) -> bool
+   .. method:: dispatch(data) -> bool
 
-      :param dict stats: The raw stats event that was sent via ZMQ.
+      :param dict data: The raw stats event that was sent via ZMQ.
       :return: Whether to pass on the event to the engine.
 
 .. class:: VoteCalledDispatcher
@@ -393,7 +393,7 @@ Concrete Event dispatchers
 
    For when a player switches teams. If cancelled, simply put the player back in the old team.
 
-   If possible, consider using :class ``"team_switch_attempt"`` for a cleaner solution if you need to cancel the event.
+   If possible, consider using ``"team_switch_attempt"`` (:class:`TeamSwitchAttemptDispatcher`) for a cleaner solution if you need to cancel the event.
 
    .. method:: dispatch(player, old_team, new_team) -> bool
 
@@ -412,9 +412,9 @@ Concrete Event dispatchers
 
    .. method:: dispatch(player, old_team, new_team) -> bool
 
-      :param Player player: The player that was switched.
-      :param str old_team: The old team of the player.
-      :param str new_team: The team the player switched to.
+      :param Player player: The player that attempts to switch teams.
+      :param str old_team: The team the player is currently in.
+      :param str new_team: The team the player tries to join. Can also be ``"any"``.
       :return: Whether to pass on the event to the engine.
 
 .. class:: MapDispatcher
@@ -496,11 +496,11 @@ Concrete Event dispatchers
 
    ``name = "kamikaze_explode"``
 
-   Event that goes off when player uses kamikaze item.
+   Event that goes off when the kamikaze of a player explodes.
 
    .. method:: dispatch(player, is_used_on_demand) -> bool
 
-      :param Player player: The player that had heir kamikaze holdable explode.
+      :param Player player: The player that had their kamikaze holdable explode.
       :param bool is_used_on_demand: Whether the player use the kamikaze on their demand, or not.
       :return: Whether to pass on the event to the engine.
 
@@ -508,7 +508,7 @@ Concrete Event dispatchers
 
    ``name = "damage"``
 
-   Event that goes off when someone is inflicted with damage.
+   Event that goes off when someone is inflicted with damage. This is a notification only: the event cannot be cancelled and the damage cannot be changed by a handler, whatever it returns.
 
    .. method:: dispatch(target, attacker, damage, dflags, means_of_death) -> bool
 
@@ -517,4 +517,4 @@ Concrete Event dispatchers
       :param int damage: The raw damage amount before applying handicaps, etc.
       :param int dflags: The damage flags. See :ref:`damage_flags`.
       :param int means_of_death: The means of death used. See :ref:`means_of_death`
-      :return: Whether to pass on the event to the engine.
+      :return: The result of the dispatch. The engine ignores it.
