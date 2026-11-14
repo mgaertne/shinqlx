@@ -142,6 +142,25 @@ The keyword of the means of death is called ``means_of_death`` instead of ``mod`
 Rust. Calls with a positional argument keep working. The same goes for the function :func:`slay_with_mod` of the module,
 whose keyword is ``mean_of_death``.
 
+.. _migration_names:
+
+Names and signatures that differ
+--------------------------------
+
+* The classes ``RedTeamChatChannel``, ``BlueTeamChatChannel``, ``FreeChatChannel`` and ``SpectatorChatChannel`` do not
+  exist. The one class :class:`TeamChatChannel` takes their place, and the constants ``RED_TEAM_CHAT_CHANNEL``,
+  ``BLUE_TEAM_CHAT_CHANNEL``, ``FREE_CHAT_CHANNEL`` and ``SPECTATOR_CHAT_CHANNEL`` are instances of it. A plugin that
+  creates a channel with ``minqlx.RedTeamChatChannel()`` fails with an :class:`AttributeError`: use the constant, or
+  ``TeamChatChannel("red")``. A check with ``isinstance`` against one of the four classes becomes a check against
+  :class:`TeamChatChannel`.
+* The class ``PlayerDisonnectDispatcher`` of minqlx has a typo in its name, it is spelled ``PlayerDisconnectDispatcher``
+  in shinqlx. Only code that names the class is affected, the event ``player_disconnect`` is the same.
+* :func:`thread` takes only the function. The keyword ``force`` of minqlx, which started a second thread from inside of
+  a threaded function, is gone, and a call with it raises a :class:`TypeError`.
+* ``main_logger`` is not part of the module, use :func:`get_logger`. minqlx also passed on the modules that its own
+  modules import, for example ``minqlx.os``, ``minqlx.re``, ``minqlx.threading`` and ``minqlx.json``. A plugin that
+  used one of them needs its own import.
+
 .. _migration_default_plugins:
 
 Members of the default plugins
