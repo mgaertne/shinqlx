@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from re import Pattern
-from typing import Callable, SupportsIndex, final
+from typing import Callable, SupportsIndex, TypedDict, final
 
 from shinqlx import Player, Plugin
 from typing_extensions import Self, disjoint_base
+
+class ReplyKwargs(TypedDict, total=False):
+    limit: int
+    delimiter: str
 
 MAX_MSG_LENGTH: int
 

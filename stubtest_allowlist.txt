@@ -16,6 +16,7 @@ shinqlx.MatchStartedStats
 shinqlx.MedalData
 shinqlx.MedalsEntry
 shinqlx.PickupsEntry
+shinqlx._commands.ReplyKwargs
 shinqlx._player.AmmoKwargs
 shinqlx.PlayerConnectStats
 shinqlx.PlayerData

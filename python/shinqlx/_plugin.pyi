@@ -20,8 +20,9 @@ from shinqlx import (
     UserinfoEventInput,
 )
 from shinqlx.database import Redis
-from typing_extensions import Never, TypeAlias, disjoint_base
+from typing_extensions import Never, TypeAlias, Unpack, disjoint_base
 
+from ._commands import ReplyKwargs
 from ._shinqlx import Events, Teams
 
 _PluginT = TypeVar("_PluginT", bound=Plugin)
@@ -439,7 +440,7 @@ class Plugin:
     @classmethod
     def player(cls, name: str | int | Player, player_list: Iterable[Player] | None = ...) -> Player | None: ...
     @classmethod
-    def msg(cls, msg: str, chat_channel: str = ..., **kwargs: str) -> None: ...
+    def msg(cls, msg: str, chat_channel: str = ..., **kwargs: Unpack[ReplyKwargs]) -> None: ...
     @classmethod
     def console(cls, text: str) -> None: ...
     @classmethod
@@ -462,7 +463,7 @@ class Plugin:
     @classmethod
     def center_print(cls, msg: str, recipient: str | int | Player | None = ...) -> None: ...
     @classmethod
-    def tell(cls, msg: str, recipient: str | int | Player, **kwargs: str) -> None: ...
+    def tell(cls, msg: str, recipient: str | int | Player, **kwargs: Unpack[ReplyKwargs]) -> None: ...
     @classmethod
     def is_vote_active(cls) -> bool: ...
     @classmethod

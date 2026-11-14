@@ -80,6 +80,18 @@ class ReexportTests(unittest.TestCase):
         )
         self.assertEqual(expected, build_stubs.render_reexport_stub(source))
 
+    def test_type_names_are_added_to_the_exports(self) -> None:
+        stub = build_stubs.type_only_names(
+            "from typing import TypedDict\nfrom typing_extensions import TypeAlias\n"
+            "class Data(TypedDict): ...\nclass _Hidden(TypedDict): ...\n"
+            "Result: TypeAlias = int | None\nclass Plain: ...\nclass Unlisted(TypedDict): ...\n"
+            '__all__ = ["Data", "Result", "Plain"]\n'
+        )
+        self.assertEqual(["Data", "Result"], stub)
+        rendered = build_stubs.render_reexport_stub("from shinqlx import Alpha\n__all__ = ['Alpha']\n", stub)
+        self.assertIn("    Data as Data,\n", rendered)
+        self.assertIn('    "Result",\n', rendered)
+
     def test_name_that_is_not_imported_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "Local"):
             build_stubs.render_reexport_stub('from shinqlx import Alpha\n__all__ = ["Alpha", "Local"]\n')
@@ -101,11 +113,20 @@ class BuildTests(unittest.TestCase):
         package = self.output / "shinqlx-stubs" / "shinqlx-stubs"
         self.assertEqual(expected, {path.name for path in package.iterdir()})
 
-    def test_minqlx_stubs_export_exactly_what_the_shim_exports(self) -> None:
+    def test_minqlx_stubs_export_what_the_shim_exports_and_the_type_names(self) -> None:
         package = self.output / "minqlx-stubs" / "minqlx-stubs"
+        type_names = set(build_stubs.type_only_names((build_stubs.STUB_SOURCE / "__init__.pyi").read_text()))
         for shim in build_stubs.SHIM_SOURCE.glob("*.py"):
+            expected = literal_all(shim) | (type_names if shim.stem == "__init__" else set())
             with self.subTest(shim.name):
-                self.assertEqual(literal_all(shim), literal_all(package / f"{shim.stem}.pyi"))
+                self.assertEqual(expected, literal_all(package / f"{shim.stem}.pyi"))
+
+    def test_type_names_are_the_typed_dicts_and_aliases_of_the_stubs(self) -> None:
+        names = set(build_stubs.type_only_names((build_stubs.STUB_SOURCE / "__init__.pyi").read_text()))
+        self.assertLessEqual(
+            {"CancellableEventReturn", "UncancellableEventReturn", "GameStartData", "KillData", "StatsData"}, names
+        )
+        self.assertTrue(all(not name.startswith("_") for name in names))
 
     def test_minqlx_stubs_export_only_names_that_shinqlx_stubs_export(self) -> None:
         shinqlx_names = literal_all(build_stubs.STUB_SOURCE / "__init__.pyi")

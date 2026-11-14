@@ -13,6 +13,10 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 ROOT = Path(__file__).resolve().parent.parent
 STUB_SOURCE = ROOT / "python" / "shinqlx"
@@ -38,6 +42,8 @@ minqlx 0.5.3 this package
 * lacks `RedTeamChatChannel`, `BlueTeamChatChannel`, `FreeChatChannel` and `SpectatorChatChannel`. Use the constants
   such as `RED_TEAM_CHAT_CHANNEL` or `TeamChatChannel`, and the misspelt `PlayerDisonnectDispatcher` is spelled
   `PlayerDisconnectDispatcher`. `main_logger` and the modules that minqlx passes on, for example `minqlx.os`, are gone,
+* also exports the type names of the stubs, for example `GameStartData`, `KillData` or `CancellableEventReturn`. They
+  exist only in the stubs and are not available at runtime, so import them under `typing.TYPE_CHECKING`,
 * has names that minqlx 0.5.3 does not have, among them the `damage` event with `DamageDispatcher`, the `DAMAGE_*`
   constants, `TeamChatChannel`, `get_targetting_entities`, `handle_damage` and `threading_excepthook`,
 * differs in signatures: `slay_with_mod` takes `means_of_death` instead of `mod`, `thread` has no `force`, and
@@ -81,16 +87,30 @@ def exported_names(tree: ast.Module) -> list[str]:
     raise ValueError("the module has no __all__ list")
 
 
-def render_reexport_stub(source: str) -> str:
-    """Renders a stub that re-exports each name of ``__all__`` from the module it is imported from."""
+def type_only_names(stub: str) -> list[str]:
+    """Returns the ``TypedDict`` classes and ``TypeAlias`` names that a stub defines and lists in its ``__all__``."""
+    tree = ast.parse(stub)
+    listed = set(exported_names(tree))
+    names = []
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and any(ast.unparse(base) == "TypedDict" for base in node.bases):
+            names.append(node.name)
+        elif isinstance(node, ast.AnnAssign) and "TypeAlias" in ast.unparse(node.annotation):
+            names.append(ast.unparse(node.target))
+    return sorted(name for name in names if name in listed)
+
+
+def render_reexport_stub(source: str, type_names: Iterable[str] = (), type_module: str = "shinqlx") -> str:
+    """Renders a stub that re-exports each name of ``__all__`` and the given type names from their modules."""
     tree = ast.parse(source)
-    exported = exported_names(tree)
     imported = {
         alias.asname or alias.name: (node.module, alias.name)
         for node in tree.body
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0
         for alias in node.names
     }
+    imported.update({name: (type_module, name) for name in type_names})
+    exported = sorted({*exported_names(tree), *type_names})
     if missing := sorted(set(exported) - imported.keys()):
         raise ValueError(f"names in __all__ that are not imported: {', '.join(missing)}")
 
@@ -157,8 +177,10 @@ def build_minqlx_stubs(destination: Path, version: str) -> None:
     """Writes the distribution ``minqlx-stubs`` with re-exports generated from the runtime shim."""
     package = destination / "minqlx-stubs"
     package.mkdir(parents=True)
+    type_names = type_only_names((STUB_SOURCE / "__init__.pyi").read_text())
     for shim in sorted(SHIM_SOURCE.glob("*.py")):
-        (package / f"{shim.stem}.pyi").write_text(render_reexport_stub(shim.read_text()))
+        names = type_names if shim.stem == "__init__" else ()
+        (package / f"{shim.stem}.pyi").write_text(render_reexport_stub(shim.read_text(), names))
     pyproject = render_pyproject(
         "minqlx-stubs",
         version,
