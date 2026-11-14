@@ -83,6 +83,27 @@ Database
 
    A subclass of :class:`shinqlx.database.AbstractDatabase` providing support for Redis.
 
+   .. note::
+
+      The connection is made with the ``redis`` Python package, so any server that speaks the Redis protocol can be
+      used without changes to shinqlx or to the cvars above. Valkey, KeyDB and Dragonfly have been run against the
+      commands that the native plugins and the plugin collections of the maintainers use: strings with ``setex``,
+      ``mset``, ``msetnx`` and ``incr``, hashes, sets, lists, sorted sets, ``scan_iter``, pipelines and
+      ``WATCH``/``MULTI`` transactions, over TCP and over a Unix socket, with a password and with a database number
+      other than 0.
+
+      - `Valkey <https://valkey.io>`_ (BSD-3-Clause) is the open source fork of Redis and the one to choose if your
+        distribution no longer ships Redis. Tested with 9.1.
+      - `Dragonfly <https://www.dragonflydb.io>`_ is source-available under its own license rather than an open
+        source one. Tested with 2.1.
+      - `KeyDB <https://docs.keydb.dev>`_ (BSD-3-Clause) is based on Redis 6 and has had no release since October
+        2023. It works, but it is not developed any further. Tested with 6.3.4.
+
+      The client stays the ``redis`` package. Many plugins ``import redis`` themselves, for example to check
+      ``redis.VERSION`` or to catch ``redis.exceptions.WatchError``, so a different client package such as
+      ``valkey-py`` is not a drop-in replacement. A plugin that uses Lua scripts, Pub/Sub or server modules may need
+      more than the commands listed above, so test such a plugin against your server before switching.
+
    .. property:: r
       :type: redis.Redis
 

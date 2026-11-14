@@ -51,6 +51,8 @@ python3 --version
 sudo apt-get -y install redis-server pkg-config libssl-dev git build-essential
 ```
 
+  Valkey, KeyDB and Dragonfly work in place of Redis; see the `Redis` class in the database documentation.
+
 - To avoid interference with operating system packages (and future adaptions from Debian v12 onwards for example), I
   recommend installing a python virtual environment to install the packges that shinqlx/minqlx or your plugins need:
 
