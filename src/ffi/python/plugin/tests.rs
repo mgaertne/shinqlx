@@ -1459,6 +1459,137 @@ fn get_cvar_converts_to_list(_pyshinqlx_setup: ()) {
 #[rstest]
 #[cfg_attr(miri, ignore)]
 #[serial]
+fn get_cvar_strips_the_whitespace_around_the_items(_pyshinqlx_setup: ()) {
+    let cvar_string = c"  2 , 4,\t6 ,, eight  ";
+    let mut raw_cvar = CVarBuilder::default()
+        .string(cvar_string.as_ptr().cast_mut())
+        .build()
+        .expect("this should not happen");
+
+    MockEngineBuilder::default()
+        .with_find_cvar(
+            |cmd| cmd == "sv_maxclients",
+            move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+            3,
+        )
+        .run(|| {
+            Python::attach(|py| {
+                let collection_types = [
+                    py.get_type::<PyList>(),
+                    py.get_type::<PySet>(),
+                    py.get_type::<PyTuple>(),
+                ];
+                for collection_type in collection_types {
+                    let result = Plugin::get_cvar(
+                        &py.get_type::<Plugin>(),
+                        "sv_maxclients",
+                        Some(collection_type.clone().unbind()),
+                    )
+                    .expect("result was not OK");
+
+                    let items = PySet::new(py, result.try_iter().expect("not iterable").flatten())
+                        .and_then(|items| items.extract::<std::collections::BTreeSet<String>>())
+                        .expect("could not read the items");
+                    assert_eq!(
+                        items,
+                        ["", "2", "4", "6", "eight"]
+                            .into_iter()
+                            .map(String::from)
+                            .collect(),
+                        "{collection_type:?}"
+                    );
+                }
+            });
+        });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn get_cvar_keeps_the_order_of_the_stripped_items(_pyshinqlx_setup: ()) {
+    let cvar_string = c" a , b,c ";
+    let mut raw_cvar = CVarBuilder::default()
+        .string(cvar_string.as_ptr().cast_mut())
+        .build()
+        .expect("this should not happen");
+
+    MockEngineBuilder::default()
+        .with_find_cvar(
+            |cmd| cmd == "sv_maxclients",
+            move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+            2,
+        )
+        .run(|| {
+            Python::attach(|py| {
+                let list = Plugin::get_cvar(
+                    &py.get_type::<Plugin>(),
+                    "sv_maxclients",
+                    Some(py.get_type::<PyList>().unbind()),
+                )
+                .and_then(|result| result.extract::<Vec<String>>())
+                .expect("could not read the list");
+                let tuple = Plugin::get_cvar(
+                    &py.get_type::<Plugin>(),
+                    "sv_maxclients",
+                    Some(py.get_type::<PyTuple>().unbind()),
+                )
+                .and_then(|result| result.extract::<Vec<String>>())
+                .expect("could not read the tuple");
+
+                assert_eq!(list, ["a", "b", "c"]);
+                assert_eq!(tuple, ["a", "b", "c"]);
+            });
+        });
+}
+
+#[rstest]
+#[case(c"")]
+#[case(c"  \t ")]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn get_cvar_converts_an_empty_value_to_an_empty_collection(
+    _pyshinqlx_setup: (),
+    #[case] cvar_string: &std::ffi::CStr,
+) {
+    let mut raw_cvar = CVarBuilder::default()
+        .string(cvar_string.as_ptr().cast_mut())
+        .build()
+        .expect("this should not happen");
+
+    MockEngineBuilder::default()
+        .with_find_cvar(
+            |cmd| cmd == "sv_maxclients",
+            move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+            3,
+        )
+        .run(|| {
+            Python::attach(|py| {
+                let collection_types = [
+                    py.get_type::<PyList>(),
+                    py.get_type::<PySet>(),
+                    py.get_type::<PyTuple>(),
+                ];
+                for collection_type in collection_types {
+                    let result = Plugin::get_cvar(
+                        &py.get_type::<Plugin>(),
+                        "sv_maxclients",
+                        Some(collection_type.clone().unbind()),
+                    )
+                    .expect("result was not OK");
+
+                    assert!(
+                        result.is_instance(&collection_type).unwrap_or(false)
+                            && result.len().is_ok_and(|length| length == 0),
+                        "{collection_type:?} of an empty value is not empty: {result:?}"
+                    );
+                }
+            });
+        });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
 fn get_cvar_list_when_no_cvar_found(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)

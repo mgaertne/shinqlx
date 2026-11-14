@@ -100,6 +100,14 @@ impl CvarType {
     }
 }
 
+/// The items of a comma separated cvar value without the whitespace around them. A cvar that is
+/// missing, empty or only whitespace has no items.
+fn comma_separated_items(value: Option<&str>) -> Vec<&str> {
+    value
+        .filter(|value| !value.trim().is_empty())
+        .map_or_else(Vec::new, |value| value.split(',').map(str::trim).collect())
+}
+
 /// Reads the current value of the cvar `name` and converts it to `cvar_type`.
 pub(super) fn read_cvar_as<'py>(
     py: Python<'py>,
@@ -152,30 +160,15 @@ pub(super) fn read_cvar_as<'py>(
                 |int| Ok(PyBool::new(py, int != 0).into_any().to_owned()),
             ),
         },
-        CvarType::List => match cvar_string {
-            None => Ok(PyList::empty(py).into_any()),
-            Some(value) => {
-                let items = value.split(',').collect::<Vec<_>>();
-                Ok(PyList::new(py, items)?.into_any())
-            }
-        },
-        CvarType::Set => match cvar_string {
-            None => PySet::empty(py).map(|set| set.into_any()),
-            Some(value) => {
-                let items = value
-                    .split(',')
-                    .map(|item| item.to_string())
-                    .collect::<Vec<_>>();
-                Ok(PySet::new::<String>(py, items)?.into_any())
-            }
-        },
-        CvarType::Tuple => match cvar_string {
-            None => Ok(PyTuple::empty(py).into_any()),
-            Some(value) => {
-                let items = value.split(',').collect::<Vec<_>>();
-                Ok(PyTuple::new(py, items)?.into_any())
-            }
-        },
+        CvarType::List => {
+            Ok(PyList::new(py, comma_separated_items(cvar_string.as_deref()))?.into_any())
+        }
+        CvarType::Set => {
+            Ok(PySet::new(py, comma_separated_items(cvar_string.as_deref()))?.into_any())
+        }
+        CvarType::Tuple => {
+            Ok(PyTuple::new(py, comma_separated_items(cvar_string.as_deref()))?.into_any())
+        }
     }
 }
 

@@ -369,7 +369,7 @@ Plugins
                get_cvar(name, return_type = str) -> str | bool | int | float | list | set | tuple
       :classmethod:
 
-      Retrieve a cvar from the server and convert it to the ``return_type``. For ``list``, ``set`` and ``tuple`` the original cvar is split along commas.
+      Retrieve a cvar from the server and convert it to the ``return_type``. For ``list``, ``set`` and ``tuple`` the original cvar is split along commas and the whitespace around each item is removed. A missing, empty or whitespace-only cvar gives an empty collection.
 
       :param str name: The name of the cvar.
       :param  return_type: The return_type of the function (default: ``str``)
