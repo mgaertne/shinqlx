@@ -748,7 +748,7 @@ Functions
    .. seealso::
       :ref:`cvar_flags` for an explanation of the different flag values.
 
-   :param str cvar: The name of the cvar to set.
+   :param str name: The name of the cvar to set.
    :param str value: The value to set the cvar to.
    :param int | None flags: The flags to set if, and only if, the cvar does not exist and has to be created. (default: ``None``)
    :return: ``True`` if a new cvar was created, ``False`` if an existing cvar was left unchanged.
@@ -760,7 +760,7 @@ Functions
    .. seealso::
       :ref:`cvar_flags` for an explanation of the different flag values.
 
-   :param str cvar: The name of the cvar to set.
+   :param str name: The name of the cvar to set.
    :param str value: The value to set the cvar to.
    :param int | float minimum: The minimum value of the cvar.
    :param int | float maximum: The maximum value of the cvar.

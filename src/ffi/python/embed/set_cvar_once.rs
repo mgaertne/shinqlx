@@ -6,21 +6,21 @@ use crate::{
 /// Sets a cvar.
 #[pyfunction]
 #[pyo3(name = "set_cvar_once")]
-#[pyo3(signature = (cvar, value, flags=0), text_signature = "(cvar, value, flags=0)")]
+#[pyo3(signature = (name, value, flags=0), text_signature = "(name, value, flags=0)")]
 pub(crate) fn pyshinqlx_set_cvar_once(
     py: Python<'_>,
-    cvar: &str,
+    name: &str,
     value: &Bound<'_, PyAny>,
     flags: i32,
 ) -> PyResult<bool> {
     let value_string = value.to_string();
     py.detach(|| {
         with_main_engine(|main_engine| {
-            if main_engine.find_cvar(cvar).is_some() {
+            if main_engine.find_cvar(name).is_some() {
                 return Ok(false);
             }
 
-            main_engine.get_cvar(cvar, &value_string, Some(flags));
+            main_engine.get_cvar(name, &value_string, Some(flags));
             Ok(true)
         })
     })
@@ -34,7 +34,8 @@ mod set_cvar_once_tests {
     use pretty_assertions::assert_eq;
     use pyo3::{
         exceptions::PyEnvironmentError,
-        types::{PyInt, PyString},
+        types::{PyDict, PyInt, PyString},
+        wrap_pyfunction,
     };
     use rstest::*;
 
@@ -85,6 +86,34 @@ mod set_cvar_once_tests {
                 })
                 .unwrap();
                 assert_eq!(result, true);
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn set_cvar_once_takes_the_parameter_names_of_minqlx(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default()
+            .with_find_cvar(|cmd| cmd == "sv_maxclients", |_| None, 1)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_cvar()
+                    .with(
+                        predicate::eq("sv_maxclients"),
+                        predicate::eq("64"),
+                        predicate::eq(Some(0)),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                let result = Python::attach(|py| -> PyResult<bool> {
+                    let function = wrap_pyfunction!(pyshinqlx_set_cvar_once, py)?;
+                    let kwargs = PyDict::new(py);
+                    kwargs.set_item("name", "sv_maxclients")?;
+                    kwargs.set_item("value", "64")?;
+                    function.call((), Some(&kwargs))?.extract()
+                });
+                assert!(result.is_ok_and(|value| value));
             });
     }
 
