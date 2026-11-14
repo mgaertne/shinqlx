@@ -108,7 +108,7 @@ disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
 [tool.tox]
-env_list = ["ruff", "mypy", "ty", "stubtest", "docs"]
+env_list = ["ruff", "mypy", "ty", "stubtest", "stubs", "docs"]
 
 [tool.tox.env_run_base]
 package = "editable"
@@ -137,6 +137,10 @@ commands_pre = [
     [ "python", "-c", "import os, shutil, sys, sysconfig; runtime = sys.argv[1] + '/runtime'; os.makedirs(runtime, exist_ok=True); shutil.copyfile(sys.argv[1] + '/target/debug/libshinqlx.so', runtime + '/shinqlx' + sysconfig.get_config_var('EXT_SUFFIX'))", "{env_dir}" ],
 ]
 commands = [[ "python", "{toxinidir}{/}tools{/}run_stubtest.py", "shinqlx", "--allowlist", "{toxinidir}{/}stubtest_allowlist.txt", { replace = "posargs", default = [], extend = true } ]]
+
+[tool.tox.env.stubs]
+package = "deps-only"
+commands = [[ "python", "-m", "unittest", "discover", "-s", "{toxinidir}{/}tools", "-p", "test_*.py", { replace = "posargs", default = [], extend = true } ]]
 
 [tool.tox.env.ty]
 package = "deps-only"

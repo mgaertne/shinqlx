@@ -115,7 +115,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install tox
       - name: Test with tox
-        run: tox -r -e ruff,mypy,ty,stubtest
+        run: tox -r -e ruff,mypy,ty,stubtest,stubs
 
   python-doc:
     name: python-documentation
@@ -297,6 +297,19 @@ jobs:
         with:
           command: upload
           args: --skip-existing dist/*
+      - name: Build the stub distributions
+        run: |
+          python -m pip install build
+          python tools/build_stubs.py stubs
+          python -m build --outdir stubs-dist stubs/shinqlx-stubs
+          python -m build --outdir stubs-dist stubs/minqlx-stubs
+      - name: Publish the stub distributions to PyPI
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_PASSWORD }}
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --skip-existing stubs-dist/*
       - name: Upload sdist
         uses: actions/upload-artifact@v7
         with:
