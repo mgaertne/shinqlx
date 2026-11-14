@@ -404,11 +404,11 @@ Concrete Event dispatchers
 
 .. class:: TeamSwitchAttemptDispatcher
 
-   ``name = "team_switch"``
+   ``name = "team_switch_attempt"``
 
    For when a player attempts to join a team. Prevents the player from doing it when cancelled.
 
-   When players click the Join Match button, it sends "team a" (with the "a" being "any", presumably), meaning the new_team argument can also be "any" in addition to all the other teams.For when a player switches teams. If cancelled, simply put the player back in the old team.
+   When players click the Join Match button, it sends "team a" (with the "a" being "any", presumably), meaning the new_team argument can also be "any" in addition to all the other teams.
 
    .. method:: dispatch(player, old_team, new_team) -> bool
 
