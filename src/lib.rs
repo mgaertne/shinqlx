@@ -138,23 +138,23 @@ fn initialize() {
         })
     }
     .tap_err(|err| {
-        error!(target: "shinqlx", "{err:?}");
-        error!(target: "shinqlx", "Could not register exit handler");
+        error!(target: "shinqlx", func = "initialize"; "{err:?}");
+        error!(target: "shinqlx", func = "initialize"; "Could not register exit handler");
         panic!("Could not register exit handler");
     });
 
     logging::initialize_logging();
     let main_engine = QuakeLiveEngine::new();
     let _ = main_engine.search_static_functions().tap_err(|err| {
-        error!(target: "shinqlx", "{err:?}");
-        error!(target: "shinqlx", "Static functions could not be initializied. Exiting.");
+        error!(target: "shinqlx", func = "initialize"; "{err:?}");
+        error!(target: "shinqlx", func = "initialize"; "Static functions could not be initializied. Exiting.");
         panic!("Static functions could not be initializied. Exiting.");
     });
 
-    debug!(target: "shinqlx", "Shared library loaded");
+    debug!(target: "shinqlx", func = "initialize"; "Shared library loaded");
     let _ = main_engine.hook_static().tap_err(|err| {
-        error!(target: "shinqlx", "{err:?}");
-        error!(target: "shinqlx", "Failed to hook static methods. Exiting.");
+        error!(target: "shinqlx", func = "initialize"; "{err:?}");
+        error!(target: "shinqlx", func = "initialize"; "Failed to hook static methods. Exiting.");
         panic!("Failed to hook static methods. Exiting.");
     });
 

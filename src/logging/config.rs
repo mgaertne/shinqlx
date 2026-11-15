@@ -18,7 +18,7 @@ use super::{
 };
 
 pub(super) const CONFIG_FILE_NAME: &str = "shinqlx_log.yml";
-const CONSOLE_PATTERN: &str = "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}";
+const CONSOLE_PATTERN: &str = "[{t}.{K(func)}] {l}: {m}{n}";
 
 static HANDLE: OnceLock<Handle> = OnceLock::new();
 

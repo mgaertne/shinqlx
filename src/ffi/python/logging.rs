@@ -162,7 +162,9 @@ pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         },
     )
     .iter()
-    .for_each(|problem| error!(target: "shinqlx", "{problem}"));
+    .for_each(
+        |problem| error!(target: "shinqlx", func = "pyshinqlx_configure_logger"; "{problem}"),
+    );
 
     let logging_module = py.import(intern!(py, "logging"))?;
     let handler = PyModule::from_code(

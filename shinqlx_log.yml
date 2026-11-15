@@ -13,8 +13,8 @@ appenders:
     encoder:
       kind: shinqlx_pattern
       # see https://docs.rs/log4rs/latest/log4rs/encode/pattern/index.html for patterns you can use,
-      # {K(func)} is the function a Python message was logged from.
-      pattern: "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}"
+      # {K(func)} is the function a message was logged from.
+      pattern: "[{t}.{K(func)}] {l}: {m}{n}"
     filters:
       - kind: threshold
         level: info

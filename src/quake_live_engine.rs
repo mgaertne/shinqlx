@@ -226,7 +226,7 @@ impl VmFunctions {
                 })
                 .collect::<Vec<_>>();
 
-            debug!(target: "shinqlx", "Searching for necessary VM functions...");
+            debug!(target: "shinqlx", func = "try_initialize_from"; "Searching for necessary VM functions...");
             let failed_functions = [
                 (QuakeLiveFunction::G_AddEvent, &self.g_addevent_orig),
                 (
@@ -252,7 +252,7 @@ impl VmFunctions {
                 |(ql_func, field)| match pattern_search_module(&qagame_maps, ql_func) {
                     None => Some(*ql_func),
                     Some(orig_func) => {
-                        debug!(target: "shinqlx", "{ql_func}: {orig_func:#X}");
+                        debug!(target: "shinqlx", func = "try_initialize_from"; "{ql_func}: {orig_func:#X}");
                         field.store(orig_func, Ordering::Release);
                         None
                     }
@@ -288,14 +288,14 @@ impl VmFunctions {
                     as *const *const extern "C" fn(c_int, c_int, c_int),
             )
         };
-        debug!(target: "shinqlx", "G_InitGame: {:#X}", g_initgame_orig as usize);
+        debug!(target: "shinqlx", func = "read_vm_call_table"; "G_InitGame: {:#X}", g_initgame_orig as usize);
         self.g_init_game_orig
             .store(g_initgame_orig as usize, Ordering::Release);
 
         let g_shutdowngame_orig =
             // SAFETY: the call table of the qagame module is readable.
             unsafe { ptr::read_unaligned(vm_call_table as *const *const extern "C" fn(c_int)) };
-        debug!(target: "shinqlx", "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
+        debug!(target: "shinqlx", func = "read_vm_call_table"; "G_ShutdownGame: {:#X}", g_shutdowngame_orig as usize);
         self.g_shutdown_game_orig
             .store(g_shutdowngame_orig as usize, Ordering::Release);
 
@@ -303,7 +303,7 @@ impl VmFunctions {
         let g_runframe_orig = unsafe {
             ptr::read((vm_call_table + OFFSET_RUNFRAME) as *const *const extern "C" fn(c_int))
         };
-        debug!(target: "shinqlx", "G_RunFrame: {:#X}", g_runframe_orig as usize);
+        debug!(target: "shinqlx", func = "read_vm_call_table"; "G_RunFrame: {:#X}", g_runframe_orig as usize);
         self.g_run_frame_orig
             .store(g_runframe_orig as usize, Ordering::Release);
     }
@@ -321,7 +321,7 @@ impl VmFunctions {
     pub(crate) fn hook(&self) -> Result<(), QuakeLiveEngineError> {
         let vm_call_table = self.vm_call_table.load(Ordering::Acquire);
 
-        debug!(target: "shinqlx", "Hooking VM functions...");
+        debug!(target: "shinqlx", func = "hook"; "Hooking VM functions...");
         // SAFETY: the call table of the qagame module is writable after the memory protection was lifted.
         unsafe {
             ptr::write(
@@ -373,7 +373,7 @@ impl VmFunctions {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
-                    error!(target: "shinqlx", "error when disabling client_conect detour: {e}");
+                    error!(target: "shinqlx", func = "hook"; "error when disabling client_conect detour: {e}");
                 });
             });
 
@@ -402,7 +402,7 @@ impl VmFunctions {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
-                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
+                    error!(target: "shinqlx", func = "hook"; "error when disabling start_kamikaze detour: {e}");
                 });
             });
 
@@ -431,7 +431,7 @@ impl VmFunctions {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
-                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
+                    error!(target: "shinqlx", func = "hook"; "error when disabling client_spawn detour: {e}");
                 });
             });
 
@@ -470,7 +470,7 @@ impl VmFunctions {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
                     cold_path();
-                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
+                    error!(target: "shinqlx", func = "hook"; "error when disabling damage detour: {e}");
                 });
             });
 
@@ -493,10 +493,10 @@ impl VmFunctions {
 
         let _ = patch_callvote_f(cmd_callvote_f_orig)
             .tap_ok(|outcome| {
-                debug!(target: "shinqlx", "callvote command patch at {cmd_callvote_f_orig:#x}: {outcome:?}");
+                debug!(target: "shinqlx", func = "patch"; "callvote command patch at {cmd_callvote_f_orig:#x}: {outcome:?}");
             })
             .tap_err(|e| {
-                error!(target: "shinqlx", "could not patch the callvote command at {cmd_callvote_f_orig:#x}: {e}");
+                error!(target: "shinqlx", func = "patch"; "could not patch the callvote command at {cmd_callvote_f_orig:#x}: {e}");
             });
     }
 
@@ -529,7 +529,7 @@ impl VmFunctions {
             .tap_some(|detour| {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
-                    error!(target: "shinqlx", "error when disabling client_connect detour: {e}");
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling client_connect detour: {e}");
                 });
             });
 
@@ -539,7 +539,7 @@ impl VmFunctions {
             .tap_some(|detour| {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
-                    error!(target: "shinqlx", "error when disabling start_kamikaze detour: {e}");
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling start_kamikaze detour: {e}");
                 });
             });
 
@@ -549,7 +549,7 @@ impl VmFunctions {
             .tap_some(|detour| {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
-                    error!(target: "shinqlx", "error when disabling client_spawn detour: {e}");
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling client_spawn detour: {e}");
                 });
             });
 
@@ -559,7 +559,7 @@ impl VmFunctions {
             .tap_some(|detour| {
                 // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
                 let _ = unsafe { detour.disable() }.tap_err(|e| {
-                    error!(target: "shinqlx", "error when disabling damage detour: {e}");
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling damage detour: {e}");
                 });
             });
     }
@@ -957,11 +957,11 @@ fn try_find_static_function<FuncType: Copy>(
     pattern_search_module(maps, func).map_or_else(
         || {
             cold_path();
-            error!(target: "shinqlx", "Function {} not found", func);
+            error!(target: "shinqlx", func = "try_find_static_function"; "Function {} not found", func);
             Err(QuakeLiveEngineError::StaticFunctionNotFound(func))
         },
         |result| {
-            debug!(target: "shinqlx", "{}: {:#X}", func, result);
+            debug!(target: "shinqlx", func = "try_find_static_function"; "{}: {:#X}", func, result);
             // SAFETY: the address was found in the engine and has the signature of the function type.
             Ok(unsafe { function_at::<FuncType>(result) })
         },
@@ -1027,13 +1027,13 @@ impl QuakeLiveEngine {
 
             if qzeroded_maps.is_empty() {
                 cold_path();
-                error!(target: "shinqlx", "no memory mapping information for {QZERODED} found");
+                error!(target: "shinqlx", func = "search_static_functions"; "no memory mapping information for {QZERODED} found");
                 return Err(QuakeLiveEngineError::NoMemoryMappingInformationFound(
                     "no memory mapping information found".to_string(),
                 ));
             }
 
-            debug!(target: "shinqlx", "Searching for necessary functions...");
+            debug!(target: "shinqlx", func = "search_static_functions"; "Searching for necessary functions...");
             let com_printf_orig = try_find_static_function::<extern "C" fn(*const c_char, ...)>(
                 &qzeroded_maps,
                 QuakeLiveFunction::Com_Printf,
@@ -1161,10 +1161,10 @@ impl QuakeLiveEngine {
             )
             .tap_err(|err| {
                 cold_path();
-                error!(target: "shinqlx", "{err:?}");
+                error!(target: "shinqlx", func = "search_static_functions"; "{err:?}");
                 error!(
                     target: "shinqlx",
-                    "Steam query handler not found. The server is NOT protected against query floods."
+                    func = "search_static_functions"; "Steam query handler not found. The server is NOT protected against query floods."
                 );
             })
             .ok();
@@ -1181,7 +1181,7 @@ impl QuakeLiveEngine {
                 reason = "the symbol search computes with 32-bit engine offsets"
             )]
             let cmd_argc_ptr = base_address + sv_map_f_orig as i32 + OFFSET_CMD_ARGC + 4;
-            debug!(target: "shinqlx", "{}: {:#X}", QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr);
+            debug!(target: "shinqlx", func = "search_static_functions"; "{}: {:#X}", QuakeLiveFunction::Cmd_Argc, cmd_argc_ptr);
             let cmd_argc_orig =
                 // SAFETY: the address was found in the engine and has the signature of the function type.
                 unsafe { function_at::<extern "C" fn() -> c_int>(cmd_argc_ptr as usize) };
@@ -1227,7 +1227,7 @@ impl QuakeLiveEngine {
         )
     )]
     pub(crate) fn hook_static(&self) -> Result<(), QuakeLiveEngineError> {
-        debug!(target: "shinqlx", "Hooking...");
+        debug!(target: "shinqlx", func = "hook_static"; "Hooking...");
         let cmd_addcommand_detour = QuakeLiveFunction::Cmd_AddCommand
             .create_and_enable_generic_detour(
                 self.cmd_addcommand_orig()?,
@@ -1376,7 +1376,7 @@ impl QuakeLiveEngine {
             cold_path();
             return Err(QuakeLiveEngineError::MainEngineNotInitialized);
         }
-        debug!(target: "shinqlx", "Initializing...");
+        debug!(target: "shinqlx", func = "initialize_static"; "Initializing...");
         self.add_command("cmd", cmd_send_server_command);
         self.add_command("cp", cmd_center_print);
         self.add_command("print", cmd_regular_print);
@@ -1388,7 +1388,7 @@ impl QuakeLiveEngine {
 
         pyshinqlx_initialize().map_err(|err| {
             cold_path();
-            error!(target: "shinqlx", "Python initialization failed.");
+            error!(target: "shinqlx", func = "initialize_static"; "Python initialization failed.");
             QuakeLiveEngineError::PythonInitializationFailed(err)
         })?;
 
@@ -1448,10 +1448,10 @@ impl QuakeLiveEngine {
 
         let _ = patch_sv_fps(&regions)
             .tap_ok(|outcome| {
-                debug!(target: "shinqlx", "sv_fps default value 125: {outcome:?}");
+                debug!(target: "shinqlx", func = "patch_sv_fps"; "sv_fps default value 125: {outcome:?}");
             })
             .tap_err(|e| {
-                error!(target: "shinqlx", "could not set the default value of sv_fps to 125: {e}");
+                error!(target: "shinqlx", func = "patch_sv_fps"; "could not set the default value of sv_fps to 125: {e}");
             });
     }
 

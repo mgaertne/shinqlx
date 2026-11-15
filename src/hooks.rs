@@ -37,8 +37,8 @@ pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe
         if !main_engine.is_common_initialized() {
             let _ = main_engine.initialize_static().tap_err(|err| {
                 cold_path();
-                error!(target: "shinqlx", "{err:?}");
-                error!(target: "shinqlx", "Static initialization failed. Exiting.");
+                error!(target: "shinqlx", func = "shinqlx_cmd_addcommand"; "{err:?}");
+                error!(target: "shinqlx", func = "shinqlx_cmd_addcommand"; "Static initialization failed. Exiting.");
                 panic!("Static initialization failed. Exiting.");
             });
         }
@@ -62,14 +62,14 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
         // We should be getting qagame, but check just in case.
         if converted_module_name.as_ref() != "qagame" {
             cold_path();
-            error!(target: "shinqlx", "Unknown module: {converted_module_name}");
+            error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "Unknown module: {converted_module_name}");
         }
 
         main_engine.set_module_offset(&converted_module_name, offset);
 
         let _ = main_engine.initialize_vm(offset as usize).tap_err(|err| {
-            error!(target: "shinqlx", "{err:?}");
-            error!(target: "shinqlx", "VM could not be initializied. Exiting.");
+            error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "{err:?}");
+            error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "VM could not be initializied. Exiting.");
             panic!("VM could not be initializied. Exiting.");
         });
     });
@@ -165,7 +165,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     };
     if result < 0 {
         cold_path();
-        warn!(target: "shinqlx", "some formatting problem occurred");
+        warn!(target: "shinqlx", func = "vsnprintf"; "some formatting problem occurred");
     }
 
     let cmd = message_from_buffer(&buffer);
@@ -201,7 +201,7 @@ pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     };
     if result < 0 {
         cold_path();
-        warn!(target: "shinqlx", "some formatting problem occurred");
+        warn!(target: "shinqlx", func = "vsnprintf"; "some formatting problem occurred");
     }
 
     let cmd = message_from_buffer(&buffer);
@@ -374,7 +374,7 @@ impl QueryGate {
         if let Some(dropped) = limiter.take_dropped_summary(now_ms) {
             warn!(
                 target: "shinqlx",
-                "Dropped {dropped} {} packets that exceeded the rate limit.",
+                func = "allows"; "Dropped {dropped} {} packets that exceeded the rate limit.",
                 self.label
             );
         }
@@ -547,7 +547,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ..
     };
     if result < 0 {
         cold_path();
-        warn!(target: "shinqlx", "some formatting problem occurred");
+        warn!(target: "shinqlx", func = "vsnprintf"; "some formatting problem occurred");
     }
 
     let rust_msg = message_from_buffer(&buffer);
@@ -575,7 +575,7 @@ pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     };
     if result < 0 {
         cold_path();
-        warn!(target: "shinqlx", "some formatting problem occurred");
+        warn!(target: "shinqlx", func = "vsnprintf"; "some formatting problem occurred");
     }
 
     let rust_msg = message_from_buffer(&buffer);

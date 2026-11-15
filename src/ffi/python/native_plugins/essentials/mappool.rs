@@ -31,7 +31,7 @@ pub(super) fn parse_mappool(contents: &str) -> Mappool {
 
 fn read_mappool(path: &Path) -> Option<Mappool> {
     std::fs::read_to_string(path)
-        .map_err(|err| warn!(target: "shinqlx", "could not read the map pool {path:?}: {err}"))
+        .map_err(|err| warn!(target: "shinqlx", func = "read_mappool"; "could not read the map pool {path:?}: {err}"))
         .ok()
         .map(|contents| parse_mappool(&contents))
 }

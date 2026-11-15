@@ -623,7 +623,7 @@ fn owner() -> PyResult<Option<i64>> {
     get_cvar("qlx_owner").map(|opt_value| {
         opt_value.and_then(|value| value.parse::<i64>().ok()).filter(|&int_value| int_value >= 0).tap_none(|| {
             cold_path();
-            error!(target: "shinqlx", "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
+            error!(target: "shinqlx", func = "owner"; "Failed to parse the Owner Steam ID. Make sure it's in SteamID64 format.");
         })
     })
 }
@@ -1781,11 +1781,11 @@ pub enum PythonInitializationError {
 pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyshinqlx_is_initialized() {
         cold_path();
-        error!(target: "shinqlx", "pyshinqlx_initialize was called while already initialized");
+        error!(target: "shinqlx", func = "pyshinqlx_initialize"; "pyshinqlx_initialize was called while already initialized");
         return Err(PythonInitializationError::AlreadyInitialized);
     }
 
-    debug!(target: "shinqlx", "Initializing Python...");
+    debug!(target: "shinqlx", func = "pyshinqlx_initialize"; "Initializing Python...");
     // SAFETY: Py_IsInitialized may be called before the interpreter exists.
     if unsafe { Py_IsInitialized() } == 0 {
         append_to_inittab!(pyshinqlx_module);
@@ -1796,12 +1796,12 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
             shinqlx_module.call_method0(intern!(py, "initialize"))
         }).map_or_else(|err| {
             cold_path();
-            error!(target: "shinqlx", "{err:?}");
-            error!(target: "shinqlx", "loader sequence returned an error. Did you modify the loader?");
+            error!(target: "shinqlx", func = "pyshinqlx_initialize"; "{err:?}");
+            error!(target: "shinqlx", func = "pyshinqlx_initialize"; "loader sequence returned an error. Did you modify the loader?");
             Err(PythonInitializationError::MainScriptError)
         }, |_| {
                 PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
-                debug!(target: "shinqlx", "Python initialized!");
+                debug!(target: "shinqlx", func = "pyshinqlx_initialize"; "Python initialized!");
                 Ok(())
             })
     })
@@ -1817,7 +1817,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
 pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyshinqlx_is_initialized() {
         cold_path();
-        error!(target: "shinqlx", "pyshinqlx_finalize was called before being initialized");
+        error!(target: "shinqlx", func = "pyshinqlx_reload"; "pyshinqlx_finalize was called before being initialized");
         return Err(PythonInitializationError::NotInitializedError);
     }
 
