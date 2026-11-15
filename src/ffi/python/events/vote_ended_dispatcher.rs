@@ -60,17 +60,14 @@ impl<'py> VoteEndedDispatcherMethods<'py> for Bound<'py, VoteEndedDispatcher> {
 
         if configstring.is_empty() {
             cold_path();
-            dispatcher_debug_log(
-                self.py(),
-                "vote_ended went off without configstring CS_VOTE_STRING.",
-            );
+            dispatcher_debug_log("vote_ended went off without configstring CS_VOTE_STRING.");
             return Ok(());
         }
 
         let Some(captures) = RE_VOTE.captures(&configstring) else {
             cold_path();
             let warning_str = format!("invalid vote called: {}", configstring);
-            dispatcher_debug_log(self.py(), &warning_str);
+            dispatcher_debug_log(&warning_str);
             return Ok(());
         };
         let vote = captures

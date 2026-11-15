@@ -61,7 +61,7 @@ impl<'py> UserinfoDispatcherMethods<'py> for Bound<'py, UserinfoDispatcher> {
             player.repr()?,
             changed.repr()?
         );
-        dispatcher_debug_log(self.py(), &dbgstr);
+        dispatcher_debug_log(&dbgstr);
 
         let plugins = self.as_super().get().plugins.read();
         for handler in (0..5).flat_map(|i| {

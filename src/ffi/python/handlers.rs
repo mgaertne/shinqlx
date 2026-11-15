@@ -8246,7 +8246,7 @@ static PRINT_REDIRECTION: LazyLock<ArcSwapOption<Py<PrintRedirector>>> =
     LazyLock::new(ArcSwapOption::empty);
 
 fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
-    log_debug(py, "handle_console_print", text.trim_end_matches('\n'))?;
+    log_debug("handle_console_print", text.trim_end_matches('\n'));
 
     let result = event_dispatcher(
         py,

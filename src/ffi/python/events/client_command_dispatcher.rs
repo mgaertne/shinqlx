@@ -56,7 +56,7 @@ impl<'py> ClientCommandDispatcherMethods<'py> for Bound<'py, ClientCommandDispat
             player.repr()?,
             cmd
         );
-        dispatcher_debug_log(self.py(), &dbgstr);
+        dispatcher_debug_log(&dbgstr);
 
         let mut forwarded_cmd = cmd.to_string();
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();

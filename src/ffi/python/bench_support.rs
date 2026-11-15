@@ -158,7 +158,7 @@ pub fn handle_set_configstring(index: u32, value: &str) {
 
 /// Writes a debug message to the log the way the event dispatchers do.
 pub fn dispatcher_debug_log(message: &str) {
-    Python::attach(|py| dispatcher_debug_log_impl(py, message));
+    dispatcher_debug_log_impl(message);
 }
 
 /// Formats the arguments of a client command event the way the event dispatchers do for logging.

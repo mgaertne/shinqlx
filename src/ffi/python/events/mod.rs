@@ -134,22 +134,16 @@ pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispa
 
 use super::{commands::CommandPriorities, get_cvar, log_debug};
 
-fn try_dispatcher_debug_log(py: Python<'_>, debug_str: &str) -> PyResult<()> {
+pub(crate) fn dispatcher_debug_log(debug_str: &str) {
     if debug_str.len() > 100 {
         let dbgstr = format!(
             "{})",
             debug_str.graphemes(true).take(99).collect::<String>()
         );
-        log_debug(py, "dispatch", &dbgstr)
+        log_debug("dispatch", &dbgstr);
     } else {
-        log_debug(py, "dispatch", debug_str)
+        log_debug("dispatch", debug_str);
     }
-}
-
-pub(crate) fn dispatcher_debug_log(py: Python<'_>, debug_str: &str) {
-    let _ = try_dispatcher_debug_log(py, debug_str).tap_err(|e| {
-        log_exception(py, e);
-    });
 }
 
 fn try_log_unexpected_return_value(
@@ -409,7 +403,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
         };
         if !NO_DEBUG.contains(&dispatcher_name) {
             let dbgstr = format!("{dispatcher_name}{args}");
-            dispatcher_debug_log(self.py(), &dbgstr);
+            dispatcher_debug_log(&dbgstr);
         }
 
         let mut return_value = PyBool::new(self.py(), true).to_owned().into_any().unbind();

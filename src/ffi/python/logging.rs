@@ -5,7 +5,6 @@ use log::error;
 use pyo3::{
     exceptions::PyEnvironmentError,
     intern,
-    sync::PyOnceLock,
     types::{IntoPyDict, PyString, PyTuple},
 };
 
@@ -44,46 +43,20 @@ pub(crate) fn pyshinqlx_get_logger<'py>(
     })
 }
 
-static SHINQLX_LOGGER: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-static DEBUG_LEVEL: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-
-/// Writes a debug record to the `shinqlx` logger. Like `logger.debug()` it ends up in all handlers
-/// that accept debug records, but it neither looks up the caller of the log call nor the logger
-/// and the log level on every call.
-pub(crate) fn log_debug(py: Python<'_>, func: &str, message: &str) -> PyResult<()> {
-    let logger = SHINQLX_LOGGER
-        .get_or_try_init(py, || {
-            py.import(intern!(py, "logging"))
-                .and_then(|logging_module| {
-                    logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))
-                })
-                .map(Bound::unbind)
-        })?
-        .bind(py);
-    let debug_level = DEBUG_LEVEL
-        .get_or_try_init(py, || {
-            py.import(intern!(py, "logging"))
-                .and_then(|logging_module| logging_module.getattr(intern!(py, "DEBUG")))
-                .map(Bound::unbind)
-        })?
-        .bind(py);
-
-    let log_record = logger.call_method1(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            debug_level,
-            intern!(py, ""),
-            -1,
-            message,
-            py.None(),
-            py.None(),
-            PyString::intern(py, func),
-        ),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
-
-    Ok(())
+/// Writes a debug record for the target `shinqlx` straight into the log, without going through the
+/// Python logging. It is skipped before anything is formatted when no appender takes debug records.
+pub(crate) fn log_debug(func: &str, message: &str) {
+    if !log::log_enabled!(target: "shinqlx", log::Level::Debug) {
+        return;
+    }
+    log::logger().log(
+        &log::Record::builder()
+            .level(log::Level::Debug)
+            .target("shinqlx")
+            .args(format_args!("{message}"))
+            .key_values(&[("func", func)].as_slice())
+            .build(),
+    );
 }
 
 const HANDLER_SOURCE: &CStr = c"
