@@ -818,6 +818,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let dispatcher = custom_dispatcher(py);
@@ -1741,6 +1742,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn event_dispatcher_manager_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1764,6 +1766,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_dispatchers_when_no_dispatchers_added(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1776,6 +1779,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_dispatchers_with_added_dispatchers(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1819,6 +1823,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_item_from_empty_dispatchers(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1831,6 +1836,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_item_for_existing_dispatcher(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1848,6 +1854,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn contains_with_added_dispatchers(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1892,6 +1899,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn add_dispatcher_with_type_not_being_subclass_of_event_dispatcher(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1905,6 +1913,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn add_dispatcher_that_is_already_added(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1922,6 +1931,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn remove_dispatcher_with_type_not_being_subclass_of_event_dispatcher(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1935,6 +1945,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn remove_dispatcher_that_is_already_added(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -1953,6 +1964,7 @@ mod event_dispatcher_manager_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn remove_dispatcher_that_is_not_added(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let event_dispatchers =
@@ -2186,6 +2198,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn the_dispatcher_manager_is_managed_through_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let manager =
@@ -2233,6 +2246,7 @@ class CustomDispatcher(shinqlx.EventDispatcher):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn clearing_the_dispatcher_manager_drops_its_dispatchers(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let manager =

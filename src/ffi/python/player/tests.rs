@@ -129,6 +129,7 @@ fn pyconstructor_with_nonempty_playerinfo() {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn repr_with_all_values_set(_pyshinqlx_setup: ()) {
     let result = Python::attach(|py| {
         let player = Bound::new(
@@ -151,6 +152,7 @@ fn repr_with_all_values_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn repr_with_an_invalidated_player(_pyshinqlx_setup: ()) {
     let result = Python::attach(|py| {
         let player = Bound::new(
@@ -188,6 +190,7 @@ fn str_returns_player_name() {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn contains_with_invalid_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -206,6 +209,7 @@ fn contains_with_invalid_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn contains_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -229,6 +233,7 @@ fn contains_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn contains_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -252,6 +257,7 @@ fn contains_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn getitem_with_invalid_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -270,6 +276,7 @@ fn getitem_with_invalid_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn getitem_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -293,6 +300,7 @@ fn getitem_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn getitem_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -316,6 +324,7 @@ fn getitem_where_value_is_not_in_userinfo(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn cvars_with_invalid_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -334,6 +343,7 @@ fn cvars_with_invalid_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn cvars_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -365,6 +375,7 @@ fn cvars_where_value_is_part_of_userinfo(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_can_be_compared_for_equality_with_other_player_in_python(_pyshinqlx_setup: ()) {
     let player_info = PlayerInfo {
         client_id: 42,
@@ -398,6 +409,7 @@ assert((shinqlx.Player(42, player_info) == shinqlx.Player(41, player_info2)) == 
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_can_be_compared_for_equality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
     let player_info = PlayerInfo {
         client_id: 42,
@@ -421,6 +433,7 @@ assert((shinqlx.Player(42, player_info) == "asdf") == False)
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_can_be_compared_for_inequality_with_other_player_in_python(_pyshinqlx_setup: ()) {
     let player_info = PlayerInfo {
         client_id: 42,
@@ -454,6 +467,7 @@ assert(shinqlx.Player(42, player_info) != shinqlx.Player(41, player_info2))
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_can_be_compared_for_inequality_with_steam_id_in_python(_pyshinqlx_setup: ()) {
     let player_info = PlayerInfo {
         client_id: 42,
@@ -477,6 +491,7 @@ assert(shinqlx.Player(42, player_info) != "asdf")
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_can_not_be_compared_for_larger_than(_pyshinqlx_setup: ()) {
     let player_info = PlayerInfo {
         client_id: 42,
@@ -522,6 +537,7 @@ shinqlx.Player(42, player_info) < shinqlx.Player(42, player_info)
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn update_with_different_steam_id(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx
@@ -564,6 +580,7 @@ fn update_with_different_steam_id(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn update_can_be_called_from_python(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx
@@ -608,6 +625,7 @@ assert(player._valid)
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn update_updates_new_player_name(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx
@@ -650,6 +668,7 @@ fn update_updates_new_player_name(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn update_updates_new_player_name_from_userinfo(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx
@@ -693,6 +712,7 @@ fn update_updates_new_player_name_from_userinfo(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn invalidate_invalidates_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -739,6 +759,7 @@ fn set_cvars_sets_client_cvars(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_ip_where_no_ip_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -761,6 +782,7 @@ fn get_ip_where_no_ip_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_ip_for_ip_with_no_port(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -783,6 +805,7 @@ fn get_ip_for_ip_with_no_port(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_ip_for_ip_with_port(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -907,6 +930,7 @@ fn set_clan_with_clan_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_name_for_color_terminated_name(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -929,6 +953,7 @@ fn get_name_for_color_terminated_name(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_name_for_color_unterminated_name(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -996,6 +1021,7 @@ fn set_name_updated_client_cvars(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_clean_name_returns_cleaned_name(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1014,6 +1040,7 @@ fn get_clean_name_returns_cleaned_name(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_qport_where_no_port_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1036,6 +1063,7 @@ fn get_qport_where_no_port_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_qport_for_port_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1058,6 +1086,7 @@ fn get_qport_for_port_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_qport_for_invalid_port_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1084,6 +1113,7 @@ fn get_qport_for_invalid_port_set(_pyshinqlx_setup: ()) {
 #[case(team_t::TEAM_BLUE, "blue")]
 #[case(team_t::TEAM_SPECTATOR, "spectator")]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_team_for_team_t_values(
     _pyshinqlx_setup: (),
     #[case] team: team_t,
@@ -1109,6 +1139,7 @@ fn get_team_for_team_t_values(
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_team_for_invalid_team(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1167,6 +1198,7 @@ fn set_team_puts_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_tea
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_colors_where_no_colors_are_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1189,6 +1221,7 @@ fn get_colors_where_no_colors_are_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_colors_for_colors_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1211,6 +1244,7 @@ fn get_colors_for_colors_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_colors_for_invalid_color1_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1233,6 +1267,7 @@ fn get_colors_for_invalid_color1_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_colors_for_invalid_color2_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1301,6 +1336,7 @@ fn set_colors_updates_client_cvars(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_model_when_no_model_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1324,6 +1360,7 @@ fn get_model_when_no_model_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_model_when_model_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1392,6 +1429,7 @@ fn set_model_updates_client_cvars(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_headmodel_when_no_headmodel_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1415,6 +1453,7 @@ fn get_headmodel_when_no_headmodel_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_headmodel_when_headmodel_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1483,6 +1522,7 @@ fn set_headmodel_updates_client_cvars(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_handicap_when_no_handicap_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1506,6 +1546,7 @@ fn get_handicap_when_no_handicap_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_handicap_when_handicap_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1598,6 +1639,7 @@ fn set_handicap_for_unparseable_value(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autohop_when_no_autohop_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1621,6 +1663,7 @@ fn get_autohop_when_no_autohop_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autohop_when_autohop_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1644,6 +1687,7 @@ fn get_autohop_when_autohop_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autohop_when_autohop_is_disabled(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1667,6 +1711,7 @@ fn get_autohop_when_autohop_is_disabled(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autohop_when_autohop_cannot_be_parsed(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1759,6 +1804,7 @@ fn set_autohop_for_unparseable_value(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autoaction_when_no_autoaction_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1782,6 +1828,7 @@ fn get_autoaction_when_no_autoaction_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autoaction_when_autohop_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1805,6 +1852,7 @@ fn get_autoaction_when_autohop_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autoaction_when_autoaction_is_disabled(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1828,6 +1876,7 @@ fn get_autoaction_when_autoaction_is_disabled(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_autoaction_when_autoaction_cannot_be_parsed(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1920,6 +1969,7 @@ fn set_autoaction_with_unparseable_value(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_predictitems_when_no_predictitems_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1943,6 +1993,7 @@ fn get_predictitems_when_no_predictitems_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_predictitems_when_predictitems_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1966,6 +2017,7 @@ fn get_predictitems_when_predictitems_is_set(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_predititems_when_predictitems_is_disabled(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -1989,6 +2041,7 @@ fn get_predititems_when_predictitems_is_disabled(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_predititems_when_predictitems_is_unparseable(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -2086,6 +2139,7 @@ fn set_predictitems_with_unparseable_value(_pyshinqlx_setup: ()) {
 #[case(clientState_t::CS_PRIMED, "primed")]
 #[case(clientState_t::CS_ACTIVE, "active")]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_connection_state_for_valid_values(
     _pyshinqlx_setup: (),
     #[case] client_state: clientState_t,
@@ -2112,6 +2166,7 @@ fn get_connection_state_for_valid_values(
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_connection_state_for_invalid_value(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -2135,6 +2190,7 @@ fn get_connection_state_for_invalid_value(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_state_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -2147,6 +2203,7 @@ fn get_state_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_state_for_client_without_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
@@ -2166,6 +2223,7 @@ fn get_state_for_client_without_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_state_transforms_from_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_health(123, 1..)
@@ -2246,6 +2304,7 @@ fn get_state_transforms_from_game_client(_pyshinqlx_setup: ()) {
 #[case(privileges_t::PRIV_NONE as i32, None)]
 #[case(42, None)]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_privileges_various_values(
     _pyshinqlx_setup: (),
     #[case] privileges: i32,
@@ -2277,6 +2336,7 @@ fn get_privileges_various_values(
 #[case(Some("admin"), & privileges_t::PRIV_ADMIN)]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn set_privileges_for_valid_values(
     _pyshinqlx_setup: (),
     #[case] opt_priv: Option<&str>,
@@ -2306,6 +2366,7 @@ fn set_privileges_for_valid_values(
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn set_privileges_for_invalid_string(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -2317,6 +2378,7 @@ fn set_privileges_for_invalid_string(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_country_when_country_is_set(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -2385,6 +2447,7 @@ fn set_country_updates_client_cvars(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_valid_for_valid_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -2402,6 +2465,7 @@ fn get_valid_for_valid_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_valid_for_invalid_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -2420,6 +2484,7 @@ fn get_valid_for_invalid_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_stats_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -2432,6 +2497,7 @@ fn get_stats_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_stats_for_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| {
@@ -2479,6 +2545,7 @@ fn get_stats_for_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_stats_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
@@ -2499,6 +2566,7 @@ fn get_stats_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_ping_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -2511,6 +2579,7 @@ fn get_ping_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_ping_for_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| {
@@ -2545,6 +2614,7 @@ fn get_ping_for_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_ping_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
@@ -3365,6 +3435,7 @@ fn weapon_sets_players_weapon_from_str(
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn weapon_sets_players_weapon_from_invalid_str(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -3427,6 +3498,7 @@ fn weapon_sets_players_weapon_from_int(
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn weapon_sets_players_weapon_from_invalid_int(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -3912,6 +3984,7 @@ fn powerups_sets_players_powerups_with_no_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -3931,6 +4004,7 @@ fn get_holdable_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
 #[case(Holdable::Invulnerability, Some("invulnerability"))]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_holdable_with_various_values(
     _pyshinqlx_setup: (),
     #[case] holdable: Holdable,
@@ -5379,6 +5453,7 @@ fn get_is_chatting_with_no_main_engine(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -5391,6 +5466,7 @@ fn get_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_score_for_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| {
@@ -5424,6 +5500,7 @@ fn get_score_for_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
@@ -5443,6 +5520,7 @@ fn get_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn set_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -5455,6 +5533,7 @@ fn set_score_when_main_engine_not_initialized(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn set_score_for_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| {
@@ -5481,6 +5560,7 @@ fn set_score_for_game_client(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn set_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_game_client(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
@@ -5499,6 +5579,7 @@ fn set_score_for_game_entiy_with_no_game_client(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_channel_returns_tell_channel(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -5511,6 +5592,7 @@ fn get_channel_returns_tell_channel(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn center_print_sends_center_print_server_command(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -5540,6 +5622,7 @@ fn center_print_sends_center_print_server_command(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn tell_with_no_keywords(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -5571,6 +5654,7 @@ fn tell_with_no_keywords(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn tell_can_be_called_from_python(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -5602,6 +5686,7 @@ fn tell_can_be_called_from_python(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn tell_with_limit_keyword(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -5655,6 +5740,7 @@ fn tell_with_limit_keyword(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn tell_with_delimiter_keyword(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -5711,6 +5797,7 @@ fn tell_with_delimiter_keyword(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn kick_kicks_player(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -5755,6 +5842,7 @@ fn kick_kicks_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn ban_bans_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("ban 2", 1)
@@ -5771,6 +5859,7 @@ fn ban_bans_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("tempban 2", 1)
@@ -5787,6 +5876,7 @@ fn tempban_tempbans_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("addadmin 2", 1)
@@ -5803,6 +5893,7 @@ fn addadmin_adds_player_to_admins(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn addmod_adds_player_to_mods(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("addmod 2", 1)
@@ -5819,6 +5910,7 @@ fn addmod_adds_player_to_mods(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn demote_demotes_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("demote 2", 1)
@@ -5835,6 +5927,7 @@ fn demote_demotes_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn mute_mutes_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("mute 2", 1)
@@ -5851,6 +5944,7 @@ fn mute_mutes_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("unmute 2", 1)
@@ -5867,6 +5961,7 @@ fn unmute_unmutes_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn put_with_invalid_team(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -5884,6 +5979,7 @@ fn put_with_invalid_team(_pyshinqlx_setup: ()) {
 #[case("spectator")]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &str) {
     MockEngineBuilder::default()
         .with_execute_console_command(format!("put 2 {}", new_team.to_lowercase()), 1)
@@ -5900,6 +5996,7 @@ fn put_put_player_on_a_specific_team(_pyshinqlx_setup: (), #[case] new_team: &st
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("addscore 2 42", 1)
@@ -5916,6 +6013,7 @@ fn addscore_adds_score_to_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn switch_with_player_on_same_team(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Bound::new(
@@ -5953,6 +6051,7 @@ fn switch_with_player_on_same_team(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn switch_with_player_on_different_team(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("put 2 blue", 1)
@@ -5995,6 +6094,7 @@ fn switch_with_player_on_different_team(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn slap_slaps_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("slap 2 42", 1)
@@ -6011,6 +6111,7 @@ fn slap_slaps_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn slay_slays_player(_pyshinqlx_setup: ()) {
     MockEngineBuilder::default()
         .with_execute_console_command("slay 2", 1)
@@ -6027,6 +6128,7 @@ fn slay_slays_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn slay_with_mod_slays_with_mod(_pyshinqlx_setup: ()) {
     MockGameEntityBuilder::default()
         .with_health(0, 1..)
@@ -6048,6 +6150,7 @@ fn slay_with_mod_slays_with_mod(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn all_players_for_existing_clients(_pyshinqlx_setup: ()) {
     let client_try_from_ctx = MockClient::from_context();
     client_try_from_ctx

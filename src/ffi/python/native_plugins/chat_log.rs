@@ -269,6 +269,7 @@ class Player:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn connecting_players_are_logged_with_name_steam_id_and_ip(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let fixtures = fixtures(py);
@@ -288,6 +289,7 @@ class Player:
     #[case(Some(""), "Ada:1234 ")]
     #[case(None, "Ada:1234 None")]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn disconnecting_players_are_logged_with_a_punctuated_reason(
         _pyshinqlx_setup: (),
         #[case] reason: Option<&str>,
@@ -315,6 +317,7 @@ class Player:
     #[case("red_team_chat", "hello", "[RED_TEAM_CHAT] <Ada:1234> hello")]
     #[case("chat", "^2colored ^7text", "<Ada:1234> colored text")]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn chat_messages_are_logged_with_their_channel(
         _pyshinqlx_setup: (),
         #[case] channel: &str,
@@ -343,6 +346,7 @@ class Player:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn commands_are_logged_with_their_caller_and_arguments(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let fixtures = fixtures(py);

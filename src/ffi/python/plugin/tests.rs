@@ -29,6 +29,7 @@ use crate::{
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn plugin_can_be_subclassed_from_python(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let extended_plugin = test_plugin(py);
@@ -88,6 +89,7 @@ fn plugin_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn str_returns_plugin_typename(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let plugin_instance = test_plugin(py).call0().expect("this should not happen");
@@ -167,6 +169,7 @@ fn get_db_when_db_set_to_redis(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn name_property_returns_plugin_typename(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let plugin_instance = test_plugin(py).call0().expect("this should not happen");
@@ -216,6 +219,7 @@ fn plugins_property_returns_loaded_plugins(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn hooks_property_returns_plugin_hooks(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let plugin = Bound::new(
@@ -247,6 +251,7 @@ fn hooks_property_returns_plugin_hooks(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn commands_property_when_no_commands_exist(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let plugin = Bound::new(
@@ -307,6 +312,7 @@ fn game_property_when_a_game_exists(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn get_logger(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let logger_type = py
@@ -2144,6 +2150,7 @@ fn all_players_for_existing_clients(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_for_provided_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::player(
@@ -2218,6 +2225,7 @@ fn player_for_player_id(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_for_provided_steam_id_from_player_list(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Player {
@@ -2244,6 +2252,7 @@ fn player_for_provided_steam_id_from_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_for_provided_steam_id_not_in_provided_player_list(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::player(
@@ -2257,6 +2266,7 @@ fn player_for_provided_steam_id_not_in_provided_player_list(_pyshinqlx_setup: ()
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_for_provided_name_from_player_list(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Player {
@@ -2283,6 +2293,7 @@ fn player_for_provided_name_from_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn player_for_provided_name_not_in_provided_player_list(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::player(
@@ -2296,6 +2307,7 @@ fn player_for_provided_name_not_in_provided_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn msg_for_invalid_channel(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::msg(
@@ -2629,6 +2641,7 @@ fn console_prints_to_console(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn clean_text_cleans_text_from_color_tags(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::clean_text(
@@ -2641,6 +2654,7 @@ fn clean_text_cleans_text_from_color_tags(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn clean_text_returns_text_without_color_tags_as_it_is(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let text = PyString::new(py, "Player ^ name");
@@ -2651,6 +2665,7 @@ fn clean_text_returns_text_without_color_tags_as_it_is(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn clean_text_cleans_texts_longer_than_the_stack_buffer(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let text = "^1ab".repeat(200);
@@ -2661,6 +2676,7 @@ fn clean_text_cleans_texts_longer_than_the_stack_buffer(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn clean_text_keeps_multibyte_characters(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::clean_text(&py.get_type::<Plugin>(), &PyString::new(py, "ä^1ö^^2ü€^"));
@@ -2670,6 +2686,7 @@ fn clean_text_keeps_multibyte_characters(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn colored_name_for_provided_player(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Player {
@@ -2689,6 +2706,7 @@ fn colored_name_for_provided_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn colored_name_for_player_in_provided_playerlist(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let player = Player {
@@ -2706,6 +2724,7 @@ fn colored_name_for_player_in_provided_playerlist(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn colored_name_for_player_with_colored_name_in_provided_playerlist(_pyshinqlx_setup: ()) {
     let player = Player {
         player_info: PlayerInfo {
@@ -2729,6 +2748,7 @@ fn colored_name_for_player_with_colored_name_in_provided_playerlist(_pyshinqlx_s
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn colored_name_for_unavailable_player(_pyshinqlx_setup: ()) {
     let player = Player {
         player_info: PlayerInfo {
@@ -2752,6 +2772,7 @@ fn colored_name_for_unavailable_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_integer_in_client_id_range(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::client_id(
@@ -2765,6 +2786,7 @@ fn client_id_for_integer_in_client_id_range(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_player(_pyshinqlx_setup: ()) {
     let player = Player {
         id: 21,
@@ -2790,6 +2812,7 @@ fn client_id_for_player(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_steam_id(_pyshinqlx_setup: ()) {
     let player = Player {
         id: 21,
@@ -2815,6 +2838,7 @@ fn client_id_for_steam_id(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_steam_id_not_in_player_list(_pyshinqlx_setup: ()) {
     let player = Player {
         steam_id: 1234,
@@ -2838,6 +2862,7 @@ fn client_id_for_steam_id_not_in_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_player_name(_pyshinqlx_setup: ()) {
     let player = Player {
         id: 21,
@@ -2863,6 +2888,7 @@ fn client_id_for_player_name(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_player_name_not_in_player_list(_pyshinqlx_setup: ()) {
     let player = Player {
         player_info: PlayerInfo {
@@ -2886,6 +2912,7 @@ fn client_id_for_player_name_not_in_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn client_id_for_unsupported_search_criteria(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::client_id(
@@ -2899,6 +2926,7 @@ fn client_id_for_unsupported_search_criteria(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn find_player_with_empty_str_returns_player_list(_pyshinqlx_setup: ()) {
     let player1 = Player {
         id: 21,
@@ -2934,6 +2962,7 @@ fn find_player_with_empty_str_returns_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn find_players_by_matching_provided_names(_pyshinqlx_setup: ()) {
     let player1 = Player {
         id: 21,
@@ -2990,6 +3019,7 @@ fn find_players_by_matching_provided_names(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn find_players_when_no_player_matches(_pyshinqlx_setup: ()) {
     let player1 = Player {
         id: 21,
@@ -3042,6 +3072,7 @@ fn find_players_when_no_player_matches(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn teams_when_no_player_in_player_list(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::teams(&py.get_type::<Plugin>(), Some(vec![]));
@@ -3066,6 +3097,7 @@ fn teams_when_no_player_in_player_list(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn teams_when_every_team_has_one_player(_pyshinqlx_setup: ()) {
     let player1 = Player {
         id: 0,
@@ -3164,6 +3196,7 @@ fn teams_when_every_team_has_one_player(_pyshinqlx_setup: ()) {
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn center_print_to_all_players_sends_center_print_server_command(_pyshinqlx_setup: ()) {
     let send_server_cmd_ctx = shinqlx_send_server_command_context();
     send_server_cmd_ctx
@@ -3181,6 +3214,7 @@ fn center_print_to_all_players_sends_center_print_server_command(_pyshinqlx_setu
 #[rstest]
 #[serial]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn center_print_to_paetticular_player_sends_center_print_server_command(_pyshinqlx_setup: ()) {
     let client_from_ctx = MockClient::from_context();
     client_from_ctx.expect().returning(|_| {
@@ -4632,6 +4666,7 @@ fn setmatchtime_sets_match_time(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn logger_and_plugins_can_be_read_from_python(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let plugin_instance = test_plugin(py)

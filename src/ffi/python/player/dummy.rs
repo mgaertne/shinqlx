@@ -153,6 +153,7 @@ mod pyshinqlx_abstract_dummy_player_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             py.run(
@@ -193,6 +194,7 @@ player = ConcreteDummyPlayer("asdf")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_id_returns_attribute_error(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player = Bound::new(
@@ -209,6 +211,7 @@ player = ConcreteDummyPlayer("asdf")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_steam_id_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player = Bound::new(
@@ -225,6 +228,7 @@ player = ConcreteDummyPlayer("asdf")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn update_does_nothing(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player = Bound::new(
@@ -241,6 +245,7 @@ player = ConcreteDummyPlayer("asdf")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_channel_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player = Bound::new(
@@ -257,6 +262,7 @@ player = ConcreteDummyPlayer("asdf")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn tell_returns_not_implemented_error(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player = Bound::new(
@@ -273,6 +279,7 @@ player = ConcreteDummyPlayer("asdf")
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn the_abstract_methods_report_their_errors_to_python(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             py.run(
@@ -425,6 +432,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn dummy_player_is_a_player_instance(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             py.run(
@@ -442,6 +450,7 @@ assert(isinstance(shinqlx.RconDummyPlayer(), shinqlx.AbstractDummyPlayer))
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn dummy_player_has_default_name(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             py.run(

@@ -322,6 +322,7 @@ mod python_return_codes_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn extract_from_none(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
@@ -333,6 +334,7 @@ mod python_return_codes_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn extract_from_bool_true(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
@@ -344,6 +346,7 @@ mod python_return_codes_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn extract_from_bool_false(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
@@ -360,6 +363,7 @@ mod python_return_codes_tests {
     #[case(3, PythonReturnCodes::RET_STOP_ALL)]
     #[case(4, PythonReturnCodes::RET_USAGE)]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn extract_from_ok_value(
         #[case] python_value: i32,
         #[case] expected_value: PythonReturnCodes,
@@ -383,6 +387,7 @@ mod python_return_codes_tests {
     #[case(-1)]
     #[case(5)]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn extract_from_invalid_value(#[case] wrong_value: i32, _pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
@@ -400,6 +405,7 @@ mod python_return_codes_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn extract_from_str(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             assert!(
@@ -1873,6 +1879,7 @@ mod pyshinqlx_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn initialize_when_python_init_succeeds(_pyshinqlx_setup: ()) {
         PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
 
@@ -1942,6 +1949,7 @@ def initialize():
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn initialize_when_the_main_script_fails(_pyshinqlx_setup: ()) {
         PYSHINQLX_INITIALIZED.store(false, Ordering::Release);
 
@@ -1968,6 +1976,7 @@ def initialize():
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn reload_when_the_shinqlx_module_cannot_be_reloaded(_pyshinqlx_setup: ()) {
         PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
 

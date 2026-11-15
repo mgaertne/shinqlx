@@ -416,6 +416,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_uncallable_handler(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command = Command::py_new(
@@ -436,6 +437,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_wrong_channel_type(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -466,6 +468,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_wrong_exclude_channel_type(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -496,6 +499,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_names_in_pylist(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -527,6 +531,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_names_in_pytuple(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -558,6 +563,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_single_name_as_string(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -582,6 +588,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_multiple_whitelist_channels(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -635,6 +642,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn constructor_with_multiple_exclude_channels(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -688,6 +696,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -820,6 +829,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn execute_when_name_is_empty(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -855,6 +865,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_eligible_name_with_no_prefix(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -938,6 +949,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_eligilble_channel_when_none_are_configured(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let capturing_hook = capturing_hook(py);
@@ -975,6 +987,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_eligilble_channel_with_configured_allowed_channels(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let console_channel =
@@ -1034,6 +1047,7 @@ class mocked_db:
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_eligilble_channel_with_configured_allowed_and_exclude_channels(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let console_channel =
@@ -2185,6 +2199,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn emoty_command_invoker_has_empty_commands(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2195,6 +2210,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_registered_for_unregistered_command(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2207,6 +2223,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_registered_with_variations_of_registered_command(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2244,6 +2261,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn is_registered_for_registered_command(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2259,6 +2277,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn add_command_adds_command(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2279,6 +2298,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn add_command_for_already_added_command(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2297,6 +2317,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn remove_command_for_command_not_added(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2310,6 +2331,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn remove_command_removes_command(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command_invoker =
@@ -2328,6 +2350,7 @@ mod command_invoker_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn handle_input_for_empty_input(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player = Bound::new(py, default_test_player()).expect("this should not happen");
@@ -2923,6 +2946,7 @@ mod command_python_interface_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_exposes_its_channels(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command = Bound::new(
@@ -2956,6 +2980,7 @@ mod command_python_interface_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_clear_drops_its_channels(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command = Bound::new(
@@ -2987,6 +3012,7 @@ mod command_python_interface_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_checks_eligibility_through_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command = silent_command(py);
@@ -3011,6 +3037,7 @@ mod command_python_interface_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_executes_through_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let command = silent_command(py);
@@ -3024,6 +3051,7 @@ mod command_python_interface_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_invoker_is_managed_through_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let invoker = Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");
@@ -3072,6 +3100,7 @@ mod command_python_interface_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn command_invoker_clear_drops_all_commands(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let invoker = Bound::new(py, CommandInvoker::py_new()).expect("this should not happen");

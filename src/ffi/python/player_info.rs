@@ -96,6 +96,7 @@ mod player_info_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn player_info_can_be_constructed_from_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let player_info_constructor = py.run(

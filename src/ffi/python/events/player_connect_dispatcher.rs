@@ -103,6 +103,7 @@ mod player_connect_dispatcher_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let dispatcher = Bound::new(py, PlayerConnectDispatcher::py_new(py))

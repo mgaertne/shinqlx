@@ -633,6 +633,7 @@ mod native_plugin_loading_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unload_plugin_unloads_native_plugin(_pyshinqlx_setup: ()) {
         with_native_workshop_engine(1, |py| {
             load_plugin(py, "r!workshop").expect("could not load native plugin");
@@ -650,6 +651,7 @@ mod native_plugin_loading_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reload_plugin_keeps_native_plugin_native(_pyshinqlx_setup: ()) {
         with_native_workshop_engine(2, |py| {
             load_plugin(py, "r!workshop").expect("could not load native plugin");
@@ -938,6 +940,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_preset_plugins_with_main_engine_missing(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = load_preset_plugins(py);
@@ -948,6 +951,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_preset_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 1..)
@@ -962,6 +966,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_preset_plugins_loads_valid_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1013,6 +1018,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_preset_plugins_loads_default_plugins(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1064,6 +1070,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_preset_plugins_loads_unique_plugins(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1115,6 +1122,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_with_main_engine_missing(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = load_plugin(py, "not_existing_plugin");
@@ -1125,6 +1133,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_with_misconfigured_plugin_path_cvar(_pyshinqlx_setup: ()) {
         MockEngineBuilder::default()
             .with_find_cvar(|cmd| cmd == "qlx_pluginsPath", |_| None, 0..)
@@ -1139,6 +1148,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_with_not_existing_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1180,6 +1190,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_with_test_plugin_with_no_class(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1221,6 +1232,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_with_test_plugin_with_no_subclass_of_plugin(
         _pyshinqlx_setup: (),
         plugins_dir: String,
@@ -1265,6 +1277,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_loads_valid_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1306,6 +1319,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_registers_decorated_methods(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1373,6 +1387,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1423,6 +1438,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_with_failing_unload_does_not_recurse_endlessly(
         _pyshinqlx_setup: (),
         plugins_dir: String,
@@ -1472,6 +1488,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unloading_a_non_loaded_plugin(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = unload_plugin(py, "non_loaded_plugin");
@@ -1537,6 +1554,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unloading_loaded_plugin_that_is_not_stored_in_loaded_plugins(
         _pyshinqlx_setup: (),
         plugins_dir: String,
@@ -1594,6 +1612,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unloading_loaded_plugin_unloads_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1644,6 +1663,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unloading_loaded_plugin_unregisters_hooks_and_commands(
         _pyshinqlx_setup: (),
         plugins_dir: String,
@@ -1710,6 +1730,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reload_plugin_reloads_already_loaded_test_plugin(_pyshinqlx_setup: (), plugins_dir: String) {
         let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
         let mut raw_pluginspath_cvar = CVarBuilder::default()
@@ -1832,6 +1853,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn load_plugin_refuses_the_rust_source_for_a_loaded_python_plugin(
         _pyshinqlx_setup: (),
         plugins_dir: String,
@@ -1852,6 +1874,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unloading_a_plugin_whose_hooks_have_no_dispatcher_still_unloads_it(
         _pyshinqlx_setup: (),
         plugins_dir: String,
@@ -1877,6 +1900,7 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn unloading_a_plugin_without_a_command_invoker_still_unloads_it(
         _pyshinqlx_setup: (),
         plugins_dir: String,

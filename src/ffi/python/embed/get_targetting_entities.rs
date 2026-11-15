@@ -39,6 +39,7 @@ mod get_entity_targets_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_entity_targets_for_too_small_entity_id(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = pyshinqlx_get_entity_targets(py, -1);
@@ -48,6 +49,7 @@ mod get_entity_targets_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_entity_targets_for_too_large_entity_id(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = pyshinqlx_get_entity_targets(py, MAX_GENTITIES as i32);

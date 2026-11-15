@@ -701,6 +701,7 @@ mod stats_listener_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn stop_sets_done_field(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let listener = Bound::new(
@@ -721,6 +722,7 @@ mod stats_listener_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn poll_zmq_returns_right_away_when_already_done(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let listener = Bound::new(
@@ -741,6 +743,7 @@ mod stats_listener_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn poll_zmq_returns_after_stop(_pyshinqlx_setup: ()) {
         let listener = Python::attach(|py| {
             Bound::new(
@@ -842,6 +845,7 @@ mod handle_zmq_msg_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn try_handle_zmq_msg_for_unparseable_json_msg(_pyshinqlx_setup: ()) {
         let zmq_msg = r#"{"INVALID":"#;
 
@@ -853,6 +857,7 @@ mod handle_zmq_msg_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn handle_zmq_msg_for_unparseable_json_msg(_pyshinqlx_setup: ()) {
         let zmq_msg = r#"{"INVALID":"#;
 

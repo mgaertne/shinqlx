@@ -371,6 +371,7 @@ mod pyshinqlx_log_exception_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn log_exception_with_no_exception_pending(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = pyshinqlx_log_exception(py, None);
@@ -380,6 +381,7 @@ mod pyshinqlx_log_exception_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn log_exception_with_pending_exception(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = py.run(
@@ -440,6 +442,7 @@ mod pyshinqlx_handle_exception_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn handle_exception_with_no_exception_pending(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = pyshinqlx_handle_exception(
@@ -454,6 +457,7 @@ mod pyshinqlx_handle_exception_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn handle_exception_with_pending_exception(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = py.run(
@@ -496,6 +500,7 @@ mod pyshinqlx_handle_threading_exception_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn handle_threading_exception_with_pending_exception(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = py.run(

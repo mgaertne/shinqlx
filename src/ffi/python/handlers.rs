@@ -8703,6 +8703,7 @@ mod print_redirector_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn constructor_with_wrong_type(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = PrintRedirector::py_new(py, py.None().into_bound(py));
@@ -8712,6 +8713,7 @@ mod print_redirector_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn constructor_with_subclass_of_abstract_channel(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channel = Bound::new(
@@ -8726,6 +8728,7 @@ mod print_redirector_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn print_redirector_can_be_traversed_for_garbage_collector(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channel = Bound::new(
@@ -8746,6 +8749,7 @@ mod print_redirector_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn python_context_manager_interaction(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let sample_module = PyModule::from_code(
@@ -8811,6 +8815,7 @@ mod redirect_print_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn redirect_print_returns_print_redirector(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channel = Bound::new(

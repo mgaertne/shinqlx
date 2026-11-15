@@ -254,6 +254,7 @@ assert str(shinqlx.AbstractChannel("abstract")) == "abstract"
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_eq_comparison(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_channel_eq_assert = py.run(
@@ -279,6 +280,7 @@ assert not (shinqlx.AbstractChannel("abstract") == NoReprClass())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_not_eq_comparison(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_channel_ne_assert = py.run(
@@ -304,6 +306,7 @@ assert shinqlx.AbstractChannel("abstract") != NoReprClass()
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn abstract_channel_does_not_support_other_comparisons(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_channel_cmp_assert = py.run(
@@ -323,6 +326,7 @@ shinqlx.AbstractChannel("abstract") < 2
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_name(_pyshinqlx_setup: ()) {
         let abstract_channel = AbstractChannel {
             name: "abstract".to_string().into(),
@@ -336,6 +340,7 @@ shinqlx.AbstractChannel("abstract") < 2
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_channel = Bound::new(
@@ -350,6 +355,7 @@ shinqlx.AbstractChannel("abstract") < 2
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn split_long_lines_with_short_string(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             AbstractChannel::split_long_lines(&py.get_type::<AbstractChannel>(), "short", 100, " ")
@@ -360,6 +366,7 @@ shinqlx.AbstractChannel("abstract") < 2
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn split_long_lines_with_string_that_is_split(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             AbstractChannel::split_long_lines(
@@ -385,6 +392,7 @@ shinqlx.AbstractChannel("abstract") < 2
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn split_long_lines_with_string_with_multiple_chunks(_pyshinqlx_setup: ()) {
         let result = Python::attach(|py| {
             AbstractChannel::split_long_lines(
@@ -491,6 +499,7 @@ mod console_channel_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn console_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let console_channel_constructor = py.run(
@@ -508,6 +517,7 @@ console_channel = shinqlx.ConsoleChannel()
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_prints_text_to_console(_pyshinqlx_setup: ()) {
         let com_printf_ctx = shinqlx_com_printf_context();
         com_printf_ctx
@@ -705,6 +715,7 @@ mod chat_channel_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let chat_channel_constructor = py.run(
@@ -721,6 +732,7 @@ chat_channel = shinqlx.ChatChannel()
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn recipients_is_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let chat_channel = Bound::new(
@@ -735,6 +747,7 @@ chat_channel = shinqlx.ChatChannel()
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn chat_channel_subclasses_can_overwrite_recipients(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let test_reply_to_recipients = py.run(
@@ -760,6 +773,7 @@ test_channel.reply("asdf")
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
@@ -807,6 +821,7 @@ test_channel.reply("asdf")
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_with_custom_limit_param(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
@@ -857,6 +872,7 @@ test_channel.reply("asdf")
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_with_custom_delimiter_parameter(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
@@ -907,6 +923,7 @@ test_channel.reply("asdf")
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_with_various_color_tags(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
@@ -1130,6 +1147,7 @@ mod tell_channel_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn tell_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
@@ -1165,6 +1183,7 @@ tell_channel = shinqlx.TellChannel(player)
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_recipient_returns_player_with_client_id(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
@@ -1212,6 +1231,7 @@ tell_channel = shinqlx.TellChannel(player)
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn recipients_returns_vec_with_client_id(_pyshinqlx_setup: ()) {
         let player = default_test_player();
         Python::attach(|py| {
@@ -1330,6 +1350,7 @@ mod team_chat_channel_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn team_chat_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let team_chat_channel_constructor = py.run(
@@ -1353,6 +1374,7 @@ tell_channel.__init__("all")
     #[case("free", Some(vec![0, 4]))]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn recipients_returns_client_ids(
         _pyshinqlx_setup: (),
         #[case] team: &str,
@@ -1420,6 +1442,7 @@ tell_channel.__init__("all")
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn recipients_for_invalid_team_chat_channel_name(_pyshinqlx_setup: ()) {
         let client_try_from_ctx = MockClient::from_context();
         client_try_from_ctx
@@ -1615,6 +1638,7 @@ mod client_command_channel_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn client_command_channel_can_be_created_from_python(_pyshinqlx_setup: ()) {
         let player = default_test_player();
 
@@ -1649,6 +1673,7 @@ shinqlx.ClientCommandChannel(player)
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_recipient_returns_player_with_client_id(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
@@ -1694,6 +1719,7 @@ shinqlx.ClientCommandChannel(player)
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn get_tell_channel_returns_tell_channel_with_client_id(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx
@@ -1738,6 +1764,7 @@ shinqlx.ClientCommandChannel(player)
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reply_with_default_limit_and_delimiter(_pyshinqlx_setup: ()) {
         let client_from_ctx = MockClient::from_context();
         client_from_ctx.expect().returning(|_| {
@@ -1843,6 +1870,7 @@ def create(player):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn channels_expose_their_names_through_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channels = channels(py);
@@ -1866,6 +1894,7 @@ def create(player):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn chat_and_tell_channels_expose_their_settings(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channels = channels(py);
@@ -1930,6 +1959,7 @@ def create(player):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn the_abstract_channel_cannot_reply(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channels = channels(py);
@@ -1947,6 +1977,7 @@ def create(player):
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn the_channel_types_report_their_names_through_the_trait(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let channels = channels(py);

@@ -44,6 +44,7 @@ mod force_weapon_respawn_time_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn force_weapon_respawn_time_with_too_small_respawn_time(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = pyshinqlx_force_weapon_respawn_time(py, -1);

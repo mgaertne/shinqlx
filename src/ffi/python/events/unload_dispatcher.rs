@@ -75,6 +75,7 @@ mod unload_dispatcher_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn dispatch_with_no_handlers_registered(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let dispatcher =

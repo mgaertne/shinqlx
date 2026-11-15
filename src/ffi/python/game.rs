@@ -3045,6 +3045,7 @@ mod game_property_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn cached_and_valid_do_not_need_the_engine(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let game = game(py);

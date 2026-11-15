@@ -209,6 +209,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_logger_returns_logger_for_plugin(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let test_plugin = test_plugin(py).call0().expect("this should not happen");
@@ -229,6 +230,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn set_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -248,6 +250,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -266,6 +269,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn has_permission_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -285,6 +289,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn set_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -305,6 +310,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn clear_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -324,6 +330,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_flag_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -344,6 +351,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn connect_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -358,6 +366,7 @@ mod abstract_database_tests {
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn close_returns_not_implemented(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let abstract_database =
@@ -392,6 +401,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_logger_returns_logger_for_plugin_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -409,6 +419,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn set_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -420,6 +431,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -431,6 +443,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn has_permission_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -442,6 +455,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn set_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -453,6 +467,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn clear_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -464,6 +479,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn get_flag_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -475,6 +491,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn connect_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);
@@ -486,6 +503,7 @@ db = AbstractDatabase(test_plugin())
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
     fn close_returns_not_implemented_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let db = python_test_db(py);

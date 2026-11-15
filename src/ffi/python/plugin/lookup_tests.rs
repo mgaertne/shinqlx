@@ -116,6 +116,7 @@ fn told(caller: &Bound<'_, PyAny>) -> Vec<String> {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn the_class_method_returns_the_found_player_without_telling_anyone(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let caller = recording_caller(py);
@@ -130,6 +131,7 @@ fn the_class_method_returns_the_found_player_without_telling_anyone(_pyshinqlx_s
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn the_class_method_tells_the_caller_when_nobody_matches(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let caller = recording_caller(py);
@@ -147,6 +149,7 @@ fn the_class_method_tells_the_caller_when_nobody_matches(_pyshinqlx_setup: ()) {
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn the_class_method_lists_the_candidates_when_several_match(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let caller = recording_caller(py);
@@ -227,6 +230,7 @@ fn the_class_method_lists_the_connected_candidates_of_the_engine(_pyshinqlx_setu
 
 #[rstest]
 #[cfg_attr(miri, ignore)]
+#[serial]
 fn the_class_method_works_without_a_caller_to_tell(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         let result = Plugin::find_by_name_or_id(
