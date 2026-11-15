@@ -110,6 +110,9 @@ rstest = { version = ">=0.28", default-features = false }
 mockall = { version = ">=0.15", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=4.0", default-features = false }
 tempfile = { version = ">=3.27", default-features = false }
+# lets the test watchdog report lock cycles; serial_test and log4rs still use parking_lot 0.12
+parking_lot = { version = ">=0.13", default-features = false, features = ["nightly", "deadlock_detection"] }
+parking_lot_012 = { package = "parking_lot", version = "0.12.5", default-features = false, features = ["deadlock_detection"] }
 
 # for benchmark tests
 criterion = { version = ">=0.8", default-features = false, features = ["cargo_bench_support", "rayon"] }

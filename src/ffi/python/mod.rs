@@ -2351,10 +2351,76 @@ pub(crate) mod python_tests {
 
 #[cfg(test)]
 pub(crate) mod pyshinqlx_setup_fixture {
-    use pyo3::{Python, append_to_inittab, ffi::Py_IsInitialized};
+    use core::time::Duration;
+    use std::{io::Write, thread};
+
+    use pyo3::{Python, append_to_inittab, ffi::Py_IsInitialized, prelude::*, types::PyDict};
     use rstest::fixture;
 
     use super::pyshinqlx_module;
+
+    const WATCHDOG_INTERVAL: Duration = Duration::from_secs(15);
+    const TRACEBACKS_AFTER_SECONDS: u32 = 120;
+
+    fn describe_cycles<T>(
+        version: &str,
+        cycles: &[Vec<T>],
+        describe_thread: impl Fn(&T) -> String,
+    ) -> Vec<String> {
+        cycles
+            .iter()
+            .enumerate()
+            .flat_map(|(cycle, threads)| threads.iter().map(move |thread| (cycle, thread)))
+            .map(|(cycle, thread)| {
+                format!("{version}: deadlock {cycle}, {}\n", describe_thread(thread))
+            })
+            .collect()
+    }
+
+    fn describe_deadlocks() -> Vec<String> {
+        let mut report = describe_cycles(
+            "parking_lot 0.13",
+            &parking_lot::deadlock::check_deadlock(),
+            |thread| format!("thread {:?}\n{:?}", thread.thread_id(), thread.backtrace()),
+        );
+        report.extend(describe_cycles(
+            "parking_lot 0.12",
+            &parking_lot_012::deadlock::check_deadlock(),
+            |thread| format!("thread {:?}\n{:?}", thread.thread_id(), thread.backtrace()),
+        ));
+        report
+    }
+
+    fn start_watchdog() {
+        let watchdog = thread::Builder::new()
+            .name("deadlock-watchdog".to_owned())
+            .spawn(|| {
+                loop {
+                    thread::sleep(WATCHDOG_INTERVAL);
+                    let report = describe_deadlocks();
+                    if !report.is_empty() {
+                        let _ = std::io::stderr().write_all(report.concat().as_bytes());
+                    }
+                }
+            });
+        assert!(watchdog.is_ok(), "could not start the deadlock watchdog");
+    }
+
+    fn dump_python_tracebacks_when_stuck(py: Python<'_>) {
+        let kwargs = PyDict::new(py);
+        kwargs
+            .set_item("repeat", true)
+            .expect("a dict takes a string key");
+        py.import("faulthandler")
+            .and_then(|faulthandler| {
+                faulthandler.call_method(
+                    "dump_traceback_later",
+                    (TRACEBACKS_AFTER_SECONDS,),
+                    Some(&kwargs),
+                )
+            })
+            .expect("faulthandler is part of the standard library");
+    }
 
     #[fixture]
     #[once]
@@ -2364,8 +2430,10 @@ pub(crate) mod pyshinqlx_setup_fixture {
             append_to_inittab!(pyshinqlx_module);
             Python::initialize();
         }
+        start_watchdog();
         Python::attach(|py| {
             py.import("shinqlx").expect("this should not happen");
+            dump_python_tracebacks_when_stuck(py);
         });
     }
 }
