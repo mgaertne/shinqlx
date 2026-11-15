@@ -27,7 +27,11 @@ const KNOWN_CVARS: [(&str, &CStr); 6] = [
     ("qlx_teamsizeMaximum", c"8"),
     ("qlx_enforceMappool", c"0"),
 ];
-const MAPPOOL_CVARS: [&str; 3] = ["sv_mappoolfile", "fs_homepath", "fs_basepath"];
+const MAPPOOL_DEFAULTS: [(&str, &CStr); 3] = [
+    ("sv_mappoolfile", c""),
+    ("fs_homepath", c"/nonexistent-shinqlx-test-homepath"),
+    ("fs_basepath", c"/nonexistent-shinqlx-test-basepath"),
+];
 
 fn leaked(text: &str) -> &'static CStr {
     Box::leak(
@@ -43,15 +47,15 @@ where
 {
     let cvars: Vec<_> = KNOWN_CVARS
         .iter()
+        .chain(
+            MAPPOOL_DEFAULTS
+                .iter()
+                .filter(|(name, _)| !mappool_cvars.iter().any(|(set, _)| set == name)),
+        )
         .chain(mappool_cvars.iter())
         .copied()
         .collect();
-    let mut engine = MAPPOOL_CVARS
-        .into_iter()
-        .filter(|name| !mappool_cvars.iter().any(|(set, _)| set == name))
-        .fold(engine_with_cvars(&cvars), |engine, missing| {
-            engine.with_find_cvar(move |cmd| cmd == missing, |_| None, 0..)
-        });
+    let mut engine = engine_with_cvars(&cvars);
     engine.run(|| {
         Python::attach(|py| {
             let dispatchers = Bound::new(py, EventDispatcherManager::default())

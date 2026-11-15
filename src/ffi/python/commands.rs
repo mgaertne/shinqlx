@@ -762,14 +762,11 @@ class mocked_db:
                     py.None().bind(py),
                 );
             assert!(result.is_ok());
-            assert!(
-                capturing_hook
-                    .call_method1(
-                        intern!(py, "assert_called_with"),
-                        (default_test_player(), ["cmd"], py.None(),)
-                    )
-                    .is_ok()
+            let called = capturing_hook.call_method1(
+                intern!(py, "assert_called_with"),
+                (default_test_player(), ["cmd"], py.None()),
             );
+            assert!(called.is_ok(), "{called:?}");
         });
     }
 
