@@ -55,6 +55,8 @@ rule                        change
 ``team-chat-channels``      ``minqlx.RedTeamChatChannel()`` without arguments, and the same for the blue, free and
                             spectator class, becomes the constant ``minqlx.RED_TEAM_CHAT_CHANNEL``. Other uses of
                             the four classes are reported, see :ref:`migration_names`.
+``logger-handlers``         Only warnings: ``addHandler`` and ``removeHandler`` on the logger of shinqlx, and
+                            ``main_logger``, see :ref:`logging`.
 ``default-plugin-access``   Only warnings, see :ref:`migration_default_plugins`.
 ``event-names``             The event name in ``add_hook`` and ``remove_hook`` becomes ``Events.X``. Names the
                             :class:`Events` enumeration does not know stay strings.

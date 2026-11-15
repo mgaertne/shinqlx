@@ -3,6 +3,7 @@ mod default_plugin_access;
 mod enum_constants;
 mod enum_imports;
 mod event_names;
+mod logger_handlers;
 mod module_rename;
 mod permission_levels;
 mod redis_keywords;
@@ -14,6 +15,7 @@ pub(crate) use default_plugin_access::DefaultPluginAccess;
 pub(crate) use enum_constants::EnumConstants;
 pub(crate) use enum_imports::EnumImports;
 pub(crate) use event_names::EventNames;
+pub(crate) use logger_handlers::LoggerHandlers;
 pub(crate) use module_rename::ModuleRename;
 pub(crate) use permission_levels::PermissionLevels;
 pub(crate) use redis_keywords::RedisKeywords;
@@ -57,6 +59,7 @@ pub(crate) fn default_rules() -> Vec<Box<dyn Rule>> {
         Box::new(RedisKeywords),
         Box::new(SlayWithMod),
         Box::new(TeamChatChannels),
+        Box::new(LoggerHandlers),
         Box::new(DefaultPluginAccess),
         Box::new(EventNames),
         Box::new(EnumConstants),
