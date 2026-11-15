@@ -150,6 +150,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [ check-tests, clippy-tests ]
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
         python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.15' ]
@@ -176,6 +177,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [ check-tests, clippy-tests ]
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest]
         python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.15' ]
