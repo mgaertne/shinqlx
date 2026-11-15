@@ -1,14 +1,42 @@
-# shinqlx default configuration, put this into the working directory of your server to customize.
+# shinqlx logging configuration, put it into the working directory of your server or into fs_homepath
+# (fs_homepath wins) to customize. The file is optional, without it shinqlx logs as written here.
 # see https://docs.rs/log4rs/latest/log4rs/config/index.html for more information and examples.
+#
+# Rust and Python messages share this configuration. The target of a message is the name of its
+# logger: "shinqlx" for the core, "shinqlx::<plugin>" for a plugin. Use "::" in this file; the log
+# shows "." as before.
 
 appenders:
+  # the console of the server, shows info and above
   stdout:
     kind: console
     encoder:
-      # see https://docs.rs/log4rs/latest/log4rs/encode/pattern/index.html for patterns you can use.
+      kind: shinqlx_pattern
+      # see https://docs.rs/log4rs/latest/log4rs/encode/pattern/index.html for patterns you can use,
+      # {K(func)} is the function a Python message was logged from.
       pattern: "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}"
+    filters:
+      - kind: threshold
+        level: info
+
+  # shinqlx.log in fs_homepath, shows everything the loggers below let through
+  file:
+    kind: shinqlx_file
+    # path: shinqlx.log        # relative paths are resolved against fs_homepath
+    # max_size: 3000000        # bytes per file, defaults to the cvar qlx_logsSize
+    # count: 2                 # number of old files to keep, defaults to the cvar qlx_logs
+    # pattern: "\\({d(%H:%M:%S)}\\) [{l} @ {t}.{K(func)}] {m}{n}"
+    filters:
+      - kind: threshold
+        level: debug
 
 root:
-  level: info
+  level: debug
   appenders:
     - stdout
+    - file
+
+# Examples for experienced admins, uncomment to use:
+# loggers:
+#   shinqlx::balance:          # only the plugin "balance"
+#     level: warn

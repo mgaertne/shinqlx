@@ -88,19 +88,12 @@ pub(crate) mod prelude {
 }
 
 use core::hint::cold_path;
-use std::{env, path::Path, sync::LazyLock};
+use std::{env, sync::LazyLock};
 
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
 #[cfg(not(test))]
 use ctor::ctor;
-use log::LevelFilter;
-use log4rs::{
-    Config,
-    append::console::ConsoleAppender,
-    config::{Appender, Root},
-    encode::pattern::PatternEncoder,
-};
 use signal_hook::consts::SIGSEGV;
 use tap::TapFallible;
 
@@ -119,28 +112,6 @@ pub(crate) static MAIN_ENGINE: LazyLock<ArcSwapOption<QuakeLiveEngine>> =
     LazyLock::new(ArcSwapOption::empty);
 
 pub(crate) static _INIT_TIME: LazyLock<DateTime<Utc>> = LazyLock::new(Utc::now);
-
-fn initialize_logging() {
-    if Path::new("./shinqlx_log.yml").exists() {
-        log4rs::config::init_file("shinqlx_log.yml", Default::default())
-            .expect("shinqlx_log.yml needs to be a valid log4rs configuration");
-    } else {
-        let stdout = ConsoleAppender::builder()
-            .encoder(Box::new(PatternEncoder::new(
-                "{([{t}]):<9.9} {({l}:):<6.6} {m}{n}",
-            )))
-            .build();
-
-        let level_filter = LevelFilter::Info;
-
-        let config = Config::builder()
-            .appender(Appender::builder().build("stdout", Box::new(stdout)))
-            .build(Root::builder().appender("stdout").build(level_filter))
-            .expect("the default logging configuration only refers to its own stdout appender");
-
-        log4rs::init_config(config).expect("the logger is initialized only once");
-    }
-}
 
 #[cfg_attr(not(test), ctor(unsafe))]
 #[cfg_attr(
@@ -172,7 +143,7 @@ fn initialize() {
         panic!("Could not register exit handler");
     });
 
-    initialize_logging();
+    logging::initialize_logging();
     let main_engine = QuakeLiveEngine::new();
     let _ = main_engine.search_static_functions().tap_err(|err| {
         error!(target: "shinqlx", "{err:?}");
@@ -194,44 +165,8 @@ fn initialize() {
 
 #[cfg(test)]
 mod lib_tests {
-    use std::fs;
-
-    use log::Level;
-    use pretty_assertions::assert_eq;
-
     use super::*;
     use crate::prelude::serial;
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn the_shipped_log_configuration_is_a_valid_log4rs_configuration() {
-        let config = log4rs::config::load_config_file("shinqlx_log.yml", Default::default());
-
-        assert!(config.is_ok(), "{config:?}");
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn test_initialize_logging_default() {
-        let config_path = Path::new("./shinqlx_log.yml");
-        let backup_path = Path::new("./shinqlx_log.yml.bak");
-
-        let had_existing = config_path.exists();
-        if had_existing {
-            fs::rename(config_path, backup_path).unwrap();
-        };
-
-        initialize_logging();
-
-        assert_eq!(log::log_enabled!(Level::Debug), false);
-        assert_eq!(log::log_enabled!(Level::Info), true);
-
-        if had_existing {
-            fs::rename(backup_path, config_path).unwrap();
-        }
-    }
 
     #[test]
     #[serial]

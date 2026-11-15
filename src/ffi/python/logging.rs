@@ -1,14 +1,20 @@
-use core::hint::cold_path;
+use core::{ffi::CStr, hint::cold_path};
+use std::path::Path;
 
+use log::error;
 use pyo3::{
     exceptions::PyEnvironmentError,
     intern,
     sync::PyOnceLock,
-    types::{IntoPyDict, PyInt, PyString, PyTuple},
+    types::{IntoPyDict, PyString, PyTuple},
 };
 
 use super::prelude::*;
-use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
+use crate::{
+    MAIN_ENGINE,
+    logging::{RotationDefaults, finish_logging},
+    quake_live_engine::FindCVar,
+};
 
 pub(super) fn get_logger_name(plugin: Option<Bound<'_, PyAny>>) -> String {
     plugin
@@ -80,6 +86,49 @@ pub(crate) fn log_debug(py: Python<'_>, func: &str, message: &str) -> PyResult<(
     Ok(())
 }
 
+const HANDLER_SOURCE: &CStr = c"
+import logging
+
+
+class ShinqlxHandler(logging.Handler):
+    def __init__(self, emit_record):
+        super().__init__(logging.DEBUG)
+        self._emit_record = emit_record
+        self.setFormatter(logging.Formatter('%(message)s'))
+
+    def emit(self, record):
+        try:
+            self._emit_record(record.name, record.levelno, self.format(record), record.funcName)
+        except Exception:
+            self.handleError(record)
+";
+
+fn log_level_of(level_number: i32) -> log::Level {
+    match level_number {
+        40.. => log::Level::Error,
+        30..40 => log::Level::Warn,
+        20..30 => log::Level::Info,
+        10..20 => log::Level::Debug,
+        _ => log::Level::Trace,
+    }
+}
+
+/// Hands a record of the Python logging over to the Rust logging. The `.` of the Python logger
+/// name becomes `::`, which is how the loggers of the log configuration are nested.
+#[pyfunction]
+#[pyo3(name = "_log_record")]
+fn pyshinqlx_log_record(name: &str, level_number: i32, message: &str, func: &str) {
+    let target = name.replace('.', "::");
+    log::logger().log(
+        &log::Record::builder()
+            .level(log_level_of(level_number))
+            .target(&target)
+            .args(format_args!("{message}"))
+            .key_values(&[("func", func)].as_slice())
+            .build(),
+    );
+}
+
 #[pyfunction]
 #[pyo3(name = "_configure_logger")]
 pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
@@ -105,75 +154,47 @@ pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         },
     )?;
 
-    py.import(intern!(py, "logging")).and_then(|logging_module| {
-        let debug_level = logging_module.getattr(intern!(py, "DEBUG"))?;
-        let info_level = logging_module.getattr(intern!(py, "INFO"))?;
-        logging_module
-            .call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))
-            .and_then(|shinqlx_logger| {
-                shinqlx_logger.call_method1(intern!(py, "setLevel"), (&debug_level,))?;
-                let console_fmt = logging_module.call_method1(
-                    intern!(py, "Formatter"),
-                    (
-                        "[%(name)s.%(funcName)s] %(levelname)s: %(message)s",
-                        "%H:%M:%S",
-                    ),
-                )?;
+    finish_logging(
+        Path::new(&homepath),
+        RotationDefaults {
+            max_size: u64::try_from(max_logssize).unwrap_or_default(),
+            count: u32::try_from(num_max_logs).unwrap_or_default(),
+        },
+    )
+    .iter()
+    .for_each(|problem| error!(target: "shinqlx", "{problem}"));
 
-                logging_module
-                    .call_method0(intern!(py, "StreamHandler"))
-                    .and_then(|console_handler| {
-                        console_handler.call_method1(intern!(py, "setLevel"), (&info_level,))?;
-                        console_handler.call_method1(intern!(py, "setFormatter"), (console_fmt,))?;
-                        shinqlx_logger.call_method1(intern!(py, "addHandler"), (console_handler,))
-                    })?;
+    let logging_module = py.import(intern!(py, "logging"))?;
+    let handler = PyModule::from_code(
+        py,
+        HANDLER_SOURCE,
+        c"shinqlx_log_handler.py",
+        c"shinqlx_log_handler",
+    )?
+    .getattr(intern!(py, "ShinqlxHandler"))?
+    .call1((wrap_pyfunction!(pyshinqlx_log_record, py)?,))?;
 
-                let file_fmt = logging_module.call_method1(
-                    intern!(py, "Formatter"),
-                    (
-                        "(%(asctime)s) [%(levelname)s @ %(name)s.%(funcName)s] %(message)s",
-                        "%H:%M:%S",
-                    ),
-                )?;
-                py.import(intern!(py, "logging.handlers")).and_then(|handlers_submodule| {
-                    let py_max_logssize = PyInt::new(py, max_logssize).into_any();
-                    let py_num_max_logs = PyInt::new(py, num_max_logs).into_any();
-                    handlers_submodule
-                        .call_method(
-                            intern!(py, "RotatingFileHandler"),
-                            (format!("{homepath}/shinqlx.log"),),
-                            Some(
-                                &[
-                                    ("encoding", PyString::intern(py, "utf-8").into_any()),
-                                    ("maxBytes", py_max_logssize),
-                                    ("backupCount", py_num_max_logs),
-                                ]
-                                .into_py_dict(py)?,
-                            ),
-                        )
-                        .and_then(|file_handler| {
-                            file_handler.call_method1(intern!(py, "setLevel"), (&debug_level,))?;
-                            file_handler.call_method1(intern!(py, "setFormatter"), (file_fmt,))?;
-                            shinqlx_logger.call_method1(intern!(py, "addHandler"), (file_handler,))
-                        })
-                })?;
+    let shinqlx_logger =
+        logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
+    shinqlx_logger.call_method1(
+        intern!(py, "setLevel"),
+        (logging_module.getattr(intern!(py, "DEBUG"))?,),
+    )?;
+    shinqlx_logger.call_method1(intern!(py, "addHandler"), (handler,))?;
 
-                let datetime_now = py.import(intern!(py, "datetime")).and_then(|datetime_module| {
-                    datetime_module
-                        .getattr(intern!(py, "datetime"))
-                        .and_then(|datetime_object| datetime_object.call_method0(intern!(py, "now")))
-                })?;
-                shinqlx_logger
-                    .call_method1(
-                        intern!(py, "info"),
-                        (
-                            "============================= shinqlx run @ %s =============================",
-                            datetime_now,
-                        ),
-                    )
-                    .map(|_| ())
-        })
-    })
+    let datetime_now = py
+        .import(intern!(py, "datetime"))?
+        .getattr(intern!(py, "datetime"))?
+        .call_method0(intern!(py, "now"))?;
+    shinqlx_logger
+        .call_method1(
+            intern!(py, "info"),
+            (
+                "============================= shinqlx run @ %s =============================",
+                datetime_now,
+            ),
+        )
+        .map(|_| ())
 }
 
 #[cfg(test)]
@@ -181,10 +202,11 @@ mod pyshinqlx_configure_logger_tests {
     use alloc::ffi::CString;
     use core::borrow::BorrowMut;
 
-    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*, types::PyBool};
+    use pretty_assertions::assert_eq;
+    use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*};
     use rstest::rstest;
 
-    use super::pyshinqlx_configure_logger;
+    use super::{log_level_of, pyshinqlx_configure_logger};
     use crate::{
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
@@ -193,31 +215,29 @@ mod pyshinqlx_configure_logger_tests {
         prelude::*,
     };
 
-    fn clear_logger(py: Python<'_>) {
-        let logging_module = py
+    fn clear_handlers(py: Python<'_>) {
+        let shinqlx_logger = py
             .import(intern!(py, "logging"))
-            .expect("this should not happen");
-        let shinqlx_logger = logging_module
-            .call_method1(intern!(py, "getLogger"), ("shinqlx",))
-            .expect("this should not happen");
-        while shinqlx_logger
-            .call_method0(intern!(py, "hasHandlers"))
-            .is_ok_and(|value| {
-                value
-                    .cast::<PyBool>()
-                    .is_ok_and(|bool_value| bool_value.is_true())
+            .and_then(|logging_module| {
+                logging_module.call_method1(intern!(py, "getLogger"), ("shinqlx",))
             })
-        {
-            let shinqlx_handlers = shinqlx_logger
-                .getattr(intern!(py, "handlers"))
-                .expect("this should not happen");
-            let _ = shinqlx_logger.call_method1(
-                intern!(py, "removeHandler"),
-                (shinqlx_handlers
-                    .get_item(0)
-                    .expect("this should not happen"),),
-            );
-        }
+            .expect("this should not happen");
+        shinqlx_logger
+            .getattr(intern!(py, "handlers"))
+            .and_then(|handlers| handlers.call_method0(intern!(py, "clear")))
+            .expect("this should not happen");
+    }
+
+    #[rstest]
+    #[case(50, log::Level::Error)]
+    #[case(40, log::Level::Error)]
+    #[case(30, log::Level::Warn)]
+    #[case(20, log::Level::Info)]
+    #[case(10, log::Level::Debug)]
+    #[case(5, log::Level::Trace)]
+    #[case(0, log::Level::Trace)]
+    fn python_levels_map_to_log_levels(#[case] number: i32, #[case] expected: log::Level) {
+        assert_eq!(log_level_of(number), expected);
     }
 
     #[rstest]
@@ -273,60 +293,39 @@ mod pyshinqlx_configure_logger_tests {
             )
             .run(|| {
                 Python::attach(|py| {
+                    clear_handlers(py);
+
                     let result = pyshinqlx_configure_logger(py);
-                    assert!(result.is_ok());
+                    assert!(result.is_ok(), "{result:?}");
 
                     let logging_module = py
                         .import(intern!(py, "logging"))
                         .expect("this should not happen");
-                    let debug_level = logging_module
-                        .getattr(intern!(py, "DEBUG"))
-                        .expect("this should not happen");
                     let shinqlx_logger = logging_module
                         .call_method1(intern!(py, "getLogger"), ("shinqlx",))
                         .expect("this should not happen");
-                    let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-                    assert!(log_level.is_ok_and(|value| {
-                        value.eq(&debug_level).expect("this should not happen")
-                    }),);
+                    let log_level = shinqlx_logger
+                        .getattr(intern!(py, "level"))
+                        .and_then(|level| level.extract::<i32>())
+                        .expect("this should not happen");
+                    assert_eq!(log_level, 10);
 
-                    let info_level = logging_module
-                        .getattr(intern!(py, "INFO"))
-                        .expect("this should not happen");
-                    let shinqlx_handlers = shinqlx_logger
+                    let handler_names = shinqlx_logger
                         .getattr(intern!(py, "handlers"))
-                        .expect("this should not happen");
-                    let logging_stream_handler = logging_module
-                        .getattr(intern!(py, "StreamHandler"))
-                        .expect("this should not happen");
-                    assert!(shinqlx_handlers.get_item(0).is_ok_and(|first_handler| {
-                        first_handler
-                            .is_instance(&logging_stream_handler)
-                            .expect("this should not happen")
-                            && first_handler
-                                .getattr(intern!(py, "level"))
-                                .is_ok_and(|log_level| {
-                                    log_level.eq(&info_level).expect("this should not happen")
-                                })
-                    }));
-                    let rotating_file_handler = logging_module
-                        .getattr(intern!(py, "handlers"))
-                        .and_then(|handlers_submodule| {
-                            handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
+                        .and_then(|handlers| handlers.extract::<Vec<Bound<'_, PyAny>>>())
+                        .expect("this should not happen")
+                        .iter()
+                        .map(|handler| {
+                            handler
+                                .get_type()
+                                .name()
+                                .expect("this should not happen")
+                                .to_string()
                         })
-                        .expect("this should not happen");
-                    assert!(shinqlx_handlers.get_item(1).is_ok_and(|second_handler| {
-                        second_handler
-                            .is_instance(&rotating_file_handler)
-                            .expect("this should not happen")
-                            && second_handler
-                                .getattr(intern!(py, "level"))
-                                .is_ok_and(|log_level| {
-                                    log_level.eq(&debug_level).expect("this should not happen")
-                                })
-                    }));
+                        .collect::<Vec<_>>();
+                    assert_eq!(handler_names, vec!["ShinqlxHandler"]);
 
-                    clear_logger(py);
+                    clear_handlers(py);
                 });
             });
     }
@@ -335,83 +334,23 @@ mod pyshinqlx_configure_logger_tests {
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn configure_logger_with_no_cvars_configured_in_main_engine(_pyshinqlx_setup: ()) {
-        let cvar_string = CString::new(TEMP_LOG_DIR.path().to_string_lossy().to_string())
-            .expect("this should not happen");
-        let mut raw_homepath_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-
         MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "fs_homepath",
-                move |_| CVar::try_from(raw_homepath_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1,
-            )
+            .with_find_cvar(|cmd| cmd == "fs_homepath", |_| None, 1)
             .with_find_cvar(|cmd| cmd == "qlx_logs", |_| None, 1)
             .with_find_cvar(|cmd| cmd == "qlx_logsSize", |_| None, 1)
             .run(|| {
                 Python::attach(|py| {
+                    clear_handlers(py);
+
                     let result = pyshinqlx_configure_logger(py);
-                    assert!(result.is_ok());
+                    assert!(result.is_ok(), "{result:?}");
 
-                    let logging_module = py
-                        .import(intern!(py, "logging"))
-                        .expect("this should not happen");
-                    let debug_level = logging_module
-                        .getattr(intern!(py, "DEBUG"))
-                        .expect("this should not happen");
-                    let shinqlx_logger = logging_module
-                        .call_method1(intern!(py, "getLogger"), ("shinqlx",))
-                        .expect("this should not happen");
-                    let log_level = shinqlx_logger.getattr(intern!(py, "level"));
-                    assert!(log_level.is_ok_and(|value| {
-                        value.eq(&debug_level).expect("this should not happen")
-                    }),);
-
-                    let info_level = logging_module
-                        .getattr(intern!(py, "INFO"))
-                        .expect("this should not happen");
-                    let shinqlx_handlers = shinqlx_logger
-                        .getattr(intern!(py, "handlers"))
-                        .expect("this should not happen");
-                    let logging_stream_handler = logging_module
-                        .getattr(intern!(py, "StreamHandler"))
-                        .expect("this should not happen");
-                    assert!(shinqlx_handlers.get_item(0).is_ok_and(|first_handler| {
-                        first_handler
-                            .is_instance(&logging_stream_handler)
-                            .expect("this should not happen")
-                            && first_handler
-                                .getattr(intern!(py, "level"))
-                                .is_ok_and(|log_level| {
-                                    log_level.eq(&info_level).expect("this should not happen")
-                                })
-                    }));
-                    let rotating_file_handler = logging_module
-                        .getattr(intern!(py, "handlers"))
-                        .and_then(|handlers_submodule| {
-                            handlers_submodule.getattr(intern!(py, "RotatingFileHandler"))
-                        })
-                        .expect("this should not happen");
-                    assert!(shinqlx_handlers.get_item(1).is_ok_and(|second_handler| {
-                        second_handler
-                            .is_instance(&rotating_file_handler)
-                            .expect("this should not happen")
-                            && second_handler
-                                .getattr(intern!(py, "level"))
-                                .is_ok_and(|log_level| {
-                                    log_level.eq(&debug_level).expect("this should not happen")
-                                })
-                    }));
-
-                    clear_logger(py);
+                    clear_handlers(py);
                 });
             });
     }
 }
 
-/// Logs an exception using :func:`get_logger`. Call this in an except block.
 #[pyfunction]
 #[pyo3(name = "log_exception")]
 #[pyo3(signature = (plugin = None), text_signature = "(plugin = None)")]
