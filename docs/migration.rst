@@ -163,6 +163,9 @@ Names and signatures that differ
 * ``main_logger`` is not part of the module, use :func:`get_logger`. minqlx also passed on the modules that its own
   modules import, for example ``minqlx.os``, ``minqlx.re``, ``minqlx.threading`` and ``minqlx.json``. A plugin that
   used one of them needs its own import.
+* The logging is configured through ``shinqlx_log.yml``, see :ref:`logging`. The Python handlers that shinqlx installed
+  on the ``shinqlx`` logger are gone, and the debug records of the dispatchers and the console lines are not passed to
+  handlers that a plugin adds to that logger. Plugin messages, log files and rotation work as before.
 
 .. _migration_default_plugins:
 

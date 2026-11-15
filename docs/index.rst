@@ -18,6 +18,7 @@ High-level classes and functions
 * :ref:`Database <database>`
 * :ref:`Built-in Rust plugins <native_plugins>`
 * :ref:`Plugin examples <examples>`
+* :ref:`Logging <logging>`
 * :ref:`Migration from minqlx <migration>`
 
 *******************************
@@ -46,6 +47,7 @@ Indices and tables
    database
    native_plugins
    examples
+   logging
    migration
    shinqlx
    enums
