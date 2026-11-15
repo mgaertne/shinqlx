@@ -36,7 +36,8 @@ The file is a `log4rs <https://docs.rs/log4rs/latest/log4rs/config/index.html>`_
 * The appender kind ``shinqlx_file`` is the rotating log file. Its keys ``path`` (default ``shinqlx.log``, relative to
   ``fs_homepath``), ``max_size``, ``count`` and ``pattern`` are optional; ``max_size`` and ``count`` default to the cvars
   above.
-* The encoder kind ``shinqlx_pattern`` is the log4rs pattern encoder that prints ``::`` in targets as ``.``.
+* The encoder kind ``shinqlx_pattern`` is the log4rs pattern encoder that prints ``::`` in targets as ``.`` and the
+  level ``WARN`` as ``WARNING``, as Python does.
   ``{K(func)}`` in a pattern is the function a message was logged from.
 
 The target of a message is the name of its logger: ``shinqlx`` for the core and ``shinqlx::<plugin>`` for the plugin
