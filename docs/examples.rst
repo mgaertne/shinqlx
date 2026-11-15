@@ -146,6 +146,10 @@ default, and type checkers know that type.
            for _ in range(self.repeat):
                self.msg(self.text)
 
+Every read of the attribute asks the server for the current value, so a change by an admin applies at once and
+the plugin does not need to be reloaded. A read costs a fraction of a microsecond. Whoever needs the value many times
+in a loop keeps it in a local variable.
+
 Without the declaration, the same is done with :meth:`Plugin.set_cvar_once` and :meth:`Plugin.get_cvar`:
 
 .. code-block:: python
