@@ -57,6 +57,10 @@ them, and they are re-read every five seconds, so changes apply without a restar
 | `qlx_steamQueryRate`       | `1`     | queries per second one IP address may sustain (`0` = no limit) |
 | `qlx_steamQueryBurst`      | `10`    | queries one IP address may send in a quick succession          |
 | `qlx_steamQueryGlobalRate` | `10`    | queries per second answered for all addresses together (`0` = no limit) |
+| `qlx_steamQueryRulesRate`  | `0.1`   | rules queries per second one IP address may sustain (`0` = no limit of its own) |
+| `qlx_steamQueryRulesBurst` | `2`     | rules queries one IP address may send in a quick succession (a complete query takes two) |
+| `qlx_steamQueryRulesGlobalRate` | `10` | rules queries per second answered for all addresses together (`0` = no limit of its own) |
+| `qlx_steamQueryDropRules`  | `0`     | `1` drops the rules query (`A2S_RULES`) without an answer; server browsers use the info query |
 
 The defaults follow the limits ioquake3 uses for `getstatus` and `getinfo` (burst of 10, one request per second per
 address, ten per second overall). They are strict. If a server list site or a monitoring tool polls your server
@@ -69,6 +73,12 @@ set qlx_steamQueryGlobalRate 100
 
 To switch the limiter off completely, both rates have to be `0`; `qlx_steamQueryRate 0` alone leaves the global limit
 active.
+
+The rules query has the largest answers of the three queries and is rarely needed, so it has stricter limits of its own
+(one complete query per twenty seconds and address, ten packets per second overall). A rules query has to pass these and the general limits;
+a rules query dropped by its own limits does not use up the general ones. `qlx_steamQueryDropRules 1` drops rules
+queries altogether; tools that read the rules of your server stop working while it is set. It is off by default. Like
+the limits, all of these are re-read every five seconds.
 
 While packets are dropped, shinqlx writes a summary like `Dropped N Steam query packets that exceeded the rate limit.`
 to the log, at most once per minute.

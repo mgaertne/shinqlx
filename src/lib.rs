@@ -23,7 +23,9 @@
 //! * `alloc` (default): uses jemalloc, on Windows mimalloc, as global allocator.
 //! * `steam-query-limit` (default): rate limits server queries (`A2S_INFO`, `A2S_PLAYER`, `A2S_RULES`) per source
 //!   address and overall, see `DDOS-PROTECTION.md` in the repository. Configured through the cvars
-//!   `qlx_steamQueryRate`, `qlx_steamQueryBurst` and `qlx_steamQueryGlobalRate`.
+//!   `qlx_steamQueryRate`, `qlx_steamQueryBurst` and `qlx_steamQueryGlobalRate`; the rules query has its own limits
+//!   in `qlx_steamQueryRulesRate`, `qlx_steamQueryRulesBurst` and `qlx_steamQueryRulesGlobalRate`, and
+//!   `qlx_steamQueryDropRules` drops it.
 //! * `patches`: enables `clientkick-fix` and `fps-patch`. Experimental, disabled by default.
 //! * `clientkick-fix`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by
 //!   default.

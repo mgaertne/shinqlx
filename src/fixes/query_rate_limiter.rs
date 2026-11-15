@@ -25,6 +25,13 @@ impl QueryLimits {
         burst: 10.0,
         global_rate: 10.0,
     };
+    /// Stricter limits for the rules query, whose answers are the largest. The burst of two lets
+    /// one complete query (challenge request and request with the challenge) pass.
+    pub(crate) const RULES_DEFAULT: Self = Self {
+        per_source_rate: 0.1,
+        burst: 2.0,
+        global_rate: 10.0,
+    };
 }
 
 impl Default for QueryLimits {

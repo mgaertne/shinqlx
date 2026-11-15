@@ -1525,11 +1525,17 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
 
     #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
     {
-        let defaults = crate::fixes::query_rate_limiter::QueryLimits::DEFAULT;
+        use crate::fixes::query_rate_limiter::QueryLimits;
+
+        let defaults = QueryLimits::DEFAULT;
+        let rules_defaults = QueryLimits::RULES_DEFAULT;
         for (name, value) in [
             ("qlx_steamQueryRate", defaults.per_source_rate),
             ("qlx_steamQueryBurst", defaults.burst),
             ("qlx_steamQueryGlobalRate", defaults.global_rate),
+            ("qlx_steamQueryRulesRate", rules_defaults.per_source_rate),
+            ("qlx_steamQueryRulesBurst", rules_defaults.burst),
+            ("qlx_steamQueryRulesGlobalRate", rules_defaults.global_rate),
         ] {
             pyshinqlx_set_cvar_once(
                 py,
@@ -1538,6 +1544,12 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
                 0,
             )?;
         }
+        pyshinqlx_set_cvar_once(
+            py,
+            "qlx_steamQueryDropRules",
+            PyString::intern(py, "0").as_any(),
+            0,
+        )?;
     }
 
     pyshinqlx_set_cvar_once(
@@ -1589,6 +1601,10 @@ mod initialize_cvars_tests {
     #[case("qlx_steamQueryRate", "1")]
     #[case("qlx_steamQueryBurst", "10")]
     #[case("qlx_steamQueryGlobalRate", "10")]
+    #[case("qlx_steamQueryRulesRate", "0.1")]
+    #[case("qlx_steamQueryRulesBurst", "2")]
+    #[case("qlx_steamQueryRulesGlobalRate", "10")]
+    #[case("qlx_steamQueryDropRules", "0")]
     #[case("qlx_redisAddress", "127.0.0.1")]
     #[case("qlx_redisDatabase", "0")]
     #[case("qlx_redisUnixSocket", "0")]

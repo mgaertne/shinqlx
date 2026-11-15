@@ -1,6 +1,6 @@
 use alloc::borrow::Cow;
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-use core::sync::atomic::{AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
@@ -312,13 +312,98 @@ where
     });
 }
 
+/// A rate limiter whose limits are read from three cvars every few seconds.
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_LIMITER: parking_lot::Mutex<QueryRateLimiter> =
-    parking_lot::Mutex::new(QueryRateLimiter::new(QueryLimits::DEFAULT));
+struct QueryGate {
+    limiter: parking_lot::Mutex<QueryRateLimiter>,
+    refreshed_ms: AtomicU64,
+    cvars: [&'static str; 3],
+    defaults: QueryLimits,
+    label: &'static str,
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+impl QueryGate {
+    const fn new(cvars: [&'static str; 3], defaults: QueryLimits, label: &'static str) -> Self {
+        Self {
+            limiter: parking_lot::Mutex::new(QueryRateLimiter::new(defaults)),
+            refreshed_ms: AtomicU64::new(0),
+            cvars,
+            defaults,
+            label,
+        }
+    }
+
+    fn limits_from_cvars<T>(&self, main_engine: &T) -> QueryLimits
+    where
+        T: FindCVar<&'static str>,
+    {
+        let read = |name: &'static str, default: f64| {
+            main_engine
+                .find_cvar(name)
+                .and_then(|cvar| cvar.get_string().trim().parse::<f64>().ok())
+                .filter(|value| value.is_finite() && *value >= 0.0)
+                .unwrap_or(default)
+        };
+        let [rate, burst, global_rate] = self.cvars;
+        QueryLimits {
+            per_source_rate: read(rate, self.defaults.per_source_rate),
+            burst: read(burst, self.defaults.burst),
+            global_rate: read(global_rate, self.defaults.global_rate),
+        }
+    }
+
+    fn allows<T>(&self, main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
+    where
+        T: FindCVar<&'static str>,
+    {
+        if from.type_ != netadrtype_t::NA_IP {
+            return true;
+        }
+
+        let mut limiter = self.limiter.lock();
+        let refreshed_ms = self.refreshed_ms.load(Ordering::Acquire);
+        if refreshed_ms == 0
+            || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
+        {
+            limiter.set_limits(self.limits_from_cvars(main_engine));
+            self.refreshed_ms.store(now_ms.max(1), Ordering::Release);
+        }
+
+        let allowed = limiter.allow(from.ip, now_ms);
+        if let Some(dropped) = limiter.take_dropped_summary(now_ms) {
+            warn!(
+                target: "shinqlx",
+                "Dropped {dropped} {} packets that exceeded the rate limit.",
+                self.label
+            );
+        }
+        allowed
+    }
+}
+
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_GATE: QueryGate = QueryGate::new(
+    [
+        "qlx_steamQueryRate",
+        "qlx_steamQueryBurst",
+        "qlx_steamQueryGlobalRate",
+    ],
+    QueryLimits::DEFAULT,
+    "Steam query",
+);
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_RULES_GATE: QueryGate = QueryGate::new(
+    [
+        "qlx_steamQueryRulesRate",
+        "qlx_steamQueryRulesBurst",
+        "qlx_steamQueryRulesGlobalRate",
+    ],
+    QueryLimits::RULES_DEFAULT,
+    "Steam rules query",
+);
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 static QUERY_CLOCK: LazyLock<Instant> = LazyLock::new(Instant::now);
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_LIMITS_REFRESHED_MS: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 const QUERY_LIMITS_REFRESH_INTERVAL_MS: u64 = 5_000;
@@ -327,6 +412,12 @@ const QUERY_LIMITS_REFRESH_INTERVAL_MS: u64 = 5_000;
 const STEAM_QUERY_HEADER: [u8; 4] = [0xFF; 4];
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 const STEAM_QUERY_OPCODES: &[u8; 3] = b"TUV";
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+const STEAM_RULES_OPCODE: u8 = b'V';
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_DROP_RULES: AtomicBool = AtomicBool::new(false);
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+static QUERY_DROP_RULES_REFRESHED_MS: AtomicU64 = AtomicU64::new(0);
 
 /// The message buffer as the engine hands it to Steam; it has no `oob` field between the two
 /// flags and `data`, unlike `msg_t`.
@@ -341,44 +432,39 @@ struct SteamPacketBuffer {
 }
 
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-fn is_steam_query(msg: *const msg_t) -> bool {
+fn steam_query_opcode(msg: *const msg_t) -> Option<u8> {
     // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
-    let Some(msg) = (unsafe { msg.cast::<SteamPacketBuffer>().as_ref() }) else {
-        return false;
-    };
-    let Ok(size) = usize::try_from(msg.cursize) else {
-        return false;
-    };
+    let msg = unsafe { msg.cast::<SteamPacketBuffer>().as_ref() }?;
+    let size = usize::try_from(msg.cursize).ok()?;
     let fits_buffer = msg.cursize <= msg.maxsize;
     if msg.data.is_null() || !fits_buffer || size <= STEAM_QUERY_HEADER.len() {
-        return false;
+        return None;
     }
 
     // SAFETY: data was checked as non-null and cursize as non-negative and within maxsize.
     let packet = unsafe { core::slice::from_raw_parts(msg.data, size) };
-    packet.starts_with(&STEAM_QUERY_HEADER)
-        && packet
-            .get(STEAM_QUERY_HEADER.len())
-            .is_some_and(|opcode| STEAM_QUERY_OPCODES.contains(opcode))
+    packet
+        .strip_prefix(&STEAM_QUERY_HEADER)
+        .and_then(|rest| rest.first())
+        .copied()
+        .filter(|opcode| STEAM_QUERY_OPCODES.contains(opcode))
 }
 
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-fn query_limits_from_cvars<T>(main_engine: &T) -> QueryLimits
+fn steam_rules_dropped<T>(main_engine: &T, now_ms: u64) -> bool
 where
     T: FindCVar<&'static str>,
 {
-    let read = |name: &'static str, default: f64| {
-        main_engine
-            .find_cvar(name)
-            .and_then(|cvar| cvar.get_string().trim().parse::<f64>().ok())
-            .filter(|value| value.is_finite() && *value >= 0.0)
-            .unwrap_or(default)
-    };
-    QueryLimits {
-        per_source_rate: read("qlx_steamQueryRate", QueryLimits::DEFAULT.per_source_rate),
-        burst: read("qlx_steamQueryBurst", QueryLimits::DEFAULT.burst),
-        global_rate: read("qlx_steamQueryGlobalRate", QueryLimits::DEFAULT.global_rate),
+    let refreshed_ms = QUERY_DROP_RULES_REFRESHED_MS.load(Ordering::Acquire);
+    if refreshed_ms == 0 || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
+    {
+        let enabled = main_engine
+            .find_cvar("qlx_steamQueryDropRules")
+            .is_some_and(|cvar| cvar.get_integer() != 0);
+        QUERY_DROP_RULES.store(enabled, Ordering::Release);
+        QUERY_DROP_RULES_REFRESHED_MS.store(now_ms.max(1), Ordering::Release);
     }
+    QUERY_DROP_RULES.load(Ordering::Acquire)
 }
 
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
@@ -386,26 +472,15 @@ fn steam_query_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
 where
     T: FindCVar<&'static str>,
 {
-    if from.type_ != netadrtype_t::NA_IP {
-        return true;
-    }
+    QUERY_GATE.allows(main_engine, from, now_ms)
+}
 
-    let mut limiter = QUERY_LIMITER.lock();
-    let refreshed_ms = QUERY_LIMITS_REFRESHED_MS.load(Ordering::Acquire);
-    if refreshed_ms == 0 || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
-    {
-        limiter.set_limits(query_limits_from_cvars(main_engine));
-        QUERY_LIMITS_REFRESHED_MS.store(now_ms.max(1), Ordering::Release);
-    }
-
-    let allowed = limiter.allow(from.ip, now_ms);
-    if let Some(dropped) = limiter.take_dropped_summary(now_ms) {
-        warn!(
-            target: "shinqlx",
-            "Dropped {dropped} Steam query packets that exceeded the rate limit."
-        );
-    }
-    allowed
+#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
+fn steam_rules_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
+where
+    T: FindCVar<&'static str>,
+{
+    QUERY_RULES_GATE.allows(main_engine, from, now_ms)
 }
 
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
@@ -413,7 +488,8 @@ where
 ///
 /// Steam answers server queries with packets larger than the request, which makes the server a
 /// reflector for spoofed sources. Requests above the rate limit are reported as handled without
-/// ever reaching Steam.
+/// ever reaching Steam. Rules queries, which have the largest answers, additionally have limits of
+/// their own and are dropped altogether while `qlx_steamQueryDropRules` is set.
 pub(crate) extern "C" fn shinqlx_sv_handlesteampacket(
     from: *const netadr_t,
     msg: *const msg_t,
@@ -421,12 +497,14 @@ pub(crate) extern "C" fn shinqlx_sv_handlesteampacket(
     MAIN_ENGINE.load().as_ref().map_or(0, |main_engine| {
         let now_ms = u64::try_from(QUERY_CLOCK.elapsed().as_millis()).unwrap_or(u64::MAX);
         // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
-        match unsafe { from.as_ref() } {
-            Some(address)
-                if is_steam_query(msg) && !steam_query_allowed(&**main_engine, address, now_ms) =>
+        match (unsafe { from.as_ref() }, steam_query_opcode(msg)) {
+            (Some(_), Some(STEAM_RULES_OPCODE)) if steam_rules_dropped(&**main_engine, now_ms) => 1,
+            (Some(address), Some(STEAM_RULES_OPCODE))
+                if !steam_rules_allowed(&**main_engine, address, now_ms) =>
             {
                 1
             }
+            (Some(address), Some(_)) if !steam_query_allowed(&**main_engine, address, now_ms) => 1,
             _ => c_int::from(main_engine.handle_steam_packet(from, msg)),
         }
     })
@@ -723,14 +801,15 @@ mod hooks_tests {
     use tap::Conv;
 
     use super::{
-        QUERY_LIMITER, QUERY_LIMITS_REFRESHED_MS, ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand,
-        SteamPacketBuffer, shinqlx_client_connect, shinqlx_client_spawn, shinqlx_clientspawn,
-        shinqlx_cmd_addcommand, shinqlx_com_printf, shinqlx_drop_client,
-        shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
-        shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_send_server_command,
-        shinqlx_set_configstring, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
-        shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket, shinqlx_sv_setconfigstring,
-        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset, steam_query_allowed,
+        QUERY_DROP_RULES_REFRESHED_MS, QUERY_GATE, QUERY_RULES_GATE, ShiNQlx_Com_Printf,
+        ShiNQlx_SV_SendServerCommand, SteamPacketBuffer, shinqlx_client_connect,
+        shinqlx_client_spawn, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
+        shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
+        shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
+        shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
+        shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket,
+        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        steam_query_allowed,
     };
     use crate::{
         MAIN_ENGINE,
@@ -2395,8 +2474,11 @@ mod hooks_tests {
     }
 
     fn reset_query_limiter() {
-        *QUERY_LIMITER.lock() = QueryRateLimiter::new(QueryLimits::DEFAULT);
-        QUERY_LIMITS_REFRESHED_MS.store(0, Ordering::Release);
+        *QUERY_GATE.limiter.lock() = QueryRateLimiter::new(QueryLimits::DEFAULT);
+        *QUERY_RULES_GATE.limiter.lock() = QueryRateLimiter::new(QueryLimits::RULES_DEFAULT);
+        QUERY_RULES_GATE.refreshed_ms.store(0, Ordering::Release);
+        QUERY_GATE.refreshed_ms.store(0, Ordering::Release);
+        QUERY_DROP_RULES_REFRESHED_MS.store(0, Ordering::Release);
     }
 
     fn query_address(type_: netadrtype_t) -> netadr_t {
@@ -2488,7 +2570,6 @@ mod hooks_tests {
     #[rstest]
     #[case::info(b"\xff\xff\xff\xffTSource Engine Query\0".as_slice())]
     #[case::player(b"\xff\xff\xff\xffU\xff\xff\xff\xff".as_slice())]
-    #[case::rules(b"\xff\xff\xff\xffV\xff\xff\xff\xff".as_slice())]
     #[serial]
     fn sv_handlesteampacket_limits_every_query_opcode(#[case] payload: &[u8]) {
         reset_query_limiter();
@@ -2670,6 +2751,154 @@ mod hooks_tests {
             });
     }
 
+    const A2S_RULES: &[u8] = b"\xff\xff\xff\xffV\xff\xff\xff\xff";
+
+    fn drop_rules_cvar(value: c_int) -> cvar_t {
+        CVarBuilder::default()
+            .integer(value)
+            .build()
+            .expect("this should not happen")
+    }
+
+    #[rstest]
+    #[case(1, vec![1; 3], 0)]
+    #[case(0, vec![0, 0, 1], 2)]
+    #[serial]
+    fn sv_handlesteampacket_drops_rules_queries_only_while_the_cvar_is_set(
+        #[case] cvar_value: c_int,
+        #[case] expected: Vec<c_int>,
+        #[case] forwarded: usize,
+    ) {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let mut drop_rules = drop_rules_cvar(cvar_value);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |_| true,
+                move |name| {
+                    (name == "qlx_steamQueryDropRules")
+                        .then(|| CVar::try_from(drop_rules.borrow_mut() as *mut cvar_t).ok())
+                        .flatten()
+                },
+                1..,
+            )
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(forwarded);
+            })
+            .run(|| {
+                assert_eq!(send_packets(&address, A2S_RULES, 3), expected);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_forwards_info_queries_while_rules_queries_are_dropped() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let mut drop_rules = drop_rules_cvar(1);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |_| true,
+                move |name| {
+                    (name == "qlx_steamQueryDropRules")
+                        .then(|| CVar::try_from(drop_rules.borrow_mut() as *mut cvar_t).ok())
+                        .flatten()
+                },
+                1..,
+            )
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(2);
+            })
+            .run(|| {
+                assert_eq!(send_query_packets(&address, 2), vec![0, 0]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_lets_one_complete_rules_query_pass_and_limits_more() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(2);
+            })
+            .run(|| {
+                assert_eq!(send_packets(&address, A2S_RULES, 4), vec![0, 0, 1, 1]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_does_not_charge_dropped_rules_queries_to_the_query_limit() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(10);
+            })
+            .run(|| {
+                assert_eq!(
+                    send_packets(&address, A2S_RULES, 20),
+                    [vec![0; 2], vec![1; 18]].concat()
+                );
+                assert_eq!(send_query_packets(&address, 8), vec![0; 8]);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn sv_handlesteampacket_applies_the_general_limit_when_the_rules_limits_are_off() {
+        reset_query_limiter();
+        let address = query_address(netadrtype_t::NA_IP);
+        let mut zero_cvar = CVarBuilder::default()
+            .string(c"0".as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |_| true,
+                move |name| {
+                    ["qlx_steamQueryRulesRate", "qlx_steamQueryRulesGlobalRate"]
+                        .contains(&name)
+                        .then(|| CVar::try_from(zero_cvar.borrow_mut() as *mut cvar_t).ok())
+                        .flatten()
+                },
+                1..,
+            )
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_handle_steam_packet()
+                    .return_const(false)
+                    .times(10);
+            })
+            .run(|| {
+                assert_eq!(
+                    send_packets(&address, A2S_RULES, 12),
+                    [vec![0; 10], vec![1; 2]].concat()
+                );
+            });
+    }
+
     #[test]
     #[serial]
     fn sv_handlesteampacket_does_not_trust_messages_with_negative_size() {
@@ -2719,7 +2948,10 @@ mod hooks_tests {
                     after_interval_ms
                 ));
                 assert_eq!(
-                    QUERY_LIMITER.lock().take_dropped_summary(after_interval_ms),
+                    QUERY_GATE
+                        .limiter
+                        .lock()
+                        .take_dropped_summary(after_interval_ms),
                     None
                 );
             });
