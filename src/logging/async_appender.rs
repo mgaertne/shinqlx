@@ -345,6 +345,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn a_full_queue_drops_low_levels_and_reports_how_many() {
         let collecting = Collecting {
             delay: Duration::from_millis(20),
@@ -377,6 +378,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn errors_wait_until_they_are_written() {
         let collecting = Collecting {
             delay: Duration::from_millis(10),

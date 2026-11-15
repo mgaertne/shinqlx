@@ -134,6 +134,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn the_shipped_configuration_says_what_the_default_says() {
         clear_pending_files();
@@ -148,6 +149,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_broken_configuration_falls_back_to_the_default_and_reports_why() {
         let directory = std::env::temp_dir().join(format!("shinqlx-cfg-{}", std::process::id()));
