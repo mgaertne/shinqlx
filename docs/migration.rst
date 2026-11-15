@@ -52,6 +52,9 @@ rule                        change
                             :ref:`migration_redis`. Where the order of the arguments of ``zincrby`` cannot be
                             determined, the call is left as it is and reported.
 ``slay-with-mod``           ``mod=`` becomes ``means_of_death=``, see :ref:`migration_slay`.
+``team-chat-channels``      ``minqlx.RedTeamChatChannel()`` without arguments, and the same for the blue, free and
+                            spectator class, becomes the constant ``minqlx.RED_TEAM_CHAT_CHANNEL``. Other uses of
+                            the four classes are reported, see :ref:`migration_names`.
 ``default-plugin-access``   Only warnings, see :ref:`migration_default_plugins`.
 ``event-names``             The event name in ``add_hook`` and ``remove_hook`` becomes ``Events.X``. Names the
                             :class:`Events` enumeration does not know stay strings.

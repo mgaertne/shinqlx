@@ -7,6 +7,7 @@ mod module_rename;
 mod permission_levels;
 mod redis_keywords;
 mod slay_with_mod;
+mod team_chat_channels;
 
 pub(crate) use decorators::Decorators;
 pub(crate) use default_plugin_access::DefaultPluginAccess;
@@ -17,6 +18,7 @@ pub(crate) use module_rename::ModuleRename;
 pub(crate) use permission_levels::PermissionLevels;
 pub(crate) use redis_keywords::RedisKeywords;
 pub(crate) use slay_with_mod::SlayWithMod;
+pub(crate) use team_chat_channels::TeamChatChannels;
 
 use crate::{edit::Edit, source::Source};
 
@@ -54,6 +56,7 @@ pub(crate) fn default_rules() -> Vec<Box<dyn Rule>> {
     vec![
         Box::new(RedisKeywords),
         Box::new(SlayWithMod),
+        Box::new(TeamChatChannels),
         Box::new(DefaultPluginAccess),
         Box::new(EventNames),
         Box::new(EnumConstants),

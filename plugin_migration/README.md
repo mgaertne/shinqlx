@@ -25,6 +25,7 @@ The rules run in this order, each on the result of the previous one:
 |---|---|
 | `redis-keywords` | `db.setex(key, time, value)`, `db.lrem(key, count, value)` and `db.zincrby(key, value, amount)` take their arguments by keyword in shinqlx. For `zincrby` the amount is recognised by being a number or a negated value, because redis-py 2.x and 3 differ in the order. |
 | `slay-with-mod` | `mod=` of `slay_with_mod` becomes `means_of_death=` (`mean_of_death=` for the module function). |
+| `team-chat-channels` | `minqlx.RedTeamChatChannel()` (and the blue, free and spectator classes) without arguments becomes the constant `minqlx.RED_TEAM_CHAT_CHANNEL`; calls with arguments, `isinstance` checks and imports of the four classes only get a warning. |
 | `default-plugin-access` | Warns about `plugins["essentials"].something` that the Rust default plugins do not provide (the Python plugin of that name is still needed then), and about `next_frame_tasks`. |
 | `event-names` | The event name in `add_hook`/`remove_hook` becomes `Events.X`. Unknown names stay strings. |
 | `enum-constants` | `RET_*`, `PRI_*`, `CVAR_*`, `TEAM_*`, `CS_*`, `MOD_*`, `PRIV_*` and `DAMAGE_*` become members of `ReturnCodes`, `Priorities`, `CvarFlags`, `Teams`, `ConnectionStates`, `MeansOfDeath`, `Privileges` and `DamageFlags`, but only where a member is accepted: in `return`, in `==`/`!=`/`in` comparisons and in the arguments that take the enum. |
