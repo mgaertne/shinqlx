@@ -65,6 +65,7 @@ jobs:
   test-features:
     name: Test (feature combinations)
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     needs: [ check-tests, clippy-tests ]
     steps:
       - name: Checkout sources
@@ -168,6 +169,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: cargo build --verbose
       - run: cargo test --verbose
+        timeout-minutes: 15
 
   minimal_build:
     name: build & test with minimal versions
@@ -193,6 +195,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: cargo build -Z minimal-versions --verbose
       - run: cargo test -Z minimal-versions --verbose
+        timeout-minutes: 15
 
   tarpaulin-coverage:
     runs-on: ubuntu-latest
@@ -253,6 +256,7 @@ jobs:
   miri:
     name: miri
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [ build ]
     steps:
       - name: Checkout sources
