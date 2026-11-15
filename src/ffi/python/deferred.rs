@@ -204,7 +204,9 @@ plugin = SamplePlugin()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn delay_runs_a_plugin_method_with_its_instance_after_the_delay(_pyshinqlx_setup: ()) {
+    fn delay_runs_a_plugin_method_with_its_instance_after_the_delay(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         Python::attach(|py| {
             let module = plugin_module(py, "@shinqlx.delay(0.0001)");
 

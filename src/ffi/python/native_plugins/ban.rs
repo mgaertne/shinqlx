@@ -1603,7 +1603,9 @@ kick = classmethod(kick)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn a_loaded_player_gets_the_warning_four_seconds_later(_pyshinqlx_setup: ()) {
+    fn a_loaded_player_gets_the_warning_four_seconds_later(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         with_leaver_ban(None, |fixtures| {
             let py = fixtures.plugin.py();
             fixtures
@@ -1649,7 +1651,9 @@ kick = classmethod(kick)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn the_players_at_the_start_of_the_game_are_remembered_a_second_later(_pyshinqlx_setup: ()) {
+    fn the_players_at_the_start_of_the_game_are_remembered_a_second_later(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         with_leaver_ban(None, |fixtures| {
             let py = fixtures.plugin.py();
             fixtures.seat("red", &[&fixtures.caller]);

@@ -418,6 +418,19 @@ mod set_map_subtitles_tests {
         prelude::*,
     };
 
+    /// Puts the plugins version back to its initial value, also when the test panics.
+    struct PluginsVersionReset;
+
+    impl Drop for PluginsVersionReset {
+        fn drop(&mut self) {
+            Python::attach(|py| {
+                let _ = py.import(intern!(py, "shinqlx")).and_then(|module| {
+                    module.setattr(intern!(py, "__plugins_version__"), "NOT_SET")
+                });
+            });
+        }
+    }
+
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
@@ -443,6 +456,7 @@ mod set_map_subtitles_tests {
             .with_get_configstring(CS_AUTHOR2 as u16, "Second author would go here", 1)
             .run(|| {
                 Python::attach(|py| {
+                    let _reset = PluginsVersionReset;
                     let shinqlx_module = py
                         .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");
@@ -495,6 +509,7 @@ mod set_map_subtitles_tests {
             .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
             .run(|| {
                 Python::attach(|py| {
+                    let _reset = PluginsVersionReset;
                     let shinqlx_module = py
                         .import(intern!(py, "shinqlx"))
                         .expect("this should not happen");

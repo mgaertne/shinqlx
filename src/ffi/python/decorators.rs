@@ -1831,12 +1831,14 @@ mod delay_tests {
     use pyo3::{intern, prelude::*, types::PyBool};
     use rstest::rstest;
 
-    use crate::{ffi::python::pyshinqlx_setup_fixture::*, prelude::*};
+    use crate::prelude::*;
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn delay_enqueues_function_call(_pyshinqlx_setup: ()) {
+    fn delay_enqueues_function_call(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         Python::attach(|py| {
             let result = py.run(
                 cr#"
@@ -1885,7 +1887,9 @@ test_func()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn delay_with_float_delay(_pyshinqlx_setup: ()) {
+    fn delay_with_float_delay(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         Python::attach(|py| {
             let result = py.run(
                 cr#"
@@ -1934,7 +1938,9 @@ test_func()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn delay_enqueues_function_call_for_class_method(_pyshinqlx_setup: ()) {
+    fn delay_enqueues_function_call_for_class_method(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         Python::attach(|py| {
             let result = py.run(
                 cr#"

@@ -804,7 +804,9 @@ play_sound = classmethod(record_sound)
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn a_loaded_player_gets_the_motd_two_seconds_later(_pyshinqlx_setup: ()) {
+    fn a_loaded_player_gets_the_motd_two_seconds_later(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
         with_motd(c"0", |fixtures| {
             let py = fixtures.plugin.py();
             fixtures.store(KEY, "Welcome");

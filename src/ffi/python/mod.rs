@@ -2436,4 +2436,26 @@ pub(crate) mod pyshinqlx_setup_fixture {
             dump_python_tracebacks_when_stuck(py);
         });
     }
+
+    /// Drops the tasks other tests left in the shared schedulers, for tests that count queued tasks.
+    #[fixture]
+    pub(crate) fn empty_frame_tasks(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            py.run(
+                cr#"
+import shinqlx
+
+for scheduler in (shinqlx.frame_tasks, shinqlx.next_frame_tasks):
+    for entry in list(getattr(scheduler, "queue", [])):
+        if hasattr(scheduler, "cancel"):
+            scheduler.cancel(entry)
+while not shinqlx.next_frame_tasks.empty():
+    shinqlx.next_frame_tasks.get(block=False)
+"#,
+                None,
+                None,
+            )
+            .expect("clearing the schedulers cannot fail");
+        });
+    }
 }

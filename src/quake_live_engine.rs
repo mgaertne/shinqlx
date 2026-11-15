@@ -6203,7 +6203,18 @@ impl MockEngineBuilder {
     {
         let engine = self.mock_engine.take();
         crate::MAIN_ENGINE.store(engine.map(|mock_engine| mock_engine.into()));
+        let _reset = MainEngineReset;
         execute();
+    }
+}
+
+/// Removes the mocked engine on the thread that created it, also when the test panics.
+#[cfg(test)]
+struct MainEngineReset;
+
+#[cfg(test)]
+impl Drop for MainEngineReset {
+    fn drop(&mut self) {
         crate::MAIN_ENGINE.store(None);
     }
 }
