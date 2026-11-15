@@ -74,8 +74,9 @@ tap = { version = ">=1.0.1", default-features = false }
 rayon = { version = ">=1.12", default-features = false }
 derive_more = { version = ">=2.1", default-features = false, features = ["display", "try_from"]}
 derive-new = { version = ">=0.7", default-features = false }
-log = { version = ">=0.4", default-features = false }
-log4rs = { version = ">=1.4", default-features = false, features = ["console_appender", "config_parsing", "yaml_format"] }
+anyhow = { version = ">=1.0", default-features = false, features = ["std"] }
+log = { version = ">=0.4", default-features = false, features = ["kv"] }
+log4rs = { version = ">=1.4", default-features = false, features = ["console_appender", "rolling_file_appender", "compound_policy", "size_trigger", "fixed_window_roller", "threshold_filter", "config_parsing", "yaml_format", "log_kv"] }
 signal-hook = { version = ">=0.4", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
 chrono = { version = ">=0.4.41", default-features = false, features = ["now"] }

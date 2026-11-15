@@ -59,6 +59,7 @@ mod commands;
 mod ffi;
 mod fixes;
 mod hooks;
+mod logging;
 #[cfg(feature = "bench-support")]
 #[doc(hidden)]
 pub use ffi::python::bench_support;
