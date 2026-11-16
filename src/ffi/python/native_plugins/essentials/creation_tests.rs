@@ -33,6 +33,9 @@ const MAPPOOL_DEFAULTS: [(&str, &CStr); 3] = [
     ("fs_basepath", c"/nonexistent-shinqlx-test-basepath"),
 ];
 
+/// Marks a cvar the engine does not know, so that looking it up finds nothing.
+const UNSET: &CStr = c"<unset>";
+
 fn leaked(text: &str) -> &'static CStr {
     Box::leak(
         CString::new(text)
@@ -55,7 +58,14 @@ where
         .chain(mappool_cvars.iter())
         .copied()
         .collect();
-    let mut engine = engine_with_cvars(&cvars);
+    let (unset, known): (Vec<_>, Vec<_>) = cvars.iter().partition(|(_, value)| *value == UNSET);
+    let known: Vec<_> = known.into_iter().copied().collect();
+    let mut engine = unset
+        .into_iter()
+        .fold(engine_with_cvars(&known), |engine, (name, _)| {
+            let name = *name;
+            engine.with_find_cvar(move |cmd| cmd == name, |_| None, 0..)
+        });
     engine.run(|| {
         Python::attach(|py| {
             let dispatchers = Bound::new(py, EventDispatcherManager::default())
@@ -152,6 +162,52 @@ fn creating_the_plugin_falls_back_to_the_basepath_for_the_mappool(_pyshinqlx_set
         |_, plugin| {
             let mappool = plugin.get().mappool.clone().expect("no map pool loaded");
             assert_eq!(mappool["overkill"], ["ca"]);
+        },
+    );
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn creating_the_plugin_without_a_homepath_reads_the_mappool_from_the_basepath(
+    _pyshinqlx_setup: (),
+) {
+    let base = tempfile::tempdir().expect("could not create the temp dir");
+    std::fs::create_dir(base.path().join("baseq3")).expect("could not create baseq3");
+    std::fs::write(base.path().join("baseq3").join("pool.txt"), "overkill|ca\n")
+        .expect("could not write the map pool");
+    let base_path = leaked(&base.path().to_string_lossy());
+
+    with_created_plugin(
+        &[
+            ("sv_mappoolfile", c"pool.txt"),
+            ("fs_homepath", UNSET),
+            ("fs_basepath", base_path),
+        ],
+        |_, plugin| {
+            let mappool = plugin.get().mappool.clone().expect("no map pool loaded");
+            assert_eq!(mappool["overkill"], ["ca"]);
+        },
+    );
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn creating_the_plugin_without_any_search_path_starts_without_a_mappool(_pyshinqlx_setup: ()) {
+    with_created_plugin(
+        &[
+            ("sv_mappoolfile", c"pool.txt"),
+            ("fs_homepath", UNSET),
+            ("fs_basepath", UNSET),
+        ],
+        |py, plugin| {
+            assert!(plugin.get().mappool.is_none());
+            let commands = plugin
+                .getattr(intern!(py, "commands"))
+                .and_then(|commands| commands.len())
+                .expect("could not get the commands");
+            assert_eq!(commands, 41);
         },
     );
 }
