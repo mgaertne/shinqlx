@@ -4154,6 +4154,50 @@ for event in frame_tasks.queue:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn later_with_frames_runs_after_as_many_handled_frames(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            py.run(
+                cr#"
+import shinqlx
+
+calls = []
+
+@shinqlx.later(frames=3)
+def remember():
+    calls.append(True)
+
+@shinqlx.next_frame
+def remember_next():
+    calls.append("next")
+
+remember()
+remember_next()
+"#,
+                None,
+                None,
+            )
+            .expect("could not defer the calls");
+
+            let mut calls_after_frame = vec![];
+            for _ in 0..4 {
+                assert!(try_run_frame_tasks(py).is_ok());
+                transfer_next_frame_tasks(py);
+                let calls = py
+                    .eval(c"len(calls)", None, None)
+                    .and_then(|calls| calls.extract::<usize>())
+                    .expect("could not count the calls");
+                calls_after_frame.push(calls);
+            }
+
+            assert_eq!(calls_after_frame, vec![0, 1, 1, 2]);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn handle_frame_when_frame_tasks_throws_exception(_pyshinqlx_setup: ()) {
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()

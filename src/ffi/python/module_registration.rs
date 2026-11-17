@@ -11,7 +11,7 @@ use super::{
     DEFAULT_PLUGINS, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, GameTypes, MODULES, PluginLoadError,
     PluginUnloadError, RED_TEAM_CHAT_CHANNEL, SHINQLX_THREADNAME, SPECTATOR_CHAT_CHANNEL, Teams,
     decorators, delay, events_enum::register_events_enum, get_stats_listener, handlers, initialize,
-    initialize_cvars, load_plugin, load_preset_plugins, next_frame, prelude::*,
+    initialize_cvars, later, load_plugin, load_preset_plugins, next_frame, prelude::*,
     pyshinqlx_configure_logger, pyshinqlx_get_logger, pyshinqlx_handle_exception,
     pyshinqlx_handle_threading_exception, pyshinqlx_log_exception, pyshinqlx_owner,
     pyshinqlx_parse_variables, reload_plugin, set_map_subtitles, set_plugins_version, thread,
@@ -511,6 +511,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(set_map_subtitles, m)?)?;
     m.add_function(wrap_pyfunction!(next_frame, m)?)?;
     m.add_function(wrap_pyfunction!(delay, m)?)?;
+    m.add_function(wrap_pyfunction!(later, m)?)?;
     m.add_function(wrap_pyfunction!(thread, m)?)?;
     m.add_function(wrap_pyfunction!(load_preset_plugins, m)?)?;
     m.add_function(wrap_pyfunction!(load_plugin, m)?)?;

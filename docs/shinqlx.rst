@@ -792,6 +792,19 @@ Functions
 
    :param float time: The number of seconds before the function should be called.
 
+.. decorator:: later(*, seconds=None, frames=None)
+
+   Defers a function call by a number of seconds or by a number of game frames. Exactly one of the two keyword-only
+   arguments has to be given; both or none raise a :class:`TypeError`.
+
+   ``later(frames=1)`` is the same as :func:`next_frame`, and ``later(seconds=x)`` is the same as :func:`delay`. With
+   more than one frame, the function is called in the last of them. Every call of the decorated function counts its
+   frames on its own. The decorated function returns ``None`` right away, like with the other deferring decorators.
+
+   :param float seconds: The number of seconds before the function is called. Must be finite and not negative.
+   :param int frames: The number of game frames before the function is called. Must be positive.
+   :raises ValueError: if a value is out of range.
+
 .. decorator:: thread
 
    Starts a thread with the function passed as its target. If a function decorated with this is called within a function also decorated, it will **not** create a second thread.

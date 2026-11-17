@@ -195,3 +195,32 @@ The player stays connected to the server and respawns as usual, which is what di
                return shinqlx.ReturnCodes.USAGE
 
            shinqlx.slay_with_mod(target.id, shinqlx.MeansOfDeath.SUICIDE)
+
+Deferring calls
+===============
+
+Plugins must not block the frame. :func:`later` defers a call by a number of seconds or by a number of game frames,
+and the decorated method returns at once. Pass exactly one of ``seconds`` and ``frames``.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class countdown(shinqlx.Plugin):
+       @shinqlx.command("go", permission=shinqlx.Permissions.PLAYER)
+       def cmd_go(self, player, msg, channel):
+           self.msg("Ready ...")
+           self.announce("Go!")
+           self.follow_up()
+
+       @shinqlx.later(seconds=3)
+       def announce(self, text):
+           self.msg(text)
+
+       @shinqlx.later(frames=2)
+       def follow_up(self):
+           self.msg("Two frames later.")
+
+``later(frames=1)`` is the same as :func:`next_frame`, and ``later(seconds=3)`` is the same as ``delay(3)``. Whoever sends
+a long text to one player spreads it over several calls with ``later`` instead of sending it in one frame.

@@ -63,6 +63,21 @@ def deferred_call_exposes_its_function():
     return any(referent is function for referent in gc.get_referents(shinqlx.next_frame(function)))
 
 
+def frame_countdown_exposes_its_references():
+    def function():
+        pass
+
+    arguments, keywords = (1,), {"key": 2}
+    shinqlx.later(frames=2)(function)(*arguments, **keywords)
+    countdown = shinqlx.next_frame_tasks.get(block=False)[0]
+    referents = gc.get_referents(countdown)
+    return (
+        any(referent is function for referent in referents)
+        and any(referent == arguments for referent in referents)
+        and any(referent == keywords for referent in referents)
+    )
+
+
 def resident_kib():
     with open("/proc/self/statm") as statm:
         return int(statm.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") // 1024
@@ -150,6 +165,17 @@ fn class_with_deferred_method_is_garbage_collected(_pyshinqlx_setup: ()) {
 fn deferred_call_exposes_its_function_to_the_garbage_collector(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         assert!(check(py, "deferred_call_exposes_its_function"));
+    });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn frame_countdown_exposes_its_references_to_the_garbage_collector(
+    #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+) {
+    Python::attach(|py| {
+        assert!(check(py, "frame_countdown_exposes_its_references"));
     });
 }
 

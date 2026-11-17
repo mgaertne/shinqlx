@@ -964,6 +964,60 @@ pub(super) fn delay<'py>(py: Python<'py>, time: f64) -> PyResult<Bound<'py, PyAn
     .map(Bound::into_any)
 }
 
+/// Defer a function call by a number of seconds or by a number of game frames.
+///
+/// Exactly one of *seconds* and *frames* has to be given. One frame is the same as
+/// :func:`next_frame`, and the seconds are the same as in :func:`delay`.
+#[pyfunction]
+#[pyo3(signature = (*, seconds=None, frames=None))]
+pub(super) fn later<'py>(
+    py: Python<'py>,
+    seconds: Option<f64>,
+    frames: Option<i64>,
+) -> PyResult<Bound<'py, PyAny>> {
+    let deferral = match (seconds, frames) {
+        (Some(_), Some(_)) => {
+            return Err(PyTypeError::new_err(
+                "later() takes either seconds or frames, not both",
+            ));
+        }
+        (None, None) => {
+            return Err(PyTypeError::new_err(
+                "later() needs either seconds or frames",
+            ));
+        }
+        (Some(seconds), None) if seconds.is_finite() && seconds >= 0.0 => Deferral::Delay(seconds),
+        (Some(_), None) => {
+            return Err(PyValueError::new_err(
+                "seconds has to be a finite number that is not negative",
+            ));
+        }
+        (None, Some(1)) => Deferral::NextFrame,
+        (None, Some(frames)) => Deferral::Frames(
+            u32::try_from(frames)
+                .ok()
+                .filter(|&frames| frames >= 1)
+                .ok_or_else(|| PyValueError::new_err("frames has to be a positive integer"))?,
+        ),
+    };
+
+    PyCFunction::new_closure(
+        py,
+        Some(c"later_decorator"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let func = only_handler(arguments)?;
+            if !func.is_callable() {
+                cold_path();
+                return Err(PyValueError::new_err("'func' must be callable"));
+            }
+
+            DeferredCall::wrap(&func, deferral).map(Bound::unbind)
+        },
+    )
+    .map(Bound::into_any)
+}
+
 /// Starts a thread with the function passed as its target. If a function decorated
 /// with this is called within a function also decorated, it will **not** create a second
 /// thread unless told to do so with the *force* keyword.
@@ -1821,6 +1875,266 @@ TestClass().test_func()
                         .cast::<PyBool>()
                         .is_ok_and(|bool_value| bool_value.is_true()))
             );
+        });
+    }
+}
+
+#[cfg(test)]
+mod later_tests {
+    use std::ffi::CString;
+
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    use crate::prelude::*;
+
+    const RUN_FRAME: &str = r#"
+def run_frame():
+    pending = []
+    while not shinqlx.next_frame_tasks.empty():
+        pending.append(shinqlx.next_frame_tasks.get(block=False))
+    for func, args, kwargs in pending:
+        func(*args, **kwargs)
+"#;
+
+    fn run(py: Python<'_>, code: &str) -> PyResult<()> {
+        let code = CString::new(format!("import shinqlx\n{RUN_FRAME}\n{code}"))
+            .expect("this should not happen");
+        py.run(&code, None, None)
+    }
+
+    #[rstest]
+    #[case::both("seconds=1, frames=1", "TypeError")]
+    #[case::neither("", "TypeError")]
+    #[case::positional("5", "TypeError")]
+    #[case::negative_seconds("seconds=-1", "ValueError")]
+    #[case::nan_seconds("seconds=float('nan')", "ValueError")]
+    #[case::infinite_seconds("seconds=float('inf')", "ValueError")]
+    #[case::zero_frames("frames=0", "ValueError")]
+    #[case::negative_frames("frames=-3", "ValueError")]
+    #[case::too_many_frames("frames=2**40", "ValueError")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_rejects_invalid_arguments(
+        #[case] arguments: &str,
+        #[case] exception: &str,
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup)] _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                &format!(
+                    "try:\n    shinqlx.later({arguments})\nexcept {exception}:\n    pass\nelse:\n    raise AssertionError('no {exception}')"
+                ),
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_rejects_a_function_that_is_not_callable(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup)] _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                "try:\n    shinqlx.later(frames=2)(5)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('no ValueError')",
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_with_one_frame_runs_in_the_next_frame(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                r#"
+calls = []
+
+@shinqlx.later(frames=1)
+def remember(value, factor=1):
+    calls.append(value * factor)
+
+assert remember(3, factor=2) is None
+assert calls == []
+assert shinqlx.next_frame_tasks.qsize() == 1
+run_frame()
+assert calls == [6]
+assert shinqlx.next_frame_tasks.qsize() == 0
+"#,
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_with_several_frames_runs_in_the_last_of_them(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                r#"
+calls = []
+
+@shinqlx.later(frames=3)
+def remember(value, factor=1):
+    calls.append(value * factor)
+
+assert remember(3, factor=2) is None
+seen = []
+for _ in range(5):
+    run_frame()
+    seen.append(list(calls))
+
+assert seen == [[], [], [6], [6], [6]], seen
+assert shinqlx.next_frame_tasks.qsize() == 0
+"#,
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_with_several_frames_counts_every_call_on_its_own(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                r#"
+calls = []
+
+@shinqlx.later(frames=2)
+def remember(value):
+    calls.append(value)
+
+remember(1)
+run_frame()
+remember(2)
+seen = []
+for _ in range(3):
+    run_frame()
+    seen.append(list(calls))
+
+assert seen == [[1], [1, 2], [1, 2]], seen
+"#,
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_with_several_frames_survives_a_failing_function(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                r#"
+@shinqlx.later(frames=2)
+def failing():
+    raise RuntimeError("expected")
+
+failing()
+run_frame()
+try:
+    run_frame()
+except RuntimeError:
+    pass
+else:
+    raise AssertionError("no RuntimeError")
+assert shinqlx.next_frame_tasks.qsize() == 0
+"#,
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[case::fraction("0.0001")]
+    #[case::zero("0")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_with_seconds_enters_the_function_into_the_frame_tasks(
+        #[case] seconds: &str,
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                &format!(
+                    r#"
+calls = []
+
+@shinqlx.later(seconds={seconds})
+def remember(value):
+    calls.append(value)
+
+remember(4)
+assert calls == []
+assert len(shinqlx.frame_tasks.queue) == 1
+assert shinqlx.next_frame_tasks.qsize() == 0
+shinqlx.frame_tasks.run()
+assert calls == [4]
+"#
+                ),
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn later_decorates_a_method_and_binds_its_instance(
+        #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
+    ) {
+        Python::attach(|py| {
+            let result = run(
+                py,
+                r#"
+class Sample:
+    def __init__(self):
+        self.calls = []
+
+    @shinqlx.later(frames=2)
+    def remember(self, value):
+        """Remembers the value."""
+        self.calls.append(value)
+
+sample = Sample()
+sample.remember(8)
+run_frame()
+assert sample.calls == []
+run_frame()
+assert sample.calls == [8]
+assert Sample.remember.__name__ == "remember"
+assert Sample.remember.__doc__ == "Remembers the value."
+"#,
+            );
+
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 }

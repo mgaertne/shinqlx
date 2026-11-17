@@ -52,7 +52,9 @@ Check these when you upgrade.
   other plugins.
 * **Decorators:** `hook` and `command` register hooks and commands when the plugin is loaded, their signatures are
   checked against the arguments of the event. `game` and typed arguments for `command` are new. `next_frame`, `delay`
-  and `thread` are implemented in Rust.
+  and `thread` are implemented in Rust. The new `later(seconds=…)` and `later(frames=…)` defer a call by seconds or by
+  game frames; `later(frames=1)` equals `next_frame` and `later(seconds=x)` equals `delay(x)`. It is available in the
+  `shinqlx` namespace only.
 * **Convenience enums** in the `shinqlx` namespace: `Weapon`, `Permissions`, `ConfigString`, `Holdable`, `GameStates`
   and the string enumeration `Events`. The enums compare only with themselves and with integers. The `Cvar`
   descriptor declares typed cvars of a plugin.

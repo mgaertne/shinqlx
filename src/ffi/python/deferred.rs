@@ -10,7 +10,60 @@ use pyo3::{
 pub(super) enum Deferral {
     NextFrame,
     Delay(f64),
+    /// More than one frame; a single frame is `NextFrame`.
+    Frames(u32),
     Thread,
+}
+
+fn enqueue_for_next_frame<'py>(
+    py: Python<'py>,
+    func: &Bound<'py, PyAny>,
+    args: &Bound<'py, PyTuple>,
+    kwargs: &Bound<'py, PyDict>,
+) -> PyResult<()> {
+    py.import(intern!(py, "shinqlx"))?
+        .getattr(intern!(py, "next_frame_tasks"))?
+        .call_method1(intern!(py, "put_nowait"), ((func, args, kwargs),))?;
+    Ok(())
+}
+
+/// Waits the frames that are left by queueing itself for the next frame again, and calls the function in the last one.
+#[pyclass(module = "shinqlx", name = "FrameCountdown", frozen)]
+pub(super) struct FrameCountdown {
+    func: Py<PyAny>,
+    args: Py<PyTuple>,
+    kwargs: Py<PyDict>,
+    remaining: u32,
+}
+
+#[pymethods]
+impl FrameCountdown {
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.func)?;
+        visit.call(&self.args)?;
+        visit.call(&self.kwargs)
+    }
+
+    fn __call__(&self, py: Python<'_>) -> PyResult<()> {
+        if self.remaining <= 1 {
+            self.func
+                .bind(py)
+                .call(self.args.bind(py), Some(self.kwargs.bind(py)))?;
+            return Ok(());
+        }
+
+        let countdown = Bound::new(
+            py,
+            Self {
+                func: self.func.clone_ref(py),
+                args: self.args.clone_ref(py),
+                kwargs: self.kwargs.clone_ref(py),
+                remaining: self.remaining - 1,
+            },
+        )?
+        .into_any();
+        enqueue_for_next_frame(py, &countdown, &PyTuple::empty(py), &PyDict::new(py))
+    }
 }
 
 /// A function that is not run when it is called, but deferred as configured. It is a descriptor,
@@ -104,9 +157,21 @@ impl DeferredCall {
 
         match self.deferral {
             Deferral::NextFrame => {
-                py.import(intern!(py, "shinqlx"))?
-                    .getattr(intern!(py, "next_frame_tasks"))?
-                    .call_method1(intern!(py, "put_nowait"), ((func, args, kwargs),))?;
+                enqueue_for_next_frame(py, func, args, &kwargs)?;
+                Ok(None)
+            }
+            Deferral::Frames(frames) => {
+                let countdown = Bound::new(
+                    py,
+                    FrameCountdown {
+                        func: func.clone().unbind(),
+                        args: args.clone().unbind(),
+                        kwargs: kwargs.unbind(),
+                        remaining: frames,
+                    },
+                )?
+                .into_any();
+                enqueue_for_next_frame(py, &countdown, &PyTuple::empty(py), &PyDict::new(py))?;
                 Ok(None)
             }
             Deferral::Delay(time) => {
