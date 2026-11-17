@@ -31,9 +31,13 @@ Check these when you upgrade.
   positional calls of it are rejected. `lrem` and `zincrby` are fixed.
 * **Rules queries** are limited on their own, and `qlx_steamQueryDropRules` drops them.
 * **The level `WARN` is printed as `WARNING`**, as the Python logging does.
-* **Logging** goes through one log4rs configuration for Rust and Python (`shinqlx_log.yml`, now in YAML). See the
-  logging page of the documentation. Handlers on the logger of `shinqlx` and uses of `main_logger` are reported by the
-  migration tool.
+* **Logging** goes through one log4rs configuration for Rust and Python (`shinqlx_log.yml`, now in YAML). The file
+  appender is asynchronous and holds records back until the log file is known, so logging does not block the frame
+  (100 console lines in one frame cost 7 ms before and 0.4 ms after in a local test). Every record of Rust carries the
+  logging function as `func` (`[LEVEL @ target.func]`). `shinqlx_log.yml` is not part of the wheel, only of the source
+  distribution and the documentation; it is looked up in the working directory first and then in `fs_homepath`. The chat
+  log stays a separate plugin (`log`). See the logging page of the documentation. Handlers on the logger of `shinqlx`
+  and uses of `main_logger` are reported by the migration tool.
 * **Optimization profile:** the release profile optimizes for speed (`opt-level = 3`) instead of size. A different
   level can be set with `CARGO_PROFILE_RELEASE_OPT_LEVEL`.
 * **Failing `plugin_manager` commands** log their traceback instead of `NoneType`.
