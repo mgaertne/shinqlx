@@ -120,9 +120,10 @@ exec $basepath/run_server_shinqlx.sh \
 |---------------------|---------|-----------------------------------------------------------------------------------|
 | `alloc`             | yes     | jemalloc (mimalloc on Windows) as global allocator                                |
 | `steam-query-limit` | yes     | rate limit for server queries against reflection and floods                       |
-| `patches`           | no      | enables `clientkick-fix` and `fps-patch`, experimental                            |
+| `patches`           | no      | enables `clientkick-fix`, `fps-patch`, `rcon-disconnect-fix` and `steam-query-limit` |
 | `clientkick-fix`    | no      | patch for the callvote clientkick lookup in `qagame`, experimental                |
 | `fps-patch`         | no      | `qagame` registers `sv_fps` with 125 instead of the read-only 40      |
+| `rcon-disconnect-fix` | yes   | drops the engine's "zmq RCON client disconnected" report, which crashes the server when several RCON clients die at once |
 | `bench-support`     | no      | exposes internals to the benchmarks, not for production builds                    |
 
 Enable or disable features when building, e.g. `maturin build --release --features patches`, or without the query

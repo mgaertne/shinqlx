@@ -119,7 +119,7 @@ criterion = { version = ">=0.8", default-features = false, features = ["cargo_be
 criterion-macro = { version = ">=0.4", default-features = false }
 
 [features]
-default = ["alloc", "steam-query-limit"]
+default = ["alloc", "steam-query-limit", "rcon-disconnect-fix"]
 # use jemalloc (mimalloc on Windows) as global allocator instead of the system allocator
 alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 # rate limit for server queries (A2S_INFO, A2S_PLAYER, A2S_RULES) against reflection and flood attacks
@@ -128,8 +128,10 @@ steam-query-limit = []
 clientkick-fix = ["dep:region"]
 # let qagame register sv_fps with 125 instead of the read-only default 40, experimental
 fps-patch = ["dep:region"]
-# all patches of qagame
-patches = ["clientkick-fix", "fps-patch"]
+# drop the engine's report about a disconnected ZMQ RCON client, which crashes the server when several clients die at once
+rcon-disconnect-fix = []
+# all patches and fixes
+patches = ["clientkick-fix", "fps-patch", "rcon-disconnect-fix", "steam-query-limit"]
 # expose internals to the benchmarks, not meant for production builds
 bench-support = []
 

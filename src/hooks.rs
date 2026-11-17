@@ -588,6 +588,11 @@ pub(crate) fn shinqlx_com_printf<T>(msg: T)
 where
     T: AsRef<str>,
 {
+    #[cfg(feature = "rcon-disconnect-fix")]
+    if crate::fixes::rcon_disconnect::is_disconnect_notice(msg.as_ref()) {
+        return;
+    }
+
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         let Some(_) = console_print_dispatcher(msg.as_ref()) else {
             return;
@@ -1671,6 +1676,22 @@ mod hooks_tests {
             .with_com_printf(predicate::eq("Hello World!"), 1)
             .run(|| {
                 shinqlx_com_printf("Hello World!");
+            });
+    }
+
+    #[test]
+    #[serial]
+    #[cfg(feature = "rcon-disconnect-fix")]
+    fn com_printf_drops_the_rcon_disconnect_report() {
+        let console_print_dispatcher_ctx = console_print_dispatcher_context();
+        console_print_dispatcher_ctx.expect().times(0);
+
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::always(), 0)
+            .run(|| {
+                shinqlx_com_printf(
+                    "zmq RCON client disconnected: 4a3fc7789df54d46b162bef0b2182d0e",
+                );
             });
     }
 
