@@ -17,6 +17,8 @@ Check these when you upgrade.
   * Plugins that only worked around the crash (such as `rcon_cleanup_guard`) are no longer needed.
   * To keep the report, build without the feature: `--no-default-features --features alloc,steam-query-limit`.
 * **Python 3.9 or newer is required.** Python 3.8 is dropped, because pyo3 requires at least 3.9.
+* **`pyzmq` is no longer a dependency.** The stats listener is implemented in Rust, nothing in shinqlx imports `zmq`.
+  A plugin that does `import zmq` itself has to bring `pyzmq` along (`pip install pyzmq`).
 * **The feature `patches` is split.** It now enables `clientkick-fix`, `fps-patch`, `rcon-disconnect-fix` and
   `steam-query-limit`. Select single patches with their own features.
 * **`DEFAULT` in `qlx_plugins` is expanded at its position** instead of appending the default plugins at the end.
