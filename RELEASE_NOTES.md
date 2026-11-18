@@ -25,7 +25,7 @@ Check these when you upgrade.
     unlimited wait). It is read at every map load. In the local test, clients that read their replies received the same
     number of lines with `25`, `0` and the unlimited wait. A client that stops reading holds about 2.5 MB of output
     with default buffers; later lines are discarded for this client, which stays registered (see `DDOS-PROTECTION.md`).
-  * Plugins that only worked around the crash (such as `rcon_cleanup_guard`) are no longer needed.
+  * Plugins that only worked around the crash are no longer needed.
   * To keep the report and the unlimited wait, build without the feature:
     `--no-default-features --features alloc,steam-query-limit`.
 * **Python 3.9 or newer is required.** Python 3.8 is dropped, because pyo3 requires at least 3.9.
