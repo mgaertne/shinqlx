@@ -183,10 +183,12 @@ connections per port and 500 unfinished handshakes had no effect. The stats port
 subscriber that never reads, 150 subscribers and about twenty reconnects a second did not disturb the server, with
 and without the feature. The frame times agree: in three runs of 120 seconds each per case (four bots, after a
 minute of warm-up, builds with and without the feature), the worst frame was 26 to 28 ms without load and 27 to 32 ms
-with the reconnects, and no frame took longer than 45 ms. The first 70 seconds after the server start were left out of
-this measurement; one earlier run showed frames of about 200 ms there, and it was not tested separately whether the
-start itself or the reconnects caused them. Without a `zmq_stats_password` anybody who reaches the stats port can read the event stream,
-which contains player names and Steam IDs, so set one unless the port stays on loopback.
+with the reconnects, and no frame took longer than 45 ms. Three more runs per case with the reconnects starting right
+at the server start (build with the feature) showed the same: the worst frame in the first 30 seconds was 43 to 53 ms
+(at most two frames above 45 ms) with and without the reconnects, and below 31 ms afterwards. A single earlier run
+with frames of about 200 ms at the start did not repeat. Without a `zmq_stats_password` anybody who reaches the stats
+port can read the event stream, which contains player names and Steam IDs, so set one unless the port stays on
+loopback.
 
 What to do about it:
 
