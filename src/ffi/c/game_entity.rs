@@ -325,6 +325,10 @@ impl GameEntity {
             cold_path();
             return;
         };
+        #[allow(
+            unused_qualifications,
+            reason = "in tests GameItem is the mock, the engine call needs the real type"
+        )]
         let Ok(mut gitem) =
             crate::ffi::c::game_item::GameItem::try_from(game_client.get_holdable())
         else {
@@ -1988,7 +1992,7 @@ mod game_entity_tests {
         let function_address = function_bytes.0.as_ptr() as usize;
         let function_pointer =
             // SAFETY: the address belongs to a function with this signature.
-            unsafe { core::mem::transmute::<usize, extern "C" fn(c_int)>(function_address) };
+            unsafe { mem::transmute::<usize, extern "C" fn(c_int)>(function_address) };
 
         MockEngineBuilder::default()
             .configure(|mock_engine| {

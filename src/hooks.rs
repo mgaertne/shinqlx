@@ -1,6 +1,14 @@
 use alloc::borrow::Cow;
+#[cfg(feature = "zmq-rcon-fix")]
+use core::sync::atomic::AtomicI32;
+#[cfg(any(
+    all(target_os = "linux", feature = "steam-query-limit"),
+    feature = "zmq-rcon-fix",
+    test
+))]
+use core::sync::atomic::Ordering;
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU64};
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
@@ -9,8 +17,21 @@ use core::{
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use std::{sync::LazyLock, time::Instant};
 
+#[cfg(feature = "zmq-rcon-fix")]
+use log::info;
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
+#[cfg(feature = "zmq-rcon-fix")]
+use crate::fixes::zmq_rcon::{
+    SEND_TIMEOUT_CVAR, SendTimeoutError, configured_socket, effective_send_timeout,
+    is_disconnect_notice,
+};
+#[cfg(any(
+    all(target_os = "linux", feature = "steam-query-limit"),
+    feature = "zmq-rcon-fix",
+    test
+))]
+use crate::quake_live_engine::FindCVar;
 use crate::{
     MAIN_ENGINE,
     ffi::{c::prelude::*, python::prelude::*},
@@ -24,7 +45,7 @@ use crate::{
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use crate::{
     fixes::query_rate_limiter::{QueryLimits, QueryRateLimiter},
-    quake_live_engine::{FindCVar, HandleSteamPacket},
+    quake_live_engine::HandleSteamPacket,
 };
 
 fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
@@ -589,7 +610,7 @@ where
     T: AsRef<str>,
 {
     #[cfg(feature = "zmq-rcon-fix")]
-    if crate::fixes::zmq_rcon::is_disconnect_notice(msg.as_ref()) {
+    if is_disconnect_notice(msg.as_ref()) {
         return;
     }
 
@@ -603,8 +624,7 @@ where
 }
 
 #[cfg(feature = "zmq-rcon-fix")]
-static APPLIED_ZMQ_RCON_SEND_TIMEOUT: core::sync::atomic::AtomicI32 =
-    core::sync::atomic::AtomicI32::new(i32::MIN);
+static APPLIED_ZMQ_RCON_SEND_TIMEOUT: AtomicI32 = AtomicI32::new(i32::MIN);
 
 /// Sets the send timeout of the engine's RCON socket from `qlx_zmqRconSendTimeout`.
 ///
@@ -612,25 +632,23 @@ static APPLIED_ZMQ_RCON_SEND_TIMEOUT: core::sync::atomic::AtomicI32 =
 #[cfg(feature = "zmq-rcon-fix")]
 fn apply_zmq_rcon_send_timeout<T>(main_engine: &T)
 where
-    T: crate::quake_live_engine::FindCVar<&'static str>,
+    T: FindCVar<&'static str>,
 {
-    let Some(socket) = crate::fixes::zmq_rcon::configured_socket() else {
+    let Some(socket) = configured_socket() else {
         return;
     };
-    let timeout = crate::fixes::zmq_rcon::effective_send_timeout(
+    let timeout = effective_send_timeout(
         main_engine
-            .find_cvar(crate::fixes::zmq_rcon::SEND_TIMEOUT_CVAR)
+            .find_cvar(SEND_TIMEOUT_CVAR)
             .map(|cvar| cvar.get_integer()),
     );
     match socket.set_send_timeout(timeout) {
         Ok(()) => {
-            if APPLIED_ZMQ_RCON_SEND_TIMEOUT.swap(timeout, core::sync::atomic::Ordering::AcqRel)
-                != timeout
-            {
-                log::info!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON send timeout: {timeout} ms");
+            if APPLIED_ZMQ_RCON_SEND_TIMEOUT.swap(timeout, Ordering::AcqRel) != timeout {
+                info!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON send timeout: {timeout} ms");
             }
         }
-        Err(crate::fixes::zmq_rcon::SendTimeoutError::SocketNotOpen) => {
+        Err(SendTimeoutError::SocketNotOpen) => {
             debug!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON is not enabled, no send timeout set");
         }
         Err(err) => {
@@ -917,9 +935,9 @@ mod hooks_tests {
     fn is_dummy_address(address: usize) -> bool {
         // SAFETY: the address belongs to a function with this signature.
         let function = unsafe {
-            core::mem::transmute::<*const (), unsafe extern "C" fn()>(
-                core::ptr::with_exposed_provenance(address),
-            )
+            mem::transmute::<*const (), unsafe extern "C" fn()>(ptr::with_exposed_provenance(
+                address,
+            ))
         };
         is_dummy_function(function)
     }
@@ -2579,9 +2597,9 @@ mod hooks_tests {
 
     #[test]
     fn the_packet_buffer_matches_the_layout_the_engine_reads() {
-        assert_eq!(core::mem::offset_of!(SteamPacketBuffer, data), 0x8);
-        assert_eq!(core::mem::offset_of!(SteamPacketBuffer, maxsize), 0x10);
-        assert_eq!(core::mem::offset_of!(SteamPacketBuffer, cursize), 0x14);
+        assert_eq!(mem::offset_of!(SteamPacketBuffer, data), 0x8);
+        assert_eq!(mem::offset_of!(SteamPacketBuffer, maxsize), 0x10);
+        assert_eq!(mem::offset_of!(SteamPacketBuffer, cursize), 0x14);
     }
 
     fn send_query_packets(from: *const netadr_t, packets: usize) -> Vec<c_int> {

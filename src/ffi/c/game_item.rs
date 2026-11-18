@@ -390,7 +390,7 @@ mod game_item_tests {
         function_bytes.0[0x40..0x48].copy_from_slice(&(item_ptr as u64).to_le_bytes());
         // SAFETY: the address belongs to a function with this signature.
         let function_pointer = unsafe {
-            core::mem::transmute::<
+            mem::transmute::<
                 usize,
                 extern "C" fn(*mut gitem_t, &mut vec3_t, &mut vec3_t) -> *mut gentity_t,
             >(function_bytes.0.as_ptr() as usize)

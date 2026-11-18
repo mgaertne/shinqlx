@@ -138,6 +138,7 @@ bench-support = []
 [workspace.lints.rust]
 missing_docs = "warn"
 non_local_definitions = "allow"
+unused_qualifications = "warn"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly,tarpaulin_include)'] }
 
 [workspace.lints.clippy]

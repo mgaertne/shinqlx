@@ -93,11 +93,11 @@ mod tests {
     use super::*;
 
     #[rstest]
-    #[case(log::Level::Error, "ERROR")]
-    #[case(log::Level::Warn, "WARNING")]
-    #[case(log::Level::Info, "INFO")]
-    #[case(log::Level::Debug, "DEBUG")]
-    fn levels_are_printed_like_python_does(#[case] level: log::Level, #[case] expected: &str) {
+    #[case(Level::Error, "ERROR")]
+    #[case(Level::Warn, "WARNING")]
+    #[case(Level::Info, "INFO")]
+    #[case(Level::Debug, "DEBUG")]
+    fn levels_are_printed_like_python_does(#[case] level: Level, #[case] expected: &str) {
         let mut output = Vec::new();
         DottedPatternEncoder::new("{l}|{level}|{K(func)}")
             .encode(
@@ -128,7 +128,7 @@ mod tests {
                 &mut SimpleWriter(&mut output),
                 &Record::builder()
                     .target(target)
-                    .level(log::Level::Info)
+                    .level(Level::Info)
                     .args(format_args!("text"))
                     .key_values(&[("func", "dispatch")].as_slice())
                     .build(),
