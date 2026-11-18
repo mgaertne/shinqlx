@@ -42,7 +42,10 @@ Check these when you upgrade.
   and uses of `main_logger` are reported by the migration tool.
 * **Optimization profile:** the release profile optimizes for speed (`opt-level = 3`) instead of size. A different
   level can be set with `CARGO_PROFILE_RELEASE_OPT_LEVEL`.
-* **Failing `plugin_manager` commands** log their traceback instead of `NoneType`.
+* **Failing `plugin_manager` commands** log their traceback instead of `NoneType`. `load_plugin`,
+  `unload_plugin` and `reload_plugin` raise their errors without logging them, as in minqlx; whoever catches the error
+  logs it (the start through `qlx_plugins` and the plugin manager). The error messages for a missing plugin, a missing class, a class that is no `Plugin` and an unknown plugin source
+  in `qlx_plugins` name the plugin.
 
 ### New features
 

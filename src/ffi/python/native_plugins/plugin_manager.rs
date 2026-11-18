@@ -372,6 +372,12 @@ def uninstall():
                 "load_preset_plugins",
             ] {
                 restored.push(RestoredAttribute::capture(shinqlx.as_any(), name));
+                module
+                    .setattr(
+                        format!("real_{name}"),
+                        shinqlx.getattr(name).expect("no such function"),
+                    )
+                    .expect("could not keep the real function");
                 let fake = module
                     .getattr("make")
                     .and_then(|make| make.call1((name,)))
@@ -520,6 +526,78 @@ def uninstall():
                 )]
             );
             fixtures.assert_logged_the_failure();
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn refused_load_logs_the_error_not_nonetype(_pyshinqlx_setup: ()) {
+        with_manager(&["ban"], |fixtures| {
+            let py = fixtures.plugin.py();
+            let shinqlx = py.import("shinqlx").expect("no shinqlx module");
+            shinqlx
+                .setattr(
+                    "load_plugin",
+                    fixtures
+                        .module
+                        .getattr("real_load_plugin")
+                        .expect("no real function"),
+                )
+                .expect("could not use the real function");
+            let caller = py.None();
+
+            let result = PluginManager::cmd_load(
+                &fixtures.plugin,
+                caller.bind(py),
+                msg(&["load", "r!ban"]),
+                &fixtures.channel,
+            );
+
+            assert_eq!(result.ok(), Some(None));
+            assert_eq!(
+                fixtures.replies(),
+                [
+                    "Plugin ^6r!ban ^7has failed to load: PluginLoadError - Plugin 'ban' is already loaded as a Python plugin. Unload it first."
+                ]
+            );
+            let logged = fixtures.logged();
+            let count = |text: &str| logged.iter().filter(|line| line.contains(text)).count();
+            assert_eq!(
+                count("is already loaded as a Python plugin"),
+                count("Loading plugin 'ban'..."),
+                "{logged:?}"
+            );
+            assert!(
+                logged.iter().all(|line| !line.contains("NoneType")),
+                "{logged:?}"
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn loader_functions_leave_the_logging_of_their_failure_to_the_caller(_pyshinqlx_setup: ()) {
+        with_manager(&[], |fixtures| {
+            for name in [
+                "real_load_plugin",
+                "real_unload_plugin",
+                "real_reload_plugin",
+            ] {
+                let function = fixtures.module.getattr(name).expect("no real function");
+
+                assert!(function.call1(("no_such_plugin",)).is_err());
+            }
+
+            let logged = fixtures.logged();
+            assert!(
+                logged
+                    .iter()
+                    .all(|line| !line.contains("PluginLoadError")
+                        && !line.contains("PluginUnloadError")),
+                "{logged:?}"
+            );
         });
     }
 

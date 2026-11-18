@@ -64,7 +64,9 @@ pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                     plugin_load_order(&plugins_str)
                         .into_iter()
                         .for_each(|plugin| {
-                            let _ = load_plugin(py, plugin);
+                            let _ = load_plugin(py, plugin).tap_err(|e| {
+                                log_exception(py, e);
+                            });
                         });
                 });
 
@@ -98,9 +100,9 @@ pub(super) fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path)
 
     if !module.hasattr(&plugin_pystring)? {
         cold_path();
-        return Err(PluginLoadError::new_err(
-            "The plugin needs to have a class with the exact name as the file, minus the .py.",
-        ));
+        return Err(PluginLoadError::new_err(format!(
+            "The plugin '{plugin}' needs to have a class with the exact name as the file, minus the .py."
+        )));
     }
 
     let plugin_class = module.getattr(&plugin_pystring)?;
@@ -111,9 +113,9 @@ pub(super) fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path)
         .unwrap_or(false)
     {
         cold_path();
-        return Err(PluginLoadError::new_err(
-            "Attempted to load a plugin that is not a subclass of 'shinqlx.Plugin'.",
-        ));
+        return Err(PluginLoadError::new_err(format!(
+            "Attempted to load '{plugin}', which is not a subclass of 'shinqlx.Plugin'."
+        )));
     }
 
     decorators::register_declared_cvars(&plugin_class)?;
@@ -148,7 +150,7 @@ pub(super) fn split_plugin_source(plugin: &str) -> Result<(PluginSource, &str), 
         Some(("p", name)) => Ok((PluginSource::Python, name)),
         Some(("r", name)) => Ok((PluginSource::Native, name)),
         Some((prefix, _)) => Err(format!(
-            "Unknown plugin source '{prefix}!', use 'p!' for Python or 'r!' for Rust plugins."
+            "Unknown plugin source '{prefix}!' in '{plugin}', use 'p!' for Python or 'r!' for Rust plugins."
         )),
     }
 }
@@ -165,7 +167,9 @@ pub(super) fn python_plugin_file_exists(plugin: &str) -> bool {
 pub(super) fn try_load_native_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugin = native_plugins::create_native_plugin(py, plugin).unwrap_or_else(|| {
         cold_path();
-        Err(PluginLoadError::new_err("No such plugin exists."))
+        Err(PluginLoadError::new_err(format!(
+            "No such plugin exists: '{plugin}'."
+        )))
     })?;
 
     py.get_type::<Plugin>()
@@ -237,9 +241,7 @@ pub(super) fn load_plugin_with(
             return reload_plugin(py, plugin);
         }
 
-        return try_load_native_plugin(py, plugin).tap_err(|e| {
-            log_exception(py, e);
-        });
+        return try_load_native_plugin(py, plugin);
     }
 
     try_get_plugins_path().map_or_else(
@@ -254,7 +256,9 @@ pub(super) fn load_plugin_with(
 
             if !joined_path.as_path().is_file() {
                 cold_path();
-                return Err(PluginLoadError::new_err("No such plugin exists."));
+                return Err(PluginLoadError::new_err(format!(
+                    "No such plugin exists: '{plugin}'."
+                )));
             }
 
             let loaded_plugins = py
@@ -265,9 +269,7 @@ pub(super) fn load_plugin_with(
                 return reload_plugin(py, plugin);
             }
 
-            try_load_plugin(py, plugin, plugins_path.as_path()).tap_err(|e| {
-                log_exception(py, e);
-            })
+            try_load_plugin(py, plugin, plugins_path.as_path())
         },
     )
 }
@@ -401,9 +403,7 @@ pub(crate) fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         return Err(PluginUnloadError::new_err(error_msg));
     }
 
-    try_unload_plugin(py, plugin).tap_err(|e| {
-        log_exception(py, e);
-    })
+    try_unload_plugin(py, plugin)
 }
 
 pub(super) fn is_loaded_native_plugin(py: Python<'_>, plugin: &str) -> bool {
@@ -444,9 +444,7 @@ pub(crate) fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     };
     let _ = unload_plugin(py, plugin);
 
-    try_reload_plugin(py, plugin, &reload_target).tap_err(|e| {
-        log_exception(py, e);
-    })
+    try_reload_plugin(py, plugin, &reload_target)
 }
 
 #[cfg(test)]
@@ -473,6 +471,14 @@ mod plugin_source_tests {
     #[case("!balance")]
     fn split_plugin_source_rejects_unknown_prefixes(#[case] plugin: &str) {
         assert!(split_plugin_source(plugin).is_err());
+    }
+
+    #[test]
+    fn split_plugin_source_names_the_rejected_entry() {
+        assert!(
+            split_plugin_source("x!balance")
+                .is_err_and(|message| message.contains("'x!'") && message.contains("'x!balance'"))
+        );
     }
 }
 
