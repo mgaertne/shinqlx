@@ -129,6 +129,10 @@ exec $basepath/run_server_shinqlx.sh \
 Enable or disable features when building, e.g. `maturin build --release --features patches`, or without the query
 limit: `maturin build --release --no-default-features --features alloc`.
 
+The build uses the baseline of the target architecture, so that the result runs on any CPU of it. To optimize for the
+machine that builds and runs the server, set `RUSTFLAGS="-C target-cpu=native"` or the same flag in your own
+`~/.cargo/config.toml`; do not copy such a build to another machine.
+
 # Protection against query floods
 
 Quake Live servers can be abused as reflectors by forged server queries. shinqlx contains a rate limit for these

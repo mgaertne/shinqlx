@@ -52,6 +52,9 @@ Check these when you upgrade.
   distribution and the documentation; it is looked up in the working directory first and then in `fs_homepath`. The chat
   log stays a separate plugin (`log`). See the logging page of the documentation. Handlers on the logger of `shinqlx`
   and uses of `main_logger` are reported by the migration tool.
+* **No `target-cpu=native` in the repository.** `.cargo/config.toml` no longer sets it, so builds from the source
+  distribution and the CI binaries run on any CPU of their architecture. Whoever wants it sets `RUSTFLAGS` or the flag
+  in the own `~/.cargo/config.toml` (see the README).
 * **Optimization profile:** the release profile optimizes for speed (`opt-level = 3`) instead of size. A different
   level can be set with `CARGO_PROFILE_RELEASE_OPT_LEVEL`.
 * **Failing plugin loads** are logged once, with their traceback instead of `NoneType`: `load_plugin`, `unload_plugin`
