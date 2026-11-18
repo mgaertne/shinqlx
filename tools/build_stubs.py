@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STUB_SOURCE = ROOT / "python" / "shinqlx"
 SHIM_SOURCE = ROOT / "python" / "minqlx"
 CARGO_MANIFEST = ROOT / "Cargo.toml"
+LICENSE_FILE = ROOT / "LICENSE"
 
 HOMEPAGE = "https://github.com/mgaertne/shinqlx"
 SHINQLX_README = f"""# shinqlx-stubs
@@ -130,7 +131,7 @@ def render_pyproject(name: str, version: str, description: str, requirements: li
     """Renders the ``pyproject.toml`` of a stub-only distribution that holds the package ``<name>``."""
     dependencies = ", ".join(f'"{requirement}"' for requirement in requirements)
     return f"""[build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -139,9 +140,9 @@ version = "{version}"
 description = "{description}"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {{ text = "BSD-3-Clause" }}
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 classifiers = [
-    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Typing :: Stubs Only",
@@ -171,6 +172,7 @@ def build_shinqlx_stubs(destination: Path, version: str) -> None:
     pyproject = render_pyproject("shinqlx-stubs", version, "Type stubs for shinqlx", [], REDIS_REQUIREMENT)
     (destination / "pyproject.toml").write_text(pyproject)
     (destination / "README.md").write_text(SHINQLX_README)
+    shutil.copyfile(LICENSE_FILE, destination / "LICENSE")
 
 
 def build_minqlx_stubs(destination: Path, version: str) -> None:
@@ -190,6 +192,7 @@ def build_minqlx_stubs(destination: Path, version: str) -> None:
     )
     (destination / "pyproject.toml").write_text(pyproject)
     (destination / "README.md").write_text(MINQLX_README)
+    shutil.copyfile(LICENSE_FILE, destination / "LICENSE")
 
 
 def build(output: Path, version: str) -> None:

@@ -150,6 +150,17 @@ class BuildTests(unittest.TestCase):
         self.assertIn(f'dependencies = ["shinqlx-stubs=={VERSION}"]', minqlx)
         self.assertIn("dependencies = []", shinqlx)
 
+    def test_license_is_an_spdx_expression_with_the_license_file_beside_it(self) -> None:
+        for name in ("shinqlx-stubs", "minqlx-stubs"):
+            with self.subTest(name):
+                distribution = self.output / name
+                text = (distribution / "pyproject.toml").read_text()
+                self.assertIn('license = "BSD-3-Clause"', text)
+                self.assertIn('license-files = ["LICENSE"]', text)
+                self.assertIn("setuptools>=77", text)
+                self.assertNotIn("License ::", text)
+                self.assertEqual(build_stubs.LICENSE_FILE.read_text(), (distribution / "LICENSE").read_text())
+
     def test_readme_tells_users_of_the_original_about_the_differences(self) -> None:
         minqlx = (self.output / "minqlx-stubs" / "README.md").read_text()
         self.assertIn("as shinqlx provides it", minqlx)
