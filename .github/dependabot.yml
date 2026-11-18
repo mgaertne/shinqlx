@@ -1,25 +1,22 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-
 version: 2
 updates:
-  - package-ecosystem: "cargo" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "uv"
+    directory: "/"
     schedule:
-      interval: "daily"
-    versioning-strategy: auto
+      interval: "weekly"
+    groups:
+      python:
+        patterns: ["*"]
     commit-message:
-      prefix: "cargo"
-      prefix-development: "cargo dev"
+      prefix: "uv"
+      prefix-development: "uv dev"
       include: "scope"
-  - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: "daily"
-    versioning-strategy: auto
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
     commit-message:
-      prefix: "pip prod"
-      prefix-development: "pip dev"
-      include: "scope"
+      prefix: "actions"

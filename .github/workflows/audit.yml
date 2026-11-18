@@ -1,0 +1,29 @@
+name: Weekly dependency check
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: Audit and outdated dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+      - name: Resolve the newest compatible versions
+        run: cargo generate-lockfile
+      - name: Audit the dependencies for known advisories
+        run: cargo audit
+      - name: Show what a plain cargo update would change in the manifest
+        run: cargo update --dry-run --verbose
