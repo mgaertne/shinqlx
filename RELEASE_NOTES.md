@@ -56,7 +56,9 @@ Check these when you upgrade.
   level can be set with `CARGO_PROFILE_RELEASE_OPT_LEVEL`.
 * **Failing plugin loads** are logged once, with their traceback instead of `NoneType`: `load_plugin`, `unload_plugin`
   and `reload_plugin` log the error and raise it, as in minqlx, whoever calls them. The `plugin_manager` commands only
-  report the failure to the channel. The error messages for a missing plugin, a missing class, a class that is no
+  report the failure to the channel. A plugin from `qlx_plugins` that could not be loaded at the start (or by
+  `!loadall`) is named in one more line after its error: `Plugin 'x' from qlx_plugins could not be loaded, see the
+  error above.` The error messages for a missing plugin, a missing class, a class that is no
   `Plugin` and an unknown plugin source in `qlx_plugins` name the plugin.
 
 ### New features

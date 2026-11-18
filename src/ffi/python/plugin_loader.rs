@@ -10,8 +10,8 @@ use tap::{TapFallible, TapOptional};
 
 use super::{
     COMMANDS, EVENT_DISPATCHERS, MODULES, PluginLoadError, PluginUnloadError, decorators,
-    event_dispatcher, log_exception, native_plugins, prelude::*, pyshinqlx_get_logger,
-    try_get_plugins_path,
+    event_dispatcher, log_exception, logging::try_log_messages, native_plugins, prelude::*,
+    pyshinqlx_get_logger, try_get_plugins_path,
 };
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
@@ -47,6 +47,17 @@ fn plugin_load_order(plugins: &str) -> Vec<&str> {
     ordered
 }
 
+fn log_unloadable_preset_plugin(py: Python<'_>, plugin: &str) {
+    let _ = try_log_messages(
+        py,
+        None,
+        intern!(py, "load_preset_plugins"),
+        vec![format!(
+            "Plugin '{plugin}' from qlx_plugins could not be loaded, see the error above."
+        )],
+    );
+}
+
 #[pyfunction(name = "load_preset_plugins")]
 pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
     try_get_plugins_path().map_err(PluginLoadError::new_err)?;
@@ -64,7 +75,8 @@ pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                     plugin_load_order(&plugins_str)
                         .into_iter()
                         .for_each(|plugin| {
-                            let _ = load_plugin(py, plugin);
+                            let _ = load_plugin(py, plugin)
+                                .tap_err(|_| log_unloadable_preset_plugin(py, plugin));
                         });
                 });
 
@@ -977,6 +989,101 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
                 Python::attach(|py| {
                     let result = load_preset_plugins(py);
                     assert!(result.is_err_and(|err| err.is_instance_of::<PluginLoadError>(py)));
+                });
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn load_preset_plugins_names_each_plugin_that_could_not_be_loaded(
+        _pyshinqlx_setup: (),
+        plugins_dir: String,
+    ) {
+        let cvar_tempdir_str = CString::new(plugins_dir).expect("this should not happen");
+        let mut raw_pluginspath_cvar = CVarBuilder::default()
+            .string(cvar_tempdir_str.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let plugins_cvar_str = c"no_such_plugin, test_plugin";
+        let mut raw_plugins_cvar = CVarBuilder::default()
+            .string(plugins_cvar_str.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_pluginsPath",
+                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .with_find_cvar(
+                |cmd| cmd == "qlx_plugins",
+                move |_| CVar::try_from(raw_plugins_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let collector = PyModule::from_code(
+                        py,
+                        c"import logging
+
+lines = []
+
+
+class Collector(logging.Handler):
+    def emit(self, record):
+        lines.append(record.getMessage())
+
+
+handler = Collector()
+logging.getLogger('shinqlx').addHandler(handler)
+
+
+def uninstall():
+    logging.getLogger('shinqlx').removeHandler(handler)
+",
+                        c"plugin_log_collector.py",
+                        c"plugin_log_collector",
+                    )
+                    .expect("could not create the log collector");
+                    py.import(intern!(py, "sys"))
+                        .and_then(|sys_module| {
+                            let full_temp_dir = TEMP_DIR
+                                .path()
+                                .canonicalize()
+                                .expect("this should not happen");
+                            sys_module
+                                .getattr(intern!(py, "path"))
+                                .and_then(|sys_path_module| {
+                                    sys_path_module.call_method1(
+                                        intern!(py, "append"),
+                                        (full_temp_dir.to_string_lossy(),),
+                                    )
+                                })
+                        })
+                        .expect("this should not happen");
+
+                    let result = load_preset_plugins(py);
+
+                    let lines = collector
+                        .getattr("lines")
+                        .and_then(|lines| lines.extract::<Vec<String>>())
+                        .expect("could not read the collected lines");
+                    collector
+                        .call_method0("uninstall")
+                        .expect("could not remove the log collector");
+                    assert!(result.is_ok());
+                    let summaries = lines
+                        .iter()
+                        .filter(|line| line.contains("from qlx_plugins could not be loaded"))
+                        .collect::<Vec<_>>();
+                    assert_eq!(
+                        summaries,
+                        ["Plugin 'no_such_plugin' from qlx_plugins could not be loaded, see the error above."],
+                        "{lines:?}"
+                    );
                 });
             });
     }
