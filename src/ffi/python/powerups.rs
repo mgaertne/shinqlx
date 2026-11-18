@@ -59,7 +59,7 @@ mod powerups_tests {
     use rstest::rstest;
     use tap::Conv;
 
-    use crate::ffi::python::prelude::*;
+    use crate::{ffi::python::prelude::*, prelude::serial};
 
     #[test]
     fn powerups_from_integer_array() {
@@ -179,6 +179,7 @@ assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) != shinqlx.Powerups((5, 4, 3, 2, 1, 
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
+    #[serial]
     fn powerups_can_not_be_compared_for_lower_in_python(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
             let result = py.run(
@@ -189,7 +190,12 @@ assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < shinqlx.Powerups((5, 4, 3, 2, 1, 0
                 None,
                 None,
             );
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyTypeError>(py)));
+            assert!(
+                result
+                    .as_ref()
+                    .is_err_and(|err| err.is_instance_of::<PyTypeError>(py)),
+                "expected a TypeError, got {result:?}"
+            );
         });
     }
 
