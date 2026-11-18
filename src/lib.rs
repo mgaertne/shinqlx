@@ -26,12 +26,14 @@
 //!   `qlx_steamQueryRate`, `qlx_steamQueryBurst` and `qlx_steamQueryGlobalRate`; the rules query has its own limits
 //!   in `qlx_steamQueryRulesRate`, `qlx_steamQueryRulesBurst` and `qlx_steamQueryRulesGlobalRate`, and
 //!   `qlx_steamQueryDropRules` drops it.
-//! * `patches`: enables `clientkick-fix`, `fps-patch`, `rcon-disconnect-fix` and `steam-query-limit`. Disabled by
+//! * `patches`: enables `clientkick-fix`, `fps-patch`, `zmq-rcon-fix` and `steam-query-limit`. Disabled by
 //!   default as a group, the last two are part of the default features on their own.
-//! * `rcon-disconnect-fix` (default): drops the engine's report `zmq RCON client disconnected: ...` before it reaches
-//!   `Com_Printf`. The engine erases dead ZMQ RCON clients in a loop that reports each deletion through `Com_Printf`,
-//!   which enters the loop again; two or more dead clients at once leave the outer loop with a freed entry and crash
-//!   the server. Plugins no longer see the report in `console_print`.
+//! * `zmq-rcon-fix` (default): protects the server from dead ZMQ RCON clients. It drops the engine's report
+//!   `zmq RCON client disconnected: ...` before it reaches `Com_Printf`, because the engine reports each deletion of a
+//!   dead client through `Com_Printf`, which enters its client loop again and can leave the outer loop with a freed
+//!   entry. It also sets a send timeout on the RCON socket (`qlx_zmqRconSendTimeout`, milliseconds, default 25, `0` for
+//!   non-blocking sends, negative for the engine's unlimited wait), because the engine otherwise waits for a dead
+//!   client without a limit and the server stops. Plugins no longer see the report in `console_print`.
 //! * `clientkick-fix`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by
 //!   default.
 //! * `fps-patch`: makes `qagame` register `sv_fps` with the default 125 instead of the read-only 40.

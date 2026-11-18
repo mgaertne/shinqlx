@@ -96,6 +96,10 @@ pub enum QuakeLiveFunction {
     Cmd_Callvote_f,
     #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
     SV_HandleSteamPacket,
+    #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
+    Zsock_SetRouterMandatory,
+    #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
+    Rcon_SocketInit,
 }
 
 impl QuakeLiveFunction {
@@ -170,6 +174,10 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::Cmd_Callvote_f => b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x48\x89\xfd\x53\x48\x81\xec\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0\xe8\x00\x00\x00\x00",
             #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
             QuakeLiveFunction::SV_HandleSteamPacket => b"\x8b\x15\x00\x00\x00\x00\x31\xc0\x85\xd2\x75\x00\xc3\x0f\x1f\x00\x41\x54\x55\x48\x89\xf5\x53\x0f\xb6\x57\x04\x48\x89\xfb\x0f\xb6\x47\x05\x0f\xb6\x4f\x07\xc1\xe2\x18\xc1\xe0\x10\x01\xc2\x0f\xb6\x47\x06",
+            #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
+            QuakeLiveFunction::Zsock_SetRouterMandatory => b"\x53\x48\x89\xfb\x48\x83\xec\x10\x48\x85\xff\x89\x74\x24\x0c\x0f\x84\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xf8\x06\x48\x89\xdf\x75\x00\xe8\x00\x00\x00\x00\x48\x8d\x54\x24\x0c\xb9\x04\x00\x00\x00\xbe\x21\x00\x00\x00\x48\x89\xc7\xe8\x00\x00\x00\x00\x85",
+            #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
+            QuakeLiveFunction::Rcon_SocketInit => b"\xbf\xe5\x20\x51\x00\x31\xc0\xe8\x00\x00\x00\x00\x48\x8b\x3d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x48\x89\x05\x00\x00\x00\x00\x5b\xc3",
         }
     }
 
@@ -245,6 +253,12 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::SV_HandleSteamPacket => {
                 b"XX----XXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
             }
+            #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
+            QuakeLiveFunction::Zsock_SetRouterMandatory => {
+                b"XXXXXXXXXXXXXXXXX----X----XXXXXXX-X----XXXXXXXXXXXXXXXXXXX----X"
+            }
+            #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
+            QuakeLiveFunction::Rcon_SocketInit => b"XXXXXXXX----XXX----X----XXX----XX",
         }
     }
 }
@@ -387,6 +401,11 @@ mod quake_live_function_tests {
     #[case(QuakeLiveFunction::G_FreeEntity, "G_FreeEntity")]
     #[case(QuakeLiveFunction::Cmd_Callvote_f, "Cmd_Callvote_f")]
     #[case(QuakeLiveFunction::SV_HandleSteamPacket, "SV_HandleSteamPacket")]
+    #[case(
+        QuakeLiveFunction::Zsock_SetRouterMandatory,
+        "Zsock_SetRouterMandatory"
+    )]
+    #[case(QuakeLiveFunction::Rcon_SocketInit, "Rcon_SocketInit")]
     fn function_can_be_formatted(#[case] func: QuakeLiveFunction, #[case] output: &str) {
         let result = format!("{func}");
         assert_eq!(result, output);
@@ -433,6 +452,8 @@ mod quake_live_function_tests {
     #[case(QuakeLiveFunction::G_FreeEntity, b"\x48\x8b\x05\x00\x00\x00\x00\x53\x48\x89\xfb\x48\x8b\x00\xff\x90\x00\x00\x00\x00\x8b\x83\x00\x00\x00\x00\x85\xc0\x74\x00\x5b\xc3")]
     #[case(QuakeLiveFunction::Cmd_Callvote_f, b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x48\x89\xfd\x53\x48\x81\xec\x00\x00\x00\x00\x64\x48\x8b\x04\x25\x00\x00\x00\x00\x48\x89\x84\x24\x00\x00\x00\x00\x31\xc0\xe8\x00\x00\x00\x00")]
     #[case(QuakeLiveFunction::SV_HandleSteamPacket, b"\x8b\x15\x00\x00\x00\x00\x31\xc0\x85\xd2\x75\x00\xc3\x0f\x1f\x00\x41\x54\x55\x48\x89\xf5\x53\x0f\xb6\x57\x04\x48\x89\xfb\x0f\xb6\x47\x05\x0f\xb6\x4f\x07\xc1\xe2\x18\xc1\xe0\x10\x01\xc2\x0f\xb6\x47\x06")]
+    #[case(QuakeLiveFunction::Zsock_SetRouterMandatory, b"\x53\x48\x89\xfb\x48\x83\xec\x10\x48\x85\xff\x89\x74\x24\x0c\x0f\x84\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xf8\x06\x48\x89\xdf\x75\x00\xe8\x00\x00\x00\x00\x48\x8d\x54\x24\x0c\xb9\x04\x00\x00\x00\xbe\x21\x00\x00\x00\x48\x89\xc7\xe8\x00\x00\x00\x00\x85")]
+    #[case(QuakeLiveFunction::Rcon_SocketInit, b"\xbf\xe5\x20\x51\x00\x31\xc0\xe8\x00\x00\x00\x00\x48\x8b\x3d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x48\x89\x05\x00\x00\x00\x00\x5b\xc3")]
     fn function_patterns(#[case] func: QuakeLiveFunction, #[case] expected_pattern: &[u8]) {
         assert_eq!(func.pattern(), expected_pattern);
     }
@@ -567,6 +588,14 @@ mod quake_live_function_tests {
     #[case(
         QuakeLiveFunction::SV_HandleSteamPacket,
         b"XX----XXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    )]
+    #[case(
+        QuakeLiveFunction::Zsock_SetRouterMandatory,
+        b"XXXXXXXXXXXXXXXXX----X----XXXXXXX-X----XXXXXXXXXXXXXXXXXXX----X"
+    )]
+    #[case(
+        QuakeLiveFunction::Rcon_SocketInit,
+        b"XXXXXXXX----XXX----X----XXX----XX"
     )]
     fn function_masks(#[case] func: QuakeLiveFunction, #[case] expected_mask: &[u8]) {
         assert_eq!(func.mask(), expected_mask);

@@ -8,18 +8,30 @@ Changes since 0.7.0.
 
 Check these when you upgrade.
 
-* **`console_print` no longer sees `zmq RCON client disconnected: ...`.** The new Cargo feature `rcon-disconnect-fix`
-  is part of the default features. It drops this report of the engine before it reaches `Com_Printf` and the plugins.
-  The engine erases dead ZMQ RCON clients in a loop and reports each deletion through `Com_Printf`, which sends the line
-  to all RCON clients and enters the same loop again. With two or more dead clients at once, the outer loop continues
-  with an entry that the inner loop has already freed, and the server crashes with a segmentation fault. A single dead
-  client is harmless. The crash also happens with an unmodified `qzeroded`, so it is a bug of the dedicated server.
+* **Dead ZMQ RCON clients no longer crash or stop the server, and `console_print` no longer sees
+  `zmq RCON client disconnected: ...`.** The new Cargo feature `zmq-rcon-fix` is part of the default features and does
+  two things for bugs of the dedicated server that also occur with an unmodified `qzeroded`:
+  * The engine erases dead ZMQ RCON clients in a loop and reports each deletion through `Com_Printf`, which sends the
+    line to all RCON clients and enters the same loop again. With two or more dead clients at once, the outer loop
+    continues with an entry that the inner loop has already freed, and the server crashes with a segmentation fault.
+    The report is dropped before it reaches `Com_Printf` and the plugins.
+  * The engine sends the console output to each RCON client without a time limit. A client that stops reading while
+    its connection stays open (for example a tool that gives up on a long reply) makes the server wait for it without
+    end: the server stops answering, even after the client has gone. The same happens with three or more clients that
+    vanish at once or with a client that reconnects and registers about twenty times a second (observed in a local test;
+    without this feature the server also crashed in some runs). The feature sets a send timeout on the RCON socket, so
+    the server keeps running. The cvar `qlx_zmqRconSendTimeout` sets the timeout in milliseconds (default `25`, about
+    one frame, per client that does not take its output; `0` makes the sends non-blocking, a negative value keeps the
+    unlimited wait). It is read at every map load. In the local test, clients that read their replies received the same
+    number of lines with `25`, `0` and the unlimited wait. A client that stops reading holds about 2.5 MB of output
+    with default buffers; later lines are discarded for this client, which stays registered (see `DDOS-PROTECTION.md`).
   * Plugins that only worked around the crash (such as `rcon_cleanup_guard`) are no longer needed.
-  * To keep the report, build without the feature: `--no-default-features --features alloc,steam-query-limit`.
+  * To keep the report and the unlimited wait, build without the feature:
+    `--no-default-features --features alloc,steam-query-limit`.
 * **Python 3.9 or newer is required.** Python 3.8 is dropped, because pyo3 requires at least 3.9.
 * **`pyzmq` is no longer a dependency.** The stats listener is implemented in Rust, nothing in shinqlx imports `zmq`.
   A plugin that does `import zmq` itself has to bring `pyzmq` along (`pip install pyzmq`).
-* **The feature `patches` is split.** It now enables `clientkick-fix`, `fps-patch`, `rcon-disconnect-fix` and
+* **The feature `patches` is split.** It now enables `clientkick-fix`, `fps-patch`, `zmq-rcon-fix` and
   `steam-query-limit`. Select single patches with their own features.
 * **`DEFAULT` in `qlx_plugins` is expanded at its position** instead of appending the default plugins at the end.
 * **Command arguments are split at any whitespace**, as minqlx does. The unused `cointoss` is removed from the plugin

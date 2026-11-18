@@ -588,8 +588,8 @@ pub(crate) fn shinqlx_com_printf<T>(msg: T)
 where
     T: AsRef<str>,
 {
-    #[cfg(feature = "rcon-disconnect-fix")]
-    if crate::fixes::rcon_disconnect::is_disconnect_notice(msg.as_ref()) {
+    #[cfg(feature = "zmq-rcon-fix")]
+    if crate::fixes::zmq_rcon::is_disconnect_notice(msg.as_ref()) {
         return;
     }
 
@@ -602,6 +602,43 @@ where
     });
 }
 
+#[cfg(feature = "zmq-rcon-fix")]
+static APPLIED_ZMQ_RCON_SEND_TIMEOUT: core::sync::atomic::AtomicI32 =
+    core::sync::atomic::AtomicI32::new(i32::MIN);
+
+/// Sets the send timeout of the engine's RCON socket from `qlx_zmqRconSendTimeout`.
+///
+/// The cvar is read at every map load, so a change takes effect with the next map.
+#[cfg(feature = "zmq-rcon-fix")]
+fn apply_zmq_rcon_send_timeout<T>(main_engine: &T)
+where
+    T: crate::quake_live_engine::FindCVar<&'static str>,
+{
+    let Some(socket) = crate::fixes::zmq_rcon::configured_socket() else {
+        return;
+    };
+    let timeout = crate::fixes::zmq_rcon::effective_send_timeout(
+        main_engine
+            .find_cvar(crate::fixes::zmq_rcon::SEND_TIMEOUT_CVAR)
+            .map(|cvar| cvar.get_integer()),
+    );
+    match socket.set_send_timeout(timeout) {
+        Ok(()) => {
+            if APPLIED_ZMQ_RCON_SEND_TIMEOUT.swap(timeout, core::sync::atomic::Ordering::AcqRel)
+                != timeout
+            {
+                log::info!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON send timeout: {timeout} ms");
+            }
+        }
+        Err(crate::fixes::zmq_rcon::SendTimeoutError::SocketNotOpen) => {
+            debug!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON is not enabled, no send timeout set");
+        }
+        Err(err) => {
+            warn!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "Could not set the ZMQ RCON send timeout: {err}");
+        }
+    }
+}
+
 pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: qboolean) {
     // SAFETY: the engine passes a valid, NUL-terminated C string.
     let server_str = unsafe { CStr::from_ptr(server) }.to_string_lossy();
@@ -611,6 +648,9 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
 
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.spawn_server(server_str.as_ref(), kill_bots.conv::<bool>());
+
+        #[cfg(feature = "zmq-rcon-fix")]
+        apply_zmq_rcon_send_timeout(&**main_engine);
 
         new_game_dispatcher(false);
     });
@@ -1681,8 +1721,8 @@ mod hooks_tests {
 
     #[test]
     #[serial]
-    #[cfg(feature = "rcon-disconnect-fix")]
-    fn com_printf_drops_the_rcon_disconnect_report() {
+    #[cfg(feature = "zmq-rcon-fix")]
+    fn com_printf_drops_the_zmq_rcon_report() {
         let console_print_dispatcher_ctx = console_print_dispatcher_context();
         console_print_dispatcher_ctx.expect().times(0);
 

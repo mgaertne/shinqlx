@@ -164,6 +164,26 @@ to slow down repeated or parallel connection attempts; put the limits in front o
 also write the rcon password into its own log and into `zmqpass.txt` in the `baseq3` directory of its home path. Keep
 both private, do not post server logs, and check who can read that file.
 
+A rcon client that disappears without closing its connection must not stop the server. The engine sends every console
+line to each rcon client without a time limit and used to wait for a dead client forever, which stopped or crashed the
+server. The feature `zmq-rcon-fix` (default) sets a send timeout on the rcon socket; `qlx_zmqRconSendTimeout` is the
+limit in milliseconds (default `25`, about one frame at `sv_fps 40`, once per dead client). `0` makes the sends
+non-blocking, a negative value keeps the unlimited wait of the engine. The cvar is read when a map is loaded.
+
+Measured in a local test (loopback and a local proxy, no packet loss or latency): a client that is connected but does
+not read stopped the server completely without the feature, and so did a client that reconnected and registered about
+twenty times a second. With the feature the server kept answering in all of these cases and a fresh rcon client worked
+afterwards. A client that reads normally lost no lines with `25`, `0` or the unlimited wait. A client that stops reading
+holds about 2.5 MB of console output with default buffers (a steady 16 KB/s took more than four minutes to fill it);
+what comes after that is discarded for this client, and the client stays registered. This is an order of magnitude from
+one test setup, not a guarantee; a slow or distant connection may fill its buffers earlier.
+
+The same tests did not stop the server through the ports without a valid password: wrong passwords, 1500 idle
+connections per port and 500 unfinished handshakes had no effect. The stats port is not affected by the problem: a
+subscriber that never reads, 150 subscribers and about twenty reconnects a second did not disturb the server, with
+and without the feature. Without a `zmq_stats_password` anybody who reaches the stats port can read the event stream,
+which contains player names and Steam IDs, so set one unless the port stays on loopback.
+
 What to do about it:
 
 1. Listen only where it is needed. `+set zmq_rcon_ip 127.0.0.1` and `+set zmq_stats_ip 127.0.0.1` make the server bind

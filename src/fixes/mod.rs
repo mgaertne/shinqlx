@@ -8,10 +8,10 @@ use core::fmt;
 pub(crate) mod clientkick_fix;
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 pub(crate) mod query_rate_limiter;
-#[cfg(any(feature = "rcon-disconnect-fix", test))]
-pub(crate) mod rcon_disconnect;
 #[cfg(all(feature = "fps-patch", target_os = "linux"))]
 pub(crate) mod sv_fps_patch;
+#[cfg(any(feature = "zmq-rcon-fix", test))]
+pub(crate) mod zmq_rcon;
 
 /// Why a patch was not applied.
 #[cfg(any(

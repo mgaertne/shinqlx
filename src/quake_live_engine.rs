@@ -24,6 +24,8 @@ use crate::QZERODED;
 use crate::fixes::clientkick_fix::patch_callvote_f;
 #[cfg(all(feature = "fps-patch", target_os = "linux"))]
 use crate::fixes::sv_fps_patch::{ModuleRegion, patch_sv_fps};
+#[cfg(all(target_os = "linux", feature = "zmq-rcon-fix"))]
+use crate::fixes::zmq_rcon::{RconSocket, register_socket as register_rcon_socket};
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use crate::hooks::shinqlx_sv_handlesteampacket;
 #[cfg(target_os = "linux")]
@@ -1168,6 +1170,23 @@ impl QuakeLiveEngine {
                 );
             })
             .ok();
+
+            // Not essential for the game, so a changed engine only costs the send timeout of the RCON socket.
+            #[cfg(all(target_os = "linux", feature = "zmq-rcon-fix"))]
+            match RconSocket::locate(&qzeroded_maps) {
+                Ok(rcon_socket) => {
+                    debug!(target: "shinqlx", func = "search_static_functions"; "RCON socket found in the engine");
+                    register_rcon_socket(rcon_socket);
+                }
+                Err(err) => {
+                    cold_path();
+                    error!(target: "shinqlx", func = "search_static_functions"; "{err:?}");
+                    error!(
+                        target: "shinqlx",
+                        func = "search_static_functions"; "RCON socket not found. The server can stop when several RCON clients die."
+                    );
+                }
+            }
 
             // Cmd_Argc is really small, making it hard to search for, so we use a reference to it instead.
             // SAFETY: the address derives from a function of the loaded engine, whose code is readable.
