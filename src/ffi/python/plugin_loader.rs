@@ -560,7 +560,7 @@ mod native_plugin_loading_tests {
     };
     use crate::{
         ffi::{
-            c::prelude::{CVar, CVarBuilder, cvar_t},
+            c::prelude::{CS_SERVERINFO, CVar, CVarBuilder, cvar_t},
             python::{
                 events::{
                     EventDispatcherManager, EventDispatcherManagerMethods, MapDispatcher,
@@ -592,6 +592,7 @@ mod native_plugin_loading_tests {
                 0..,
             )
             .with_find_cvar(|cmd| cmd == "qlx_workshopReferences", |_| None, times)
+            .with_get_configstring(CS_SERVERINFO as u16, "", 0..)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_get_cvar()

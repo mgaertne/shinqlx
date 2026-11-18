@@ -258,4 +258,5 @@ workshop
 ========
 
 Adds the workshop items from the cvar ``qlx_workshopReferences`` to every map. The cvar takes a comma separated list
-of workshop item ids.
+of workshop item ids. The items are also added to the map that is already running when the plugin is loaded, so that
+the first players of a freshly started server get them too. Items that are already referenced are not added twice.

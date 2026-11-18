@@ -10,7 +10,7 @@ use crate::ffi::python::{
     plugin::{Plugin, PluginMethods},
 };
 
-/// Adds the workshop items of the cvar `qlx_workshopReferences` to every map.
+/// Adds the workshop items of the cvar `qlx_workshopReferences` to every map, and to the running one when it is loaded.
 #[pyclass(name = "workshop", module = "shinqlx", extends = Plugin, frozen)]
 pub(super) struct Workshop;
 
@@ -22,20 +22,36 @@ impl Workshop {
         _args: &Bound<'_, PyTuple>,
         _kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        let py = slf.py();
-        let Some(game) = slf.as_super().get_game() else {
-            return Ok(());
-        };
-        let game = Bound::new(py, game)?;
-
-        let references = py.get_type::<Plugin>().call_method1(
-            intern!(py, "get_cvar"),
-            ("qlx_workshopReferences", py.get_type::<PyList>()),
-        )?;
-        let workshop_items = PyList::new(py, game.get_workshop_items()?)?;
-        workshop_items.call_method1(intern!(py, "extend"), (references,))?;
-        game.set_workshop_items(&workshop_items)
+        add_references(slf)
     }
+}
+
+fn add_references(plugin: &Bound<'_, Workshop>) -> PyResult<()> {
+    let py = plugin.py();
+    let Some(game) = plugin.as_super().get_game() else {
+        return Ok(());
+    };
+    let game = Bound::new(py, game)?;
+
+    let references = py.get_type::<Plugin>().call_method1(
+        intern!(py, "get_cvar"),
+        ("qlx_workshopReferences", py.get_type::<PyList>()),
+    )?;
+    let present = game.get_workshop_items()?;
+    let workshop_items = PyList::new(py, &present)?;
+    for reference in references.try_iter()? {
+        let reference = reference?;
+        let already_present = reference
+            .str()?
+            .to_string()
+            .trim()
+            .parse::<u64>()
+            .is_ok_and(|id| present.contains(&id));
+        if !already_present {
+            workshop_items.append(reference)?;
+        }
+    }
+    game.set_workshop_items(&workshop_items)
 }
 
 pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
@@ -50,6 +66,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     )?;
     py.get_type::<Plugin>()
         .call_method1(intern!(py, "set_cvar_once"), ("qlx_workshopReferences", ""))?;
+    add_references(&plugin)?;
 
     Ok(plugin.into_any())
 }
@@ -62,7 +79,7 @@ mod workshop_tests {
     use pyo3::{prelude::*, types::PyTuple};
     use rstest::rstest;
 
-    use super::Workshop;
+    use super::{Workshop, add_references};
     use crate::{
         ffi::{
             c::prelude::{CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS, CVar, CVarBuilder, cvar_t},
@@ -110,6 +127,42 @@ mod workshop_tests {
                 Python::attach(|py| {
                     let result =
                         Workshop::handle_map(&workshop_plugin(py), &PyTuple::empty(py), None);
+
+                    assert!(result.is_ok());
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_map_does_not_add_items_that_are_already_referenced(_pyshinqlx_setup: ()) {
+        let references = c"5678, 9999";
+        let mut raw_references_cvar = CVarBuilder::default()
+            .string(references.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_get_configstring(CS_SERVERINFO as u16, "\\mapname\\campgrounds", 1..)
+            .with_get_configstring(CS_STEAM_WORKSHOP_IDS as u16, "1234 5678", 1)
+            .with_find_cvar(
+                |cmd| cmd == "qlx_workshopReferences",
+                move |_| CVar::try_from(raw_references_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1,
+            )
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_configstring()
+                    .with(
+                        predicate::eq(CS_STEAM_WORKSHOP_IDS as i32),
+                        predicate::eq("1234 5678 9999"),
+                    )
+                    .times(1);
+            })
+            .run(|| {
+                Python::attach(|py| {
+                    let result = add_references(&workshop_plugin(py));
 
                     assert!(result.is_ok());
                 });

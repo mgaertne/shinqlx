@@ -91,6 +91,8 @@ Check these when you upgrade.
 
 ### Fixes
 
+* The built-in `workshop` plugin adds its items to the map that is running when it is loaded (not only from the next
+  map change on) and does not add an item twice.
 * A&D round status handling without a round cvar in `handle_set_configstring`.
 * `replace_items` checks the entity id against `MAX_GENTITIES` like minqlx instead of the item count.
 * The pattern search stops where the pattern no longer fits and looks only into readable and executable memory.
