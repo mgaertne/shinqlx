@@ -4,7 +4,7 @@ use super::{
     register_command,
     target::{reply, usage},
 };
-use crate::ffi::python::{Plugin, log_plugin_exception, next_frame, plugin::PluginMethods};
+use crate::ffi::python::{Plugin, next_frame, plugin::PluginMethods};
 
 const MANAGER_PERMISSION: i32 = 5;
 
@@ -22,10 +22,6 @@ fn describe(py: Python<'_>, err: &PyErr) -> String {
 
 fn shinqlx_function<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import(intern!(py, "shinqlx"))?.getattr(name)
-}
-
-fn log_exception(slf: &Bound<'_, PluginManager>, err: &PyErr) -> PyResult<()> {
-    log_plugin_exception(slf.py(), slf.as_any(), err)
 }
 
 /// Runs the action for the plugin and tells the channel about the outcome.
@@ -47,7 +43,6 @@ fn report(
                 "Plugin ^6{plugin} ^7has failed to {failure}: {}",
                 describe(py, &err)
             );
-            log_exception(slf, &err)?;
             reply(channel, &message)
         }
     }
@@ -146,7 +141,6 @@ impl PluginManager {
             ),
             Err(err) => {
                 let message = format!("Plugins failed to load: {}", describe(py, &err));
-                log_exception(slf, &err)?;
                 reply(channel, &message)
             }
         }
@@ -168,7 +162,6 @@ impl PluginManager {
                     "Plugin ^6{plugin} ^7has failed to unload: {}",
                     describe(py, &err)
                 );
-                log_exception(slf, &err)?;
                 reply(channel, &message)?;
             }
         }
@@ -203,7 +196,6 @@ impl PluginManager {
                     "Plugin ^6{plugin} ^7has failed to reload: {}",
                     describe(py, &err)
                 );
-                log_exception(slf, &err)?;
                 reply(channel, &message)?;
             }
         }
@@ -338,15 +330,6 @@ def uninstall():
                 .getattr("logged")
                 .and_then(|logged| logged.extract())
                 .expect("could not get the logged exceptions")
-        }
-
-        fn assert_logged_the_failure(&self) {
-            let logged = self.logged();
-            assert_eq!(
-                logged.last().map(String::as_str),
-                Some("RuntimeError: boom")
-            );
-            assert!(logged.iter().all(|line| !line.contains("NoneType")));
         }
 
         fn fail(&self, name: &str) {
@@ -525,7 +508,6 @@ def uninstall():
                     "Plugin ^6essentials ^7has failed to {command}: RuntimeError - boom"
                 )]
             );
-            fixtures.assert_logged_the_failure();
         });
     }
 
@@ -578,26 +560,28 @@ def uninstall():
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn loader_functions_leave_the_logging_of_their_failure_to_the_caller(_pyshinqlx_setup: ()) {
+    fn loader_functions_log_their_failure(_pyshinqlx_setup: ()) {
         with_manager(&[], |fixtures| {
-            for name in [
-                "real_load_plugin",
-                "real_unload_plugin",
-                "real_reload_plugin",
+            for (name, error) in [
+                ("real_load_plugin", "PluginLoadError"),
+                ("real_unload_plugin", "PluginUnloadError"),
+                ("real_reload_plugin", "PluginLoadError"),
             ] {
                 let function = fixtures.module.getattr(name).expect("no real function");
+                let before = fixtures.logged().len();
 
                 assert!(function.call1(("no_such_plugin",)).is_err());
-            }
 
-            let logged = fixtures.logged();
-            assert!(
-                logged
-                    .iter()
-                    .all(|line| !line.contains("PluginLoadError")
-                        && !line.contains("PluginUnloadError")),
-                "{logged:?}"
-            );
+                let logged = fixtures.logged();
+                assert!(
+                    logged[before..].iter().any(|line| line.contains(error)),
+                    "{name}: {logged:?}"
+                );
+                assert!(
+                    logged.iter().all(|line| !line.contains("NoneType")),
+                    "{name}: {logged:?}"
+                );
+            }
         });
     }
 
@@ -721,7 +705,6 @@ def uninstall():
                     "Successfully unloaded all plugins except plugin_manager."
                 ]
             );
-            fixtures.assert_logged_the_failure();
         });
     }
 

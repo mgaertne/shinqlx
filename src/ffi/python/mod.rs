@@ -180,7 +180,7 @@ use decorators::{delay, later, next_frame, thread};
 use derive_more::Display;
 pub(crate) use engine_api::*;
 use log::*;
-pub(crate) use logging::{log_debug, log_exception, log_plugin_exception, pyshinqlx_get_logger};
+pub(crate) use logging::{log_debug, log_exception, pyshinqlx_get_logger};
 use logging::{
     pyshinqlx_configure_logger, pyshinqlx_handle_exception, pyshinqlx_handle_threading_exception,
     pyshinqlx_log_exception,

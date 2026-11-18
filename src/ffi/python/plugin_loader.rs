@@ -64,9 +64,7 @@ pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                     plugin_load_order(&plugins_str)
                         .into_iter()
                         .for_each(|plugin| {
-                            let _ = load_plugin(py, plugin).tap_err(|e| {
-                                log_exception(py, e);
-                            });
+                            let _ = load_plugin(py, plugin);
                         });
                 });
 
@@ -134,7 +132,9 @@ pub(super) fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path)
 
 #[pyfunction(name = "load_plugin")]
 pub(crate) fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    load_plugin_with(py, plugin, true)
+    load_plugin_with(py, plugin, true).tap_err(|e| {
+        log_exception(py, e);
+    })
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -238,7 +238,7 @@ pub(super) fn load_plugin_with(
             .getattr(intern!(py, "_loaded_plugins"))?;
 
         if reload_if_loaded && loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
-            return reload_plugin(py, plugin);
+            return reload_plugin_unlogged(py, plugin);
         }
 
         return try_load_native_plugin(py, plugin);
@@ -266,7 +266,7 @@ pub(super) fn load_plugin_with(
                 .getattr(intern!(py, "_loaded_plugins"))?;
 
             if reload_if_loaded && loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
-                return reload_plugin(py, plugin);
+                return reload_plugin_unlogged(py, plugin);
             }
 
             try_load_plugin(py, plugin, plugins_path.as_path())
@@ -372,6 +372,12 @@ pub(super) fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
 #[pyfunction(name = "unload_plugin")]
 pub(crate) fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
+    unload_plugin_unlogged(py, plugin).tap_err(|e| {
+        log_exception(py, e);
+    })
+}
+
+fn unload_plugin_unlogged(py: Python<'_>, plugin: &str) -> PyResult<()> {
     pyshinqlx_get_logger(py, None).and_then(|logger| {
         let info_level = py
             .import(intern!(py, "logging"))
@@ -435,6 +441,12 @@ pub(super) fn try_reload_plugin(py: Python, plugin: &str, target: &str) -> PyRes
 
 #[pyfunction(name = "reload_plugin")]
 pub(crate) fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
+    reload_plugin_unlogged(py, plugin).tap_err(|e| {
+        log_exception(py, e);
+    })
+}
+
+fn reload_plugin_unlogged(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let (source, plugin) = split_plugin_source(plugin).map_err(PluginLoadError::new_err)?;
     let reload_target = match source {
         PluginSource::Native => format!("r!{plugin}"),
@@ -442,7 +454,7 @@ pub(crate) fn reload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
         PluginSource::Unspecified if is_loaded_native_plugin(py, plugin) => format!("r!{plugin}"),
         PluginSource::Unspecified => plugin.to_owned(),
     };
-    let _ = unload_plugin(py, plugin);
+    let _ = unload_plugin_unlogged(py, plugin);
 
     try_reload_plugin(py, plugin, &reload_target)
 }
