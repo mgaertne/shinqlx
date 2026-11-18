@@ -10,7 +10,7 @@ pub(crate) mod clientkick_fix;
 pub(crate) mod query_rate_limiter;
 #[cfg(all(feature = "fps-patch", target_os = "linux"))]
 pub(crate) mod sv_fps_patch;
-#[cfg(any(feature = "zmq-rcon-fix", test))]
+#[cfg(feature = "zmq-rcon-fix")]
 pub(crate) mod zmq_rcon;
 
 /// Why a patch was not applied.
