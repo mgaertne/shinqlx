@@ -348,6 +348,7 @@ mod zmq_rcon_tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn socket_and_option_setter_are_found_through_the_displacements_of_the_engine_code() {
         use crate::quake_live_functions::QuakeLiveFunction;
 
@@ -370,6 +371,7 @@ mod zmq_rcon_tests {
 
     #[cfg(target_os = "linux")]
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn missing_pattern_is_reported_as_not_found_function() {
         use crate::{
             quake_live_engine::QuakeLiveEngineError, quake_live_functions::QuakeLiveFunction,
