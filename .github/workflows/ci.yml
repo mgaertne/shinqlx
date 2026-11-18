@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -69,13 +69,13 @@ jobs:
     needs: [ check-tests, clippy-tests ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install cargo-hack
@@ -88,7 +88,7 @@ jobs:
     needs: [ check, clippy ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,14 +101,14 @@ jobs:
     needs: [ check, clippy ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           components: rust-src
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install depend1encies
@@ -124,14 +124,14 @@ jobs:
     needs: [ check, clippy ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           components: rust-src
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install depend1encies
@@ -159,13 +159,13 @@ jobs:
             python-version: '3.9'
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - run: cargo build --verbose
@@ -186,13 +186,13 @@ jobs:
             python-version: '3.9'
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - run: cargo build -Z minimal-versions --verbose
@@ -205,9 +205,9 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install toolchain
@@ -218,7 +218,7 @@ jobs:
       - run: cargo install cargo-tarpaulin
       - run: cargo tarpaulin
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{secrets.CODECOV_TOKEN}}
       - name: Archive code coverage results
@@ -232,9 +232,9 @@ jobs:
     needs: [ build ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install toolchain
@@ -245,7 +245,7 @@ jobs:
       - run: cargo install cargo-llvm-cov
       - run: cargo llvm-cov --lcov --output-path lcov.info
       #      - name: Upload to codecov.io
-      #        uses: codecov/codecov-action@v5
+      #        uses: codecov/codecov-action@v7
       #        with:
       #          token: ${{secrets.CODECOV_TOKEN}}
       #          files: lcov.info
@@ -262,14 +262,14 @@ jobs:
     needs: [ build ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           components: miri
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - run: cargo miri test
@@ -281,9 +281,9 @@ jobs:
     needs: [ check, check-tests, clippy, clippy-tests, test-features, rust-doc, python-doc, miri, tarpaulin-coverage, build, python-checks ]
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install toolchain
@@ -344,7 +344,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
