@@ -53,6 +53,7 @@ minqlx 0.5.3 this package
 The page [Migration from minqlx]({HOMEPAGE}/blob/main/docs/migration.rst) lists all differences. This package needs
 `shinqlx-stubs` of the same version.
 """
+IMPORTED_TYPE_NAMES = ("ReplyKwargs",)
 REDIS_REQUIREMENT = "redis>=5.0"
 PRERELEASE_MARKERS = {"alpha": "a", "beta": "b", "rc": "rc"}
 CARGO_VERSION = re.compile(r"(?P<release>\d+\.\d+\.\d+)(?:-(?P<kind>alpha|beta|rc)\.(?P<number>\d+))?")
@@ -179,7 +180,7 @@ def build_minqlx_stubs(destination: Path, version: str) -> None:
     """Writes the distribution ``minqlx-stubs`` with re-exports generated from the runtime shim."""
     package = destination / "minqlx-stubs"
     package.mkdir(parents=True)
-    type_names = type_only_names((STUB_SOURCE / "__init__.pyi").read_text())
+    type_names = sorted({*type_only_names((STUB_SOURCE / "__init__.pyi").read_text()), *IMPORTED_TYPE_NAMES})
     for shim in sorted(SHIM_SOURCE.glob("*.py")):
         names = type_names if shim.stem == "__init__" else ()
         (package / f"{shim.stem}.pyi").write_text(render_reexport_stub(shim.read_text(), names))

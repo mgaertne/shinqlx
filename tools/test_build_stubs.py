@@ -115,7 +115,10 @@ class BuildTests(unittest.TestCase):
 
     def test_minqlx_stubs_export_what_the_shim_exports_and_the_type_names(self) -> None:
         package = self.output / "minqlx-stubs" / "minqlx-stubs"
-        type_names = set(build_stubs.type_only_names((build_stubs.STUB_SOURCE / "__init__.pyi").read_text()))
+        type_names = {
+            *build_stubs.type_only_names((build_stubs.STUB_SOURCE / "__init__.pyi").read_text()),
+            *build_stubs.IMPORTED_TYPE_NAMES,
+        }
         for shim in build_stubs.SHIM_SOURCE.glob("*.py"):
             expected = literal_all(shim) | (type_names if shim.stem == "__init__" else set())
             with self.subTest(shim.name):
@@ -127,6 +130,12 @@ class BuildTests(unittest.TestCase):
             {"CancellableEventReturn", "UncancellableEventReturn", "GameStartData", "KillData", "StatsData"}, names
         )
         self.assertTrue(all(not name.startswith("_") for name in names))
+
+    def test_minqlx_stubs_export_the_typed_dict_of_the_reply_keywords(self) -> None:
+        shinqlx_names = literal_all(build_stubs.STUB_SOURCE / "__init__.pyi")
+        minqlx_names = literal_all(self.output / "minqlx-stubs" / "minqlx-stubs" / "__init__.pyi")
+        self.assertIn("ReplyKwargs", shinqlx_names)
+        self.assertIn("ReplyKwargs", minqlx_names)
 
     def test_minqlx_stubs_export_only_names_that_shinqlx_stubs_export(self) -> None:
         shinqlx_names = literal_all(build_stubs.STUB_SOURCE / "__init__.pyi")
