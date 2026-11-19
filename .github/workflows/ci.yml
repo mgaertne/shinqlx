@@ -274,8 +274,8 @@ jobs:
           python-version: '3.14'
       - run: cargo miri test
 
-  release:
-    name: Release
+  publish-pypi:
+    name: Publish to PyPI
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [ check, check-tests, clippy, clippy-tests, test-features, rust-doc, python-doc, miri, tarpaulin-coverage, build, python-checks ]
@@ -389,3 +389,39 @@ jobs:
         with:
           name: plugin_migration_${{ matrix.os }}
           path: target/release/plugin_migration.exe
+
+  publish-github:
+    name: Publish GitHub release
+    runs-on: ubuntu-latest
+    if: "startsWith(github.ref, 'refs/tags/')"
+    needs: [ publish-pypi, build-binaries, python-doc ]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+      - name: Download the build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+      - name: Package the release assets
+        run: |
+          mkdir assets
+          for tool in ql_rcon ql_stats plugin_migration; do
+            for os in ubuntu-latest macos-latest; do
+              chmod +x "artifacts/${tool}_${os}/${tool}"
+              tar -czf "assets/${tool}-${GITHUB_REF_NAME}-${os}.tar.gz" -C "artifacts/${tool}_${os}" "${tool}"
+            done
+            zip -j "assets/${tool}-${GITHUB_REF_NAME}-windows-latest.zip" "artifacts/${tool}_windows-latest/${tool}.exe"
+          done
+          (cd artifacts/html-docs && zip -qr "../../assets/shinqlx-docs-${GITHUB_REF_NAME}.zip" .)
+          (cd assets && sha256sum -- * > SHA256SUMS)
+      - name: Extract the release notes of this version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v header="## ${version}" 'index($0, header) == 1 { found = 1; next } found && /^## / { exit } found' RELEASE_NOTES.md > release-notes.md
+          test -s release-notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" assets/* --title "${GITHUB_REF_NAME}" --notes-file release-notes.md --verify-tag

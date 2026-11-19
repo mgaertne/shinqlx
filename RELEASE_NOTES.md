@@ -124,3 +124,5 @@ Check these when you upgrade.
 * The CI runs clippy and `cargo check` on the whole workspace, the miri tests with stacked borrows and strict
   provenance, and the tests of the matrix keep running when one version fails.
 * `arzmq` is updated to 0.7, and the lints are shared across all crates.
+* The release page of GitHub carries `ql_rcon`, `ql_stats` and `plugin_migration` for Linux, macOS and Windows, the
+  HTML documentation as a zip file and a `SHA256SUMS` file. The assets are created by the CI when a tag is pushed.
