@@ -2,6 +2,7 @@
 
 ![python](https://img.shields.io/badge/python-3.9%7C3.10%7C3.11%7C3.12%7C3.13%7C3.14%7C3.15-blue.svg)
 ![Tests](https://github.com/mgaertne/shinqlx/actions/workflows/ci.yml/badge.svg)
+[![Documentation](https://app.readthedocs.org/projects/shinqlx/badge/?version=latest)](https://shinqlx.readthedocs.io/)
 [![codecov](https://codecov.io/gh/mgaertne/shinqlx/branch/main/graph/badge.svg?token=VK9QI52BZX)](https://codecov.io/gh/mgaertne/shinqlx)
 
 ShiN0's Quake Live eXtension, implemented in Rust. Most functionality
@@ -17,7 +18,8 @@ Some limitations apply for certain minqlx functions maybe used in plugins.
   arguments. This might be a breaking change for some plugins, but ensures Python redis 2.0 compatibility for these
   calls to later versions. We stick with redis >= 5.0.
 
-The documentation has a page "Migration from minqlx" that lists all deviations. The tool `plugin_migration` (see
+The documentation is at [shinqlx.readthedocs.io](https://shinqlx.readthedocs.io/). It has a page "Migration from
+minqlx" that lists all deviations. The tool `plugin_migration` (see
 [plugin_migration/README.md](plugin_migration/README.md)) migrates a whole folder of minqlx plugins.
 
 # Compilation and installation

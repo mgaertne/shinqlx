@@ -25,6 +25,10 @@ docs = [ "sphinx>=7" ]
 
 [project.urls]
 Homepage = "https://github.com/mgaertne/shinqlx"
+Documentation = "https://shinqlx.readthedocs.io/"
+Source = "https://github.com/mgaertne/shinqlx"
+Changelog = "https://github.com/mgaertne/shinqlx/blob/main/RELEASE_NOTES.md"
+Issues = "https://github.com/mgaertne/shinqlx/issues"
 
 [tool.maturin]
 unstable-flags = ["build-std=panic_abort", "build-std-features=panic-unwind"]
