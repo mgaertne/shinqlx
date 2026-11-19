@@ -1,4 +1,5 @@
 .. _logging:
+.. currentmodule:: shinqlx
 
 *******
 Logging
