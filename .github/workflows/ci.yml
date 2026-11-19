@@ -16,7 +16,7 @@ jobs:
           toolchain: nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run
+      - run: cargo hack check --workspace --each-feature --exclude-features default,bench-support --clean-per-run
 
   check-tests:
     name: Check (tests)
@@ -30,7 +30,7 @@ jobs:
           toolchain: nightly
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run --tests
+      - run: cargo hack check --workspace --each-feature --exclude-features default,bench-support --clean-per-run --tests
 
   clippy:
     name: Clippy
@@ -45,7 +45,7 @@ jobs:
           components: clippy
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack clippy --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run -- -D warnings
+      - run: cargo hack clippy --workspace --each-feature --exclude-features default,bench-support --clean-per-run -- -D warnings
 
   clippy-tests:
     name: Clippy (tests)
@@ -60,7 +60,7 @@ jobs:
           components: clippy
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack clippy --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run --tests -- -D warnings
+      - run: cargo hack clippy --workspace --each-feature --exclude-features default,bench-support --clean-per-run --tests -- -D warnings
 
   test-features:
     name: Test (feature combinations)
@@ -80,7 +80,7 @@ jobs:
           python-version: '3.14'
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack test --workspace --feature-powerset --exclude-features default,bench-support --clean-per-run
+      - run: cargo hack test --workspace --each-feature --exclude-features default,bench-support --clean-per-run
 
   rust-doc:
     name: rust-documentation
