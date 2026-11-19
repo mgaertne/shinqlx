@@ -6,7 +6,7 @@ members = ["ql_rcon", "ql_stats", "plugin_migration"]
 [workspace.package]
 rust-version = "1.95"
 edition = "2024"
-version = "0.8.0-alpha.1"
+version = "0.8.0"
 authors = ["Markus 'ShiN0' Gaertner"]
 
 [workspace.dependencies]
