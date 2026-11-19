@@ -1,3 +1,5 @@
+name: CI
+
 on: [ push, pull_request ]
 
 env:
@@ -14,9 +16,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --workspace --each-feature --exclude-features default,bench-support --clean-per-run
+      - run: cargo hack check --workspace --each-feature --exclude-features default,bench-support
 
   check-tests:
     name: Check (tests)
@@ -28,9 +34,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check --workspace --each-feature --exclude-features default,bench-support --clean-per-run --tests
+      - run: cargo hack check --workspace --each-feature --exclude-features default,bench-support --tests
 
   clippy:
     name: Clippy
@@ -43,9 +53,13 @@ jobs:
         with:
           toolchain: nightly
           components: clippy
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack clippy --workspace --each-feature --exclude-features default,bench-support --clean-per-run -- -D warnings
+      - run: cargo hack clippy --workspace --each-feature --exclude-features default,bench-support -- -D warnings
 
   clippy-tests:
     name: Clippy (tests)
@@ -58,9 +72,13 @@ jobs:
         with:
           toolchain: nightly
           components: clippy
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack clippy --workspace --each-feature --exclude-features default,bench-support --clean-per-run --tests -- -D warnings
+      - run: cargo hack clippy --workspace --each-feature --exclude-features default,bench-support --tests -- -D warnings
 
   test-features:
     name: Test (feature combinations)
@@ -74,13 +92,17 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack test --workspace --each-feature --exclude-features default,bench-support --clean-per-run
+      - run: cargo hack test --workspace --each-feature --exclude-features default,bench-support
 
   rust-doc:
     name: rust-documentation
@@ -93,6 +115,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - run: cargo doc --no-deps
 
   python-checks:
@@ -107,6 +133,10 @@ jobs:
         with:
           toolchain: nightly
           components: rust-src
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
@@ -130,6 +160,10 @@ jobs:
         with:
           toolchain: nightly
           components: rust-src
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
@@ -164,6 +198,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          key: python-${{ matrix.python-version }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
         with:
@@ -191,6 +230,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          key: python-${{ matrix.python-version }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
         with:
@@ -215,7 +259,12 @@ jobs:
         with:
           toolchain: nightly
           components: "llvm-tools"
-      - run: cargo install cargo-tarpaulin
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
       - run: cargo tarpaulin
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v7
@@ -242,7 +291,12 @@ jobs:
         with:
           toolchain: nightly
           components: "llvm-tools"
-      - run: cargo install cargo-llvm-cov
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - run: cargo llvm-cov --lcov --output-path lcov.info
       #      - name: Upload to codecov.io
       #        uses: codecov/codecov-action@v7
@@ -268,6 +322,10 @@ jobs:
         with:
           toolchain: nightly
           components: miri
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Set up Python 3.14
         uses: actions/setup-python@v7
         with:
@@ -350,6 +408,10 @@ jobs:
         with:
           toolchain: nightly
           components: rust-src
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - run: cargo build -p ql_rcon --release --verbose
       - run: cargo build -p ql_stats --release --verbose
       - run: cargo build -p plugin_migration --release --verbose
