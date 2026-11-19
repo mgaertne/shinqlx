@@ -1957,6 +1957,15 @@ def initialize():
             let failing_module = PyModule::from_code(
                 py,
                 cr#"""
+import sys
+
+_original = sys.modules["shinqlx"]
+
+
+def __getattr__(name):
+    return getattr(_original, name)
+
+
 def initialize():
     raise RuntimeError("the loader sequence failed")
 """#,
@@ -1981,7 +1990,22 @@ def initialize():
         PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
 
         Python::attach(|py| {
-            let _replaced = ReplacedShinqlxModule::with(py, py.None().bind(py));
+            let unreloadable_module = PyModule::from_code(
+                py,
+                cr#"""
+import sys
+
+_original = sys.modules["shinqlx"]
+
+
+def __getattr__(name):
+    return getattr(_original, name)
+"""#,
+                c"unreloadable_shinqlx.py",
+                c"unreloadable_shinqlx",
+            )
+            .expect("this should not happen");
+            let _replaced = ReplacedShinqlxModule::with(py, unreloadable_module.as_any());
 
             let result = pyshinqlx_reload();
 
