@@ -12,10 +12,10 @@ use super::{
 use crate::{
     ffi::python::{
         Player, Plugin, PythonReturnCodes,
-        native_plugins::test_support::{FakeRedis, REDIS_5, fixture_module},
+        native_plugins::test_support::{FakeRedis, REDIS_5, fixture_module, real_player},
         plugin::PluginMethods,
         pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::{RestoredAttribute, default_test_player, engine_with_cvars},
+        pyshinqlx_test_support::{RestoredAttribute, engine_with_cvars},
     },
     prelude::*,
 };
@@ -353,24 +353,6 @@ where
             });
         });
     });
-}
-
-fn real_player<'py>(py: Python<'py>, steam_id: i64, name: &str, ip: &str) -> Bound<'py, Player> {
-    let user_info = if ip.is_empty() {
-        String::new()
-    } else {
-        format!(r"\ip\{ip}")
-    };
-    Bound::new(
-        py,
-        Player {
-            steam_id,
-            name: name.to_owned().into(),
-            user_info,
-            ..default_test_player()
-        },
-    )
-    .expect("could not create the player")
 }
 
 fn msg(words: &[&str]) -> Vec<String> {

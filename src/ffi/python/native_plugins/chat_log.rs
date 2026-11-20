@@ -7,7 +7,10 @@ use pyo3::{
 };
 
 use super::{create_cvar, cvar_int, register_hook};
-use crate::ffi::python::{Plugin, clean_text, commands::CommandPriorities, get_cvar};
+use crate::ffi::python::{
+    AbstractChannel, AbstractChannelMethods, Player, PlayerMethods, Plugin, clean_text,
+    commands::CommandPriorities, get_cvar,
+};
 
 const CHATLOG_COUNT_CVAR: &str = "qlx_chatlogs";
 const CHATLOG_SIZE_CVAR: &str = "qlx_chatlogsSize";
@@ -34,70 +37,56 @@ impl ChatLog {
         visit.call(&self.chatlog)
     }
 
-    fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-        let py = slf.py();
+    fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let message = format!(
             "{}:{}:{} connected.",
-            player.getattr(intern!(py, "clean_name"))?,
-            player.getattr(intern!(py, "steam_id"))?,
-            player.getattr(intern!(py, "ip"))?,
+            player.get_clean_name(),
+            player.get_steam_id(),
+            player.get_ip(),
         );
 
-        slf.get().write(py, &message)
+        slf.get().write(slf.py(), &message)
     }
 
     fn handle_player_disconnect(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         reason: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        let py = slf.py();
         let reason_text = match reason.extract::<String>() {
             Ok(text) if !text.is_empty() && !text.ends_with(['?', '!', '.']) => format!("{text}."),
             Ok(text) => text,
             Err(_) => reason.str()?.to_string(),
         };
-        let message = format!(
-            "{player}:{} {reason_text}",
-            player.getattr(intern!(py, "steam_id"))?,
-        );
+        let message = format!("{player}:{} {reason_text}", player.get_steam_id());
 
-        slf.get().write(py, &clean_text(&message))
+        slf.get().write(slf.py(), &clean_text(&message))
     }
 
     fn handle_chat(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
-        msg: &Bound<'_, PyAny>,
-        channel: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
+        msg: &str,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<()> {
-        let py = slf.py();
-        let channel_name = if channel.eq("chat")? {
-            String::new()
-        } else {
-            format!("[{}] ", channel.str()?.to_string().to_uppercase())
+        let channel_name = match channel.get_name().as_str() {
+            "chat" => String::new(),
+            name => format!("[{}] ", name.to_uppercase()),
         };
-        let message = format!(
-            "{channel_name}<{player}:{}> {msg}",
-            player.getattr(intern!(py, "steam_id"))?,
-        );
+        let message = format!("{channel_name}<{player}:{}> {msg}", player.get_steam_id());
 
-        slf.get().write(py, &clean_text(&message))
+        slf.get().write(slf.py(), &clean_text(&message))
     }
 
     fn handle_command(
         slf: &Bound<'_, Self>,
-        caller: &Bound<'_, PyAny>,
+        caller: &Bound<'_, Player>,
         _command: &Bound<'_, PyAny>,
-        args: &Bound<'_, PyAny>,
+        args: &str,
     ) -> PyResult<()> {
-        let py = slf.py();
-        let message = format!(
-            "[CMD] <{caller}:{}> {args}",
-            caller.getattr(intern!(py, "steam_id"))?,
-        );
+        let message = format!("[CMD] <{caller}:{}> {args}", caller.get_steam_id());
 
-        slf.get().write(py, &clean_text(&message))
+        slf.get().write(slf.py(), &clean_text(&message))
     }
 }
 
@@ -181,12 +170,13 @@ mod chat_log_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                EVENT_DISPATCHERS, Plugin,
+                EVENT_DISPATCHERS, Player, Plugin,
                 events::{
                     ChatEventDispatcher, CommandDispatcher, EventDispatcherManager,
                     EventDispatcherManagerMethods, PlayerConnectDispatcher,
                     PlayerDisconnectDispatcher,
                 },
+                native_plugins::test_support::{named_channel, real_player},
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
             },
         },
@@ -196,7 +186,7 @@ mod chat_log_tests {
     struct Fixtures<'py> {
         plugin: Bound<'py, ChatLog>,
         recorder: Bound<'py, PyAny>,
-        player: Bound<'py, PyAny>,
+        player: Bound<'py, Player>,
     }
 
     impl Fixtures<'_> {
@@ -219,14 +209,6 @@ class Recorder:
     def info(self, message):
         self.messages.append(message)
 
-
-class Player:
-    clean_name = 'Ada'
-    steam_id = 1234
-    ip = '10.0.0.1'
-
-    def __str__(self):
-        return '^1Ada'
 ",
             c"",
             c"",
@@ -243,10 +225,7 @@ class Player:
             }),
         )
         .expect("could not create the plugin");
-        let player = module
-            .getattr("Player")
-            .and_then(|player| player.call0())
-            .expect("could not create the player");
+        let player = real_player(py, 1234, "^1Ada", "10.0.0.1");
 
         Fixtures {
             plugin,
@@ -318,13 +297,8 @@ class Player:
             ChatLog::handle_chat(
                 &fixtures.plugin,
                 &fixtures.player,
-                &msg.into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                &channel
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                msg,
+                &named_channel(py, channel),
             )
             .expect("could not handle the chat message");
 
@@ -346,10 +320,7 @@ class Player:
                     .into_pyobject(py)
                     .expect("this should not happen")
                     .into_any(),
-                &"^3Bob 10"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
+                "^3Bob 10",
             )
             .expect("could not handle the command");
 

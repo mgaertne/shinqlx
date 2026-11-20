@@ -3,6 +3,8 @@ use core::ffi::CStr;
 
 use pyo3::{prelude::*, types::PyDict};
 
+use crate::ffi::python::{AbstractChannel, Player, pyshinqlx_test_support::default_test_player};
+
 pub(super) const REDIS_5: &CStr = c"VERSION = (5, 0, 0)\n";
 pub(super) const REDIS_2: &CStr = c"VERSION = (2, 10, 6)\n";
 
@@ -174,4 +176,36 @@ pub(super) fn fixture_module<'py>(py: Python<'py>, fixtures: &CStr) -> Bound<'py
     ))
     .expect("the fixtures contain no NUL byte");
     PyModule::from_code(py, &code, c"", c"").expect("could not create the fixtures")
+}
+
+/// A real player with the steam id, name and ip. An empty ip leaves the user info empty.
+pub(super) fn real_player<'py>(
+    py: Python<'py>,
+    steam_id: i64,
+    name: &str,
+    ip: &str,
+) -> Bound<'py, Player> {
+    let user_info = if ip.is_empty() {
+        String::new()
+    } else {
+        format!(r"\ip\{ip}")
+    };
+    Bound::new(
+        py,
+        Player {
+            steam_id,
+            name: name.to_owned().into(),
+            user_info,
+            ..default_test_player()
+        },
+    )
+    .expect("could not create the player")
+}
+
+/// A channel with the given name.
+pub(super) fn named_channel<'py>(py: Python<'py>, name: &str) -> Bound<'py, AbstractChannel> {
+    py.get_type::<AbstractChannel>()
+        .call1((name,))
+        .and_then(|channel| Ok(channel.cast_into::<AbstractChannel>()?))
+        .expect("could not create the channel")
 }
