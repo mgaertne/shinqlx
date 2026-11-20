@@ -17,7 +17,12 @@ use tokio::{
     task,
 };
 
-use crate::{CONTINUE_RUNNING, CommandLineOptions, fetch::Fetched, learn::Learned};
+use crate::{
+    CONTINUE_RUNNING, CommandLineOptions,
+    fetch::Fetched,
+    guide::{help_for, value_labels},
+    learn::Learned,
+};
 
 /// Console commands of Quake Live, one per line.
 const COMMANDS: &str = include_str!("commands.txt");
@@ -49,12 +54,25 @@ fn known_values(cvar: &str, user: &UserLists) -> Vec<String> {
         })
         .unwrap_or_default();
     let learned = user.cvars.get(&cvar.to_lowercase());
+    let labelled: Vec<String> = user
+        .labels
+        .get(&cvar.to_lowercase())
+        .into_iter()
+        .flatten()
+        .map(|(value, _)| value.clone())
+        .chain(
+            value_labels(cvar)
+                .into_iter()
+                .map(|(value, _)| value.to_string()),
+        )
+        .collect();
 
     let mut values: Vec<String> = Vec::new();
     for value in learned
         .map(|cvar| cvar.default.clone())
         .into_iter()
         .chain(guide)
+        .chain(labelled)
         .chain(
             learned
                 .into_iter()
@@ -66,6 +84,68 @@ fn known_values(cvar: &str, user: &UserLists) -> Vec<String> {
         }
     }
     values
+}
+
+/// What a value of a cvar means: the user's own label first, then the one of the console guide.
+fn value_label(cvar: &str, value: &str, user: &UserLists) -> Option<String> {
+    user.labels
+        .get(&cvar.to_lowercase())
+        .into_iter()
+        .flatten()
+        .find(|(known, _)| known == value)
+        .map(|(_, label)| label.clone())
+        .or_else(|| {
+            value_labels(cvar)
+                .into_iter()
+                .find(|(known, _)| *known == value)
+                .map(|(_, label)| label.to_string())
+        })
+}
+
+/// The cvar whose value the cursor is at: `set <cvar> |` or `<cvar> |`.
+fn cvar_of_value<'a>(words: &[&'a str]) -> Option<&'a str> {
+    match words {
+        [command, cvar] if is_set_command(command) => Some(cvar),
+        [cvar] => Some(cvar),
+        _ => None,
+    }
+}
+
+/// Fills the text up to more than half of the terminal width, so that the list shows one entry per line.
+fn one_per_line(text: String, columns: usize) -> String {
+    let width = columns / 2 + 1;
+    format!("{text:<width$}")
+}
+
+/// At most this many names get their description in the list, longer lists stay compact.
+const DESCRIBED_NAMES: usize = 20;
+
+/// The completions with the text for the list: the meaning for values, the description for few names.
+fn describe(
+    found: Vec<String>,
+    before: &str,
+    start: usize,
+    user: &UserLists,
+    columns: usize,
+) -> Vec<Completion> {
+    let words = before.split_whitespace().collect::<Vec<_>>();
+    let cvar = cvar_of_value(&words);
+    let describe_names = start == 0 && found.len() <= DESCRIBED_NAMES;
+
+    found
+        .into_iter()
+        .map(|item| {
+            let text = if describe_names {
+                help_for(&item).map(str::to_string)
+            } else {
+                cvar.and_then(|cvar| value_label(cvar, &item, user))
+            };
+            let display = text.map(|text| one_per_line(format!("{item}  {text}"), columns));
+            let mut completion = Completion::simple(item);
+            completion.display = display;
+            completion
+        })
+        .collect()
 }
 
 fn is_set_command(command: &str) -> bool {
@@ -81,6 +161,7 @@ struct UserLists {
     maps: Vec<String>,
     usages: HashMap<String, String>,
     factories: Vec<String>,
+    labels: HashMap<String, Vec<(String, String)>>,
     cvars: HashMap<String, LearnedCvar>,
 }
 
@@ -342,10 +423,32 @@ fn load_learned(args: &CommandLineOptions, user: &mut UserLists) {
     }
 }
 
+/// Lines `cvar<TAB>value<TAB>meaning` of `values.txt` and `values-<host>.txt`.
+fn parse_labels(lines: &[String]) -> HashMap<String, Vec<(String, String)>> {
+    let mut labels: HashMap<String, Vec<(String, String)>> = HashMap::new();
+    for line in lines {
+        if let Some((cvar, value, label)) = line.split_once('\t').and_then(|(cvar, rest)| {
+            rest.split_once('\t')
+                .map(|(value, label)| (cvar, value, label))
+        }) {
+            labels
+                .entry(cvar.trim().to_lowercase())
+                .or_default()
+                .push((value.trim().to_string(), label.trim().to_string()));
+        }
+    }
+    labels
+}
+
 fn load_user_lists(args: &CommandLineOptions) -> UserLists {
     let mut user = UserLists {
         names: load_lines(&user_names_files(args)),
         maps: load_lines(&list_files(args, "maps", "completions-maps")),
+        labels: parse_labels(&load_lines(&list_files(
+            args,
+            "values",
+            "completions-values",
+        ))),
         ..UserLists::default()
     };
     load_learned(args, &mut user);
@@ -392,7 +495,13 @@ impl Completer<DefaultTerminal> for HistoryCompleter {
             return Some(usage_listing(usage));
         }
 
-        Some(found.into_iter().map(Completion::simple).collect())
+        Some(describe(
+            found,
+            prompter.buffer().get(..start).unwrap_or_default(),
+            start,
+            &user,
+            prompter.screen_size().columns,
+        ))
     }
 }
 
@@ -645,9 +754,9 @@ mod linefeed_helper_tests {
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, LearnedCvar, UserLists, completions, get_history_file, known_values,
-        parse_user_names, split_ql_colors, terminal_buffer, usage_hint, user_names_files,
-        write_formatted_ql_colors,
+        CommandLineOptions, LearnedCvar, UserLists, completions, describe, get_history_file,
+        known_values, parse_labels, parse_user_names, split_ql_colors, terminal_buffer, usage_hint,
+        user_names_files, value_label, write_formatted_ql_colors,
     };
 
     fn rendered(buffer: Buffer) -> String {
@@ -930,6 +1039,83 @@ mod linefeed_helper_tests {
             Some("dir <directory> [extension]")
         );
         assert_eq!(usage_hint("kick ", &user), None);
+    }
+
+    #[test]
+    fn values_are_listed_with_their_meaning_but_inserted_without_it() {
+        let user = UserLists::default();
+        let found = completions("g_gametype ", "", 11, [].into_iter(), &user);
+
+        let described = describe(found, "g_gametype ", 11, &user, 80);
+
+        let ca = described
+            .iter()
+            .find(|completion| completion.completion == "4")
+            .expect("the value 4 is offered");
+        assert_eq!(
+            ca.display.as_deref().map(str::trim_end),
+            Some("4  Clan Arena")
+        );
+    }
+
+    #[test]
+    fn described_entries_fill_more_than_half_of_the_line() {
+        let user = UserLists::default();
+
+        let described = describe(
+            vec!["0".to_string(), "1".to_string()],
+            "g_gametype ",
+            11,
+            &user,
+            80,
+        );
+
+        assert!(described.iter().all(|completion| {
+            completion
+                .display
+                .as_ref()
+                .is_some_and(|text| text.chars().count() > 40)
+        }));
+    }
+
+    #[test]
+    fn few_names_are_listed_with_their_description_many_stay_compact() {
+        let user = UserLists::default();
+
+        let few = describe(vec!["timelimit".to_string()], "", 0, &user, 80);
+        let many = describe(vec!["timelimit".to_string(); 21], "", 0, &user, 80);
+
+        assert_eq!(
+            few[0].display.as_deref().map(str::trim_end),
+            Some("timelimit  Sets the time limit on your server.")
+        );
+        assert!(many.iter().all(|completion| completion.display.is_none()));
+    }
+
+    #[test]
+    fn user_values_get_their_own_meaning_before_the_guide() {
+        let user = UserLists {
+            labels: parse_labels(&[
+                "g_gametype\t4\tmy clan arena".to_string(),
+                "qlx_mode\t7\tfast".to_string(),
+                "broken line".to_string(),
+            ]),
+            ..UserLists::default()
+        };
+
+        assert_eq!(
+            value_label("G_GAMETYPE", "4", &user).as_deref(),
+            Some("my clan arena")
+        );
+        assert_eq!(
+            value_label("g_gametype", "5", &user).as_deref(),
+            Some("Capture the Flag")
+        );
+        assert!(
+            known_values("qlx_mode", &user)
+                .iter()
+                .any(|value| value == "7")
+        );
     }
 
     #[test]

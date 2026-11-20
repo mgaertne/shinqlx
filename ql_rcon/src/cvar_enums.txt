@@ -1,0 +1,314 @@
+ui_browserMaster	0	LAN	e
+ui_browserMaster	1	Mplayer	e
+ui_browserMaster	2	Internet	e
+ui_browserMaster	3	Favorites	e
+ui_browserShowEmpty	0	hide empty servers	e
+ui_browserShowEmpty	1	show empty servers	e
+ui_browserShowFull	0	hide full servers	e
+ui_browserShowFull	1	show full servers	e
+ui_browserSortKey	0	server name	e
+ui_browserSortKey	1	map name	e
+ui_browserSortKey	2	open player slots	e
+ui_browserSortKey	3	game type	e
+ui_browserSortKey	4	ping time	e
+ui_cdkeychecked	0	CD-Key has not been checked	e
+ui_cdkeychecked	1	CD-Key has been checked	e
+ui_ctf_friendly	0	no friendly fire	e
+ui_ctf_friendly	1	friendly fire enabled	e
+ui_dedicated	0	listen server setting	e
+ui_dedicated	1	dedicated server setting	e
+ui_forceEnemyModelBright	1	on	e
+ui_q3model	0	Team Arena player model list	e
+ui_q3model	1	Arena player model list	e
+ui_team_friendly	1	friendly fire	e
+winkey_disable	0	Use of windows key allowed	e
+winkey_disable	1	Use of windows key disabled	e
+r_allowSoftwareGL	0	diabled	e
+r_aspectRatio	0	4:3	e
+r_aspectRatio	1	16:9	e
+r_aspectRatio	2	16:10	e
+r_aspectRatio	3	5:4	e
+r_colorbits	0	default	e
+r_colorbits	16	16 bit color	e
+r_colorbits	24	24 bit color	e
+r_colorbits	32	32 bit color	e
+r_debugSurfaceUpdate	0	first bounding box that appears will remain and others will not    appear.	e
+r_debugSurfaceUpdate	1	changes the bounding box according to location.	e
+r_depthbits	0	Uses the desktop depth bits.	e
+r_depthbits	16	16-bit. Can result in artifacts.	e
+r_depthbits	24	24-bit*	e
+r_depthbits	32	32 bit*	e
+r_drawSun	0	disabled*	e
+r_fastsky	1	Sky boxes disabled	e
+r_fullbright	0	Normal Rendering	e
+r_fullbright	1	Full Brightness	e
+r_fullscreen	0	Windowed	e
+r_fullscreen	1	Fullscreen	e
+r_lodbias	0	High	e
+r_lodbias	1	Medium	e
+r_lodbias	2	Low	e
+r_nobind	0	binding enabled	e
+r_nobind	1	no binding	e
+r_nocull	0	culling enabled	e
+r_nocull	1	no culling	e
+r_nocurves	0	curves surfaces enabled	e
+r_nocurves	1	no curved surfaces	e
+r_noportals	0	portal cameras enabled	e
+r_noportals	1	no portal cameras	e
+r_norefresh	0	rendering refreshes allowed	e
+r_norefresh	1	no rendering refreshes	e
+r_novis	0	VIS enabled	e
+r_novis	1	no VIS	e
+r_primitives	0	uses glDrawelements if compiled vertex arrays are present, or strips of    glArrayElement if not.	e
+r_primitives	1	force strips	e
+r_primitives	2	force drawElements	e
+r_stencilbits	16	16-bit	e
+r_stencilbits	32	32-bit	e
+r_subdivisions	4	curved surfaces	e
+r_subdivisions	80	angles surfaces	e
+r_texturebits	16	16 bit	e
+r_texturebits	32	32 bit	e
+r_vertexlight	0	Light Map	e
+r_vertexlight	1	Vertex	e
+ruleset	1	QL Rules	e
+ruleset	2	PQL Rules	e
+s_ambient	0	no ambient sounds	e
+s_ambient	1	ambient sounds enabled	e
+sv_allowDownload	0	Downloads disallowed	e
+sv_allowDownload	1	Downloads allowed	e
+teamsize	0	no restriction	e
+teamtask	0	default (offense)	e
+teamtask	1	offense	e
+teamtask	2	defense	e
+teamtask	3	patrol	e
+teamtask	4	following	e
+teamtask	5	retrieving	e
+teamtask	6	escorting	e
+teamtask	7	camping	e
+dedicated	0	Listen server	e
+dedicated	1	Dedicated server	e
+dmflags	4	no self splash-damage on health	e
+dmflags	8	no self splash-damage on armor	e
+dmflags	16	no falling damage	e
+fraglimit	0	no fraglimit	e
+g_dropCmds	1	flags (dropflag)	b
+g_dropCmds	2	power-ups (droppowerup)	b
+g_dropCmds	4	weapons (dropweapon)"	b
+g_filterBan	0	allows only specified IP&rsquo;s to connect	e
+g_filterBan	1	allows anyone except specified IP&rsquo;s to connect	e
+g_gametype	0	Free for All	e
+g_gametype	1	Tournament	e
+g_gametype	2	Race	e
+g_gametype	3	Team Deathmatch	e
+g_gametype	4	Clan Arena	e
+g_gametype	5	Capture the Flag	e
+g_gametype	6	One-Flag CTF	e
+g_gametype	7	Overload	e
+g_gametype	8	Harvester	e
+g_gametype	9	Freeze Tag	e
+g_log	1	Enables logging	e
+g_logSync	0	overwrite existing files	e
+g_logSync	1	write to the end of an existing file.	e
+g_playerCylinders	0	rectangular bounding boxes	e
+g_playerCylinders	1	cylindrical bounding boxes	e
+g_spSkill	1	I Can Win	e
+g_spSkill	3	Hurt Me Plenty	e
+g_spSkill	5	Nightmare	e
+g_startingWeapons	1	Gauntlet	b
+g_startingWeapons	2	Machinegun	b
+g_startingWeapons	4	Shotgun	b
+g_startingWeapons	8	Grenade Luncher	b
+g_startingWeapons	16	Rocket Luncher	b
+g_startingWeapons	32	Lightning Gun	b
+g_startingWeapons	64	Railgun	b
+g_startingWeapons	128	Plasmagun	b
+g_startingWeapons	256	BFG	b
+g_startingWeapons	512	Grappling Hook	b
+g_startingWeapons	1024	Nailgun	b
+g_startingWeapons	2048	Prox Launcher	b
+g_startingWeapons	4096	Chaingun	b
+g_startingWeapons	8192	Map Default Weapons	b
+g_startingWeapons	1	Gauntlet	e
+g_startingWeapons	2	Machinegun	e
+g_startingWeapons	4	Shotgun	e
+g_startingWeapons	8	Grenade Luncher	e
+g_startingWeapons	16	Rocket Luncher	e
+g_startingWeapons	32	Lightning Gun	e
+g_startingWeapons	64	Railgun	e
+g_startingWeapons	128	Plasmagun	e
+g_startingWeapons	256	BFG	e
+g_startingWeapons	512	Grappling Hook	e
+g_startingWeapons	1024	Nailgun	e
+g_startingWeapons	2048	Prox Launcher	e
+g_startingWeapons	4096	Chaingun	e
+g_startingWeapons	8192	Map Defualt Weapons	e
+g_voteFlags	1	map	b
+g_voteFlags	2	map_restart	b
+g_voteFlags	4	nextmap	b
+g_voteFlags	8	g_gametype	b
+g_voteFlags	16	clientkick/kick	b
+g_voteFlags	32	???	b
+g_voteFlags	64	timelimit	b
+g_voteFlags	128	fraglimit	b
+g_voteFlags	256	shuffle	b
+g_voteFlags	512	teamsize	b
+g_voteFlags	1024	cointoss	b
+g_voteFlags	2048	ruleset	b
+in_joystick_inverted	0	normal input	e
+in_joystick_inverted	1	inverted input	e
+in_mouse	1	Direct input	e
+in_mouse	2	Raw input	e
+logfile	1	buffered	e
+logfile	2	continuous	e
+logfile	3	append	e
+appendlogfile	0	disabled	e
+appendlogfile	1	enabled	e
+armor_tiered	0	disabled	e
+armor_tiered	1	QW-inspired"	e
+bot_dynamicSkill	0	bot skill set by skill setting	e
+bot_dynamicSkill	1	bot skill set by &lsquo;My Skill&rsquo; setting	e
+bot_followMe	0	free roam	e
+bot_followMe	1	follow	e
+bot_gauntlet	1	gauntlet-only	e
+bot_hud	0	freeze debug information	e
+bot_hud	1	debug information	e
+bot_pause	0	active bots	e
+bot_pause	1	paused bots	e
+bot_startingSkill	1	I Can Win (easy)	e
+bot_startingSkill	2	Bring It On	e
+bot_startingSkill	3	Hurt Me Plenty (medium)	e
+bot_startingSkill	4	Hardcore	e
+bot_startingSkill	5	Nightmare (difficult)	e
+bot_testichat	0	normal	e
+bot_testichat	1	test initial chat	e
+bot_testrchat	1	test reply chat	e
+bot_training	1	training mode	e
+cg_animspeed	0	disables player animations	e
+cg_animspeed	1	enabled player animations	e
+cg_autoAction	0	do nothing	e
+cg_autoAction	1	enable auto demo recording	e
+cg_autoAction	2	enable auto screenshot	e
+cg_autoAction	3	enable auto demo recording and auto screenshot	e
+cg_clanOnTeamOverlay	0	hidden	e
+cg_clanOnTeamOverlay	1	shown	e
+cg_crosshairHitStyle	0	Off	e
+cg_crosshairHitStyle	1	Colorize the crosshair based on damage dealt.	e
+cg_crosshairHitStyle	2	Colorize the crosshair to color designated by    cg_crosshairHitColor.	e
+cg_crosshairHitStyle	3	Pulse the crosshair (exaggerated/scaled pulse)	e
+cg_crosshairHitStyle	4	Colorize by damage and Pulse the crosshair.	e
+cg_crosshairHitStyle	5	Colorize by cg_crosshairHitColor and Pulse the crosshair.	e
+cg_crosshairHitStyle	6	Pulse the crosshair with a smaller pulse. (same size as the    cg_crosshairPulse uses when picking items up)	e
+cg_crosshairHitStyle	7	Colorize by damage and pulse with smaller pulse.	e
+cg_crosshairHitStyle	8	Colorize by cg_crosshairHitColor and pulse with smaller pulse.	e
+cg_draw2D	0	No HUD	e
+cg_draw2D	1	Show HUD	e
+cg_drawAmmoWarning	1	Normal-Sized Text Warning	e
+cg_drawAmmoWarning	2	Small-Sized Text Warning	e
+cg_drawCrosshairNames	0	disabled	e
+cg_drawCrosshairNames	1	enabled	e
+cg_drawCrosshairNames	2	enabled, also shows team mate health and armor when    cg_drawCrosshairTeamHealth 1	e
+cg_drawCrosshairTeamHealth	1	setting 1	e
+cg_drawCrosshairTeamHealth	2	setting 2	e
+cg_drawFullWeaponBar	0	Draw only currently held weapons on the weapon bar	e
+cg_drawFullWeaponBar	1	Draw all weapons available in the map on the weapon bar	e
+cg_drawGun	1	Normal (bobs when moving)	e
+cg_drawGun	2	Still	e
+cg_drawItemPickups	1	draw icon	b
+cg_drawItemPickups	2	draw name	b
+cg_drawItemPickups	4	draw time	b
+cg_drawItemPickups	3	Draw Icon + Item Name on Pickup	e
+cg_drawItemPickups	7	Draw Timestamp + Icon + Item Name on Pickup	e
+cg_drawPregameMessages	1	show messages in warmup rounds	e
+cg_drawRewards	1	show rewards	e
+cg_drawSpecMessages	1	show messages in spectator mode	e
+cg_drawSprites	1	draw sprites	e
+cg_drawStatus	1	draw status	e
+cg_drawtargetnames	1	show target names	e
+cg_drawTeamOverlay	1	Top-right of view	e
+cg_drawTeamOverlay	2	Bottom-right of view	e
+cg_hitBeep	1	Single-Tone	e
+cg_hitBeep	2	Multi-Tone	e
+cg_hitBeep	3	Reverse Multi-Tone	e
+cg_itemFx	0	static	e
+cg_itemFx	1	bounce	e
+cg_itemFx	2	rotating	e
+cg_itemFx	4	scale	e
+cg_killbeep	0	default	e
+cg_killbeep	1	Ting	e
+cg_killbeep	2	Tink	e
+cg_killbeep	3	Dramatic	e
+cg_killbeep	4	Voosh	e
+cg_killbeep	5	Drum	e
+cg_killbeep	6	Bang	e
+cg_killbeep	7	Ding	e
+cg_killbeep	8	ChaChing	e
+cg_lagometer	1	Show netgraph	e
+cg_lagometer	2	Show netgraph + client ping estimation.	e
+cg_levelTimerDirection	0	Count up to time limit	e
+cg_levelTimerDirection	1	Count down to zero	e
+cg_lightningStyle	1	Default Q3/QL	e
+cg_lightningStyle	2	QuakeWorld inspired	e
+cg_lightningStyle	3	Team Arena shaft	e
+cg_lightningStyle	4	Thin shaft	e
+cg_lightningStyle	5	Wide beam (Q3 style)	e
+cg_lowAmmoWarningSound	0	Disabled	e
+cg_lowAmmoWarningSound	1	Low Ammo Clip Reload Sound played for Low Ammo, No Ammo Click Sound    played for No Ammo	e
+cg_lowAmmoWarningSound	2	No Ammo Click Sound played for both Low and No Ammo	e
+cg_lowAmmoWeaponBarWarning	1	Draw weapon bar ammo value in red when empty	e
+cg_lowAmmoWeaponBarWarning	2	Draw weapon bar ammo value in yellow when low and red when empty	e
+cg_noplayeranims	0	All animations	e
+cg_noplayeranims	1	No animations	e
+cg_nopredict	0	server-player prediction	e
+cg_nopredict	1	no player prediction	e
+cg_plasmaStyle	1	No Trail	e
+cg_plasmaStyle	2	Particle Trail	e
+cg_railStyle	1	Rail core rail trail	e
+cg_railStyle	2	Spiral rail trail	e
+cg_rocketStyle	1	No Plume	e
+cg_rocketStyle	2	Fire Plume	e
+cg_shadows	0	No shadows	e
+cg_shadows	1	Shadows	e
+cg_speedometer	1	lag-o-meter style graph	e
+cg_speedometer	2	value and graph under crosshair	e
+cg_speedometer	3	value under crosshair	e
+cg_thirdPerson	0	first-person view	e
+cg_thirdPerson	1	third-person view	e
+cg_trackPlayer	0	setting 1	e
+cg_trackPlayer	1	setting 2	e
+cl_contimestamps	0	None	e
+cl_contimestamps	1	Game time	e
+cl_contimestamps	2	Server time	e
+cl_debugMove	1	display x-axis (yaw) mouse speed graph	e
+cl_debugMove	2	display y-axis (pitch) mouse speed graph	e
+cl_demoRecordMessage	0	Hide	e
+cl_demoRecordMessage	1	Show	e
+cl_run	0	Walk	e
+cl_run	1	Run	e
+com_allowConsole	0	Ctrl + Alt + <console bind>	e
+com_allowConsole	1	<console bind>	e
+com_introplayed	0	plays intro cinematic	e
+com_introplayed	1	disables intro cinematic	e
+com_speeds	0	disabled	e
+showip	0	Hide	e
+showip	1	Show	e
+teamtask	0	default (offense)	e
+teamtask	1	offense	e
+teamtask	2	defense	e
+teamtask	3	patrol	e
+teamtask	4	following	e
+teamtask	5	retrieving	e
+teamtask	6	escorting	e
+teamtask	7	camping	e
+weapon	1	gauntlet	e
+weapon	2	machine gun	e
+weapon	3	shotgun	e
+weapon	4	grenade launcher	e
+weapon	5	rocket launcher	e
+weapon	6	lightning gun	e
+weapon	7	railgun	e
+weapon	8	plasmagun	e
+weapon	9	BFG10K	e
+weapon	10	grappling hook	e
+weapon	11	nailgun	e
+weapon	12	proximity mine launcher	e
+weapon	13	chaingun	e

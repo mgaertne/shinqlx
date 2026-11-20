@@ -1,288 +1,338 @@
-activeAction
-appendlogfile	your os
-armor_tiered	0	0|1
-bot_breakPoint	0
+appendlogfile	0	0|1
+archss	your os	
+armor_tiered	0	
+bot_aasoptimize	0	0|1
+bot_breakPoint	0	
 bot_challenge	0	0|1
 bot_debug	0	0|1
 bot_debugVar	0	0|1
 bot_developer	0	0|1
-bot_dynamicSkill	1	0|1
+bot_dynamicSkill	0	0|1
+bot_enable	1	0|1
 bot_fastchat	0	0|1
-bot_followDist	250
+bot_followDist	250	
 bot_followMe	0	0|1
+bot_forceclustering	0	0|1
 bot_forcereachability	0	0|1
 bot_forcewrite	0	0|1
 bot_gauntlet	0	0|1
+bot_gauntletOnly	0	0|1
 bot_grapple	0	0|1
 bot_groundonly	1	0|1
-bot_hud	0.4
-bot_interbreedbots	10
-bot_interbreedchar
-bot_interbreedcycle	20
-bot_interbreedwrite
-bot_itemDelayTime	0
-bot_log	0
-bot_maxdebugpolys	2
+bot_hud	-1	-1|0|1
+bot_instaGibAimSkill	0.4	
+bot_interbreedbots	10	
+bot_interbreedcycle	20	
+bot_itemDelayTime	0	
+bot_log	0	
+bot_maxdebugpolys	2	
 bot_memorydump	0	0|1
-bot_minplayers	0
+bot_minplayers	0	
 bot_nochat	0	0|1
-bot_pause	1	0|1
+bot_pause	0	0|1
+bot_predictobstacles	1	0|1
 bot_reachability	0	0|1
 bot_reloadcharacters	0	0|1
 bot_report	0	0|1
 bot_rocketjump	1	0|1
-bot_saveroutingcache	0
+bot_saveroutingcache	0	
 bot_showAreaNumber	0	0|1
+bot_showAreas	0	0|1
 bot_showAvoidSpots	0	0|1
 bot_showPath	0	0|1
 bot_showTourPoints	0	0|1
-bot_startingSkill	0	0|1
+bot_startingSkill	1	
+bot_teamkill	0	0|1
 bot_testclusters	0	0|1
 bot_testichat	0	0|1
-bot_thinktime	100
+bot_testrchat	0	0|1
+bot_testsolid	0	0|1
+bot_thinktime	100	
 bot_training	0	0|1
-capturelimit	8
+bot_visualizejumppads	0	0|1
+capturelimit	8	
 cg_allowtaunt	1	0|1
-cg_animspeed	0	0|1
+cg_animspeed	1	0|1
+cg_armorTiered	0	0|1
 cg_atmosphericEffects	1	0|1
-cg_autoAction	0	0|1
+cg_autoAction	0	0|1|2|3
+cg_autoProjectileNudge	0	0|1
 cg_autoswitch	0	0|1
 cg_battlesuitKillCounter	1	0|1
-cg_blueTeam
-cg_blueTeamShort
-cg_bob	1
-cg_brassTime	2500
-cg_bubbleTrail	0
-cg_cameraOrbitDelay	50
-cg_cameraSmartMode	1
+cg_bob	1	
+cg_brassTime	2500	
+cg_bubbleTrail	1	
+cg_buzzerSound	1	
+cg_cameraOrbit	0	
+cg_cameraOrbitDelay	50	
+cg_cameraSmartMode	1	
 cg_cameraThirdPersonSmartMode	1	0|1
-cg_centertime	3
+cg_centertime	3	
 cg_chatbeep	1	0|1
-cg_chatHistoryLength	0	0|1
+cg_chatHistoryLength	6	
+cg_clanOnTeamOverlay	0	
+cg_compHud	0	0|1
 cg_complaintWarning	1	0|1
 cg_compmode	0	0|1
-cg_crosshairBrightness	0	0|1
-cg_crosshairHitColor	1
-cg_crosshairHitStyle	200
+cg_crosshairBrightness	1.0	
+cg_crosshairColor	7	
+cg_crosshairHealth	0	0|1
+cg_crosshairHitColor	1	
+cg_crosshairHitStyle	2	
+cg_crosshairHitTime	200	
 cg_crosshairPulse	1	0|1
-cg_crosshairSize	32
-cg_crosshairTeamHealthSize	0.12f
-cg_crosshairX	0
-cg_crosshairY	0
-cg_currentSelectedPlayer	0
-cg_currentSelectedPlayerName
-cg_customAspect_X	0
-cg_customAspect_Y	0
-cg_deadBodyColor	0x101010FF
+cg_crosshairSize	32	
+cg_crosshairTeamHealthSize	0.12f	
+cg_crosshairX	0	
+cg_crosshairY	0	
+cg_currentSelectedPlayer	0	
+cg_customAspect_X	0	
+cg_customAspect_Y	0	
+cg_deadBodyColor	0x101010FF	
 cg_deadBodyDarken	1	0|1
 cg_debuganim	0	0|1
 cg_debugevents	0	0|1
-cg_debugFlags	0
+cg_debugFlags	0	
 cg_deferPlayers	1	0|1
 cg_draw2D	1	0|1
-cg_drawAmmoWarning	0	0|1
-cg_drawCrosshair	0	0|1
+cg_draw3dIcons	1	0|1
+cg_drawAmmoWarning	1	0|1|2
+cg_drawAttacker	0	0|1
+cg_drawCrosshair	5	
+cg_drawCrosshairNames	1	0|1
+cg_drawCrosshairNamesOpacity	0.75	
+cg_drawCrosshairTeamHealth	2	0|1|2
+cg_drawFoe	0	0|1
 cg_drawFPS	0	0|1
 cg_drawFragMessages	1	0|1
 cg_drawFriend	1	0|1
 cg_drawFullWeaponBar	1	0|1
-cg_drawItemPickups	0	0|1
-cg_drawSpecMessages	0
-cg_drawTeamOverlayY	0
+cg_drawGun	1	0|1|2
+cg_drawIcons	1	0|1
+cg_drawItemPickups	3	
+cg_drawPregameMessages	1	0|1
+cg_drawRewards	1	0|1
+cg_drawSnapshot	0	0|1
+cg_drawSpecMessages	1	0|1
+cg_drawSprites	1	0|1
+cg_drawStatus	1	0|1
+cg_drawtargetnames		0|1
+cg_drawTeamOverlay	1	0|1|2
+cg_drawTeamOverlayOpacity	0.75	
+cg_drawTeamOverlayX	0	
+cg_drawTeamOverlayY	0	
 cg_enableBreath	1	0|1
 cg_enableRespawnTimer	0	0|1
-cg_enemyColor
-cg_enemyHeadColor	0x408000FF
-cg_enemyLowerColor	0x408000FF
-cg_enemyUpperColor	0x408000FF
-cg_errordecay	100
-cg_filter_angles	0
+cg_enemyHeadColor	0x408000FF	
+cg_enemyLowerColor	0x408000FF	
+cg_enemyUpperColor	0x408000FF	
+cg_errordecay	100	
+cg_filter_angles	0	
 cg_followKiller	0	0|1
 cg_followPowerup	0	0|1
 cg_footsteps	1	0|1
-cg_forceBlueTeamModel	0
+cg_forceBlueTeamModel	0	
 cg_forceDrawCrosshair	0	0|1
-cg_forceEnemyModel	0
+cg_forceEnemyModel	0	
 cg_forceEnemyWeaponColor	0	0|1
-cg_forceModel	0
-cg_forceRedTeamModel	0
-cg_forceTeamModel	0
+cg_forceModel	0	
+cg_forceRedTeamModel	0	
+cg_forceTeamModel	0	
 cg_forceTeamWeaponColor	0	0|1
-cg_fov	100
-cg_gameInfo1	0
-cg_gameInfo2	0
-cg_gameInfo3	0
-cg_gameInfo4	0
-cg_gameInfo5	0
-cg_gameInfo6	0
-cg_gametype	0
-cg_gibs	0
-cg_gunY	0
-cg_gunZ	0
-cg_hitBeep	ui/hud.txt
+cg_fov	100	
+cg_gameInfo1	0	
+cg_gameInfo2	0	
+cg_gameInfo3	0	
+cg_gameInfo4	0	
+cg_gameInfo5	0	
+cg_gameInfo6	0	
+cg_gametype	0	
+cg_gibs	10	
+cg_gunX	0	
+cg_gunY	0	
+cg_gunZ	0	
+cg_hitBeep	2	0|1|2|3
+cg_hudFiles	ui/hud.txt	
 cg_ignoreMouseInput	0	0|1
-cg_impactMarkTime	10000
+cg_impactMarkTime	10000	
 cg_impactSparks	1	0|1
-cg_impactSparksLifetime	250
-cg_impactSparksSize	8
-cg_impactSparksVelocity	128
-cg_itemFx	1	0|1
-cg_killbeep
+cg_impactSparksLifetime	250	
+cg_impactSparksSize	8	
+cg_impactSparksVelocity	128	
+cg_itemFx	7	0|1|2|4
+cg_kickScale	1	0|1
+cg_killbeep	0	
+cg_lagometer	0	0|1|2
 cg_levelTimerDirection	1	0|1
-cg_lightningImpactCap	192
-cg_lightningStyle	1	0|1
+cg_lightningImpact	1	0|1
+cg_lightningImpactCap	192	
+cg_lightningStyle	1	1|2|3|4|5
+cg_lowAmmoWarningPercentile	0.20	
+cg_lowAmmoWarningSound	1	0|1|2
+cg_lowAmmoWeaponBarWarning	2	0|1|2
+cg_marks	1	0|1
 cg_muzzleFlash	1	0|1
-cg_noplayeranims	???
-cg_plasmaStyle	1.1
-cg_playerLean	1	0|1
+cg_noplayeranims	0	0|1
+cg_nopredict	0	0|1
+cg_placebo	???	
+cg_plasmaStyle	1	1|2
+cg_playerBBModelScale	1.1	
+cg_playerLean	1	
+cg_playerNames	1	0|1
 cg_playTeamVO	1	0|1
 cg_playvoicechats	1	0|1
 cg_predictItems	1	0|1
 cg_predictLocalRailshots	1	0|1
 cg_premium	1	0|1
-cg_projectileNudge	0
+cg_projectileNudge	0	
 cg_quadKillCounter	1	0|1
-cg_railStyle	400
+cg_railStyle	1	1|2
+cg_railTrailTime	400	
 cg_readyIcon	0	0|1
-cg_redTeam
-cg_redTeamShort
-cg_respawnTimerX	10
-cg_respawnTimerY	100
-cg_restrictFeatures	0
-cg_rocketStyle	1	0|1
+cg_respawnTimerX	10	
+cg_respawnTimerY	100	
+cg_restrictFeatures	0	
+cg_rocketStyle	1	1|2
+cg_scalePlayerModelsToBB	1	0|1
 cg_scorePlums	1	0|1
-cg_screenDamage	0x700000C8
-cg_screenDamageAlpha	0x00000000
-cg_screenDamageAlpha_Team	0x700000C8
-cg_screenDamage_Self	0x00000000
-cg_screenDamage_Team	0x700000C8
-cg_selectedPlayer
-cg_selectedPlayerName
+cg_screenDamage	0x700000C8	
+cg_screenDamageAlpha	0x00000000	
+cg_screenDamageAlpha_Team	0x700000C8	
+cg_screenDamage_Self	0x00000000	
+cg_screenDamage_Team	0x700000C8	
 cg_selfOnTeamOverlay	0	0|1
-cg_shadows	0	0|1
+cg_shadows	1	0|1
+cg_showmiss	0	0|1
 cg_showVoiceText	1	0|1
 cg_simpleItems	0	0|1
-cg_simpleItemsRadius	15
-cg_smokeRadius_dust	24
-cg_smokeRadius_flight	8
-cg_smokeRadius_GL	64
-cg_smokeRadius_haste	8
-cg_smokeRadius_NG	16
-cg_smokeRadius_RL	32
+cg_simpleItemsRadius	15	
+cg_smokeRadius_dust	24	
+cg_smokeRadius_flight	8	
+cg_smokeRadius_GL	64	
+cg_smokeRadius_haste	8	
+cg_smokeRadius_NG	16	
+cg_smokeRadius_RL	32	
 cg_smoke_SG	1	0|1
 cg_smoothClients	0	0|1
-cg_specOnly	0
-cg_speedometer	0	0|1
-cg_stereoSeparation	0.4
-cg_swingSpeed	0.3
+cg_specOnly	0	
+cg_speedometer	0	0|1|2|3
+cg_stats	0	0|1
+cg_stereoSeparation	0.4	
+cg_swingSpeed	0.3	
 cg_switchOnEmpty	1	0|1
 cg_switchToEmpty	1	0|1
 cg_teamChatBeep	1	0|1
-cg_teamChatHeight	0
+cg_teamChatHeight	0	
 cg_teamChatsOnly	0	0|1
-cg_teamChatTime	3000
-cg_teamColor
-cg_teamHeadColor	0x408000FF
-cg_teamLowerColor	0x408000FF
-cg_teamUpperColor	0x408000FF
-cg_thirdPerson	0
-cg_thirdPersonPitch	-1
-cg_thirdPersonRange	80
-cg_timescaleFadeEnd	1
-cg_timescaleFadeSpeed	0
-cg_tracerchance	0.4
-cg_tracerlength	100
-cg_tracerwidth	1
-cg_trackPlayer	0	0|1
+cg_teamChatTime	3000	
+cg_teamHeadColor	0x408000FF	
+cg_teamLowerColor	0x408000FF	
+cg_teamUpperColor	0x408000FF	
+cg_thirdPerson	0	0|1
+cg_thirdPersonAngle	0	
+cg_thirdPersonPitch	-1	
+cg_thirdPersonRange	80	
+cg_timescaleFadeEnd	1	
+cg_timescaleFadeSpeed	0	
+cg_tracerchance	0.4	
+cg_tracerlength	100	
+cg_tracerwidth	1	
+cg_trackPlayer	-1	-1|0|1
+cg_trueLightning	1	
+cg_trueShotgun	0	0|1
 cg_useItemMessage	1	0|1
 cg_useItemWarning	1	0|1
-cg_version
-cg_viewsize	100
+cg_viewsize	100	
 cg_waterWarp	1	0|1
-cg_weaponBar	0x007000FF
-cg_weaponConfig	22.5
+cg_weaponBar	1	0|1|2|3|4
+cg_weaponColor_grenade	0x007000FF	
+cg_zoomfov	22.5	
 cg_zoomOutOnDeath	1	0|1
 cg_zoomScaling	1	0|1
-cg_zoomSensitivity	1
+cg_zoomSensitivity	1	
 cg_zoomToggle	0	0|1
 cl_allowConsoleChat	0	0|1
 cl_allowDownload	1	0|1
-clan
-cl_anglespeedkey	1.5
+cl_anglespeedkey	1.5	
 cl_anonymous	0	0|1
 cl_autoTimeNudge	0	0|1
 cl_avidemo	0	0|1
 cl_avidemo_latch	0	0|1
-cl_avidemo_maxtime	0
-cl_avidemo_mintime	0
-cl_contimestamps	0
-cl_debugMove
-cl_downloadName
-cl_downloadSize
+cl_avidemo_maxtime	0	
+cl_avidemo_mintime	0	
+cl_contimestamps	0	0|1|2
+cl_conXOffset	0	
+cl_debugMove	0	0|1|2
+cl_demoRecordMessage	1	0|1
 cl_forceavidemo	0	0|1
 cl_freelook	1	0|1
 cl_freezeDemo	0	0|1
-cl_guid	Unknown
-cl_maxpackets	63
-cl_maxPing	800
+cl_guid	Unknown	
+cl_maxpackets	63	
+cl_maxPing	800	
 cl_motd	1	0|1
-cl_motdString
-cl_mouseAccel	0
+cl_mouseAccel	0	
 cl_mouseAccelDebug	0	0|1
-cl_mouseAccelOffset	5
-cl_mouseAccelPower	2
-cl_mouseAccelStyle	0
-cl_mouseSensCap	0
+cl_mouseAccelOffset	5	
+cl_mouseAccelPower	2	
+cl_mouseAccelStyle	0	
+cl_mouseSensCap	0	
 cl_nodelta	0	0|1
 cl_noprint	0	0|1
-cl_packetdup	1
+cl_packetdup	1	
 cl_paused	0	0|1
-cl_pitchspeed	140
-cl_platform	1
+cl_pitchspeed	140	
+cl_platform	1	
 cl_punkbuster	1	0|1
 cl_quitOnDemoCompleted	0	0|1
-cl_run	0
-cl_serverStatusResendTime	750
+cl_run	1	0|1
+cl_running	0	
+cl_serverStatusResendTime	750	
 cl_shownet	0	0|1
 cl_showSend	0	0|1
 cl_showTimeDelta	0	0|1
-cl_timeNudge	0
-cl_timeout	40
-cl_viewAccel	1.7
-cl_yawspeed	140
+cl_timeNudge	0	
+cl_timeout	40	
+cl_viewAccel	1.7	
+cl_yawspeed	140	
 cm_noAreas	0	0|1
 cm_noCurves	0	0|1
 cm_playerCurveClip	1	0|1
-color1	1
-color2	1
-com_allowConsole	0	0|1
+color1	1	
+color2	1	
+com_allowConsole	1	0|1
+com_blood	0	0|1
 com_build	0	0|1
 com_cameraMode	0	0|1
-com_configVersion	16
+com_configVersion	16	
 com_dropsim	0	0|1
-com_hunkMegs	96
-com_introplayed	125
+com_hunkMegs	96	
+com_introplayed	0	0|1
+com_maxfps	125	
 com_showtrace	0	0|1
-com_soundMegs	16
-com_speeds	16
+com_soundMegs	16	
+com_speeds	0	0|1
+com_zoneMegs	16	
 con_background	1	0|1
-con_height	0.5
-con_matchlimit	16
-con_notifytime	3
-con_opacity	0.75
-con_scale	1
-con_speed	3
+con_height	0.5	
+con_matchlimit	16	
+con_notifytime	3	
+con_opacity	0.75	
+con_scale	1	
+con_speed	3	
 debuggraph	0	0|1
-debug_protocol
 dedicated	0	0|1
-fixedtime	0
+developer	0	0|1
+dmflags	0	
+fixedtime	0	
+fraglimit	30	
 fs_debug	0	0|1
-g_accelFactor_bfg	1
-g_accelFactor_pg	1
-g_accelFactor_rl	1
-g_accelRate_bfg	16
-g_accelRate_pg	16
-g_accelRate_rl	16
+g_accelFactor_bfg	1	
+g_accelFactor_pg	1	
+g_accelFactor_rl	1	
+g_accelRate_bfg	16	
+g_accelRate_pg	16	
+g_accelRate_rl	16	
 g_allowCustomHeadModels	0	0|1
 g_allowForfeit	1	0|1
 g_allowKill	0	0|1
@@ -291,183 +341,180 @@ g_allowStandardVote	1	0|1
 g_allowVote	1	0|1
 g_allowVoteMidGame	0	0|1
 g_allWeapons	0	0|1
-gamedate
-gamename
 g_aspectEnable	0	0|1
 g_autoAction	0	0|1
-g_banIPs
-g_battleSuitDampen	0.25
-g_botSpawnList
+g_battleSuitDampen	0.25	
 g_ca	0	0|1
 g_ca_challengeMode	0	0|1
-g_ca_startingArmor	100
-g_ca_startingHealth	200
-g_complaintDamageThreshold	400
-g_complaintLimit	5
+g_ca_startingArmor	100	
+g_ca_startingHealth	200	
+g_complaintDamageThreshold	400	
+g_complaintLimit	5	
 g_compmode	0	0|1
-g_cubeTimeout	30
-g_damage_bfg	100
-g_damage_cg	8
-g_damage_g	50
-g_damage_gl	100
-g_damage_lg	7
-g_damage_lg_falloff	0
-g_damage_mg	5
-g_damage_mg_tdm	4
-g_damage_ng	12
-g_damage_pg	20
-g_damage_pl	0
-g_damage_rg	80
-g_damage_rl	100
-g_damage_sg	5
-g_damage_sg_falloff	0
-g_damage_sg_outer	5
-g_damage_sg_tdm	4
+g_cubeTimeout	30	
+g_damage_bfg	100	
+g_damage_cg	8	
+g_damage_g	50	
+g_damage_gl	100	
+g_damage_lg	7	
+g_damage_lg_falloff	0	
+g_damage_mg	5	
+g_damage_mg_tdm	4	
+g_damage_ng	12	
+g_damage_pg	20	
+g_damage_pl	0	
+g_damage_rg	80	
+g_damage_rl	100	
+g_damage_sg	5	
+g_damage_sg_falloff	0	
+g_damage_sg_outer	5	
+g_damage_sg_tdm	4	
 g_debugAlloc	0	0|1
 g_debugDamage	0	0|1
-g_debugFlags	0
+g_debugFlags	0	
 g_debugMove	0	0|1
 g_debugThawTime	0	0|1
-g_dmgThroughSurfaceDistance	-33.1f
-g_domCapTime	3
+g_dmgThroughSurfaceDistance	-33.1f	
+g_domCapTime	3	
 g_domination	0	0|1
-g_domScoreRate	5
+g_domScoreRate	5	
 g_doWarmup	1	0|1
-g_dropCmds	0
+g_dropCmds	7	
+g_dropDamagedHealth	0	
 g_dropinactive	1	0|1
 g_dropPowerups	1	0|1
 g_dropRunes	0	0|1
 g_enableBreath	0	0|1
-g_enablecasterinfo	0
-g_enableDebugTrace	0
+g_enablecasterinfo	0	
+g_enableDebugTrace	0	
 g_enableDust	0	0|1
 g_enableMachinegun	1	0|1
-g_enemyTeamRespawnRatio	1.5
-g_filterBan	0.25
-g_flagPhysics	0
-g_flightRefuelRate	0
-g_flightThrust	1200
-g_floodprot_decay	1000
-g_floodprot_maxcount	10
-g_floodprot_threadshold	500
-g_forceAtmosphericEffects
+g_enemyTeamRespawnRatio	1.5	
+g_filterBan	1	0|1
+g_flagBounce	0.25	
+g_flagPhysics	0	
+g_flightRefuelRate	0	
+g_flightThrust	1200	
+g_floodprot_decay	1000	
+g_floodprot_maxcount	10	
+g_floodprot_threadshold	500	
 g_forceDmgThroughSurface	0	0|1
 g_forceNextMap	0	0|1
 g_forcePremium	0	0|1
 g_freeze	0	0|1
-g_freezeAutoThawTime	120000
-g_freezeEnvironmentalRespawnDelay	0
+g_freezeAutoThawTime	120000	
+g_freezeEnvironmentalRespawnDelay	0	
 g_freezeRemovePowerupsOnRound	1	0|1
 g_freezeResetArmorOnRound	0	0|1
 g_freezeResetHealthOnRound	0	0|1
 g_freezeResetWeaponsOnRound	0	0|1
-g_freezeRoundDelay	4000
-g_freezeThawRadius	64
+g_freezeRoundDelay	4000	
+g_freezeThawRadius	64	
 g_freezeThawThroughSurface	1	0|1
 g_freezeThawTick	1	0|1
-g_freezeThawTime	3000
+g_freezeThawTime	3000	
 g_freezeThawWinningTeam	1	0|1
 g_friendlyfire	0	0|1
-g_friendlyFireDampen	1.00
-g_gameState
-g_grantItemOnSpawn
-g_gravity	800
+g_friendlyFireDampen	1.00	
+g_gametype	0	0|1|2|3|4|5|6|7|8|9
+g_gravity	800	
 g_guidedRocket	0	0|1
-g_headShotDamageScale	1.0
+g_headShotDamageScale	1.0	
 g_headShotEnable	0	0|1
 g_headShotEnable_Bullet	1	0|1
 g_headShotEnable_Rail	1	0|1
 g_headShotEnable_Shotgun	1	0|1
-g_holiday	0
-g_inactivity	70
-g_infiniteAmmo	0
+g_holiday	0	
+g_inactivity	70	
+g_infiniteAmmo	0	
 g_instaGib	0	0|1
-g_ironsights_mg	1.0
-g_kamiAttenuate	2048
-g_kamiMinRatio	0.1
-g_knockback	1000
-g_knockback_bfg	1
-g_knockback_cg	1
-g_knockback_cripple	0
-g_knockback_g	1
-g_knockback_lg	1.50
-g_knockback_mg	1
-g_knockback_ng	1
-g_knockback_pg	1.10
-g_knockback_pg_self	1.30
-g_knockback_pl	1
-g_knockback_rg	0.85
-g_knockback_rl	0.90
-g_knockback_rl_self	01. Okt
-g_knockback_sg	1
-g_knockback_z	24
-g_lagHaxHistory	4
-g_lagHaxMs	80
-g_lastManStandingMessage	g_lastManStandingMessage [string]
+g_ironsights_mg	1.0	
+g_kamiAttenuate	2048	
+g_kamiMinRatio	0.1	
+g_knockback	1000	
+g_knockback_bfg	1	
+g_knockback_cg	1	
+g_knockback_cripple	0	
+g_knockback_g	1	
+g_knockback_lg	1.50	
+g_knockback_mg	1	
+g_knockback_ng	1	
+g_knockback_pg	1.10	
+g_knockback_pg_self	1.30	
+g_knockback_pl	1	
+g_knockback_rg	0.85	
+g_knockback_rl	0.90	
+g_knockback_rl_self	01. Okt	
+g_knockback_sg	1	
+g_knockback_z	24	
+g_lagHaxHistory	4	
+g_lagHaxMs	80	
+g_lastManStandingMessage	g_lastManStandingMessage [string]	
 g_lastManStandingWarning	1	0|1
-g_levelStartTime	0
+g_levelStartTime	0	
+g_log	0	0|1
 g_log_shuffle	0	0|1
-g_logSync	120
-g_maxDeferredSpawns	4
-g_maxFlightFuel	16000
-g_minplayers_ctf	2
-g_motd
-g_nailbounce	1
-g_nailbouncepercentage	65
-g_nailcount	10
-g_nailspeed	1000
-g_nailspread	400
+g_logSync	0	0|1
+g_maxDeferredSpawns	4	
+g_maxFlightFuel	16000	
+g_max_knockback	120	
+g_maxSkillTier	0	
+g_maxStandardClients	0	
+g_mercytime	0	
+g_minplayers_ctf	2	
+g_nailbounce	1	
+g_nailbouncepercentage	65	
+g_nailcount	10	
+g_nailspeed	1000	
+g_nailspread	400	
 g_needpass		0|1
 g_noobArmor	0	0|1
-g_noobArmorDmgScale	0.5
-g_obeliskHealth	2500
-g_obeliskRegenAmount	15
-g_obeliskRegenPeriod	1
-g_obeliskRespawnDelay	10
-g_overtime	120
-g_password
-g_playerCylinders
-g_playerheadScale	1.0
-g_playerheadScaleOffset	1.0
-g_playermodelOverride
-g_playerModelScale	1.1
-g_podiumDist	80
-g_podiumDrop	70
-g_proxMineTimeout	20000
-g_quadDamageFactor	3
+g_noobArmorDmgScale	0.5	
+g_obeliskHealth	2500	
+g_obeliskRegenAmount	15	
+g_obeliskRegenPeriod	1	
+g_obeliskRespawnDelay	10	
+g_overtime	120	
+g_playerCylinders	1	0|1
+g_playerheadScale	1.0	
+g_playerheadScaleOffset	1.0	
+g_playerModelScale	1.1	
+g_podiumDist	80	
+g_podiumDrop	70	
+g_proxMineTimeout	20000	
+g_quadDamageFactor	3	
 g_quadHog	0	0|1
-g_quadHogIdle	20
-g_quadHogTime	60
+g_quadHogIdle	20	
+g_quadHogTime	60	
 g_railJump	0	0|1
-g_range_lg_falloff	768
-g_range_sg_falloff	768
-graphheight	32
-graphscale	1
-graphshift	0
-g_reflector	0
+g_range_lg_falloff	768	
+g_range_sg_falloff	768	
+graphheight	32	
+graphscale	1	
+graphshift	0	
+g_reflector	0	
 g_regenArmor	0	0|1
-g_regenArmorRate	100
+g_regenArmorRate	100	
 g_regenHealth	0	0|1
-g_regenHealthRate	100
+g_regenHealthRate	100	
 g_removePowerupsOnRound	1	0|1
-g_reportcache_delay	1000
+g_reportcache_delay	1000	
 g_reportcache_enable	1	0|1
-g_respawn_delay_max	2400
-g_respawn_delay_min	2100
-g_restarted	0
-g_rocketsplashOffset	-10.0
-g_runespawntime	10
+g_respawn_delay_max	2400	
+g_respawn_delay_min	2100	
+g_restarted	0	
+g_rocketsplashOffset	-10.0	
+g_runespawntime	10	
 g_shuffle_automatic	0	0|1
-g_shuffle_automatic_minplayers	6
-g_shuffle_minplayers	3
-g_shufflePingHandicap	0.0
-g_shufflePowerRatingThreshold	4
-g_shuffle_timedelay	5000
-g_skipTrainingEnable	0
+g_shuffle_automatic_minplayers	6	
+g_shuffle_minplayers	3	
+g_shufflePingHandicap	0.0	
+g_shufflePowerRatingThreshold	4	
+g_shuffle_timedelay	5000	
+g_skipTrainingEnable	0	
 g_smoothClients	0	0|1
-g_spAwards
-g_spawnArmor	0
-g_spawnArmorDmgScale	0.5
+g_spawnArmor	0	
+g_spawnArmorDmgScale	0.5	
 g_spawnItemAmmo	1	0|1
 g_spawnItemArmor	1	0|1
 g_spawnItemHealth	1	0|1
@@ -475,155 +522,145 @@ g_spawnItemHoldable	1	0|1
 g_spawnItemPowerup	1	0|1
 g_spawnItemRune	1	0|1
 g_spawnItemWeapons	1	0|1
-g_spawnMinDistance	64
-g_spawnRandomRatio	0.4
-g_speed	320
-g_splashdamage_bfg	100
-g_splashdamage_gl	100
-g_splashdamageOffset	0.05
-g_splashdamage_pg	15
-g_splashdamage_pl	100
-g_splashdamage_rl	84
-g_splashradius_bfg	80
-g_splashradius_gl	150
-g_splashradius_pg	20
-g_splashradius_pl	150
-g_splashradius_rl	120
-g_spScores1
-g_spScores2
-g_spScores3
-g_spScores4
-g_spScores5
-g_spVideos
-g_startingAmmo	100
-g_startingammo_mg	100
-g_startingArmor	0
-g_startingHealth	100
-g_startingHealthBonus	25
-g_startingWeapons	0	0|1
-g_suddenDeathRespawnMax	10
+g_spawnMinDistance	64	
+g_spawnRandomRatio	0.4	
+g_speed	320	
+g_splashdamage_bfg	100	
+g_splashdamage_gl	100	
+g_splashdamageOffset	0.05	
+g_splashdamage_pg	15	
+g_splashdamage_pl	100	
+g_splashdamage_rl	84	
+g_splashradius_bfg	80	
+g_splashradius_gl	150	
+g_splashradius_pg	20	
+g_splashradius_pl	150	
+g_splashradius_rl	120	
+g_spSkill	2	1|2|3|4|5
+g_startingAmmo	100	
+g_startingammo_mg	100	
+g_startingArmor	0	
+g_startingHealth	100	
+g_startingHealthBonus	25	
+g_startingWeapons	3	
+g_suddenDeathRespawn	0	0|1
+g_suddenDeathRespawnMax	10	
 g_suddenDeathRespawnPrint	1	0|1
-g_suddenDeathRespawnStart	3
-g_suddenDeathRespawnTick	60
+g_suddenDeathRespawnStart	3	
+g_suddenDeathRespawnTick	60	
 g_tackleFlag	0	0|1
-gt_admin
 g_teamAutoJoin	0	0|1
 g_teamForceBalance	0	0|1
 g_teamLocators	0	0|1
-g_teamSizeMin	1
+g_teamSizeMin	1	
 g_teamSpecFreeCam	1	0|1
 g_teamSpecSayEnable	1	0|1
-gt_eventid	0
-gt_eventtype	None
-g_throwFlagForwardMult	2.5
-g_throwFlagVelocity	0
-g_timeoutCount	3
-g_timeoutLen	30
-gt_master
-gt_noEidReq	0
-gt_pass
+gt_eventid	0	
+gt_eventtype	None	
+g_throwFlagForwardMult	2.5	
+g_throwFlagVelocity	0	
+g_timeoutCount	3	
+g_timeoutLen	30	
+gt_noEidReq	0	
 g_training	0	0|1
-gt_realm	quakelive
-gt_user
-g_velocity_bfg	1800
-g_velocity_gl	700
-g_velocity_pg	2000
-g_velocity_rl	1000
-g_version
-g_voteDelay	0
-g_voteFlags	0
-g_warmup	10
-g_warmupDelay	30
-g_weaponrespawn	5
-g_weaponTeamRespawn	12
-handicap	100
-headmodel	sarge
+gt_realm	quakelive	
+g_velocity_bfg	1800	
+g_velocity_gl	700	
+g_velocity_pg	2000	
+g_velocity_rl	1000	
+g_voteDelay	0	
+g_voteFlags	0	
+g_voteLimit	0	
+g_warmup	10	
+g_warmupDelay	30	
+g_weaponrespawn	5	
+g_weaponTeamRespawn	12	
+handicap	100	
+headmodel	sarge	
 in_debugjoystick	0	0|1
 in_debugMouse	0	0|1
-in_joyBallScale	1.0
-in_joyHorizMoveDeadzone	0.50
-in_joyHorizViewDeadzone	0.15
-in_joyHorizViewSensitivity	20.0
+in_joyBallScale	1.0	
+in_joyHorizMoveDeadzone	0.50	
+in_joyHorizViewDeadzone	0.15	
+in_joyHorizViewSensitivity	20.0	
 in_joystick	0	0|1
-in_joystick_inverted	0.15
-in_joyVertViewDeadzone	0.15
-in_joyVertViewSensitivity	15.0
+in_joystick_inverted	0	0|1
+in_joyVertMoveDeadzone	0.15	
+in_joyVertViewDeadzone	0.15	
+in_joyVertViewSensitivity	15.0	
 in_midi	0	0|1
 in_midichannel	1	0|1
 in_mididevice	0	0|1
 in_midiport	1	0|1
-in_mouseMode	Undefined
+in_mouse	2	-1|0|1|2
+in_mouseMode	Undefined	
 in_nograb	0	0|1
-joy_threshold	0.15
-mapname
-mercylimit	0
+joy_threshold	0.15	
+logfile	0	0|1|2|3
+m_cpi	0	
+mercylimit	0	
 m_filter	0	0|1
-m_forward	0.25
-model	model [model]
-m_pitch	0.022
-m_side	0.25
-m_yaw	0.022
-net_ip
+m_forward	0.25	
+model	model [model]	
+m_pitch	0.022	
+m_side	0.25	
+m_yaw	0.022	
 net_noudp	0	0|1
-net_port
-net_qport
 net_socksEnabled	0	0|1
-net_socksPassword
-net_socksPort	1080
-net_socksServer
-net_socksUsername
+net_socksPort	1080	
 net_strict	1	0|1
-nextmap	nextmap
-password
-plugin_version
-pmove_AirAccel	1.0
+nextmap	nextmap	
+pmove_AirAccel	1.0	
 pmove_AirSteps	1	0|1
-pmove_JumpTimeDeltaMin	100.0
-pmove_JumpVelocity	275
-pmove_JumpVelocityScaleAdd	0.4
+pmove_JumpTimeDeltaMin	100.0	
+pmove_JumpVelocity	275	
+pmove_JumpVelocityScaleAdd	0.4	
 pmove_RampJump	0	0|1
-pmove_RampJumpScale	1.0
-pmove_StepHeight	22.0
+pmove_RampJumpScale	1.0	
+pmove_StepHeight	22.0	
 pmove_StepJump	1	0|1
-pmove_WalkAccel	10.0
-pmove_WalkFriction	6.0
-pmove_WeaponDropTime	200
-pmove_WeaponRaiseTime	200
-practiceflags	0
-protocol	73
+pmove_WalkAccel	10.0	
+pmove_WalkFriction	6.0	
+pmove_WeaponDropTime	200	
+pmove_WeaponRaiseTime	200	
+practiceflags	0	
+protocol	73	
 r_allowExtensions	1	0|1
-r_ambientScale	10
-rate	16000
-r_bloomActive	0
-r_BloomBlurFalloff	0.75
-r_BloomBlurRadius	5
-r_BloomBlurScale	1.0
-r_BloomBrightThreshold	0.125
-r_BloomIntensity	0.750
-r_BloomPasses	1
-r_BloomSaturation	0.800
-r_BloomSceneIntensity	1.000
-r_BloomSceneSaturation	1.000
+r_allowSoftwareGL	0	0|1
+r_ambientScale	10	
+r_aspectRatio	0	0|1|2|3
+rate	16000	
+r_bloomActive	0	
+r_BloomBlurFalloff	0.75	
+r_BloomBlurRadius	5	
+r_BloomBlurScale	1.0	
+r_BloomBrightThreshold	0.125	
+r_BloomIntensity	0.750	
+r_BloomPasses	1	
+r_BloomSaturation	0.800	
+r_BloomSceneIntensity	1.000	
+r_BloomSceneSaturation	1.000	
 r_clear	0	0|1
-r_colorCorrectActive	0
+r_colorbits	32	16|32
+r_colorCorrectActive	0	
 r_colorMipLevels	0	0|1
-rcon
-rconAddress
-rconPassword
-r_contrast	1.0
-r_customheight	1024
-r_customwidth	1600
+r_contrast	1.0	
+r_customheight	1024	
+r_customwidth	1600	
 r_debugAds	0	0|1
 r_debuglight	0	0|1
 r_debugSort	0	0|1
 r_debugSurface	0	0|1|2
 r_debugSurfaceUpdate	1	0|1
-r_directedScale	1
-r_displayRefresh	0
-r_drawBuffer	GL_BACK
+r_depthbits	0	
+r_detailtextures	1	0|1
+r_directedScale	1	
+r_displayRefresh	0	
+r_drawBuffer	GL_BACK	
 r_drawentities	1	0|1
 r_drawskyfloor	1	0|1
-r_drawSun	1	0|1
+r_drawSun	0	0|1
+r_drawworld	1	0|1
 r_dynamiclight	1	0|1
 r_enableBloom	0	0|1
 r_enableColorCorrect	1	0|1
@@ -634,49 +671,61 @@ r_ext_gamma_control	1	0|1
 r_ext_multitexture	1	0|1
 r_ext_texture_env_add	1	0|1
 r_facePlaneCull	1	0|1
-r_fastSkyColor	0x000000
+r_fastsky	0	0|1
+r_fastSkyColor	0x000000	
 r_finish	0	0|1
-r_flareFade	7
+r_flareFade	7	
 r_flares	0	0|1
-r_flareSize	40
+r_flareSize	40	
 r_floatingPointFBOs	0	0|1
-r_fullbright	1
-r_glDriver	opengl32
-r_gl_renderer	none
-r_gl_reserved	0
-r_gl_vendor	none
+r_fullbright	0	0|1
+r_fullscreen	0	0|1
+r_gamma	1	
+r_glDriver	opengl32	
+r_gl_renderer	none	
+r_gl_reserved	0	
+r_gl_vendor	none	
 r_ignore	1	0|1
 r_ignoreFastPath	1	0|1
 r_ignoreGLErrors	1	0|1
 r_ignorehwgamma	0	0|1
-r_inBrowserMode	9
+r_inBrowserMode	9	
 r_inGameVideo	1	0|1
-r_intensity	1
-r_lastValidRenderer
+r_intensity	1	
 r_lightmap	0	0|1
 r_lockpvs	0	0|1
-r_lodCurveError	250
-r_lodscale	10
-r_logFile	0
-r_mapOverBrightBits	2
-r_mapOverBrightCap	255
-r_maskMinidriver	0
-r_maxpolys	600
-r_maxpolyverts	3000
+r_lodbias	0	
+r_lodCurveError	250	
+r_lodscale	10	
+r_logFile	0	
+r_mapOverBrightBits	2	
+r_mapOverBrightCap	255	
+r_maskMinidriver	0	
+r_maxpolys	600	
+r_maxpolyverts	3000	
 r_measureOverdraw	0	0|1
-r_mode	-2
+r_mode	-2	
 r_nobind	0	0|1
-r_noportals	-1
-r_offsetunits	-2
-roundlimit	5
-r_overBrightBits	1
-r_picmip	0	0|1
-r_postProcessActive	0
+r_nocull	0	0|1
+r_nocurves	0	0|1
+r_noFastRestart	0	0|1
+r_noportals	0	0|1
+r_norefresh	0	0|1
+r_novis	0	0|1
+r_offsetfactor	-1	
+r_offsetunits	-2	
+roundlimit	5	
+roundtimelimit	180	
+r_overBrightBits	1	
+r_picmip	0	
+r_portalOnly	0	0|1
+r_postProcessActive	0	
+r_primitives	0	-1|0|1|2
 r_printShaders	0	0|1
-r_railCoreWidth	6
-r_railSegmentLength	32
-r_railWidth	16
-r_roundImagesDown	1
+r_railCoreWidth	6	
+r_railSegmentLength	32	
+r_railWidth	16	
+r_roundImagesDown	1	
 r_saveFontData	0	0|1
 r_showcluster	0	0|1
 r_showImages	0	0|1
@@ -689,230 +738,186 @@ r_singleShader	0	0|1
 r_skipBackEnd	0	0|1
 r_smp	0	0|1
 r_speeds	0	0|1
-r_stencilbits	0	0|1
-r_subdivisions	0	0|1
+r_stencilbits	0	0|16|32
+r_stereo	0	0|1
+r_subdivisions	4	4|80
+r_swapInterval	0	0|1
 r_teleporterFlash	1	0|1
-r_texturebits	1	0|1
-ruleset	180
+r_texturebits	32	16|32
+r_textureMode	Sets texture filter.	
+r_uiFullScreen	1	0|1
+ruleset	1	1|2
 r_verbose	0	0|1
-r_vertexlight	4
-s_ambient	0	0|1
-scr_conspeed
-sensitivity	4
-server1
-server10
-server11
-server12
-server13
-server14
-server15
-server16
-server2
-server3
-server4
-server5
-server6
-server7
-server8
-server9
-sex	male
+r_vertexlight	0	0|1
+r_znear	4	
+s_ambient	1	0|1
+s_doppler	0	0|1
+sensitivity	4	
+sex	male	
 showdrop		0|1
 showpackets		0|1
 s_initsound	1	0|1
-s_mixahead	0.140
-s_musicvolume	0.25
+s_mixahead	0.140	
+s_mixPreStep	0.05	
+s_musicvolume	0.25	
 s_show	0	0|1
 s_testsound	0	0|1
-sv_adminGroups
 sv_advertising	1	0|1
-sv_adXmitDelay	300000
+sv_adXmitDelay	300000	
 sv_allowDownload	0	0|1
-sv_altEntDir
-sv_cheats	1
-sv_cylinderScale	1.1
-sv_errorExit	1
+sv_allowGetInfo	0	0|1
+sv_cheats	1	
+sv_cylinderScale	1.1	
+sv_errorExit	1	
 sv_floodProtect	1	0|1
-sv_fps	40
-sv_gtid
-sv_hostname	noname
-sv_idleExit	120
-sv_keywords
+sv_fps	40	
+sv_hostname	noname	
+sv_idleExit	120	
 sv_killserver	0	0|1
 sv_lanForceRate	1	0|1
-sv_location
 sv_logantic	0	0|1
 sv_mapChecksum		0|1
-sv_mapname
-sv_maxPing	0
-sv_maxRate	0
-sv_minPing	0
-sv_monkeysOnly	0
-s_volume	0.8
-sv_owner
-sv_padPackets
-sv_paks
+sv_maxPing	0	
+sv_maxRate	0	
+sv_minPing	0	
+sv_monkeysOnly	0	
+s_volume	0.8	
+sv_padPackets	0	
 sv_paused	0	0|1
-sv_privateClients	0
-sv_privatePassword
-sv_punkbuster
+sv_privateClients	0	
 sv_pure	1	0|1
 sv_quitOnEmpty	0	0|1
 sv_quitOnExitLevel	0	0|1
-sv_reconnectlimit	3
-sv_referencedPakNames
-sv_referencedPaks
-sv_running	0
-sv_serverid	0
+sv_reconnectlimit	3	
+sv_running	0	
+sv_serverid	0	
 sv_showloss	0	0|1
-sv_skillRating	0
-sv_timeout	40
-sv_warmupReadyPercentage	0.51
-sv_wwwBaseURL
-sv_wwwDlDisconnected	0
-sv_wwwDownload	0
-sv_wwwFallbackURL
-sv_zombietime	2
-sys_cpuid	35
-sys_cpustring	detect
-team_headmodel	sarge/default
-team_model	sarge/default
+sv_skillRating	0	
+sv_timeout	40	
+sv_warmupReadyPercentage	0.51	
+sv_wwwDlDisconnected	0	
+sv_wwwDownload	0	
+sv_zombietime	2	
+sys_cpuid	35	
+sys_cpustring	detect	
+team_headmodel	sarge/default	
+team_model	sarge/default	
+teamsize	0	
+teamtask	0	
 timedemo	0	0|1
 timegraph	0	0|1
-timelimit	0
-timescale	1
-ui_actualNetGametype	3
-ui_bigFont	0.4
-ui_bloomPreset	Default
-ui_blueteam	Stroggs
-ui_blueteam1	0
-ui_blueteam2	0
-ui_blueteam3	0
-ui_blueteam4	0
-ui_blueteam5	0
-ui_browserGameType	0
-ui_browserShowEmpty	5
-ui_cdkeychecked	8
-ui_ctf_friendly	30
-ui_currentMap	0
-ui_currentNetMap	0
-ui_currentOpponent	0
-ui_currentTier	0
+timelimit	0	
+timescale	1	
+ui_actualNetGametype	3	
+ui_bigFont	0.4	
+ui_bloomPreset	Default	
+ui_blueteam	Stroggs	
+ui_blueteam1	0	
+ui_blueteam2	0	
+ui_blueteam3	0	
+ui_blueteam4	0	
+ui_blueteam5	0	
+ui_browserGameType	0	
+ui_browserMaster	0	0|1|2|3
+ui_browserShowEmpty	1	0|1
+ui_browserShowFull	1	0|1
+ui_browserSortKey	4	0|1|2|3|4
+ui_captureLimit	5	
+ui_cdkeychecked	0	0|1
+ui_ctf_capturelimit	8	
+ui_ctf_friendly	0	0|1
+ui_ctf_timelimit	30	
+ui_currentMap	0	
+ui_currentNetMap	0	
+ui_currentOpponent	0	
+ui_currentTier	0	
 ui_debug	0	0|1
-ui_dedicated	0
-ui_enemyHeadColor	27
-ui_enemyLowerColor	27
-ui_enemyUpperColor	27
-ui_ffa_fraglimit	20
-ui_ffa_timelimit	0
-ui_findPlayer	Sarge
-ui_forceEnemyModel
-ui_forceEnemySkin
-ui_forceTeamModel
+ui_dedicated	0	0|1
+ui_enemyColor	0	
+ui_enemyHeadColor	27	
+ui_enemyLowerColor	27	
+ui_enemyUpperColor	27	
+ui_ffa_fraglimit	20	
+ui_ffa_timelimit	0	
+ui_findPlayer	Sarge	
+ui_forceEnemyModelBright	0	0|1
 ui_forceTeamModelBright	0	0|1
-ui_forceTeamSkin
-ui_fragLimit	10
-ui_gametype	3
-ui_globalpreset
-ui_impactSparks
-ui_initialized	0
-ui_joinGametype	0
-ui_lastServerRefresh_0
-ui_lastServerRefresh_1
-ui_lastServerRefresh_2
-ui_lastServerRefresh_3
-ui_lightingModelPreset
-ui_lowAmmoPreset
-ui_mapIndex	0
-ui_marksPreset
-ui_menuFiles	ui/menus.txt
-ui_mousePitch	0
-ui_netGametype	3
-ui_netSource	0
-ui_new	0
-ui_opponentName	Stroggs
+ui_fragLimit	10	
+ui_gametype	3	
+ui_initialized	0	
+ui_joinGametype	0	
+ui_mapIndex	0	
+ui_menuFiles	ui/menus.txt	
+ui_mousePitch	0	
+ui_netGametype	3	
+ui_netSource	0	
+ui_new	0	
+ui_opponentName	Stroggs	
 ui_q3model	0	0|1
-ui_recordSPDemoName
-ui_redteam	Pagans
-ui_redteam1	0
-ui_redteam2	0
-ui_redteam3	0
-ui_redteam4	0
-ui_redteam5	0
-ui_scoreAccuracy	0
-ui_scoreAssists	0
-ui_scoreBase	0
-ui_scoreCaptures	0
-ui_scoreDefends	0
-ui_scoreExcellents	0
-ui_scoreGauntlets	0
-ui_scoreImpressives	0
-ui_scorePerfect	0
-ui_scoreScore	0
-ui_scoreShutoutBonus	0
-ui_scoreSkillBonus	0
-ui_scoreTeam	0 to 0
-ui_scoreTime	00:00
-ui_scoreTimeBonus	0
-ui_screenDamage	0
-ui_screenDamage_preset
-ui_screenDamage_Team	0
-ui_screenDamage_Team_preset
-ui_serverStatusTimeOut	7000
-ui_singlePlayerActive	0
-ui_smallFont	0.25
-ui_spSelection
-ui_teamColor	0
-ui_team_fraglimit	0
-ui_teamHeadColor	96
-ui_teamLowerColor	96
-ui_teamName	Pagans
-ui_team_timelimit	20
-ui_teamUpperColor	96
-ui_tourney_fraglimit	0
-ui_tourney_timelimit	15
-ui_version
-ui_voteactive
-ui_votestring
-username
-version
-vid_xpos	0
-vid_ypos	0
+ui_recordSPDemo	0	0|1
+ui_redteam	Pagans	
+ui_redteam1	0	
+ui_redteam2	0	
+ui_redteam3	0	
+ui_redteam4	0	
+ui_redteam5	0	
+ui_scoreAccuracy	0	
+ui_scoreAssists	0	
+ui_scoreBase	0	
+ui_scoreCaptures	0	
+ui_scoreDefends	0	
+ui_scoreExcellents	0	
+ui_scoreGauntlets	0	
+ui_scoreImpressives	0	
+ui_scorePerfect	0	
+ui_scoreScore	0	
+ui_scoreShutoutBonus	0	
+ui_scoreSkillBonus	0	
+ui_scoreTeam	0 to 0	
+ui_scoreTime	00:00	
+ui_scoreTimeBonus	0	
+ui_screenDamage	0	
+ui_screenDamage_Team	0	
+ui_serverStatusTimeOut	7000	
+ui_singlePlayerActive	0	
+ui_smallFont	0.25	
+ui_teamColor	0	
+ui_team_fraglimit	0	
+ui_team_friendly	1	0|1
+ui_teamHeadColor	96	
+ui_teamLowerColor	96	
+ui_teamName	Pagans	
+ui_team_timelimit	20	
+ui_teamUpperColor	96	
+ui_tourney_fraglimit	0	
+ui_tourney_timelimit	15	
+vid_xpos	0	
+vid_ypos	0	
 viewlog	0	0|1
-weapon_gravity_bfg	0
-weapon_gravity_ng	0
-weapon_gravity_pg	0
-weapon_gravity_rl	0
-weapon_reload_bfg	300
-weapon_reload_cg	50
-weapon_reload_gauntlet	400
-weapon_reload_gl	800
-weapon_reload_hook	400
-weapon_reload_lg	50
-weapon_reload_mg	100
-weapon_reload_ng	1000
-weapon_reload_pg	100
-weapon_reload_prox	800
-weapon_reload_rg	1500
-weapon_reload_rl	800
-weapon_reload_sg	1000
-web_botskill
+weapon_gravity_bfg	0	
+weapon_gravity_ng	0	
+weapon_gravity_pg	0	
+weapon_gravity_rl	0	
+weapon_reload_bfg	300	
+weapon_reload_cg	50	
+weapon_reload_gauntlet	400	
+weapon_reload_gl	800	
+weapon_reload_hook	400	
+weapon_reload_lg	50	
+weapon_reload_mg	100	
+weapon_reload_ng	1000	
+weapon_reload_pg	100	
+weapon_reload_prox	800	
+weapon_reload_rg	1500	
+weapon_reload_rl	800	
+weapon_reload_sg	1000	
 web_chattimestamps	0	0|1
-web_configVersion	8
-web_home
-web_practice_gametype
-web_practice_settings_0	{}
-web_practice_settings_1	{}
-web_practice_settings_2	{}
-web_practice_settings_3	{}
-web_practice_settings_4	{}
-web_practice_settings_5	{}
-web_skipLauncher	0
-web_start_gametype
-web_start_settings_0
-web_start_settings_1
-web_start_settings_3
-web_start_settings_4
-web_start_settings_5
-web_start_settings_9
-win_hinstance
-win_wndproc
+web_configVersion	8	
+web_practice_settings_0	{}	
+web_practice_settings_1	{}	
+web_practice_settings_2	{}	
+web_practice_settings_3	{}	
+web_practice_settings_4	{}	
+web_practice_settings_5	{}	
+web_skipLauncher	0	
+winkey_disable	0	0|1

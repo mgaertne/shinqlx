@@ -30,20 +30,23 @@ Changes since 0.8.0.
   polled every 25 ms, one server frame, and received lines are shown at once instead of after up to 250 ms. The input
   is read on its own blocking thread, and the tool runs on a single-threaded Tokio runtime without the `RwLock`s and
   `unsafe impl Send/Sync` around the sockets.
-* **`ql_rcon` completes the first word with the commands and cvars of Quake Live** (about 160 commands and 1040 cvars,
+* **`ql_rcon` completes the first word with the commands and cvars of Quake Live** (164 commands and 1050 cvars,
   names taken from the console guide at https://www.euere.eu/ql/), after the matching history entries; the case is ignored.
   Own names go into `commands.txt` (all servers) and `commands-<host>.txt` (for example `commands-10_0_0_1_27961.txt`)
   in the config directory (`~/.config/ql_rcon/` on Linux), one name per line; empty lines and lines starting with `#` are
   skipped. `ql_rcon --fetch-completions` asks the server once for `cmdlist` and `cvarlist` (without showing the output),
   and keeps the names in `completions-<host>.txt` of the same directory. The completion reads the files on every Tab, so
   new names and edits are used at once. After `set`, `seta`, `sets` and `setu` it completes cvar names, and after
-  `set <cvar>` or after a cvar itself the default and the values from the usage of the console guide (918 cvars).
+  `set <cvar>` or after a cvar itself the default and the values from the usage of the console guide (923 cvars).
   `--fetch-completions` also asks for `dir maps .bsp`; the maps are kept in `completions-maps-<host>.txt` and completed
   after `map`, `devmap` and `callvote map`. Own maps go into `maps.txt` and `maps-<host>.txt`.
   `ql_rcon` also remembers what the server reports on its own, in `learned-<host>.txt`: the `usage:` line of a command
   (shown on Tab after the command when nothing else fits) and the default and the `minimum`/`maximum` of a cvar that
   was queried (offered as values). The list of factories that `map` without arguments prints is remembered too and
   completed after the map name of `map`, `devmap` and `callvote map`.
+  The list of the completion tells what a value means (`g_gametype`: `4  Clan Arena`, 107 cvars with values or bits
+  from the console guide, such as `g_voteFlags`) and, for up to 20 names, the first line of their description. Own
+  meanings go into `values.txt` and `values-<host>.txt` as lines `cvar<TAB>value<TAB>meaning`; they win over the guide.
 
 ### ql_stats
 
