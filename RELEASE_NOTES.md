@@ -25,6 +25,12 @@ Changes since 0.8.0.
 * The banner of the chat log, `essentials` (`!seen`, `!time`, `!random`) and the time stamps of bans and silences are computed in
   Rust (`chrono`, `rand`) instead of the Python modules `time`, `datetime` and `random`. The Cargo feature `clock` of
   `chrono` is enabled for the local time.
+* The stats listener receives in a Rust thread named `shinqlx-stats` that sleeps until a message arrives, instead of a
+  Python thread that polled every 125 ms; `StatsListener.stop()` wakes it. The private method
+  `StatsListener._poll_zmq()` is gone. `arzmq` is built with its `futures` feature, which needs Unix, and `async-io`
+  and `futures` are new dependencies.
+* The deferred calls of the native plugins and the stats events are queued directly, without the Python decorators
+  `delay` and `next_frame` and without helper modules written in Python.
 
 ### Stubs
 

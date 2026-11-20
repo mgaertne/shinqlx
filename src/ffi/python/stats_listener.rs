@@ -1,21 +1,26 @@
 use core::{
     hint::cold_path,
+    pin::pin,
     sync::atomic::{AtomicBool, Ordering},
+    task::Poll,
 };
 use std::sync::LazyLock;
 
 use arzmq::{
     prelude::{
-        ContextBuilder, Receiver, RecvFlags, SocketBuilder, SubscribeBuilder, SubscribeSocket,
-        ZmqError, ZmqResult,
+        ContextBuilder, Receiver, SocketBuilder, SubscribeBuilder, SubscribeSocket, ZmqResult,
     },
     security::SecurityMechanism,
-    socket::PollEvents,
+};
+use async_io::block_on;
+use futures::{
+    future::{Either, poll_fn, select},
+    task::AtomicWaker,
 };
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
-    types::{IntoPyDict, PyCFunction, PyDict, PyString, PyTuple},
+    types::{PyCFunction, PyDict, PyString, PyTuple},
 };
 use serde_json::{Value, from_str};
 use tap::TapFallible;
@@ -299,10 +304,22 @@ static IN_PROGRESS: LazyLock<AtomicBool> = LazyLock::new(AtomicBool::default);
 #[derive(Debug)]
 pub(crate) struct StatsListener {
     done: AtomicBool,
+    stopped: AtomicWaker,
     #[pyo3(name = "address", get)]
     pub(crate) address: String,
     #[pyo3(name = "password", get)]
     password: String,
+}
+
+impl StatsListener {
+    fn new(done: bool, address: String, password: String) -> Self {
+        Self {
+            done: done.into(),
+            stopped: AtomicWaker::new(),
+            address,
+            password,
+        }
+    }
 }
 
 impl PartialEq for StatsListener {
@@ -326,11 +343,7 @@ impl StatsListener {
 
         let zmq_enabled_cvar = main_engine.find_cvar("zmq_stats_enable");
         if zmq_enabled_cvar.is_none_or(|cvar| cvar.get_integer() == 0) {
-            return Ok(Self {
-                done: true.into(),
-                address: Default::default(),
-                password: Default::default(),
-            });
+            return Ok(Self::new(true, String::new(), String::new()));
         }
 
         let host = main_engine
@@ -357,11 +370,7 @@ impl StatsListener {
             .map(|cvar| cvar.get_string().to_string())
             .unwrap_or_default();
 
-        Ok(Self {
-            done: false.into(),
-            address,
-            password,
-        })
+        Ok(Self::new(false, address, password))
     }
 
     #[getter]
@@ -377,18 +386,12 @@ impl StatsListener {
     pub(crate) fn keep_receiving(slf: &Bound<'_, Self>) -> PyResult<()> {
         slf.keep_receiving()
     }
-
-    #[pyo3(name = "_poll_zmq")]
-    fn poll_zmq(slf: &Bound<'_, Self>) -> PyResult<()> {
-        slf._poll_zmq()
-    }
 }
 
 pub(crate) trait StatsListenerMethods<'py> {
     fn get_done(&self) -> bool;
     fn stop(&self);
     fn keep_receiving(&self) -> PyResult<()>;
-    fn _poll_zmq(&self) -> PyResult<()>;
 }
 
 impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
@@ -397,53 +400,61 @@ impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
     }
 
     fn stop(&self) {
-        self.get().done.store(true, Ordering::Release);
+        let listener = self.get();
+        listener.done.store(true, Ordering::Release);
+        listener.stopped.wake();
     }
 
     fn keep_receiving(&self) -> PyResult<()> {
-        let py = self.py();
-        py.import(intern!(py, "threading"))?
-            .getattr(intern!(py, "Thread"))?
-            .call(
-                (),
-                Some(&[("target", self.getattr(intern!(py, "_poll_zmq"))?)].into_py_dict(py)?),
-            )?
-            .call_method0(intern!(py, "start"))?;
-
-        Ok(())
+        spawn_receiver(self.clone().unbind())
+            .map(|_| ())
+            .map_err(|err| PyIOError::new_err(format!("could not start the stats thread: {err}")))
     }
+}
 
-    fn _poll_zmq(&self) -> PyResult<()> {
-        if self.get_done() {
-            return Ok(());
+/// Waits until the listener is stopped.
+fn stopped(listener: &StatsListener) -> impl Future<Output = ()> {
+    poll_fn(|context| {
+        listener.stopped.register(context.waker());
+        if listener.done.load(Ordering::Acquire) {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
         }
+    })
+}
 
-        let socket = get_zmq_socket(&self.get().address, &self.get().password).map_err(
-            |err: ZmqError| {
-                let error_msg = format!("zmq error: {err:?}");
-                PyIOError::new_err(error_msg)
-            },
-        )?;
+/// Hands every message of the stats socket to the handler until the listener is stopped.
+async fn receive_stats(
+    listener: &StatsListener,
+    mut handle_message: impl FnMut(&str),
+) -> ZmqResult<()> {
+    let socket = get_zmq_socket(&listener.address, &listener.password)?;
+    let mut stopped = pin!(stopped(listener));
 
-        while !self.get_done() {
-            if !self.py().detach(|| {
-                socket
-                    .poll(PollEvents::POLL_IN, 125)
-                    .is_ok_and(|value| value == PollEvents::POLL_IN)
-            }) {
-                continue;
-            }
+    while !listener.done.load(Ordering::Acquire) {
+        match select(pin!(socket.recv_msg_wait()), stopped.as_mut()).await {
+            Either::Left((message, _)) => handle_message(&message?.to_string()),
+            Either::Right(_) => break,
+        }
+    }
+    Ok(())
+}
 
-            let _ = self
-                .py()
-                .detach(|| socket.recv_msg(RecvFlags::DONT_WAIT))
-                .tap_ok(|zmq_msg| {
-                    handle_zmq_msg(self.py(), &zmq_msg.to_string());
+/// Receives the stats in a thread of its own, which sleeps until a message arrives.
+fn spawn_receiver(listener: Py<StatsListener>) -> std::io::Result<std::thread::JoinHandle<()>> {
+    std::thread::Builder::new()
+        .name("shinqlx-stats".into())
+        .spawn(move || {
+            let result = block_on(receive_stats(listener.get(), |message| {
+                Python::attach(|py| handle_zmq_msg(py, message));
+            }));
+            if let Err(err) = result {
+                Python::attach(|py| {
+                    log_exception(py, &PyIOError::new_err(format!("zmq error: {err:?}")));
                 });
-        }
-
-        Ok(())
-    }
+            }
+        })
 }
 
 fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
@@ -481,13 +492,20 @@ fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
 
 #[cfg(test)]
 mod stats_listener_tests {
-    use core::borrow::BorrowMut;
+    use alloc::sync::Arc;
+    use core::{borrow::BorrowMut, time::Duration};
+    use std::sync::mpsc;
 
+    use arzmq::prelude::{Context, PublishSocket, SendFlags, Sender};
+    use async_io::block_on;
     use pretty_assertions::assert_eq;
     use pyo3::{exceptions::PyEnvironmentError, prelude::*};
     use rstest::*;
 
-    use super::{StatsListener, StatsListenerMethods, get_zmq_socket};
+    use super::{
+        Ordering, StatsListener, StatsListenerMethods, get_zmq_socket, receive_stats,
+        spawn_receiver,
+    };
     use crate::{
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
@@ -536,11 +554,7 @@ mod stats_listener_tests {
                 let result = StatsListener::py_new();
                 assert_eq!(
                     result.expect("this should not happen"),
-                    StatsListener {
-                        done: true.into(),
-                        address: "".into(),
-                        password: "".into()
-                    }
+                    StatsListener::new(true, String::new(), String::new())
                 );
             });
     }
@@ -594,11 +608,7 @@ mod stats_listener_tests {
                 let result = StatsListener::py_new();
                 assert_eq!(
                     result.expect("this should not happen"),
-                    StatsListener {
-                        done: false.into(),
-                        address: "tcp://127.0.0.1:27960".into(),
-                        password: "".into()
-                    }
+                    StatsListener::new(false, "tcp://127.0.0.1:27960".into(), String::new())
                 );
             });
     }
@@ -651,11 +661,7 @@ mod stats_listener_tests {
                 let result = StatsListener::py_new();
                 assert_eq!(
                     result.expect("this should not happen"),
-                    StatsListener {
-                        done: false.into(),
-                        address: "tcp://192.168.0.1:28960".into(),
-                        password: "p4ssw0rd".into()
-                    }
+                    StatsListener::new(false, "tcp://192.168.0.1:28960".into(), "p4ssw0rd".into(),)
                 );
             });
     }
@@ -665,15 +671,8 @@ mod stats_listener_tests {
     #[serial]
     fn stop_sets_done_field(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            let listener = Bound::new(
-                py,
-                StatsListener {
-                    done: false.into(),
-                    address: "".into(),
-                    password: "".into(),
-                },
-            )
-            .expect("this should not happen");
+            let listener = Bound::new(py, StatsListener::new(false, String::new(), String::new()))
+                .expect("this should not happen");
 
             listener.stop();
 
@@ -681,57 +680,111 @@ mod stats_listener_tests {
         });
     }
 
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn poll_zmq_returns_right_away_when_already_done(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            let listener = Bound::new(
-                py,
-                StatsListener {
-                    done: true.into(),
-                    address: "".into(),
-                    password: "".into(),
-                },
-            )
-            .expect("this should not happen");
-
-            let result = listener._poll_zmq();
-
-            assert!(result.is_ok());
+    fn receive_in_thread(
+        listener: &Arc<StatsListener>,
+        messages: mpsc::Sender<String>,
+    ) -> mpsc::Receiver<Result<(), String>> {
+        let (finished, result) = mpsc::channel();
+        let receiving = listener.clone();
+        std::thread::spawn(move || {
+            let outcome = block_on(receive_stats(&receiving, |message| {
+                let _ = messages.send(message.to_owned());
+            }));
+            let _ = finished.send(outcome.map_err(|err| format!("{err:?}")));
         });
+        result
+    }
+
+    fn stop(listener: &StatsListener) {
+        listener.done.store(true, Ordering::Release);
+        listener.stopped.wake();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn receive_stats_returns_right_away_when_already_done() {
+        let listener = StatsListener::new(true, "tcp://127.0.0.1:1".into(), String::new());
+
+        let result = block_on(receive_stats(&listener, |_| {}));
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn receive_stats_ends_when_stopped_while_waiting() {
+        let listener = Arc::new(StatsListener::new(
+            false,
+            "tcp://127.0.0.1:1".into(),
+            String::new(),
+        ));
+        let (messages, _received) = mpsc::channel();
+        let result = receive_in_thread(&listener, messages);
+
+        std::thread::sleep(Duration::from_millis(200));
+        stop(&listener);
+
+        assert_eq!(result.recv_timeout(Duration::from_secs(10)), Ok(Ok(())));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn receive_stats_hands_every_message_to_the_handler() {
+        let context = Context::new().expect("could not create the context");
+        let publisher =
+            PublishSocket::from_context(&context).expect("could not create the publisher");
+        publisher
+            .bind("tcp://127.0.0.1:*")
+            .expect("could not bind the publisher");
+        let address = publisher
+            .last_endpoint()
+            .expect("could not get the endpoint");
+        let listener = Arc::new(StatsListener::new(false, address, String::new()));
+        let (messages, received) = mpsc::channel();
+        let result = receive_in_thread(&listener, messages);
+
+        for _ in 0..100 {
+            let _ = publisher.send_msg("warmup", SendFlags::DONT_WAIT);
+            if received.recv_timeout(Duration::from_millis(50)).is_ok() {
+                break;
+            }
+        }
+        for message in ["first", "second", "third"] {
+            let _ = publisher.send_msg(message, SendFlags::DONT_WAIT);
+        }
+        let mut collected = vec![];
+        while collected.last().map(String::as_str) != Some("third") {
+            collected.push(
+                received
+                    .recv_timeout(Duration::from_secs(5))
+                    .expect("the messages did not arrive"),
+            );
+        }
+        collected.retain(|message| message != "warmup");
+        stop(&listener);
+
+        assert_eq!(collected, ["first", "second", "third"]);
+        assert_eq!(result.recv_timeout(Duration::from_secs(10)), Ok(Ok(())));
     }
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn poll_zmq_returns_after_stop(_pyshinqlx_setup: ()) {
+    fn the_receiver_thread_ends_after_stop(_pyshinqlx_setup: ()) {
         let listener = Python::attach(|py| {
-            Bound::new(
+            Py::new(
                 py,
-                StatsListener {
-                    done: false.into(),
-                    address: "tcp://127.0.0.1:1".into(),
-                    password: "".into(),
-                },
+                StatsListener::new(false, "tcp://127.0.0.1:1".into(), String::new()),
             )
-            .expect("this should not happen")
-            .unbind()
+            .expect("could not create the listener")
         });
-        let polling_listener = Python::attach(|py| listener.clone_ref(py));
-        let (sender, receiver) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let result = Python::attach(|py| polling_listener.bind(py)._poll_zmq());
-            let _ = sender.send(result.map_err(|err| err.to_string()));
-        });
+        let handle = spawn_receiver(Python::attach(|py| listener.clone_ref(py)))
+            .expect("could not start the receiver");
 
-        std::thread::sleep(core::time::Duration::from_millis(300));
+        std::thread::sleep(Duration::from_millis(200));
         Python::attach(|py| listener.bind(py).stop());
 
-        assert_eq!(
-            receiver.recv_timeout(core::time::Duration::from_secs(10)),
-            Ok(Ok(()))
-        );
+        assert!(handle.join().is_ok());
     }
 }
 
