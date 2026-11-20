@@ -21,9 +21,11 @@ use super::{
 use crate::ffi::python::{
     AbstractChannel, Game, GameMethods, Player, PlayerMethods, Plugin, abort, allready, change_map,
     commands::CommandPriorities,
-    delay, get_cvar, is_vote_active, lock, pause,
+    console_command, delay, get_cvar,
+    handlers::{PrintRedirectorMethods, redirect_print},
+    is_vote_active, lock, pause,
     plugin::{PluginMethods, chat},
-    pyshinqlx_force_vote, shuffle, unlock, unpause,
+    pyshinqlx_force_vote, pyshinqlx_owner, shuffle, unlock, unpause,
 };
 
 mod bookkeeping;
@@ -535,12 +537,7 @@ impl Essentials {
             );
         }
 
-        let owner = py
-            .import(intern!(py, "shinqlx"))?
-            .getattr(intern!(py, "owner"))?
-            .call0()?
-            .extract::<Option<i64>>()?;
-        let name = if owner == Some(steam_id) {
+        let name = if pyshinqlx_owner(py)? == Some(steam_id) {
             "my ^6master^7"
         } else {
             "that player"
@@ -643,16 +640,11 @@ impl Essentials {
             return usage();
         }
         let py = slf.py();
-        let shinqlx = py.import(intern!(py, "shinqlx"))?;
-        let redirector = shinqlx
-            .getattr(intern!(py, "redirect_print"))?
-            .call1((channel,))?;
-        redirector.call_method0(intern!(py, "__enter__"))?;
-        let result = shinqlx
-            .getattr(intern!(py, "console_command"))?
-            .call1((msg[1..].join(" "),));
-        redirector.call_method1(intern!(py, "__exit__"), (py.None(), py.None(), py.None()))?;
-        result.map(|_| None)
+        let redirector = Bound::new(py, redirect_print(py, channel.clone().into_any())?)?;
+        let redirector = redirector.context_manager_enter();
+        let result = console_command(&msg[1..].join(" "));
+        redirector.context_manager_exit(py.None(), py.None(), py.None())?;
+        result.map(|()| None)
     }
 
     fn cmd_shuffle(

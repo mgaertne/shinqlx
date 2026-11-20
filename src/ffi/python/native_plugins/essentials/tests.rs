@@ -38,51 +38,10 @@ const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
 const CALLER_ID: i64 = 1001;
 const TARGET_ID: i64 = 1003;
 
-const FIXTURES: &CStr = c"
-import shinqlx
-
-
-caller = None
-target = None
-online = []
-
-
-def seat(new_caller, new_target):
-    global caller, target
-    caller = new_caller
-    target = new_target
-    online[:] = [caller, target]
-
-console = []
-redirected = []
-owner_id = [76561198000000009]
-
-
-def fake_owner():
-    return owner_id[0]
-
-
-def fake_console_command(command):
-    console.append(command)
-    if command == 'fail':
-        raise RuntimeError('boom')
-
-
-class Redirect:
-    def __init__(self, channel):
-        redirected.append('created')
-
-    def __enter__(self):
-        redirected.append('entered')
-
-    def __exit__(self, *args):
-        redirected.append('left')
-
-";
+const FIXTURES: &CStr = c"";
 
 struct Fixtures<'py> {
     plugin: Bound<'py, Essentials>,
-    module: Bound<'py, PyModule>,
     database: Bound<'py, PyAny>,
     channel: Bound<'py, AbstractChannel>,
     caller: Bound<'py, Player>,
@@ -100,13 +59,6 @@ impl Fixtures<'_> {
 
     fn told(&self, _player: &Bound<'_, Player>) -> Vec<String> {
         self.commands.printed(self.plugin.py())
-    }
-
-    fn strings(&self, name: &str) -> Vec<String> {
-        self.module
-            .getattr(name)
-            .and_then(|values| values.extract())
-            .expect("could not get the strings")
     }
 
     fn forced(&self) -> Vec<bool> {
@@ -227,19 +179,6 @@ fn with_essentials_players<F>(
             plugin_class
                 .setattr("database", module.getattr("Database").expect("no Database"))
                 .expect("could not set the database");
-            let shinqlx = py.import("shinqlx").expect("no shinqlx");
-            let _restored_functions = [
-                ("owner", "fake_owner"),
-                ("console_command", "fake_console_command"),
-                ("redirect_print", "Redirect"),
-            ]
-            .map(|(name, fake)| {
-                let restored = RestoredAttribute::capture(shinqlx.as_any(), name);
-                shinqlx
-                    .setattr(name, module.getattr(fake).expect("missing fake"))
-                    .expect("could not replace the function");
-                restored
-            });
 
             let plugin = Bound::new(
                 py,
@@ -262,9 +201,6 @@ fn with_essentials_players<F>(
                     ..default_test_player_info()
                 };
             }
-            get("seat")
-                .call1((&caller, &target))
-                .expect("could not seat the players");
             test(Fixtures {
                 plugin,
                 database,
@@ -275,7 +211,6 @@ fn with_essentials_players<F>(
                 caller,
                 target,
                 commands,
-                module: module.clone(),
             });
         });
     });
@@ -285,7 +220,8 @@ fn msg(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
 
-const VOTE_CVARS: [(&str, &CStr); 6] = [
+const VOTE_CVARS: [(&str, &CStr); 7] = [
+    ("qlx_owner", c"76561198000000009"),
     ("qlx_votepass", c"1"),
     ("qlx_votepassThreshold", c"0.5"),
     ("qlx_teamsizeMinimum", c"2"),
@@ -294,7 +230,8 @@ const VOTE_CVARS: [(&str, &CStr); 6] = [
     ("qlx_commandPrefix", c"!"),
 ];
 
-const NO_VOTEPASS: [(&str, &CStr); 6] = [
+const NO_VOTEPASS: [(&str, &CStr); 7] = [
+    ("qlx_owner", c"76561198000000009"),
     ("qlx_votepass", c"0"),
     ("qlx_votepassThreshold", c"0.5"),
     ("qlx_teamsizeMinimum", c"2"),
@@ -1064,29 +1001,26 @@ fn rcon_without_a_command_asks_for_usage(_pyshinqlx_setup: ()) {
 }
 
 #[rstest]
-#[case("status", true)]
-#[case("fail", false)]
+#[case(&["rcon", "status"], "status")]
+#[case(&["rcon", "say", "hello", "world"], "say hello world")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn rcon_runs_the_command_with_the_output_redirected(
     _pyshinqlx_setup: (),
-    #[case] command: &str,
-    #[case] succeeds: bool,
+    #[case] words: &[&str],
+    #[case] expected: &'static str,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command(expected, 1);
+    with_essentials_engine(engine, None, |fixtures| {
         let result = Essentials::cmd_rcon(
             &fixtures.plugin,
             &fixtures.caller,
-            msg(&["rcon", command]),
+            msg(words),
             &fixtures.channel,
         );
 
-        assert_eq!(result.is_ok(), succeeds);
-        assert_eq!(fixtures.strings("console"), [command]);
-        assert_eq!(
-            fixtures.strings("redirected"),
-            ["created", "entered", "left"]
-        );
+        assert_eq!(result.ok(), Some(None));
+        assert_eq!(fixtures.replies(), [""]);
     });
 }
 
