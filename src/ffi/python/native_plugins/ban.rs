@@ -126,14 +126,15 @@ fn leave_status(
 }
 
 fn playing(py: Python<'_>) -> PyResult<Vec<Bound<'_, Player>>> {
-    let teams = py.get_type::<Plugin>().call_method0(intern!(py, "teams"))?;
-    ["red", "blue"]
+    Plugin::players(&py.get_type::<Plugin>())?
         .into_iter()
-        .map(|team| teams.get_item(team)?.extract::<Vec<Bound<'_, Player>>>())
-        .try_fold(vec![], |mut players, team| {
-            players.extend(team?);
-            Ok(players)
+        .filter(|player| {
+            player
+                .get_team(py)
+                .is_ok_and(|team| team == "red" || team == "blue")
         })
+        .map(|player| Bound::new(py, player))
+        .collect()
 }
 
 fn is_in_progress(plugin: &Bound<'_, Ban>) -> PyResult<bool> {
@@ -409,24 +410,20 @@ impl Ban {
             &msg[4..].join(" "),
         )?;
 
-        match py.get_type::<Plugin>().call_method1(
-            intern!(py, "kick"),
-            (
-                steam_id,
-                format!(
-                    "has been banned until ^6{}^7: {}",
-                    banned.expires, banned.reason
-                ),
-            ),
-        ) {
-            Err(err) if err.is_instance_of::<PyValueError>(py) => reply(
+        let kick_reason = format!(
+            "has been banned until ^6{}^7: {}",
+            banned.expires, banned.reason
+        );
+        match target.player().map(|player| player.kick(&kick_reason)) {
+            Some(Ok(())) => Ok(None),
+            Some(Err(err)) if !err.is_instance_of::<PyValueError>(py) => Err(err),
+            _ => reply(
                 channel,
                 &format!(
                     "^6{name} ^7has been banned. Ban expires on ^6{}^7.",
                     banned.expires
                 ),
             ),
-            result => result.map(|_| None),
         }
     }
 
@@ -643,7 +640,7 @@ mod ban_tests {
     use super::{Ban, LeaveAction, ban_notice, bans_key, counter_key, leave_action, player_key};
     use crate::{
         ffi::{
-            c::prelude::CS_SERVERINFO,
+            c::prelude::{CS_SERVERINFO, team_t},
             python::{
                 AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes,
                 native_plugins::{
@@ -656,7 +653,7 @@ mod ban_tests {
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
                 pyshinqlx_test_support::{
-                    RestoredAttribute, engine_with_cvars, with_connected_players,
+                    RestoredAttribute, engine_with_cvars, with_connected_teamed_players,
                 },
             },
         },
@@ -675,37 +672,11 @@ mod ban_tests {
         ("qlx_leaverBanThreshold", c"0.63"),
     ];
 
-    const FIXTURES: &CStr = c"
-team_members = {'red': [], 'blue': [], 'spectator': [], 'free': []}
-kicked = []
-kick_fails = []
-
-
-def find_player(cls, client_id, player_list=None):
-    for candidate in (caller, target, other):
-        if candidate.id == client_id:
-            return candidate
-    raise shinqlx.NonexistentPlayerError(client_id)
-
-
-def teams(cls, player_list=None):
-    return team_members
-
-
-def kick(cls, player, reason=''):
-    if kick_fails:
-        raise ValueError('Invalid player.')
-    kicked.append((player, reason))
-
-
-player = classmethod(find_player)
-teams = classmethod(teams)
-kick = classmethod(kick)
-";
+    const FIXTURES: &CStr = c"";
+    const SPECTATING: [team_t; 3] = [team_t::TEAM_SPECTATOR; 3];
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Ban>,
-        module: Bound<'py, PyModule>,
         database: Bound<'py, PyAny>,
         channel: Bound<'py, AbstractChannel>,
         caller: Bound<'py, Player>,
@@ -724,20 +695,6 @@ kick = classmethod(kick)
 
         fn printed(&self) -> Vec<String> {
             self.commands.printed(self.plugin.py())
-        }
-
-        fn kicked(&self) -> Vec<(i64, String)> {
-            self.module
-                .getattr("kicked")
-                .and_then(|kicked| kicked.extract())
-                .expect("could not get the kicks")
-        }
-
-        fn kicking_fails(&self) {
-            self.module
-                .getattr("kick_fails")
-                .and_then(|fails| fails.call_method1("append", (true,)))
-                .expect("could not make kicking fail");
         }
 
         fn zsets(&self) -> HashMap<String, HashMap<String, f64>> {
@@ -796,13 +753,6 @@ kick = classmethod(kick)
                 .expect("could not grant the permission");
         }
 
-        fn seat(&self, team: &str, players: &[&Bound<'_, Player>]) {
-            self.module
-                .getattr("team_members")
-                .and_then(|members| members.set_item(team, players.to_vec()))
-                .expect("could not seat the players");
-        }
-
         fn start_with(&self, players: &[&Bound<'_, Player>]) {
             let mut start = self.plugin.get().players_start.lock();
             *start = players
@@ -826,15 +776,24 @@ kick = classmethod(kick)
         engine: MockEngineBuilder,
         redis: &'static CStr,
         players: &[(i32, &'static str)],
+        seating: [team_t; 3],
         test: F,
     ) where
         F: FnOnce(Fixtures<'_>),
     {
-        let connected = [(1, "Caller^7"), (3, "Eve^7"), (4, "Mallory^7")]
-            .into_iter()
-            .chain(players.iter().copied())
-            .collect::<Vec<_>>();
-        with_connected_players(engine, &connected, || {
+        let connected = [
+            (1, "Caller^7", seating[0]),
+            (3, "Eve^7", seating[1]),
+            (4, "Mallory^7", seating[2]),
+        ]
+        .into_iter()
+        .chain(
+            players
+                .iter()
+                .map(|(id, name)| (*id, *name, team_t::TEAM_SPECTATOR)),
+        )
+        .collect::<Vec<_>>();
+        with_connected_teamed_players(engine, &connected, || {
             let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
@@ -854,15 +813,6 @@ kick = classmethod(kick)
                 plugin_class
                     .setattr("database", module.getattr("Database").expect("no Database"))
                     .expect("could not set the database");
-                let _restored = ["player", "teams", "kick"].map(|name| {
-                    let restored = RestoredAttribute::capture(plugin_class.as_any(), name);
-                    if name != "player" || players.is_empty() {
-                        plugin_class
-                            .setattr(name, module.getattr(name).expect("missing fixture"))
-                            .expect("could not replace the Plugin method");
-                    }
-                    restored
-                });
 
                 let plugin = Bound::new(
                     py,
@@ -887,7 +837,6 @@ kick = classmethod(kick)
                     target,
                     other,
                     commands,
-                    module: module.clone(),
                 });
             });
         });
@@ -901,11 +850,19 @@ kick = classmethod(kick)
             engine_with_cvars(&[("qlx_leaverBan", c"0")]),
             redis,
             players,
+            SPECTATING,
             test,
         );
     }
 
     fn with_leaver_ban<F>(game_state: Option<&'static str>, test: F)
+    where
+        F: FnOnce(Fixtures<'_>),
+    {
+        with_seated_leaver_ban(game_state, SPECTATING, test);
+    }
+
+    fn with_seated_leaver_ban<F>(game_state: Option<&'static str>, seating: [team_t; 3], test: F)
     where
         F: FnOnce(Fixtures<'_>),
     {
@@ -918,7 +875,7 @@ kick = classmethod(kick)
             ),
             None => engine,
         };
-        with_ban_in(engine, REDIS_5, &[], test);
+        with_ban_in(engine, REDIS_5, &[], seating, test);
     }
 
     fn msg(words: &[&str]) -> Vec<String> {
@@ -1136,15 +1093,12 @@ kick = classmethod(kick)
             let details = &fixtures.hashes()[&format!("{key}:0")];
             assert_eq!(details["reason"], "being rude");
             assert_eq!(details["issued_by"], CALLER_ID.to_string());
-            let kicked = fixtures.kicked();
-            assert_eq!(kicked.len(), 1);
-            assert_eq!(kicked[0].0, TARGET_ID);
             assert_eq!(
-                kicked[0].1,
-                format!(
+                fixtures.commands.dropped(),
+                [format!(
                     "has been banned until ^6{}^7: being rude",
                     details["expires"]
-                )
+                )]
             );
             assert!(fixtures.replies().is_empty());
         });
@@ -1155,8 +1109,6 @@ kick = classmethod(kick)
     #[serial]
     fn ban_of_a_player_that_cannot_be_kicked_only_stores_the_ban(_pyshinqlx_setup: ()) {
         with_ban(REDIS_5, &[], |fixtures| {
-            fixtures.kicking_fails();
-
             let result = Ban::cmd_ban(
                 &fixtures.plugin,
                 &fixtures.caller,
@@ -1593,12 +1545,18 @@ kick = classmethod(kick)
         } else {
             &[("qlx_leaverBan", c"0")]
         };
-        with_ban_in(engine_with_cvars(cvars), REDIS_5, &[], |fixtures| {
-            let result = Ban::handle_game_countdown(&fixtures.plugin);
+        with_ban_in(
+            engine_with_cvars(cvars),
+            REDIS_5,
+            &[],
+            SPECTATING,
+            |fixtures| {
+                let result = Ban::handle_game_countdown(&fixtures.plugin);
 
-            assert!(result.is_ok());
-            assert_eq!(fixtures.printed().len(), announcements);
-        });
+                assert!(result.is_ok());
+                assert_eq!(fixtures.printed().len(), announcements);
+            },
+        );
     }
 
     #[rstest]
@@ -1607,11 +1565,9 @@ kick = classmethod(kick)
     fn the_players_at_the_start_of_the_game_are_remembered_a_second_later(
         #[from(crate::ffi::python::pyshinqlx_setup_fixture::empty_frame_tasks)] _empty_frame_tasks: (),
     ) {
-        with_leaver_ban(None, |fixtures| {
+        let seating = [team_t::TEAM_RED, team_t::TEAM_BLUE, team_t::TEAM_SPECTATOR];
+        with_seated_leaver_ban(None, seating, |fixtures| {
             let py = fixtures.plugin.py();
-            fixtures.seat("red", &[&fixtures.caller]);
-            fixtures.seat("blue", &[&fixtures.target]);
-            fixtures.seat("spectator", &[&fixtures.other]);
             let before = scheduled_tasks(py);
 
             let result = Ban::handle_game_start(&fixtures.plugin, py.None().bind(py));
@@ -1645,10 +1601,9 @@ kick = classmethod(kick)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_finished_game_counts_completed_games_and_announces_the_leavers(_pyshinqlx_setup: ()) {
-        with_leaver_ban(None, |fixtures| {
+        let seating = [team_t::TEAM_RED, team_t::TEAM_SPECTATOR, team_t::TEAM_BLUE];
+        with_seated_leaver_ban(None, seating, |fixtures| {
             fixtures.start_with(&[&fixtures.caller, &fixtures.target, &fixtures.other]);
-            fixtures.seat("red", &[&fixtures.caller]);
-            fixtures.seat("blue", &[&fixtures.other]);
             let data = PyDict::new(fixtures.plugin.py());
             data.set_item("ABORTED", false)
                 .expect("could not set ABORTED");
@@ -1670,9 +1625,13 @@ kick = classmethod(kick)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_finished_game_without_leavers_keeps_the_players(_pyshinqlx_setup: ()) {
-        with_leaver_ban(None, |fixtures| {
+        let seating = [
+            team_t::TEAM_RED,
+            team_t::TEAM_SPECTATOR,
+            team_t::TEAM_SPECTATOR,
+        ];
+        with_seated_leaver_ban(None, seating, |fixtures| {
             fixtures.start_with(&[&fixtures.caller]);
-            fixtures.seat("red", &[&fixtures.caller]);
             let data = PyDict::new(fixtures.plugin.py());
 
             let result = Ban::handle_game_end(&fixtures.plugin, &data);
@@ -1693,11 +1652,18 @@ kick = classmethod(kick)
         #[case] players_seated: usize,
         #[case] still_counted: bool,
     ) {
-        with_leaver_ban(None, |fixtures| {
+        let seating = [
+            team_t::TEAM_RED,
+            team_t::TEAM_SPECTATOR,
+            if players_seated == 2 {
+                team_t::TEAM_RED
+            } else {
+                team_t::TEAM_SPECTATOR
+            },
+        ];
+        with_seated_leaver_ban(None, seating, |fixtures| {
             let py = fixtures.plugin.py();
             fixtures.start_with(&[&fixtures.target]);
-            let seated = [&fixtures.caller, &fixtures.other];
-            fixtures.seat("red", &seated[..players_seated]);
 
             let result = Ban::handle_player_disconnect(
                 fixtures.plugin.get(),
@@ -1724,10 +1690,17 @@ kick = classmethod(kick)
         #[case] players_seated: usize,
         #[case] still_counted: bool,
     ) {
-        with_leaver_ban(None, |fixtures| {
+        let seating = [
+            team_t::TEAM_RED,
+            team_t::TEAM_SPECTATOR,
+            if players_seated == 2 {
+                team_t::TEAM_RED
+            } else {
+                team_t::TEAM_SPECTATOR
+            },
+        ];
+        with_seated_leaver_ban(None, seating, |fixtures| {
             fixtures.start_with(&[&fixtures.target]);
-            let seated = [&fixtures.caller, &fixtures.other];
-            fixtures.seat("red", &seated[..players_seated]);
 
             let result =
                 Ban::handle_team_switch(&fixtures.plugin, &fixtures.target, old_team, new_team);
