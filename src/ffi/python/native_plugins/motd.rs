@@ -1,8 +1,9 @@
 use pyo3::{exceptions::PyKeyError, intern, prelude::*, types::PyTuple};
 
-use super::{create_cvar, register_command, register_hook, tell};
+use super::{create_cvar, register_command, register_hook};
 use crate::ffi::python::{
-    Plugin, PythonReturnCodes, commands::CommandPriorities, delay, get_cvar, plugin::PluginMethods,
+    Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities, delay, get_cvar,
+    plugin::PluginMethods,
 };
 
 const MOTD_SET_KEY: &str = "minqlx:motd";
@@ -53,17 +54,17 @@ fn stored_motd(database: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<String
     }
 }
 
-fn send_motd_lines(player: &Bound<'_, PyAny>, motd: &str) -> PyResult<()> {
+fn send_motd_lines(player: &Bound<'_, Player>, motd: &str) -> PyResult<()> {
     let header = get_cvar("qlx_motdHeader")?.unwrap_or_default();
     header
         .split(LINE_BREAK)
         .chain(motd.split(LINE_BREAK))
-        .try_for_each(|line| tell(player, line))
+        .try_for_each(|line| player.tell(line, None))
 }
 
 #[pymethods]
 impl Motd {
-    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
         delay(py, 2.0)?
             .call1((slf.getattr(intern!(py, "deliver_motd"))?,))?
@@ -71,7 +72,7 @@ impl Motd {
             .map(|_| ())
     }
 
-    fn deliver_motd(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn deliver_motd(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
         let database = slf.as_super().get_db()?;
         let Some(motd) = stored_motd(&database, &slf.get().motd_key)? else {
@@ -86,20 +87,23 @@ impl Motd {
                 .call_method1(intern!(py, "get_flag"), (player, SOUNDS_ENABLED_FLAG, true))?
                 .is_truthy()?
         {
-            py.get_type::<Plugin>()
-                .call_method1(intern!(py, "play_sound"), (welcome_sound, player))?;
+            Plugin::play_sound(
+                &py.get_type::<Plugin>(),
+                &welcome_sound,
+                Some(player.get().clone()),
+            )?;
         }
 
         send_motd_lines(player, &motd)
     }
 
-    fn send_motd(_slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>, motd: &str) -> PyResult<()> {
+    fn send_motd(_slf: &Bound<'_, Self>, player: &Bound<'_, Player>, motd: &str) -> PyResult<()> {
         send_motd_lines(player, motd)
     }
 
     fn cmd_setmotd(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -112,13 +116,13 @@ impl Motd {
         database.call_method1(intern!(py, "sadd"), (MOTD_SET_KEY, &motd.home))?;
         database.set_item(&motd.motd_key, joined_arguments(&msg))?;
 
-        tell(player, "The MOTD has been set.")?;
+        player.tell("The MOTD has been set.", None)?;
         Ok(Some(STOP_EVENT))
     }
 
     fn cmd_setmotdall(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -131,27 +135,27 @@ impl Motd {
         }
         pipeline.call_method0(intern!(py, "execute"))?;
 
-        tell(player, "All MOTDs have been set.")?;
+        player.tell("All MOTDs have been set.", None)?;
         Ok(Some(STOP_EVENT))
     }
 
     fn cmd_getmotd(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         let database = slf.as_super().get_db()?;
         match stored_motd(&database, &slf.get().motd_key)? {
             Some(motd) => send_motd_lines(player, &motd)?,
-            None => tell(player, "No MOTD has been set.")?,
+            None => player.tell("No MOTD has been set.", None)?,
         }
         Ok(Some(STOP_EVENT))
     }
 
     fn cmd_clearmotd(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -159,16 +163,16 @@ impl Motd {
         let key = &slf.get().motd_key;
         if database.contains(key)? {
             database.del_item(key)?;
-            tell(player, "The MOTD has been cleared.")?;
+            player.tell("The MOTD has been cleared.", None)?;
         } else {
-            tell(player, "No MOTD has been set.")?;
+            player.tell("No MOTD has been set.", None)?;
         }
         Ok(Some(STOP_EVENT))
     }
 
     fn cmd_clearmotdall(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -182,13 +186,13 @@ impl Motd {
             database.call_method1(intern!(py, "delete"), PyTuple::new(py, keys)?)?;
         }
 
-        tell(player, "All MOTDs have been cleared.")?;
+        player.tell("All MOTDs have been cleared.", None)?;
         Ok(Some(STOP_EVENT))
     }
 
     fn cmd_addmotd(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -198,11 +202,11 @@ impl Motd {
         match stored_motd(&database, key)?.filter(|motd| !motd.is_empty()) {
             None => {
                 database.set_item(key, addition)?;
-                tell(player, "No MOTD was set, so a new one was made.")?;
+                player.tell("No MOTD was set, so a new one was made.", None)?;
             }
             Some(motd) => {
                 database.set_item(key, appended(&motd, &addition))?;
-                tell(player, "The MOTD has been updated.")?;
+                player.tell("The MOTD has been updated.", None)?;
             }
         }
         Ok(Some(STOP_EVENT))
@@ -210,7 +214,7 @@ impl Motd {
 
     fn cmd_addmotdall(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -225,7 +229,7 @@ impl Motd {
             database.set_item(&key, updated)?;
         }
 
-        tell(player, "Added to all MOTDs.")?;
+        player.tell("Added to all MOTDs.", None)?;
         Ok(Some(STOP_EVENT))
     }
 }
@@ -302,8 +306,11 @@ mod motd_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                Plugin, plugin::PluginMethods, pyshinqlx_setup_fixture::pyshinqlx_setup,
-                pyshinqlx_test_support::RestoredAttribute,
+                Player, Plugin,
+                native_plugins::test_support::{ServerCommands, real_player},
+                plugin::PluginMethods,
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
             },
         },
         prelude::*,
@@ -314,18 +321,23 @@ mod motd_tests {
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Motd>,
-        player: Bound<'py, PyAny>,
+        player: Bound<'py, Player>,
         channel: Bound<'py, PyAny>,
         database: Bound<'py, PyAny>,
-        module: Bound<'py, PyModule>,
+        commands: ServerCommands,
     }
 
     impl Fixtures<'_> {
         fn told(&self) -> Vec<String> {
-            self.player
-                .getattr("told")
-                .and_then(|told| told.extract())
-                .expect("could not get told messages")
+            self.commands.printed(self.plugin.py())
+        }
+
+        fn played_sounds(&self) -> usize {
+            self.commands
+                .sent()
+                .iter()
+                .filter(|command| command.starts_with("playSound "))
+                .count()
         }
 
         fn stored(&self, key: &str) -> Option<String> {
@@ -375,11 +387,12 @@ mod motd_tests {
     where
         F: FnOnce(Fixtures<'_>),
     {
-        let mut engine = engine(&[
+        let engine = engine(&[
             ("qlx_motdHeader", c"HEAD1\\nHEAD2"),
             ("qlx_motdSound", sound),
         ]);
-        engine.run(|| {
+        with_connected_players(engine, &[(2, "Ada^7")], || {
+            let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let module = PyModule::from_code(
                     py,
@@ -433,28 +446,8 @@ class Database:
         return self.flags.get(flag, default)
 
 
-class Player:
-    steam_id = 1234
-
-    def __init__(self):
-        self.told = []
-
-    def tell(self, message):
-        self.told.append(message)
-
-
 class Channel:
     pass
-
-
-played = []
-
-
-def record_sound(cls, sound, player):
-    played.append((sound, player))
-
-
-play_sound = classmethod(record_sound)
 ",
                     c"",
                     c"",
@@ -463,17 +456,9 @@ play_sound = classmethod(record_sound)
                 let plugin_class = py.get_type::<Plugin>();
                 let _restore_database =
                     RestoredAttribute::capture(plugin_class.as_any(), "database");
-                let _restore_sound =
-                    RestoredAttribute::capture(plugin_class.as_any(), "play_sound");
                 plugin_class
                     .setattr("database", module.getattr("Database").expect("no Database"))
                     .expect("could not set the database");
-                plugin_class
-                    .setattr(
-                        "play_sound",
-                        module.getattr("play_sound").expect("no play_sound"),
-                    )
-                    .expect("could not record the sounds");
 
                 let plugin = Bound::new(
                     py,
@@ -495,10 +480,10 @@ play_sound = classmethod(record_sound)
                 };
                 test(Fixtures {
                     plugin,
-                    player: create("Player"),
+                    player: real_player(py, 1234, "Ada^7", ""),
                     channel: create("Channel"),
                     database,
-                    module,
+                    commands,
                 });
             });
         });
@@ -757,14 +742,6 @@ play_sound = classmethod(record_sound)
         });
     }
 
-    fn played_sounds(fixtures: &Fixtures<'_>) -> usize {
-        fixtures
-            .module
-            .getattr("played")
-            .and_then(|played| played.len())
-            .expect("could not count the sounds")
-    }
-
     #[rstest]
     #[case(c"0", None, 0)]
     #[case(c"sound/welcome.wav", None, 1)]
@@ -790,7 +767,7 @@ play_sound = classmethod(record_sound)
             let result = Motd::deliver_motd(&fixtures.plugin, &fixtures.player);
 
             assert!(result.is_ok());
-            assert_eq!(played_sounds(&fixtures), expected_sounds);
+            assert_eq!(fixtures.played_sounds(), expected_sounds);
             assert_eq!(fixtures.told(), ["HEAD1", "HEAD2", "Welcome"]);
         });
     }

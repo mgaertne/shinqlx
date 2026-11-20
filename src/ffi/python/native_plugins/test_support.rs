@@ -274,6 +274,11 @@ impl ServerCommands {
         }
     }
 
+    /// All server commands the engine was told to send, in order.
+    pub(super) fn sent(&self) -> Vec<String> {
+        self.sent.lock().clone()
+    }
+
     /// The client commands the engine was told to execute, e.g. for a changed name.
     pub(super) fn executed(&self) -> Vec<String> {
         self.executed.lock().clone()

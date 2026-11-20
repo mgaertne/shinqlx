@@ -4,7 +4,7 @@ use super::{
     register_command,
     target::{reply, usage},
 };
-use crate::ffi::python::{Plugin, next_frame, plugin::PluginMethods};
+use crate::ffi::python::{Player, Plugin, next_frame, plugin::PluginMethods};
 
 const MANAGER_PERMISSION: i32 = 5;
 
@@ -64,7 +64,7 @@ fn other_plugins(slf: &Bound<'_, PluginManager>) -> PyResult<Vec<String>> {
 impl PluginManager {
     fn cmd_load(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -76,7 +76,7 @@ impl PluginManager {
 
     fn cmd_unload(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -94,7 +94,7 @@ impl PluginManager {
 
     fn cmd_reload(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -123,7 +123,7 @@ impl PluginManager {
 
     fn cmd_loadall(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -149,7 +149,7 @@ impl PluginManager {
 
     fn cmd_unloadall(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -177,7 +177,7 @@ impl PluginManager {
 
     fn cmd_reloadall(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -249,7 +249,7 @@ mod plugin_manager_tests {
             COMMANDS, EVENT_DISPATCHERS, Plugin, PythonReturnCodes,
             commands::CommandInvoker,
             events::EventDispatcherManager,
-            native_plugins::test_support::fixture_module,
+            native_plugins::test_support::{fixture_module, real_player},
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{RestoredAttribute, run_all_frame_tasks},
         },
@@ -422,25 +422,24 @@ def uninstall():
     fn commands_with_a_plugin_ask_for_usage_without_one(_pyshinqlx_setup: ()) {
         with_manager(&[], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
-            let caller = caller.bind(py);
+            let caller = real_player(py, 1234, "Ada^7", "");
 
             for result in [
                 PluginManager::cmd_load(
                     &fixtures.plugin,
-                    caller,
+                    &caller,
                     msg(&["load"]),
                     &fixtures.channel,
                 ),
                 PluginManager::cmd_unload(
                     &fixtures.plugin,
-                    caller,
+                    &caller,
                     msg(&["unload"]),
                     &fixtures.channel,
                 ),
                 PluginManager::cmd_reload(
                     &fixtures.plugin,
-                    caller,
+                    &caller,
                     msg(&["reload"]),
                     &fixtures.channel,
                 ),
@@ -463,17 +462,12 @@ def uninstall():
     ) {
         with_manager(&[], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
             let words = msg(&[command, "essentials"]);
             let result = if command == "load" {
-                PluginManager::cmd_load(&fixtures.plugin, caller.bind(py), words, &fixtures.channel)
+                PluginManager::cmd_load(&fixtures.plugin, &caller, words, &fixtures.channel)
             } else {
-                PluginManager::cmd_unload(
-                    &fixtures.plugin,
-                    caller.bind(py),
-                    words,
-                    &fixtures.channel,
-                )
+                PluginManager::cmd_unload(&fixtures.plugin, &caller, words, &fixtures.channel)
             };
 
             assert_eq!(result.ok(), Some(None));
@@ -496,18 +490,13 @@ def uninstall():
     fn load_and_unload_report_their_failure(_pyshinqlx_setup: (), #[case] command: &str) {
         with_manager(&[], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
             fixtures.fail(&format!("{command}_plugin"));
             let words = msg(&[command, "essentials"]);
             let result = if command == "load" {
-                PluginManager::cmd_load(&fixtures.plugin, caller.bind(py), words, &fixtures.channel)
+                PluginManager::cmd_load(&fixtures.plugin, &caller, words, &fixtures.channel)
             } else {
-                PluginManager::cmd_unload(
-                    &fixtures.plugin,
-                    caller.bind(py),
-                    words,
-                    &fixtures.channel,
-                )
+                PluginManager::cmd_unload(&fixtures.plugin, &caller, words, &fixtures.channel)
             };
 
             assert_eq!(result.ok(), Some(None));
@@ -536,11 +525,11 @@ def uninstall():
                         .expect("no real function"),
                 )
                 .expect("could not use the real function");
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
 
             let result = PluginManager::cmd_load(
                 &fixtures.plugin,
-                caller.bind(py),
+                &caller,
                 msg(&["load", "r!ban"]),
                 &fixtures.channel,
             );
@@ -606,14 +595,14 @@ def uninstall():
     ) {
         with_manager(&[], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
             if failing {
                 fixtures.fail("reload_plugin");
             }
 
             let result = PluginManager::cmd_reload(
                 &fixtures.plugin,
-                caller.bind(py),
+                &caller,
                 msg(&["reload", "silence"]),
                 &fixtures.channel,
             );
@@ -641,14 +630,14 @@ def uninstall():
     ) {
         with_manager(&[], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
             if failing {
                 fixtures.fail("load_preset_plugins");
             }
 
             let result = PluginManager::cmd_loadall(
                 &fixtures.plugin,
-                caller.bind(py),
+                &caller,
                 msg(&["loadall"]),
                 &fixtures.channel,
             );
@@ -666,11 +655,11 @@ def uninstall():
     fn unloadall_unloads_every_other_plugin(_pyshinqlx_setup: ()) {
         with_manager(&["plugin_manager", "silence", "ban"], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
 
             let result = PluginManager::cmd_unloadall(
                 &fixtures.plugin,
-                caller.bind(py),
+                &caller,
                 msg(&["unloadall"]),
                 &fixtures.channel,
             );
@@ -696,12 +685,12 @@ def uninstall():
     fn unloadall_reports_plugins_that_fail_to_unload(_pyshinqlx_setup: ()) {
         with_manager(&["silence"], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
             fixtures.fail("unload_plugin");
 
             let result = PluginManager::cmd_unloadall(
                 &fixtures.plugin,
-                caller.bind(py),
+                &caller,
                 msg(&["unloadall"]),
                 &fixtures.channel,
             );
@@ -728,14 +717,14 @@ def uninstall():
     ) {
         with_manager(&["plugin_manager", "silence"], |fixtures| {
             let py = fixtures.plugin.py();
-            let caller = py.None();
+            let caller = real_player(py, 1234, "Ada^7", "");
             if failing {
                 fixtures.fail("reload_plugin");
             }
 
             let result = PluginManager::cmd_reloadall(
                 &fixtures.plugin,
-                caller.bind(py),
+                &caller,
                 msg(&["reloadall"]),
                 &fixtures.channel,
             );

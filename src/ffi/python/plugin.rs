@@ -940,7 +940,7 @@ impl Plugin {
 
     #[classmethod]
     #[pyo3(signature = (sound_path, player = None), text_signature = "(sound_path, player = None)")]
-    fn play_sound(
+    pub(crate) fn play_sound(
         cls: &Bound<'_, PyType>,
         sound_path: &str,
         player: Option<Player>,
