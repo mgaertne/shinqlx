@@ -616,7 +616,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
             "COUNT_DOWN" => Ok("countdown".to_string()),
             "IN_PROGRESS" => Ok("in_progress".to_string()),
             game_state => {
-                warn!(target: "shinqlx", func = "get_state"; "Got unknown game state: {game_state}");
+                warn!(target: "shinqlx", func = "state"; "Got unknown game state: {game_state}");
                 Ok(game_state.to_string())
             }
         }

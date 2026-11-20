@@ -1787,7 +1787,7 @@ pub enum PythonInitializationError {
 pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
     if pyshinqlx_is_initialized() {
         cold_path();
-        error!(target: "shinqlx", func = "pyshinqlx_initialize"; "pyshinqlx_initialize was called while already initialized");
+        error!(target: "shinqlx", func = "pyshinqlx_initialize"; "Python was initialized already");
         return Err(PythonInitializationError::AlreadyInitialized);
     }
 
@@ -1823,7 +1823,7 @@ pub(crate) fn pyshinqlx_initialize() -> Result<(), PythonInitializationError> {
 pub(crate) fn pyshinqlx_reload() -> Result<(), PythonInitializationError> {
     if !pyshinqlx_is_initialized() {
         cold_path();
-        error!(target: "shinqlx", func = "pyshinqlx_reload"; "pyshinqlx_finalize was called before being initialized");
+        error!(target: "shinqlx", func = "pyshinqlx_reload"; "Python was reloaded before it was initialized");
         return Err(PythonInitializationError::NotInitializedError);
     }
 

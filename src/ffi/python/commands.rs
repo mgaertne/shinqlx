@@ -1,18 +1,16 @@
 use core::hint::cold_path;
 
+use log::{Level, debug, log_enabled, warn};
 use pyo3::{
     PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     prelude::*,
-    types::{IntoPyDict, PyList, PyString, PyTuple},
+    types::{PyList, PyTuple},
 };
 use tap::TapOptional;
 
-use super::{
-    EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, is_false, owner, prelude::*,
-    pyshinqlx_get_logger,
-};
+use super::{EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, is_false, owner, prelude::*};
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 /// A class representing an input-triggered command.
@@ -245,36 +243,14 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             .plugin
             .cast_bound::<Plugin>(self.py())?
             .get_name()?;
-        pyshinqlx_get_logger(
-            self.py(),
-            Some(PyString::intern(self.py(), &plugin_name).into_any()),
-        )
-        .and_then(|logger| {
-            let debug_level = self
-                .py()
-                .import(intern!(self.py(), "logging"))
-                .and_then(|logging_module| logging_module.getattr(intern!(self.py(), "DEBUG")))?;
-            logger
-                .call_method(
-                    intern!(self.py(), "makeRecord"),
-                    (
-                        intern!(self.py(), "shinqlx"),
-                        debug_level,
-                        intern!(self.py(), ""),
-                        -1,
-                        intern!(self.py(), "%s executed: %s @ %s -> %s"),
-                        (player.get().steam_id, command_name, &plugin_name, channel),
-                        self.py().None(),
-                    ),
-                    Some(
-                        &[(intern!(self.py(), "func"), intern!(self.py(), "execute"))]
-                            .into_py_dict(self.py())?,
-                    ),
-                )
-                .and_then(|log_record| {
-                    logger.call_method1(intern!(self.py(), "handle"), (log_record,))
-                })
-        })?;
+        if log_enabled!(target: "shinqlx", Level::Debug) {
+            debug!(
+                target: "shinqlx",
+                func = "execute";
+                "{} executed: {command_name} @ {plugin_name} -> {channel}",
+                player.get().steam_id
+            );
+        }
 
         let msg_vec = msg.split_whitespace().collect::<Vec<_>>();
         self.get()
@@ -2117,48 +2093,17 @@ def remove_command(cmd):
                     channel.call_method1(intern!(self.py(), "reply"), (&usage_msg,))?;
                 }
                 _ => {
-                    pyshinqlx_get_logger(self.py(), None).and_then(|logger| {
-                        let cmd_handler_name = bound_cmd
-                            .get()
-                            .handler
-                            .getattr(self.py(), intern!(self.py(), "__name__"))?;
-                        let warning_level = self
-                            .py()
-                            .import(intern!(self.py(), "logging"))
-                            .and_then(|logging_module| {
-                                logging_module.getattr(intern!(self.py(), "WARNING"))
-                            })?;
-                        logger
-                                .call_method(
-                                    intern!(self.py(), "makeRecord"),
-                                    (
-                                        intern!(self.py(), "shinqlx"),
-                                        warning_level,
-                                        intern!(self.py(), ""),
-                                        -1,
-                                        intern!(
-                            self.py(),
-                            "Command '%s' with handler '%s' returned an unknown return value: %s"
-                        ),
-                                        (
-                                            bound_cmd.get().name.to_owned(),
-                                            cmd_handler_name,
-                                            cmd_result,
-                                        ),
-                                        self.py().None(),
-                                    ),
-                                    Some(
-                                        &[(
-                                            intern!(self.py(), "func"),
-                                            intern!(self.py(), "handle_input"),
-                                        )]
-                                            .into_py_dict(self.py())?,
-                                    ),
-                                )
-                                .and_then(|log_record| {
-                                    logger.call_method1(intern!(self.py(), "handle"), (log_record,))
-                                })
-                    })?;
+                    let cmd_handler_name = bound_cmd
+                        .get()
+                        .handler
+                        .getattr(self.py(), intern!(self.py(), "__name__"))?;
+                    warn!(
+                        target: "shinqlx",
+                        func = "handle_input";
+                        "Command '{:?}' with handler '{}' returned an unknown return value: {cmd_result}",
+                        bound_cmd.get().name,
+                        cmd_handler_name.bind(self.py())
+                    );
                 }
             }
         }

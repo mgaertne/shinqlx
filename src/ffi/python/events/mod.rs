@@ -36,7 +36,7 @@ mod prelude {
     pub(crate) use pyo3::{intern, prelude::*};
 
     pub(crate) use super::{
-        super::{PythonReturnCodes, log_exception, pyshinqlx_get_logger},
+        super::{PythonReturnCodes, log_exception},
         EventDispatcher, EventDispatcherMethods, dispatcher_debug_log, log_unexpected_return_value,
     };
 }
@@ -79,6 +79,7 @@ pub(crate) use kamikaze_use_dispatcher::{KamikazeUseDispatcher, KamikazeUseDispa
     reason = "re-exported for the prelude, not every build uses every item"
 )]
 pub(crate) use kill_dispatcher::{KillDispatcher, KillDispatcherMethods};
+use log::{Level, log_enabled, warn};
 pub(crate) use map_dispatcher::{MapDispatcher, MapDispatcherMethods};
 pub(crate) use new_game_dispatcher::{NewGameDispatcher, NewGameDispatcherMethods};
 pub(crate) use player_connect_dispatcher::{
@@ -152,31 +153,16 @@ fn try_log_unexpected_return_value(
     result: &Bound<'_, PyAny>,
     handler: &Bound<'_, PyAny>,
 ) -> PyResult<()> {
-    pyshinqlx_get_logger(py, None).and_then(|logger| {
-        let warning_level = py
-            .import(intern!(py, "logging"))
-            .and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
-        let handler_name = handler.getattr(intern!(py, "__name__"))?;
+    if !log_enabled!(target: "shinqlx", Level::Warn) {
+        return Ok(());
+    }
 
-        logger
-            .call_method(
-                intern!(py, "makeRecord"),
-                (
-                    intern!(py, "shinqlx"),
-                    warning_level,
-                    intern!(py, ""),
-                    -1,
-                    intern!(
-                        py,
-                        "Handler '%s' returned unknown value '%s' for event '%s'"
-                    ),
-                    (handler_name, result, event_name),
-                    py.None(),
-                ),
-                Some(&[(intern!(py, "func"), intern!(py, "dispatch"))].into_py_dict(py)?),
-            )
-            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-    })?;
+    let handler_name = handler.getattr(intern!(py, "__name__"))?;
+    warn!(
+        target: "shinqlx",
+        func = "dispatch";
+        "Handler '{handler_name}' returned unknown value '{result}' for event '{event_name}'"
+    );
 
     Ok(())
 }

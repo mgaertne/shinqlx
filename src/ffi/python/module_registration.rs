@@ -1,5 +1,6 @@
 use core::hint::cold_path;
 
+use log::info;
 use pyo3::{
     exceptions::PyEnvironmentError,
     intern,
@@ -100,12 +101,6 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
             }
 
             pyshinqlx_configure_logger(module.py())?;
-            let logger = pyshinqlx_get_logger(module.py(), None)?;
-
-            let info_level = module
-                .py()
-                .import(intern!(module.py(), "logging"))
-                .and_then(|logging_module| logging_module.getattr(intern!(module.py(), "INFO")))?;
 
             let handle_exception = module.getattr(intern!(module.py(), "handle_exception"))?;
             sys_module.setattr(intern!(module.py(), "excepthook"), handle_exception)?;
@@ -115,29 +110,7 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                 module.getattr(intern!(module.py(), "threading_excepthook"))?;
             threading_module.setattr(intern!(module.py(), "excepthook"), threading_except_hook)?;
 
-            logger
-                .call_method(
-                    intern!(module.py(), "makeRecord"),
-                    (
-                        intern!(module.py(), "shinqlx"),
-                        &info_level,
-                        intern!(module.py(), ""),
-                        -1,
-                        intern!(module.py(), "Loading preset plugins..."),
-                        module.py().None(),
-                        module.py().None(),
-                    ),
-                    Some(
-                        &[(
-                            intern!(module.py(), "func"),
-                            intern!(module.py(), "late_init"),
-                        )]
-                        .into_py_dict(module.py())?,
-                    ),
-                )
-                .and_then(|log_record| {
-                    logger.call_method1(intern!(module.py(), "handle"), (log_record,))
-                })?;
+            info!(target: "shinqlx", func = "late_init"; "Loading preset plugins...");
 
             load_preset_plugins(module.py())?;
 
@@ -146,57 +119,18 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                 let stats_value = Bound::new(module.py(), StatsListener::py_new()?)?;
                 module.setattr(intern!(module.py(), "_stats"), &stats_value)?;
 
-                logger
-                    .call_method(
-                        intern!(module.py(), "makeRecord"),
-                        (
-                            intern!(module.py(), "shinqlx"),
-                            &info_level,
-                            intern!(module.py(), ""),
-                            -1,
-                            intern!(module.py(), "Stats listener started on %s."),
-                            (&stats_value.get().address,),
-                            module.py().None(),
-                        ),
-                        Some(
-                            &[(
-                                intern!(module.py(), "func"),
-                                intern!(module.py(), "late_init"),
-                            )]
-                            .into_py_dict(module.py())?,
-                        ),
-                    )
-                    .and_then(|log_record| {
-                        logger.call_method1(intern!(module.py(), "handle"), (log_record,))
-                    })?;
+                info!(
+                    target: "shinqlx",
+                    func = "late_init";
+                    "Stats listener started on {}.",
+                    stats_value.get().address
+                );
 
                 stats_value.keep_receiving()?;
             }
 
-            logger
-                .call_method(
-                    intern!(module.py(), "makeRecord"),
-                    (
-                        intern!(module.py(), "shinqlx"),
-                        &info_level,
-                        intern!(module.py(), ""),
-                        -1,
-                        intern!(module.py(), "We're good to go!"),
-                        module.py().None(),
-                        module.py().None(),
-                    ),
-                    Some(
-                        &[(
-                            intern!(module.py(), "func"),
-                            intern!(module.py(), "late_init"),
-                        )]
-                        .into_py_dict(module.py())?,
-                    ),
-                )
-                .and_then(|log_record| {
-                    logger.call_method1(intern!(module.py(), "handle"), (log_record,))
-                })
-                .map(|_| ())
+            info!(target: "shinqlx", func = "late_init"; "We're good to go!");
+            Ok(())
         },
     )
 }

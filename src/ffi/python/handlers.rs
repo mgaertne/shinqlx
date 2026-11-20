@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 
 use arc_swap::ArcSwapOption;
 use itertools::Itertools;
+use log::warn;
 use pyo3::{
     BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
@@ -21,7 +22,7 @@ use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, EVENT_DISPATCHERS,
     FREE_CHAT_CHANNEL, ParsedVariables, RED_TEAM_CHAT_CHANNEL, SPECTATOR_CHAT_CHANNEL,
     event_dispatcher, get_cvar, is_false, is_vote_active, late_init, log_debug, log_exception,
-    prelude::*, pyshinqlx_get_logger, set_map_subtitles,
+    prelude::*, set_map_subtitles,
 };
 use crate::{
     MAIN_ENGINE,
@@ -4325,24 +4326,11 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
                 .is_some_and(|cvar| cvar.get_string() != "0")
         });
         if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::Acquire) {
-            pyshinqlx_get_logger(py, None).and_then(|logger| {
-                let warning_level = py.import(intern!(py, "logging")).and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
-                logger.call_method(
-                    intern!(py, "makeRecord"),
-                    (
-                        intern!(py, "shinqlx"),
-                        warning_level,
-                        intern!(py, ""),
-                        -1,
-                        intern!(py, r#"Some events will not work because ZMQ stats is not enabled. Launch the server with "zmq_stats_enable 1""#),
-                        py.None(),
-                        py.None(),
-                    ),
-                    Some(
-                        &[(intern!(py, "func"), intern!(py, "handle_new_game"))].into_py_dict(py)?,
-                    ),
-                ).and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-            })?;
+            warn!(
+                target: "shinqlx",
+                func = "handle_new_game";
+                r#"Some events will not work because ZMQ stats is not enabled. Launch the server with "zmq_stats_enable 1""#
+            );
 
             ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
         }
@@ -5126,27 +5114,12 @@ fn int_variable(variables: &ParsedVariables, key: &str) -> PyResult<i32> {
     })
 }
 
-fn log_unknown_game_states(py: Python<'_>, old_state: &str, new_state: &str) -> PyResult<()> {
-    let logger = pyshinqlx_get_logger(py, None)?;
-    let warning = format!("UNKNOWN GAME STATES: {old_state} - {new_state}");
-    let warning_level = py
-        .import(intern!(py, "logging"))
-        .and_then(|logging_module| logging_module.getattr(intern!(py, "WARNING")))?;
-    let log_record = logger.call_method(
-        intern!(py, "makeRecord"),
-        (
-            intern!(py, "shinqlx"),
-            warning_level,
-            intern!(py, ""),
-            -1,
-            warning,
-            py.None(),
-            py.None(),
-        ),
-        Some(&[(intern!(py, "func"), intern!(py, "handle_set_configstring"))].into_py_dict(py)?),
-    )?;
-    logger.call_method1(intern!(py, "handle"), (log_record,))?;
-    Ok(())
+fn log_unknown_game_states(old_state: &str, new_state: &str) {
+    warn!(
+        target: "shinqlx",
+        func = "handle_set_configstring";
+        "UNKNOWN GAME STATES: {old_state} - {new_state}"
+    );
 }
 
 fn handle_vote_string(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
@@ -5213,7 +5186,7 @@ fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
     ]
     .contains(&(old_state, new_state))
     {
-        log_unknown_game_states(py, old_state, new_state)?;
+        log_unknown_game_states(old_state, new_state);
     }
     Ok(passed_on(py, configstring_value))
 }

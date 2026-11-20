@@ -1,17 +1,17 @@
 use core::hint::cold_path;
 use std::path::Path;
 
+use log::{error, info};
 use pyo3::{
     exceptions::{PyAttributeError, PyEnvironmentError},
     intern,
-    types::{IntoPyDict, PyDict, PyString, PyTuple, PyType},
+    types::{PyDict, PyString, PyTuple, PyType},
 };
 use tap::{TapFallible, TapOptional};
 
 use super::{
     COMMANDS, EVENT_DISPATCHERS, MODULES, PluginLoadError, PluginUnloadError, decorators,
-    event_dispatcher, log_exception, logging::try_log_messages, native_plugins, prelude::*,
-    pyshinqlx_get_logger, try_get_plugins_path,
+    event_dispatcher, log_exception, native_plugins, prelude::*, try_get_plugins_path,
 };
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
@@ -47,14 +47,13 @@ fn plugin_load_order(plugins: &str) -> Vec<&str> {
     ordered
 }
 
-fn log_unloadable_preset_plugin(py: Python<'_>, plugin: &str) {
-    let _ = try_log_messages(
-        py,
-        None,
-        intern!(py, "load_preset_plugins"),
-        vec![format!(
-            "Plugin '{plugin}' from qlx_plugins could not be loaded, see the error above."
-        )],
+/// Logs the error of a plugin from `qlx_plugins` that could not be loaded and names the plugin.
+fn log_unloadable_preset_plugin(py: Python<'_>, plugin: &str, failure: &LoadFailure) {
+    log_exception(py, failure.error());
+    error!(
+        target: "shinqlx",
+        func = "load_preset_plugins";
+        "Plugin '{plugin}' from qlx_plugins could not be loaded, see the error above."
     );
 }
 
@@ -75,8 +74,9 @@ pub(super) fn load_preset_plugins(py: Python<'_>) -> PyResult<()> {
                     plugin_load_order(&plugins_str)
                         .into_iter()
                         .for_each(|plugin| {
-                            let _ = load_plugin(py, plugin)
-                                .tap_err(|_| log_unloadable_preset_plugin(py, plugin));
+                            let _ = load_plugin_with(py, plugin, true).tap_err(|failure| {
+                                log_unloadable_preset_plugin(py, plugin, failure)
+                            });
                         });
                 });
 
@@ -142,11 +142,49 @@ pub(super) fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path)
     })
 }
 
+/// Why a plugin could not be loaded: the request was refused (no such plugin, unknown source, source
+/// conflict) or the plugin code failed while it ran.
+pub(super) enum LoadFailure {
+    Request(PyErr),
+    Execution(PyErr),
+}
+
+impl LoadFailure {
+    fn error(&self) -> &PyErr {
+        match self {
+            Self::Request(error) | Self::Execution(error) => error,
+        }
+    }
+
+    pub(super) fn into_error(self) -> PyErr {
+        match self {
+            Self::Request(error) | Self::Execution(error) => error,
+        }
+    }
+}
+
+impl From<PyErr> for LoadFailure {
+    fn from(error: PyErr) -> Self {
+        Self::Execution(error)
+    }
+}
+
+impl From<pyo3::CastError<'_, '_>> for LoadFailure {
+    fn from(error: pyo3::CastError<'_, '_>) -> Self {
+        Self::Execution(error.into())
+    }
+}
+
+/// A refused request is only raised, as in minqlx; an error of the plugin code is logged with its traceback.
 #[pyfunction(name = "load_plugin")]
 pub(crate) fn load_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    load_plugin_with(py, plugin, true).tap_err(|e| {
-        log_exception(py, e);
-    })
+    load_plugin_with(py, plugin, true)
+        .tap_err(|failure| {
+            if let LoadFailure::Execution(error) = failure {
+                log_exception(py, error);
+            }
+        })
+        .map_err(LoadFailure::into_error)
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -194,29 +232,11 @@ pub(super) fn load_plugin_with(
     py: Python<'_>,
     plugin: &str,
     reload_if_loaded: bool,
-) -> PyResult<()> {
-    let (source, plugin) = split_plugin_source(plugin).map_err(PluginLoadError::new_err)?;
+) -> Result<(), LoadFailure> {
+    let (source, plugin) = split_plugin_source(plugin)
+        .map_err(|message| LoadFailure::Request(PluginLoadError::new_err(message)))?;
 
-    pyshinqlx_get_logger(py, None).and_then(|logger| {
-        let info_level = py
-            .import(intern!(py, "logging"))
-            .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
-        logger
-            .call_method(
-                intern!(py, "makeRecord"),
-                (
-                    intern!(py, "shinqlx"),
-                    &info_level,
-                    intern!(py, ""),
-                    -1,
-                    intern!(py, "Loading plugin '%s'..."),
-                    (plugin,),
-                    py.None(),
-                ),
-                Some(&[(intern!(py, "func"), intern!(py, "load_plugin"))].into_py_dict(py)?),
-            )
-            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-    })?;
+    info!(target: "shinqlx", func = "load_plugin"; "Loading plugin '{plugin}'...");
 
     if let Some(loaded_plugin) = py
         .get_type::<Plugin>()
@@ -232,9 +252,9 @@ pub(super) fn load_plugin_with(
         } else {
             "Rust"
         };
-        return Err(PluginLoadError::new_err(format!(
+        return Err(LoadFailure::Request(PluginLoadError::new_err(format!(
             "Plugin '{plugin}' is already loaded as a {loaded_source} plugin. Unload it first."
-        )));
+        ))));
     }
 
     let use_native = match source {
@@ -245,21 +265,28 @@ pub(super) fn load_plugin_with(
         }
     };
     if use_native {
+        if !native_plugins::has_native_plugin(plugin) {
+            cold_path();
+            return Err(LoadFailure::Request(PluginLoadError::new_err(format!(
+                "No such plugin exists: '{plugin}'."
+            ))));
+        }
+
         let loaded_plugins = py
             .get_type::<Plugin>()
             .getattr(intern!(py, "_loaded_plugins"))?;
 
         if reload_if_loaded && loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
-            return reload_plugin_unlogged(py, plugin);
+            return reload_plugin_unlogged(py, plugin).map_err(LoadFailure::Execution);
         }
 
-        return try_load_native_plugin(py, plugin);
+        return try_load_native_plugin(py, plugin).map_err(LoadFailure::Execution);
     }
 
     try_get_plugins_path().map_or_else(
         |err| {
             cold_path();
-            Err(PluginLoadError::new_err(err))
+            Err(LoadFailure::Request(PluginLoadError::new_err(err)))
         },
         |plugins_path| {
             let mut joined_path = plugins_path.to_owned();
@@ -268,9 +295,9 @@ pub(super) fn load_plugin_with(
 
             if !joined_path.as_path().is_file() {
                 cold_path();
-                return Err(PluginLoadError::new_err(format!(
+                return Err(LoadFailure::Request(PluginLoadError::new_err(format!(
                     "No such plugin exists: '{plugin}'."
-                )));
+                ))));
             }
 
             let loaded_plugins = py
@@ -278,10 +305,10 @@ pub(super) fn load_plugin_with(
                 .getattr(intern!(py, "_loaded_plugins"))?;
 
             if reload_if_loaded && loaded_plugins.cast::<PyDict>()?.contains(plugin)? {
-                return reload_plugin_unlogged(py, plugin);
+                return reload_plugin_unlogged(py, plugin).map_err(LoadFailure::Execution);
             }
 
-            try_load_plugin(py, plugin, plugins_path.as_path())
+            try_load_plugin(py, plugin, plugins_path.as_path()).map_err(LoadFailure::Execution)
         },
     )
 }
@@ -384,34 +411,15 @@ pub(super) fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
 
 #[pyfunction(name = "unload_plugin")]
 pub(crate) fn unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    unload_plugin_unlogged(py, plugin).tap_err(|e| {
+    info!(target: "shinqlx", func = "unload_plugin"; "Unloading plugin '{plugin}'...");
+    ensure_plugin_is_loaded(py, plugin)?;
+    try_unload_plugin(py, plugin).tap_err(|e| {
         log_exception(py, e);
     })
 }
 
-fn unload_plugin_unlogged(py: Python<'_>, plugin: &str) -> PyResult<()> {
-    pyshinqlx_get_logger(py, None).and_then(|logger| {
-        let info_level = py
-            .import(intern!(py, "logging"))
-            .and_then(|logging_module| logging_module.getattr(intern!(py, "INFO")))?;
-
-        logger
-            .call_method(
-                intern!(py, "makeRecord"),
-                (
-                    intern!(py, "shinqlx"),
-                    &info_level,
-                    intern!(py, ""),
-                    -1,
-                    intern!(py, "Unloading plugin '%s'..."),
-                    (plugin,),
-                    py.None(),
-                ),
-                Some(&[(intern!(py, "func"), intern!(py, "unload_plugin"))].into_py_dict(py)?),
-            )
-            .and_then(|log_record| logger.call_method1(intern!(py, "handle"), (log_record,)))
-    })?;
-
+/// Unloading a plugin that is not loaded is the caller's mistake and raises without a log record, as in minqlx.
+fn ensure_plugin_is_loaded(py: Python<'_>, plugin: &str) -> PyResult<()> {
     let loaded_plugins = py
         .get_type::<Plugin>()
         .getattr(intern!(py, "_loaded_plugins"))?;
@@ -420,8 +428,7 @@ fn unload_plugin_unlogged(py: Python<'_>, plugin: &str) -> PyResult<()> {
         let error_msg = format!("Attempted to unload a plugin '{plugin}' that is not loaded.");
         return Err(PluginUnloadError::new_err(error_msg));
     }
-
-    try_unload_plugin(py, plugin)
+    Ok(())
 }
 
 pub(super) fn is_loaded_native_plugin(py: Python<'_>, plugin: &str) -> bool {
@@ -448,7 +455,7 @@ pub(super) fn try_reload_plugin(py: Python, plugin: &str, target: &str) -> PyRes
                     .and_then(|module| loaded_modules.bind(py).set_item(plugin, module))
             })?;
     };
-    load_plugin_with(py, target, false)
+    load_plugin_with(py, target, false).map_err(LoadFailure::into_error)
 }
 
 #[pyfunction(name = "reload_plugin")]
@@ -466,7 +473,7 @@ fn reload_plugin_unlogged(py: Python<'_>, plugin: &str) -> PyResult<()> {
         PluginSource::Unspecified if is_loaded_native_plugin(py, plugin) => format!("r!{plugin}"),
         PluginSource::Unspecified => plugin.to_owned(),
     };
-    let _ = unload_plugin_unlogged(py, plugin);
+    let _ = unload_plugin(py, plugin);
 
     try_reload_plugin(py, plugin, &reload_target)
 }
@@ -571,6 +578,7 @@ mod native_plugin_loading_tests {
                 pyshinqlx_test_support::*,
             },
         },
+        logging::capture,
         prelude::*,
     };
 
@@ -784,6 +792,25 @@ mod native_plugin_loading_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn unload_plugin_that_is_not_loaded_logs_no_error(_pyshinqlx_setup: ()) {
+        with_native_workshop_engine(0, |py| {
+            capture::install();
+            let mark = capture::mark();
+
+            let result = unload_plugin(py, "not_loaded");
+
+            let levels = capture::records_since(mark)
+                .into_iter()
+                .map(|(level, ..)| level)
+                .collect::<Vec<_>>();
+            assert!(result.is_err());
+            assert_eq!(levels, [log::Level::Info]);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn reload_plugin_that_cannot_be_loaded_fails(_pyshinqlx_setup: ()) {
         with_native_workshop_engine(0, |py| {
             let result = reload_plugin(py, "no_such_plugin");
@@ -830,6 +857,7 @@ mod pyshinqlx_plugins_tests {
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::prelude::*,
         },
+        logging::capture,
         prelude::*,
     };
 
@@ -1026,29 +1054,8 @@ class test_cmd_hook_plugin(shinqlx.Plugin):
             )
             .run(|| {
                 Python::attach(|py| {
-                    let collector = PyModule::from_code(
-                        py,
-                        c"import logging
-
-lines = []
-
-
-class Collector(logging.Handler):
-    def emit(self, record):
-        lines.append(record.getMessage())
-
-
-handler = Collector()
-logging.getLogger('shinqlx').addHandler(handler)
-
-
-def uninstall():
-    logging.getLogger('shinqlx').removeHandler(handler)
-",
-                        c"plugin_log_collector.py",
-                        c"plugin_log_collector",
-                    )
-                    .expect("could not create the log collector");
+                    capture::install();
+                    let mark = capture::mark();
                     py.import(intern!(py, "sys"))
                         .and_then(|sys_module| {
                             let full_temp_dir = TEMP_DIR
@@ -1068,13 +1075,10 @@ def uninstall():
 
                     let result = load_preset_plugins(py);
 
-                    let lines = collector
-                        .getattr("lines")
-                        .and_then(|lines| lines.extract::<Vec<String>>())
-                        .expect("could not read the collected lines");
-                    collector
-                        .call_method0("uninstall")
-                        .expect("could not remove the log collector");
+                    let lines = capture::records_since(mark)
+                        .into_iter()
+                        .map(|(.., line)| line)
+                        .collect::<Vec<_>>();
                     assert!(result.is_ok());
                     let summaries = lines
                         .iter()

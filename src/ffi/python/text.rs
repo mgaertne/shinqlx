@@ -141,7 +141,7 @@ impl FromStr for ParsedVariables {
             .collect::<Vec<_>>();
 
         if varstr_vec.len() % 2 == 1 {
-            warn!(target: "shinqlx", func = "from_str"; "Uneven number of keys and values: {varstr}");
+            warn!(target: "shinqlx", func = "parse_variables"; "Uneven number of keys and values: {varstr}");
         }
         Ok(Self {
             items: varstr_vec.iter().cloned().tuples().collect(),

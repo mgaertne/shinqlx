@@ -253,6 +253,7 @@ mod plugin_manager_tests {
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{RestoredAttribute, run_all_frame_tasks},
         },
+        logging::capture,
         prelude::*,
     };
 
@@ -295,6 +296,7 @@ def uninstall():
         plugin: Bound<'py, PluginManager>,
         module: Bound<'py, PyModule>,
         channel: Bound<'py, PyAny>,
+        mark: usize,
     }
 
     impl Fixtures<'_> {
@@ -326,10 +328,15 @@ def uninstall():
         }
 
         fn logged(&self) -> Vec<String> {
-            self.module
+            let python_logged = self
+                .module
                 .getattr("logged")
-                .and_then(|logged| logged.extract())
-                .expect("could not get the logged exceptions")
+                .and_then(|logged| logged.extract::<Vec<String>>())
+                .expect("could not get the logged exceptions");
+            let rust_logged = capture::records_since(self.mark)
+                .into_iter()
+                .map(|(level, _, line)| format!("{level}: {line}"));
+            python_logged.into_iter().chain(rust_logged).collect()
         }
 
         fn fail(&self, name: &str) {
@@ -389,7 +396,9 @@ def uninstall():
                 PyClassInitializer::from(Plugin::py_new(py)).add_subclass(PluginManager {}),
             )
             .expect("could not create the plugin");
+            capture::install();
             test(Fixtures {
+                mark: capture::mark(),
                 plugin,
                 channel: module
                     .getattr("Channel")
@@ -514,7 +523,7 @@ def uninstall():
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn refused_load_logs_the_error_not_nonetype(_pyshinqlx_setup: ()) {
+    fn refused_load_is_replied_and_not_logged(_pyshinqlx_setup: ()) {
         with_manager(&["ban"], |fixtures| {
             let py = fixtures.plugin.py();
             let shinqlx = py.import("shinqlx").expect("no shinqlx module");
@@ -547,7 +556,7 @@ def uninstall():
             let count = |text: &str| logged.iter().filter(|line| line.contains(text)).count();
             assert_eq!(
                 count("is already loaded as a Python plugin"),
-                count("Loading plugin 'ban'..."),
+                0,
                 "{logged:?}"
             );
             assert!(
@@ -560,12 +569,11 @@ def uninstall():
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn loader_functions_log_their_failure(_pyshinqlx_setup: ()) {
+    fn reload_logs_its_failure_and_load_only_raises_for_a_missing_plugin(_pyshinqlx_setup: ()) {
         with_manager(&[], |fixtures| {
-            for (name, error) in [
-                ("real_load_plugin", "PluginLoadError"),
-                ("real_unload_plugin", "PluginUnloadError"),
-                ("real_reload_plugin", "PluginLoadError"),
+            for (name, error, is_logged) in [
+                ("real_load_plugin", "PluginLoadError", false),
+                ("real_reload_plugin", "PluginLoadError", true),
             ] {
                 let function = fixtures.module.getattr(name).expect("no real function");
                 let before = fixtures.logged().len();
@@ -573,8 +581,9 @@ def uninstall():
                 assert!(function.call1(("no_such_plugin",)).is_err());
 
                 let logged = fixtures.logged();
-                assert!(
+                assert_eq!(
                     logged[before..].iter().any(|line| line.contains(error)),
+                    is_logged,
                     "{name}: {logged:?}"
                 );
                 assert!(

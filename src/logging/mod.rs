@@ -1,6 +1,8 @@
 //! Logging of shinqlx: one log4rs configuration for the messages of Rust and Python.
 
 mod async_appender;
+#[cfg(test)]
+pub(crate) mod capture;
 mod config;
 mod dotted_encoder;
 mod log_file;

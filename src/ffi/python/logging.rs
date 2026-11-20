@@ -1,12 +1,9 @@
-use core::{ffi::CStr, hint::cold_path};
+use core::hint::cold_path;
 use std::path::Path;
 
-use log::error;
-use pyo3::{
-    exceptions::PyEnvironmentError,
-    intern,
-    types::{IntoPyDict, PyString, PyTuple},
-};
+use chrono::Local;
+use log::{error, info};
+use pyo3::{exceptions::PyEnvironmentError, intern, types::PyTuple};
 
 use super::prelude::*;
 use crate::{
@@ -59,23 +56,6 @@ pub(crate) fn log_debug(func: &str, message: &str) {
     );
 }
 
-const HANDLER_SOURCE: &CStr = c"
-import logging
-
-
-class ShinqlxHandler(logging.Handler):
-    def __init__(self, emit_record):
-        super().__init__(logging.DEBUG)
-        self._emit_record = emit_record
-        self.setFormatter(logging.Formatter('%(message)s'))
-
-    def emit(self, record):
-        try:
-            self._emit_record(record.name, record.levelno, self.format(record), record.funcName)
-        except Exception:
-            self.handleError(record)
-";
-
 fn log_level_of(level_number: i32) -> log::Level {
     match level_number {
         40.. => log::Level::Error,
@@ -86,20 +66,75 @@ fn log_level_of(level_number: i32) -> log::Level {
     }
 }
 
-/// Hands a record of the Python logging over to the Rust logging. The `.` of the Python logger
-/// name becomes `::`, which is how the loggers of the log configuration are nested.
-#[pyfunction]
-#[pyo3(name = "_log_record")]
-fn pyshinqlx_log_record(name: &str, level_number: i32, message: &str, func: &str) {
-    let target = name.replace('.', "::");
-    log::logger().log(
-        &log::Record::builder()
-            .level(log_level_of(level_number))
-            .target(&target)
-            .args(format_args!("{message}"))
-            .key_values(&[("func", func)].as_slice())
-            .build(),
-    );
+/// Receives the records of the Python logger `shinqlx` and hands them over to the Rust logging. The
+/// `.` of the Python logger name becomes `::`, which is how the loggers of the log configuration
+/// are nested. Python only needs `level` and `handle` of a handler, so no `logging.Handler` is needed.
+#[pyclass(module = "_logging", name = "ShinqlxHandler", frozen)]
+struct ShinqlxHandler;
+
+impl ShinqlxHandler {
+    /// The message of the record followed by its traceback and stack, as `logging.Formatter` writes it.
+    fn message_of(py: Python<'_>, record: &Bound<'_, PyAny>) -> PyResult<String> {
+        let mut message = record
+            .call_method0(intern!(py, "getMessage"))?
+            .extract::<String>()?;
+
+        let exc_info = record.getattr(intern!(py, "exc_info"))?;
+        if !exc_info.is_none() {
+            let traceback = py
+                .import(intern!(py, "traceback"))?
+                .call_method1(
+                    intern!(py, "format_exception"),
+                    exc_info.cast::<PyTuple>()?.to_owned(),
+                )?
+                .extract::<Vec<String>>()?
+                .concat();
+            message.push('\n');
+            message.push_str(traceback.trim_end_matches('\n'));
+        }
+
+        let stack_info = record.getattr(intern!(py, "stack_info"))?;
+        if !stack_info.is_none() {
+            message.push('\n');
+            message.push_str(stack_info.extract::<&str>()?);
+        }
+        Ok(message)
+    }
+
+    fn emit(py: Python<'_>, record: &Bound<'_, PyAny>) -> PyResult<()> {
+        let name = record.getattr(intern!(py, "name"))?.extract::<String>()?;
+        let level_number = record.getattr(intern!(py, "levelno"))?.extract::<i32>()?;
+        let func = record
+            .getattr(intern!(py, "funcName"))?
+            .extract::<String>()?;
+        let message = Self::message_of(py, record)?;
+
+        let target = name.replace('.', "::");
+        log::logger().log(
+            &log::Record::builder()
+                .level(log_level_of(level_number))
+                .target(&target)
+                .args(format_args!("{message}"))
+                .key_values(&[("func", func.as_str())].as_slice())
+                .build(),
+        );
+        Ok(())
+    }
+}
+
+#[pymethods]
+impl ShinqlxHandler {
+    #[getter]
+    fn level(&self) -> i32 {
+        10
+    }
+
+    fn handle(&self, py: Python<'_>, record: &Bound<'_, PyAny>) -> bool {
+        if let Err(error) = Self::emit(py, record) {
+            error.print(py);
+        }
+        true
+    }
 }
 
 #[pyfunction]
@@ -135,19 +170,10 @@ pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
         },
     )
     .iter()
-    .for_each(
-        |problem| error!(target: "shinqlx", func = "pyshinqlx_configure_logger"; "{problem}"),
-    );
+    .for_each(|problem| error!(target: "shinqlx", func = "_configure_logger"; "{problem}"));
 
     let logging_module = py.import(intern!(py, "logging"))?;
-    let handler = PyModule::from_code(
-        py,
-        HANDLER_SOURCE,
-        c"shinqlx_log_handler.py",
-        c"shinqlx_log_handler",
-    )?
-    .getattr(intern!(py, "ShinqlxHandler"))?
-    .call1((wrap_pyfunction!(pyshinqlx_log_record, py)?,))?;
+    let handler = Bound::new(py, ShinqlxHandler)?;
 
     let shinqlx_logger =
         logging_module.call_method1(intern!(py, "getLogger"), (intern!(py, "shinqlx"),))?;
@@ -157,19 +183,13 @@ pub(super) fn pyshinqlx_configure_logger(py: Python<'_>) -> PyResult<()> {
     )?;
     shinqlx_logger.call_method1(intern!(py, "addHandler"), (handler,))?;
 
-    let datetime_now = py
-        .import(intern!(py, "datetime"))?
-        .getattr(intern!(py, "datetime"))?
-        .call_method0(intern!(py, "now"))?;
-    shinqlx_logger
-        .call_method1(
-            intern!(py, "info"),
-            (
-                "============================= shinqlx run @ %s =============================",
-                datetime_now,
-            ),
-        )
-        .map(|_| ())
+    let datetime_now = Local::now().format("%Y-%m-%d %H:%M:%S%.6f");
+    info!(
+        target: "shinqlx",
+        func = "_configure_logger";
+        "============================= shinqlx run @ {datetime_now} ============================="
+    );
+    Ok(())
 }
 
 #[cfg(test)]
@@ -345,20 +365,111 @@ pub(super) fn pyshinqlx_log_exception(
                                 exc_info.cast::<PyTuple>()?.to_owned(),
                             )
                             .and_then(|value| {
-                                value
-                                    .extract::<Vec<String>>()
-                                    .and_then(|formatted_traceback| {
-                                        try_log_messages(
-                                            py,
-                                            plugin,
-                                            intern!(py, "log_exception"),
-                                            formatted_traceback,
-                                        )
-                                    })
+                                value.extract::<Vec<String>>().map(|formatted_traceback| {
+                                    log_error_lines(
+                                        &get_logger_name(plugin),
+                                        "log_exception",
+                                        &formatted_traceback,
+                                    )
+                                })
                             })
                     })
             })
     })
+}
+
+#[cfg(test)]
+mod shinqlx_handler_tests {
+    use pyo3::{intern, prelude::*};
+    use rstest::rstest;
+
+    use super::ShinqlxHandler;
+    use crate::{ffi::python::pyshinqlx_setup_fixture::*, logging::capture};
+
+    fn log_through_python_handler(
+        py: Python<'_>,
+        code: &std::ffi::CStr,
+    ) -> Vec<(log::Level, String, String)> {
+        capture::install();
+        let handler = Bound::new(py, ShinqlxHandler).expect("could not create the handler");
+        let logger = py
+            .import(intern!(py, "logging"))
+            .and_then(|logging_module| {
+                logging_module.call_method1(intern!(py, "getLogger"), ("shinqlx.handler_test",))
+            })
+            .expect("could not get the logger");
+        logger
+            .call_method1(intern!(py, "setLevel"), (10,))
+            .and_then(|_| logger.call_method1(intern!(py, "addHandler"), (&handler,)))
+            .expect("could not attach the handler");
+        let mark = capture::mark();
+
+        let globals = pyo3::types::PyDict::new(py);
+        globals
+            .set_item("logger", &logger)
+            .expect("could not hand over the logger");
+        let result = py.run(code, Some(&globals), None);
+
+        logger
+            .call_method1(intern!(py, "removeHandler"), (&handler,))
+            .expect("could not remove the handler");
+        assert!(result.is_ok(), "{result:?}");
+        capture::records_since(mark)
+            .into_iter()
+            .filter(|(_, target, _)| target == "shinqlx::handler_test")
+            .collect()
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
+    fn python_records_reach_the_rust_logging_with_their_level_and_nested_target(
+        _pyshinqlx_setup: (),
+    ) {
+        Python::attach(|py| {
+            let records = log_through_python_handler(
+                py,
+                c"logger.debug('d %s', 1)\nlogger.warning('w')\nlogger.error('e')",
+            );
+
+            assert_eq!(
+                records,
+                [
+                    (
+                        log::Level::Debug,
+                        "shinqlx::handler_test".to_owned(),
+                        "d 1".to_owned()
+                    ),
+                    (
+                        log::Level::Warn,
+                        "shinqlx::handler_test".to_owned(),
+                        "w".to_owned()
+                    ),
+                    (
+                        log::Level::Error,
+                        "shinqlx::handler_test".to_owned(),
+                        "e".to_owned()
+                    ),
+                ]
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
+    fn python_records_with_an_exception_keep_the_traceback(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let records = log_through_python_handler(
+                py,
+                c"try:\n    raise ValueError('asdf')\nexcept ValueError:\n    logger.exception('failed')",
+            );
+
+            assert_eq!(records.len(), 1, "{records:?}");
+            assert!(records[0].2.starts_with("failed\nTraceback"), "{records:?}");
+            assert!(records[0].2.contains("ValueError: asdf"), "{records:?}");
+        });
+    }
 }
 
 #[cfg(test)]
@@ -376,6 +487,41 @@ mod pyshinqlx_log_exception_tests {
         Python::attach(|py| {
             let result = pyshinqlx_log_exception(py, None);
             assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial_test::serial]
+    fn log_exception_names_the_plugin_in_the_target(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            crate::logging::capture::install();
+            let mark = crate::logging::capture::mark();
+
+            let result = py.run(
+                cr#"
+import shinqlx
+
+try:
+    raise ValueError("asdf")
+except ValueError:
+    shinqlx.log_exception("some_plugin")
+"#,
+                None,
+                None,
+            );
+
+            assert!(result.is_ok(), "{result:?}");
+            let targets = crate::logging::capture::records_since(mark)
+                .into_iter()
+                .map(|(_, target, _)| target)
+                .collect::<Vec<_>>();
+            assert!(!targets.is_empty());
+            assert!(
+                targets
+                    .iter()
+                    .all(|target| target == "shinqlx::some_plugin")
+            );
         });
     }
 
@@ -418,16 +564,9 @@ pub(super) fn pyshinqlx_handle_exception(
                     (exc_type, exc_value, exc_traceback),
                 )
                 .and_then(|value| {
-                    value
-                        .extract::<Vec<String>>()
-                        .and_then(|formatted_traceback| {
-                            try_log_messages(
-                                py,
-                                None,
-                                intern!(py, "log_exception"),
-                                formatted_traceback,
-                            )
-                        })
+                    value.extract::<Vec<String>>().map(|formatted_traceback| {
+                        log_error_lines("shinqlx", "log_exception", &formatted_traceback)
+                    })
                 })
         })
 }
@@ -526,11 +665,7 @@ except ValueError as e:
     }
 }
 
-pub(super) fn try_log_exception(
-    py: Python<'_>,
-    plugin: Option<Bound<'_, PyAny>>,
-    exception: &PyErr,
-) -> PyResult<()> {
+pub(super) fn try_log_exception(py: Python<'_>, exception: &PyErr) -> PyResult<()> {
     py.import(intern!(py, "traceback"))
         .and_then(|traceback_module| {
             traceback_module
@@ -543,54 +678,20 @@ pub(super) fn try_log_exception(
                     ),
                 )?
                 .extract::<Vec<String>>()
-                .and_then(|formatted_traceback| {
-                    try_log_messages(
-                        py,
-                        plugin,
-                        intern!(py, "log_exception"),
-                        formatted_traceback,
-                    )
+                .map(|formatted_traceback| {
+                    log_error_lines("shinqlx", "log_exception", &formatted_traceback)
                 })
         })
 }
 
 pub(crate) fn log_exception(py: Python<'_>, exception: &PyErr) {
-    let _ = try_log_exception(py, None, exception);
+    let _ = try_log_exception(py, exception);
 }
 
-pub(super) fn try_log_messages(
-    py: Python<'_>,
-    plugin: Option<Bound<'_, PyAny>>,
-    function: &Bound<'_, PyString>,
-    messages: Vec<String>,
-) -> Result<(), PyErr> {
-    py.import(intern!(py, "logging"))
-        .and_then(|logging_module| {
-            let error_level = logging_module.getattr(intern!(py, "ERROR"))?;
-            let logger_name = get_logger_name(plugin);
-            logging_module
-                .call_method1(intern!(py, "getLogger"), (logger_name,))
-                .and_then(|py_logger| {
-                    for line in messages {
-                        py_logger
-                            .call_method(
-                                intern!(py, "makeRecord"),
-                                (
-                                    intern!(py, "shinqlx"),
-                                    &error_level,
-                                    intern!(py, ""),
-                                    -1,
-                                    line.trim_end(),
-                                    py.None(),
-                                    py.None(),
-                                ),
-                                Some(&[(intern!(py, "func"), function)].into_py_dict(py)?),
-                            )
-                            .and_then(|log_record| {
-                                py_logger.call_method1(intern!(py, "handle"), (log_record,))
-                            })?;
-                    }
-                    Ok(())
-                })
-        })
+/// Logs the lines as errors for the Python logger `logger_name`; its `.` become `::` as in the log configuration.
+pub(super) fn log_error_lines(logger_name: &str, function: &str, messages: &[String]) {
+    let target = logger_name.replace('.', "::");
+    messages
+        .iter()
+        .for_each(|line| error!(target: &target, func = function; "{}", line.trim_end()));
 }
