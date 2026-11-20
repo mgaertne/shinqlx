@@ -136,6 +136,7 @@ zmq-rcon-fix = []
 patches = ["clientkick-fix", "fps-patch", "zmq-rcon-fix", "steam-query-limit"]
 # expose internals to the benchmarks, not meant for production builds
 bench-support = []
+
 [workspace.lints.rust]
 missing_docs = "warn"
 non_local_definitions = "allow"
