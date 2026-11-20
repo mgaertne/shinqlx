@@ -22,7 +22,8 @@ use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
-    linefeed_helper::save_completions,
+    learn::learn_line,
+    linefeed_helper::{remember, save_completions},
 };
 
 /// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.
@@ -235,6 +236,9 @@ pub(crate) async fn run_zmq(
             _ = poll.tick() => {
                 while let Some(zmq_msg) = monitored_dealer.recv_msg().await {
                     let zmq_str = trim_ql_msg(&zmq_msg.to_string());
+                    if let Some(learned) = learn_line(&zmq_str) {
+                        remember(&args, &learned).ok();
+                    }
                     match fetch.feed(&zmq_str) {
                         Feed::Show => display_sender.send(zmq_str)?,
                         Feed::Hide => (),

@@ -2,6 +2,7 @@
 //! replies with the Quake color codes rendered.
 mod cmd_line;
 mod fetch;
+mod learn;
 mod linefeed_helper;
 mod zmq_helper;
 

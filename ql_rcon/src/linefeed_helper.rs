@@ -1,20 +1,23 @@
 use alloc::sync::Arc;
 use core::{sync::atomic::Ordering, time::Duration};
 use std::{
+    collections::{HashMap, HashSet},
     io::{self, IsTerminal, Write},
     path::PathBuf,
 };
 
 use anyhow::Result;
 use directories::{ProjectDirs, UserDirs};
-use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
+use linefeed::{
+    Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal, Suffix,
+};
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::{
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
     task,
 };
 
-use crate::{CONTINUE_RUNNING, CommandLineOptions, fetch::Fetched};
+use crate::{CONTINUE_RUNNING, CommandLineOptions, fetch::Fetched, learn::Learned};
 
 /// Console commands of Quake Live, one per line.
 const COMMANDS: &str = include_str!("commands.txt");
@@ -24,9 +27,10 @@ const CVARS: &str = include_str!("cvars.txt");
 /// Console variables with their default and the values named in their usage: `name<TAB>default<TAB>value|value`.
 const CVAR_VALUES: &str = include_str!("cvar_values.txt");
 
-/// The default of a cvar followed by the values of its usage, without repeats.
-fn known_values(cvar: &str) -> Vec<&'static str> {
-    let Some(mut fields) = CVAR_VALUES
+/// The default the server reported for a cvar, then the default and the values of its usage in the console guide, then
+/// the range the server reported, without repeats.
+fn known_values(cvar: &str, user: &UserLists) -> Vec<String> {
+    let guide = CVAR_VALUES
         .lines()
         .map(|line| line.splitn(3, '\t'))
         .find(|fields| {
@@ -35,14 +39,28 @@ fn known_values(cvar: &str) -> Vec<&'static str> {
                 .next()
                 .is_some_and(|name| name.eq_ignore_ascii_case(cvar))
         })
-    else {
-        return Vec::new();
-    };
+        .map(|mut fields| {
+            let default = fields.nth(1).unwrap_or_default();
+            let hints = fields.next().unwrap_or_default();
+            core::iter::once(default)
+                .chain(hints.split('|'))
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let learned = user.cvars.get(&cvar.to_lowercase());
 
-    let default = fields.nth(1).unwrap_or_default();
-    let hints = fields.next().unwrap_or_default();
-    let mut values: Vec<&str> = Vec::new();
-    for value in core::iter::once(default).chain(hints.split('|')) {
+    let mut values: Vec<String> = Vec::new();
+    for value in learned
+        .map(|cvar| cvar.default.clone())
+        .into_iter()
+        .chain(guide)
+        .chain(
+            learned
+                .into_iter()
+                .flat_map(|cvar| [cvar.minimum.clone(), cvar.maximum.clone()]),
+        )
+    {
         if !value.is_empty() && !values.contains(&value) {
             values.push(value);
         }
@@ -61,6 +79,22 @@ fn is_set_command(command: &str) -> bool {
 struct UserLists {
     names: Vec<String>,
     maps: Vec<String>,
+    usages: HashMap<String, String>,
+    cvars: HashMap<String, LearnedCvar>,
+}
+
+/// The default and the range of a cvar, as the server reported them.
+#[derive(Debug, Default, Clone)]
+struct LearnedCvar {
+    default: String,
+    minimum: String,
+    maximum: String,
+}
+
+/// The usage the server reported for the command that the line starts with.
+fn usage_hint(before: &str, user: &UserLists) -> Option<String> {
+    let command = before.split_whitespace().next()?.to_lowercase();
+    user.usages.get(&command).cloned()
 }
 
 fn is_map_command(command: &str) -> bool {
@@ -96,15 +130,13 @@ fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<Strin
             .filter(|name| starts_with_word(name))
             .map(str::to_string)
             .collect(),
-        [command, cvar] if is_set_command(command) => known_values(cvar)
+        [command, cvar] if is_set_command(command) => known_values(cvar, user)
             .into_iter()
             .filter(|value| starts_with_word(value))
-            .map(str::to_string)
             .collect(),
-        [cvar] => known_values(cvar)
+        [cvar] => known_values(cvar, user)
             .into_iter()
             .filter(|value| starts_with_word(value))
-            .map(str::to_string)
             .collect(),
         _ => Vec::new(),
     }
@@ -137,12 +169,10 @@ fn completions<'a>(
     } else {
         argument_completions(buffer.get(..start).unwrap_or_default(), word, user)
     };
-    known.into_iter().for_each(|name: String| {
-        if !found.contains(&name) {
-            found.push(name)
-        }
-    });
+    found.extend(known);
 
+    let mut seen = HashSet::new();
+    found.retain(|name| seen.insert(name.to_lowercase()));
     found
 }
 
@@ -222,11 +252,93 @@ fn load_lines(files: &[PathBuf]) -> Vec<String> {
         .collect()
 }
 
+/// One line per usage (`usage<TAB>command<TAB>text`) or cvar (`cvar<TAB>name<TAB>default<TAB>minimum<TAB>maximum`).
+fn learned_line(learned: &Learned) -> (String, String) {
+    match learned {
+        Learned::Usage { command, text } => (
+            format!("usage\t{command}\t"),
+            format!("usage\t{command}\t{text}"),
+        ),
+        Learned::Cvar {
+            name,
+            default,
+            minimum,
+            maximum,
+        } => {
+            let name = name.to_lowercase();
+            (
+                format!("cvar\t{name}\t"),
+                format!("cvar\t{name}\t{default}\t{minimum}\t{maximum}"),
+            )
+        }
+    }
+}
+
+/// Keeps what the server reported in `learned-<host>.txt`; a newer report replaces the older one of the same entry.
+pub(crate) fn remember(args: &CommandLineOptions, learned: &Learned) -> io::Result<()> {
+    let Some(file) = fetched_file(args, "learned") else {
+        return Ok(());
+    };
+    let (key, line) = learned_line(learned);
+    let existing = std::fs::read_to_string(&file).unwrap_or_default();
+    if existing.lines().any(|known| known == line) {
+        return Ok(());
+    }
+
+    let mut lines: Vec<String> = existing
+        .lines()
+        .filter(|known| !known.starts_with(&key))
+        .map(str::to_string)
+        .collect();
+    lines.push(line);
+    write_lines(&file, &lines)
+}
+
+fn load_learned(args: &CommandLineOptions, user: &mut UserLists) {
+    let text = fetched_file(args, "learned")
+        .and_then(|file| std::fs::read_to_string(file).ok())
+        .unwrap_or_default();
+    for line in text.lines() {
+        let fields: Vec<&str> = line.split('\t').collect();
+        match fields.as_slice() {
+            ["usage", command, text] => {
+                user.usages.insert(command.to_string(), text.to_string());
+            }
+            ["cvar", name, default, minimum, maximum] => {
+                user.cvars.insert(
+                    name.to_string(),
+                    LearnedCvar {
+                        default: default.to_string(),
+                        minimum: minimum.to_string(),
+                        maximum: maximum.to_string(),
+                    },
+                );
+            }
+            _ => (),
+        }
+    }
+}
+
 fn load_user_lists(args: &CommandLineOptions) -> UserLists {
-    UserLists {
+    let mut user = UserLists {
         names: load_lines(&user_names_files(args)),
         maps: load_lines(&list_files(args, "maps", "completions-maps")),
-    }
+        ..UserLists::default()
+    };
+    load_learned(args, &mut user);
+    user
+}
+
+/// Two entries that insert nothing, because linefeed lists the candidates only when there are several.
+fn usage_listing(usage: String) -> Vec<Completion> {
+    [usage, "(reported by this server)".to_string()]
+        .into_iter()
+        .map(|display| Completion {
+            completion: String::new(),
+            display: Some(display),
+            suffix: Suffix::None,
+        })
+        .collect()
 }
 
 struct HistoryCompleter {
@@ -241,18 +353,23 @@ impl Completer<DefaultTerminal> for HistoryCompleter {
         start: usize,
         _end: usize,
     ) -> Option<Vec<Completion>> {
-        Some(
-            completions(
-                prompter.buffer(),
-                word,
-                start,
-                prompter.history().rev(),
-                &load_user_lists(&self.args),
-            )
-            .into_iter()
-            .map(Completion::simple)
-            .collect(),
-        )
+        let user = load_user_lists(&self.args);
+        let found = completions(
+            prompter.buffer(),
+            word,
+            start,
+            prompter.history().rev(),
+            &user,
+        );
+        if found.is_empty()
+            && start > 0
+            && let Some(usage) =
+                usage_hint(prompter.buffer().get(..start).unwrap_or_default(), &user)
+        {
+            return Some(usage_listing(usage));
+        }
+
+        Some(found.into_iter().map(Completion::simple).collect())
     }
 }
 
@@ -505,8 +622,8 @@ mod linefeed_helper_tests {
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, UserLists, completions, get_history_file, known_values,
-        parse_user_names, split_ql_colors, terminal_buffer, user_names_files,
+        CommandLineOptions, LearnedCvar, UserLists, completions, get_history_file, known_values,
+        parse_user_names, split_ql_colors, terminal_buffer, usage_hint, user_names_files,
         write_formatted_ql_colors,
     };
 
@@ -639,10 +756,29 @@ mod linefeed_helper_tests {
     }
 
     #[test]
+    fn repeats_between_history_and_lists_are_removed_regardless_of_the_case() {
+        let user = UserLists {
+            names: vec!["sv_padpackets".to_string(), "sv_padPackets".to_string()],
+            ..UserLists::default()
+        };
+
+        let found = completions(
+            "sv_pad",
+            "sv_pad",
+            0,
+            ["sv_padPackets", "sv_padPackets"].into_iter(),
+            &user,
+        );
+
+        assert_eq!(found, ["sv_padPackets"]);
+    }
+
+    #[test]
     fn user_names_are_completed_and_not_repeated() {
         let user = UserLists {
             names: vec!["qlx_myplugin".to_string(), "status".to_string()],
             maps: Vec::new(),
+            ..UserLists::default()
         };
 
         let found = completions("qlx_my", "qlx_my", 0, [].into_iter(), &user);
@@ -718,6 +854,7 @@ mod linefeed_helper_tests {
         let user = UserLists {
             names: Vec::new(),
             maps: vec!["aerowalk".to_string(), "zen".to_string()],
+            ..UserLists::default()
         };
 
         assert_eq!(
@@ -736,9 +873,37 @@ mod linefeed_helper_tests {
     }
 
     #[test]
+    fn learned_defaults_and_ranges_come_before_and_after_the_guide_values() {
+        let mut user = UserLists::default();
+        user.cvars.insert(
+            "r_debugsurface".to_string(),
+            LearnedCvar {
+                default: "1".to_string(),
+                minimum: "0".to_string(),
+                maximum: "9".to_string(),
+            },
+        );
+
+        assert_eq!(known_values("r_debugSurface", &user), ["1", "0", "2", "9"]);
+    }
+
+    #[test]
+    fn the_learned_usage_is_found_by_the_command_of_the_line() {
+        let mut user = UserLists::default();
+        user.usages
+            .insert("dir".to_string(), "dir <directory> [extension]".to_string());
+
+        assert_eq!(
+            usage_hint("DIR ", &user).as_deref(),
+            Some("dir <directory> [extension]")
+        );
+        assert_eq!(usage_hint("kick ", &user), None);
+    }
+
+    #[test]
     fn the_default_of_a_cvar_without_value_hints_is_offered() {
-        assert_eq!(known_values("g_gravity"), ["800"]);
-        assert!(known_values("no_such_cvar").is_empty());
+        assert_eq!(known_values("g_gravity", &UserLists::default()), ["800"]);
+        assert!(known_values("no_such_cvar", &UserLists::default()).is_empty());
     }
 
     #[test]

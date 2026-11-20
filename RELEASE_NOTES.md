@@ -29,6 +29,9 @@ Changes since 0.8.0.
   `set <cvar>` or after a cvar itself the default and the values from the usage of the console guide (918 cvars).
   `--fetch-completions` also asks for `dir maps .bsp`; the maps are kept in `completions-maps-<host>.txt` and completed
   after `map`, `devmap` and `callvote map`. Own maps go into `maps.txt` and `maps-<host>.txt`.
+  `ql_rcon` also remembers what the server reports on its own, in `learned-<host>.txt`: the `usage:` line of a command
+  (shown on Tab after the command when nothing else fits) and the default and the `minimum`/`maximum` of a cvar that
+  was queried (offered as values).
 
 ### Internal
 
