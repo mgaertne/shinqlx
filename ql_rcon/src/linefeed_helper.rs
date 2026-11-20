@@ -9,7 +9,10 @@ use anyhow::Result;
 use directories::UserDirs;
 use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::{
+    sync::mpsc::{UnboundedReceiver, UnboundedSender},
+    task,
+};
 
 use crate::{CONTINUE_RUNNING, CommandLineOptions};
 
@@ -157,27 +160,54 @@ fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
     }
 }
 
+async fn display_lines(
+    terminal: &Interface<DefaultTerminal>,
+    color: &ColorChoice,
+    mut display_receiver: UnboundedReceiver<String>,
+) -> Result<()> {
+    while let Some(line) = display_receiver.recv().await {
+        let mut buffer = terminal_buffer(color);
+        write_formatted_ql_colors(&mut buffer, &line)?;
+        terminal.lock_writer_erase().and_then(|mut writer| {
+            writeln!(
+                writer,
+                "{}",
+                String::from_utf8(buffer.into_inner())
+                    .expect("the buffer only receives text that was written as str")
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
+/// Shows every received line at once and reads the input on a blocking thread, so the idle terminal costs no CPU.
 pub(crate) async fn run_terminal(
     args: CommandLineOptions,
     zmq_sender: UnboundedSender<String>,
-    mut display_receiver: UnboundedReceiver<String>,
+    display_receiver: UnboundedReceiver<String>,
 ) -> Result<()> {
-    let terminal = terminal(&args)?;
+    let terminal = Arc::new(terminal(&args)?);
 
+    let reader = task::spawn_blocking({
+        let terminal = Arc::clone(&terminal);
+        let args = args.clone();
+        move || read_input(&terminal, &args, zmq_sender)
+    });
+
+    let displayed = display_lines(&terminal, &args.color, display_receiver).await;
+    CONTINUE_RUNNING.store(false, Ordering::Release);
+
+    reader.await??;
+    displayed
+}
+
+fn read_input(
+    terminal: &Interface<DefaultTerminal>,
+    args: &CommandLineOptions,
+    zmq_sender: UnboundedSender<String>,
+) -> Result<()> {
     while CONTINUE_RUNNING.load(Ordering::Acquire) {
-        while let Ok(line) = display_receiver.try_recv() {
-            let mut buffer = terminal_buffer(&args.color);
-            write_formatted_ql_colors(&mut buffer, &line)?;
-            terminal.lock_writer_erase().and_then(|mut writer| {
-                writeln!(
-                    writer,
-                    "{}",
-                    String::from_utf8(buffer.into_inner())
-                        .expect("the buffer only receives text that was written as str")
-                )
-            })?;
-        }
-
         match terminal.read_line_step(Some(Duration::from_millis(250))) {
             Ok(None) => continue,
             Ok(Some(ReadResult::Input(line))) => {
@@ -202,7 +232,7 @@ pub(crate) async fn run_terminal(
                         .for_each(|&index| terminal.remove_history(index));
                 };
                 terminal.add_history_unique(line.clone());
-                if let Some(history_file) = get_history_file(&args) {
+                if let Some(history_file) = get_history_file(args) {
                     let _ = terminal.save_history(&history_file);
                 }
 
@@ -244,21 +274,6 @@ pub(crate) async fn run_terminal(
 
     drop(zmq_sender);
     CONTINUE_RUNNING.store(false, Ordering::Release);
-
-    while let Ok(line) = display_receiver.try_recv() {
-        let mut buffer = terminal_buffer(&args.color);
-        write_formatted_ql_colors(&mut buffer, &line)?;
-        terminal.lock_writer_erase().and_then(|mut writer| {
-            writeln!(
-                writer,
-                "{}",
-                String::from_utf8(buffer.into_inner())
-                    .expect("the buffer only receives text that was written as str")
-            )
-        })?;
-    }
-
-    drop(display_receiver);
 
     Ok(())
 }

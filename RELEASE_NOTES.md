@@ -31,6 +31,10 @@ Changes since 0.8.0.
   and `futures` are new dependencies.
 * The deferred calls of the native plugins and the stats events are queued directly, without the Python decorators
   `delay` and `next_frame` and without helper modules written in Python.
+* `ql_rcon` and `ql_stats` no longer keep a CPU core busy while idle (about 100 % before, about 0.1 % now). The ZMQ socket
+  is polled every 25 ms, one server frame, and `ql_rcon` shows received lines at once instead of after up to 250 ms. The
+  input of `ql_rcon` is read on its own blocking thread, the tools run on a single-threaded Tokio runtime, and the
+  `RwLock`s and `unsafe impl Send/Sync` around the sockets are gone.
 
 ### Stubs
 

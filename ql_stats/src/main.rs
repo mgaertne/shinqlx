@@ -2,10 +2,7 @@
 mod cmd_line;
 mod zmq_helper;
 
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::sync::atomic::AtomicBool;
 
 use anyhow::Result;
 use clap::Parser;
@@ -20,7 +17,7 @@ extern crate alloc;
 
 pub(crate) static CONTINUE_RUNNING: AtomicBool = AtomicBool::new(true);
 
-#[tokio::main(flavor = "multi_thread", worker_threads = 5)]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let args = CommandLineOptions::parse();
 
@@ -30,21 +27,17 @@ async fn main() -> Result<()> {
 
     display_sender.send("Ctrl-C to exit zmq-stats session".to_string())?;
 
-    let zmq_task = tokio::spawn(run_zmq(cloned_args, display_sender));
-    let terminal_task = tokio::spawn(receive_json(display_receiver));
-    match try_join!(zmq_task, terminal_task)? {
-        (Err(e), ..) => Err(e),
-        _ => Ok(()),
-    }
+    try_join!(
+        run_zmq(cloned_args, display_sender),
+        receive_json(display_receiver)
+    )?;
+
+    Ok(())
 }
 
 async fn receive_json(mut receiver: UnboundedReceiver<String>) -> Result<()> {
-    while CONTINUE_RUNNING.load(Ordering::Acquire) && !receiver.is_closed() {
-        while let Ok(line) = receiver.try_recv() {
-            println!("{line}");
-        }
-
-        tokio::time::sleep(Duration::from_millis(100)).await;
+    while let Some(line) = receiver.recv().await {
+        println!("{line}");
     }
 
     Ok(())

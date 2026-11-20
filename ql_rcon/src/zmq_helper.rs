@@ -1,4 +1,7 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use anyhow::Result;
 use arzmq::{
@@ -10,24 +13,20 @@ use arzmq::{
 };
 use tokio::{
     select,
-    sync::{
-        RwLock,
-        mpsc::{UnboundedReceiver, UnboundedSender},
-    },
+    sync::mpsc::{UnboundedReceiver, UnboundedSender},
+    time::{MissedTickBehavior, interval},
 };
 use uuid::Uuid;
 
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
-struct MonitoredDealer {
-    dealer: RwLock<DealerSocket>,
-    monitor: RwLock<MonitorSocket>,
-}
+/// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.
+const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
-// SAFETY: only the one task of `run_zmq` uses the sockets; tokio may move it between threads, but never runs it on two.
-unsafe impl Send for MonitoredDealer {}
-// SAFETY: see `Send`, the shared references never leave that task.
-unsafe impl Sync for MonitoredDealer {}
+struct MonitoredDealer {
+    dealer: DealerSocket,
+    monitor: MonitorSocket,
+}
 
 impl MonitoredDealer {
     fn new() -> Result<Self> {
@@ -49,13 +48,10 @@ impl MonitoredDealer {
                 | MonitorFlags::Closed,
         )?;
 
-        Ok(Self {
-            dealer: dealer.into(),
-            monitor: monitor.into(),
-        })
+        Ok(Self { dealer, monitor })
     }
 
-    async fn configure(&self, password: &str, identity: &str) -> Result<()> {
+    fn configure(&self, password: &str, identity: &str) -> Result<()> {
         let identity_str = if identity.is_empty() {
             let identity = Uuid::new_v4();
             identity.to_string().replace("-", "")
@@ -82,44 +78,36 @@ impl MonitoredDealer {
             .routing_id(identity_str)
             .hello_message("register");
 
-        let dealer = self.dealer.read().await;
-        dealer_config.apply(&dealer)?;
+        dealer_config.apply(&self.dealer)?;
 
         Ok(())
     }
 
-    async fn connect(&self, address: &str) -> Result<()> {
-        self.dealer.read().await.connect(address)?;
+    fn connect(&self, address: &str) -> Result<()> {
+        self.dealer.connect(address)?;
 
         Ok(())
     }
 
-    async fn disconnect(&self) -> Result<()> {
-        let dealer = self.dealer.read().await;
-        let last_endpoint = dealer.last_endpoint()?;
-        dealer.disconnect(&last_endpoint)?;
+    fn disconnect(&self) -> Result<()> {
+        let last_endpoint = self.dealer.last_endpoint()?;
+        self.dealer.disconnect(&last_endpoint)?;
 
         Ok(())
     }
 
     async fn send<M: Into<Message>, F: Into<SendFlags>>(&self, msg: M, flags: F) -> Option<()> {
-        self.dealer
-            .read()
-            .await
-            .send_msg_async(msg.into(), flags.into())
-            .await?;
+        self.dealer.send_msg_async(msg.into(), flags.into()).await?;
 
         Some(())
     }
 
     async fn recv_msg(&self) -> Option<Message> {
-        let dealer = self.dealer.read().await;
-        dealer.recv_msg_async().await
+        self.dealer.recv_msg_async().await
     }
 
     async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
-        let monitor = self.monitor.read().await;
-        monitor.recv_monitor_event_async().await
+        self.monitor.recv_monitor_event_async().await
     }
 }
 
@@ -131,50 +119,60 @@ fn trim_ql_msg(msg: &str) -> String {
 
 static FIRST_TIME: AtomicBool = AtomicBool::new(true);
 
-async fn check_monitor(
+async fn handle_monitor_event(
+    event: MonitorSocketEvent,
     monitored_dealer: &MonitoredDealer,
     sender: &UnboundedSender<String>,
     endpoint: &str,
 ) -> Result<()> {
-    match monitored_dealer.check_monitor().await {
-        Some(MonitorSocketEvent::Connected) => {
+    match event {
+        MonitorSocketEvent::Connected => {
             if FIRST_TIME.load(Ordering::Acquire) {
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("ZMQ registering with the server.".to_string())?;
             }
         }
 
-        Some(MonitorSocketEvent::HandshakeSucceeded) => {
+        MonitorSocketEvent::HandshakeSucceeded => {
             FIRST_TIME.store(true, Ordering::Release);
             sender.send(format!("ZMQ connected to {}.", endpoint))?;
         }
 
-        Some(
-            event @ (MonitorSocketEvent::HandshakeFailedAuth(_)
-            | MonitorSocketEvent::HandshakeFailedProtocol(_)
-            | MonitorSocketEvent::HandshakeFailedNoDetail(_)
-            | MonitorSocketEvent::MonitorStopped),
-        ) => {
+        MonitorSocketEvent::HandshakeFailedAuth(_)
+        | MonitorSocketEvent::HandshakeFailedProtocol(_)
+        | MonitorSocketEvent::HandshakeFailedNoDetail(_)
+        | MonitorSocketEvent::MonitorStopped => {
             sender.send(format!("ZMQ socket error: {event:?}"))?;
             CONTINUE_RUNNING.store(false, Ordering::Release);
         }
 
-        Some(MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed) => {
+        MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed => {
             if FIRST_TIME.load(Ordering::Acquire) {
                 FIRST_TIME.store(false, Ordering::Release);
                 sender.send("Reconnecting ZMQ...".to_string())?;
             }
-            if let Err(e) = monitored_dealer.connect(endpoint).await {
+            if let Err(e) = monitored_dealer.connect(endpoint) {
                 sender.send(format!("error reconnecting: {e:?}."))?;
             }
         }
 
-        Some(event) => {
+        event => {
             sender.send(format!("ZMQ socket error: {event:?}",))?;
         }
-
-        _ => (),
     };
+
+    Ok(())
+}
+
+/// Handles all monitor events that are waiting.
+async fn check_monitor(
+    monitored_dealer: &MonitoredDealer,
+    sender: &UnboundedSender<String>,
+    endpoint: &str,
+) -> Result<()> {
+    while let Some(event) = monitored_dealer.check_monitor().await {
+        handle_monitor_event(event, monitored_dealer, sender, endpoint).await?;
+    }
 
     Ok(())
 }
@@ -187,34 +185,35 @@ pub(crate) async fn run_zmq(
     display_sender.send(format!("ZMQ connecting to {}...", args.host))?;
 
     let monitored_dealer = MonitoredDealer::new()?;
-    monitored_dealer
-        .configure(&args.password, &args.identity)
-        .await?;
+    monitored_dealer.configure(&args.password, &args.identity)?;
 
-    monitored_dealer.connect(&args.host).await?;
+    monitored_dealer.connect(&args.host)?;
+
+    let mut poll = interval(POLL_INTERVAL);
+    poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
     while CONTINUE_RUNNING.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
         select!(
             biased;
 
-            Some(zmq_msg) = monitored_dealer.recv_msg() => {
-                let zmq_str = zmq_msg.to_string();
-                display_sender.send(trim_ql_msg(&zmq_str))?;
-            }
-
-            Some(line) = zmq_receiver.recv(), if !zmq_receiver.is_empty() => {
+            Some(line) = zmq_receiver.recv() => {
                 monitored_dealer.send(&line, SendFlags::DONT_WAIT).await;
             },
 
-            Ok(()) = check_monitor(&monitored_dealer, &display_sender, &args.host) => (),
+            _ = poll.tick() => {
+                while let Some(zmq_msg) = monitored_dealer.recv_msg().await {
+                    let zmq_str = zmq_msg.to_string();
+                    display_sender.send(trim_ql_msg(&zmq_str))?;
+                }
 
-            else => ()
+                check_monitor(&monitored_dealer, &display_sender, &args.host).await?;
+            }
         );
     }
 
     drop(zmq_receiver);
 
-    monitored_dealer.disconnect().await?;
+    monitored_dealer.disconnect()?;
 
     drop(display_sender);
 
@@ -239,7 +238,7 @@ mod zmq_helper_tests {
         assert_eq!(trim_ql_msg("unchanged"), "unchanged");
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test(flavor = "current_thread")]
     async fn run_zmq_stops_when_the_server_does_not_speak_the_configured_security() {
         let context = ContextBuilder::default()
             .build()
@@ -252,7 +251,7 @@ mod zmq_helper_tests {
 
         let (_zmq_sender, zmq_receiver) = unbounded_channel();
         let (display_sender, mut display_receiver) = unbounded_channel();
-        let task = tokio::spawn(run_zmq(
+        let task = run_zmq(
             CommandLineOptions {
                 host: endpoint.clone(),
                 password: "secret".to_string(),
@@ -261,12 +260,12 @@ mod zmq_helper_tests {
             },
             zmq_receiver,
             display_sender,
-        ));
+        );
 
         let result = timeout(Duration::from_secs(10), task).await;
 
         assert!(
-            matches!(result, Ok(Ok(Ok(())))),
+            matches!(result, Ok(Ok(()))),
             "run_zmq did not end cleanly: {result:?}"
         );
         assert!(!CONTINUE_RUNNING.load(Ordering::Acquire));
