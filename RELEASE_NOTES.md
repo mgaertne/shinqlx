@@ -20,6 +20,9 @@ Changes since 0.8.0.
   the plugin as before. Records carry the Python name of the function in `func`.
 * **The name of a command in the warning for an unknown return value** is written as `["name"]` instead of `['name']`.
 
+* **`ql_rcon` completes the first word with the commands and cvars of Quake Live** (about 160 commands and 1040 cvars,
+  names taken from the console guide at https://www.euere.eu/ql/), after the matching history entries; the case is ignored.
+
 ### Internal
 
 * The banner of the chat log, `essentials` (`!seen`, `!time`, `!random`) and the time stamps of bans and silences are computed in

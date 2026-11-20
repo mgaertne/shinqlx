@@ -16,23 +16,56 @@ use tokio::{
 
 use crate::{CONTINUE_RUNNING, CommandLineOptions};
 
+/// Console commands of Quake Live, one per line.
+const COMMANDS: &str = include_str!("commands.txt");
+/// Console variables of Quake Live, one per line.
+const CVARS: &str = include_str!("cvars.txt");
+
+/// History entries starting with `buffer` come first, followed by the known commands and cvars that start with `word`
+/// when the first word of the line is being completed.
+fn completions<'a>(
+    buffer: &str,
+    word: &str,
+    start: usize,
+    history: impl Iterator<Item = &'a str>,
+) -> Vec<String> {
+    let mut found: Vec<String> = history
+        .filter(|item| item.starts_with(buffer))
+        .map(|item| item[start..].to_string())
+        .collect();
+
+    if start == 0 {
+        let word = word.to_lowercase();
+        let known = COMMANDS
+            .lines()
+            .chain(CVARS.lines())
+            .filter(|name| name.to_lowercase().starts_with(&word))
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        known.into_iter().for_each(|name| {
+            if !found.contains(&name) {
+                found.push(name)
+            }
+        });
+    }
+
+    found
+}
+
 struct HistoryCompleter {}
 
 impl Completer<DefaultTerminal> for HistoryCompleter {
     fn complete(
         &self,
-        _word: &str,
+        word: &str,
         prompter: &Prompter<DefaultTerminal>,
         start: usize,
         _end: usize,
     ) -> Option<Vec<Completion>> {
-        let current_buffer = prompter.buffer();
         Some(
-            prompter
-                .history()
-                .rev()
-                .filter(|item| item.starts_with(current_buffer))
-                .map(|item| Completion::simple(item[start..].to_string()))
+            completions(prompter.buffer(), word, start, prompter.history().rev())
+                .into_iter()
+                .map(Completion::simple)
                 .collect(),
         )
     }
@@ -284,7 +317,7 @@ mod linefeed_helper_tests {
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, get_history_file, split_ql_colors, terminal_buffer,
+        CommandLineOptions, completions, get_history_file, split_ql_colors, terminal_buffer,
         write_formatted_ql_colors,
     };
 
@@ -380,6 +413,35 @@ mod linefeed_helper_tests {
     #[test]
     fn terminal_buffer_with_auto_does_not_color_without_a_terminal() {
         assert!(!terminal_buffer(&ColorChoice::Auto).supports_color());
+    }
+
+    #[test]
+    fn first_word_completes_known_commands_and_cvars() {
+        let found = completions("sta", "sta", 0, [].into_iter());
+
+        assert!(found.iter().any(|name| name == "status"), "{found:?}");
+    }
+
+    #[test]
+    fn first_word_completion_ignores_the_case() {
+        let found = completions("SV_HOST", "SV_HOST", 0, [].into_iter());
+
+        assert!(found.iter().any(|name| name == "sv_hostname"), "{found:?}");
+    }
+
+    #[test]
+    fn history_comes_first_and_is_not_repeated() {
+        let found = completions("kick", "kick", 0, ["kick bob", "kick"].into_iter());
+
+        assert_eq!(found[..2], ["kick bob", "kick"]);
+        assert_eq!(found.iter().filter(|name| *name == "kick").count(), 1);
+    }
+
+    #[test]
+    fn later_words_only_complete_from_the_history() {
+        let found = completions("kick bo", "bo", 5, ["kick bob"].into_iter());
+
+        assert_eq!(found, ["bob"]);
     }
 
     #[test]
