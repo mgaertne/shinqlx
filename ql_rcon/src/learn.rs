@@ -7,6 +7,7 @@ pub(crate) enum Learned {
         command: String,
         text: String,
     },
+    Factories(Vec<String>),
     Cvar {
         name: String,
         default: String,
@@ -67,26 +68,58 @@ fn cvar(line: &str) -> Option<Learned> {
 }
 
 /// Recognises a usage line or the answer to a cvar query; any other line yields `None`.
-pub(crate) fn learn_line(line: &str) -> Option<Learned> {
+fn learn_line(line: &str) -> Option<Learned> {
     let line = line.trim();
     usage(line).or_else(|| cvar(line))
 }
 
+/// Reads the replies line by line; the list of factories that `map` prints spans several lines.
+#[derive(Debug, Default)]
+pub(crate) struct Learner {
+    factories: Option<Vec<String>>,
+}
+
+impl Learner {
+    pub(crate) fn feed(&mut self, line: &str) -> Option<Learned> {
+        let line = line.trim();
+
+        if let Some(factories) = self.factories.as_mut() {
+            if is_name(line) {
+                factories.push(line.to_string());
+                return None;
+            }
+            let factories = self.factories.take().unwrap_or_default();
+            return if factories.is_empty() {
+                learn_line(line)
+            } else {
+                Some(Learned::Factories(factories))
+            };
+        }
+
+        if line.eq_ignore_ascii_case("valid factories:") {
+            self.factories = Some(Vec::new());
+            return None;
+        }
+
+        learn_line(line)
+    }
+}
+
 #[cfg(test)]
 mod learn_tests {
-    use super::{Learned, learn_line};
+    use super::{Learned, Learner};
 
     #[test]
     fn usage_lines_are_learned_in_any_case() {
         assert_eq!(
-            learn_line("usage: dir <directory> [extension]"),
+            Learner::default().feed("usage: dir <directory> [extension]"),
             Some(Learned::Usage {
                 command: "dir".to_string(),
                 text: "dir <directory> [extension]".to_string()
             })
         );
         assert_eq!(
-            learn_line("Usage: Kick <player name>kick all = kick everyone"),
+            Learner::default().feed("Usage: Kick <player name>kick all = kick everyone"),
             Some(Learned::Usage {
                 command: "kick".to_string(),
                 text: "Kick <player name>kick all = kick everyone".to_string()
@@ -97,7 +130,7 @@ mod learn_tests {
     #[test]
     fn cvar_answers_give_default_and_range() {
         assert_eq!(
-            learn_line("\"sv_maxclients\" is:\"16^7\" default:\"8^7\""),
+            Learner::default().feed("\"sv_maxclients\" is:\"16^7\" default:\"8^7\""),
             Some(Learned::Cvar {
                 name: "sv_maxclients".to_string(),
                 default: "8".to_string(),
@@ -106,7 +139,7 @@ mod learn_tests {
             })
         );
         assert_eq!(
-            learn_line("\"g_x\" is:\"1\" default:\"0\" minimum:\"0\" maximum:\"5\""),
+            Learner::default().feed("\"g_x\" is:\"1\" default:\"0\" minimum:\"0\" maximum:\"5\""),
             Some(Learned::Cvar {
                 name: "g_x".to_string(),
                 default: "0".to_string(),
@@ -119,7 +152,7 @@ mod learn_tests {
     #[test]
     fn the_short_range_keys_are_understood() {
         assert_eq!(
-            learn_line("\"sv_padPackets\" is:\"0\" default:\"0\" min:\"0\" max:\"3\""),
+            Learner::default().feed("\"sv_padPackets\" is:\"0\" default:\"0\" min:\"0\" max:\"3\""),
             Some(Learned::Cvar {
                 name: "sv_padPackets".to_string(),
                 default: "0".to_string(),
@@ -130,10 +163,31 @@ mod learn_tests {
     }
 
     #[test]
+    fn the_factories_of_the_map_command_are_collected_until_the_empty_line() {
+        let mut learner = Learner::default();
+
+        assert_eq!(learner.feed("map (map) (factory)"), None);
+        assert_eq!(learner.feed("Valid factories:"), None);
+        assert_eq!(learner.feed("ca"), None);
+        assert_eq!(learner.feed("ctf"), None);
+        assert_eq!(
+            learner.feed(""),
+            Some(Learned::Factories(vec![
+                "ca".to_string(),
+                "ctf".to_string()
+            ]))
+        );
+        assert_eq!(learner.feed("ffa"), None);
+    }
+
+    #[test]
     fn other_lines_are_not_learned() {
-        assert_eq!(learn_line("zmq RCON command from abc: dir"), None);
-        assert_eq!(learn_line("\"say\" hello \"there\""), None);
-        assert_eq!(learn_line("usage:"), None);
-        assert_eq!(learn_line(""), None);
+        assert_eq!(
+            Learner::default().feed("zmq RCON command from abc: dir"),
+            None
+        );
+        assert_eq!(Learner::default().feed("\"say\" hello \"there\""), None);
+        assert_eq!(Learner::default().feed("usage:"), None);
+        assert_eq!(Learner::default().feed(""), None);
     }
 }

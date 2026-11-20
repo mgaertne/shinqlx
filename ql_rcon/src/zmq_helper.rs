@@ -22,7 +22,7 @@ use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
-    learn::learn_line,
+    learn::Learner,
     linefeed_helper::{remember, save_completions},
 };
 
@@ -221,6 +221,7 @@ pub(crate) async fn run_zmq(
     monitored_dealer.connect(&args.host)?;
 
     let mut fetch = FetchState::new(args.fetch_completions);
+    let mut learner = Learner::default();
 
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -236,7 +237,7 @@ pub(crate) async fn run_zmq(
             _ = poll.tick() => {
                 while let Some(zmq_msg) = monitored_dealer.recv_msg().await {
                     let zmq_str = trim_ql_msg(&zmq_msg.to_string());
-                    if let Some(learned) = learn_line(&zmq_str) {
+                    if let Some(learned) = learner.feed(&zmq_str) {
                         remember(&args, &learned).ok();
                     }
                     match fetch.feed(&zmq_str) {

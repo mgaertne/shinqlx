@@ -80,6 +80,7 @@ struct UserLists {
     names: Vec<String>,
     maps: Vec<String>,
     usages: HashMap<String, String>,
+    factories: Vec<String>,
     cvars: HashMap<String, LearnedCvar>,
 }
 
@@ -104,7 +105,7 @@ fn is_map_command(command: &str) -> bool {
 }
 
 /// Cvar names after `set`, the values of a cvar after `set <cvar>` or after the cvar itself, and map names after `map`,
-/// `devmap` and `callvote map`.
+/// `devmap` and `callvote map`, and the factories after the map.
 fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<String> {
     let word = word.to_lowercase();
     let starts_with_word = |name: &str| name.to_lowercase().starts_with(&word);
@@ -122,6 +123,21 @@ fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<Strin
             .filter(|name| starts_with_word(name))
             .cloned()
             .collect(),
+        [command, _map] if is_map_command(command) => user
+            .factories
+            .iter()
+            .filter(|name| starts_with_word(name))
+            .cloned()
+            .collect(),
+        [callvote, map, _map]
+            if callvote.eq_ignore_ascii_case("callvote") && is_map_command(map) =>
+        {
+            user.factories
+                .iter()
+                .filter(|name| starts_with_word(name))
+                .cloned()
+                .collect()
+        }
         [command] if is_set_command(command) => user
             .names
             .iter()
@@ -259,6 +275,10 @@ fn learned_line(learned: &Learned) -> (String, String) {
             format!("usage\t{command}\t"),
             format!("usage\t{command}\t{text}"),
         ),
+        Learned::Factories(factories) => (
+            "factories\t".to_string(),
+            format!("factories\t{}", factories.join("\t")),
+        ),
         Learned::Cvar {
             name,
             default,
@@ -301,6 +321,9 @@ fn load_learned(args: &CommandLineOptions, user: &mut UserLists) {
     for line in text.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
+            ["factories", factories @ ..] => {
+                user.factories = factories.iter().map(|name| name.to_string()).collect();
+            }
             ["usage", command, text] => {
                 user.usages.insert(command.to_string(), text.to_string());
             }
@@ -854,6 +877,7 @@ mod linefeed_helper_tests {
         let user = UserLists {
             names: Vec::new(),
             maps: vec!["aerowalk".to_string(), "zen".to_string()],
+            factories: vec!["ca".to_string(), "ctf".to_string()],
             ..UserLists::default()
         };
 
@@ -870,6 +894,14 @@ mod linefeed_helper_tests {
             ["aerowalk"]
         );
         assert!(completions("kick ", "", 5, [].into_iter(), &user).is_empty());
+        assert_eq!(
+            completions("map zen ", "", 8, [].into_iter(), &user),
+            ["ca", "ctf"]
+        );
+        assert_eq!(
+            completions("callvote map zen ct", "ct", 17, [].into_iter(), &user),
+            ["ctf"]
+        );
     }
 
     #[test]
