@@ -1,5 +1,35 @@
 # Release notes
 
+## Unreleased
+
+Changes since 0.8.0.
+
+### Changed behaviour
+
+* **`load_plugin` and `unload_plugin` log no error for a wrong request**, as in minqlx and in 0.7.0: they only raise when
+  the plugin is not loaded (`PluginUnloadError`) or does not exist, so a caller that catches the exception no longer
+  produces an `ERROR` line for it. Errors of the plugin code (import, constructor, missing class, no `Plugin`
+  subclass) are still logged once with their traceback and raised. `reload_plugin` logs every failure once. The start
+  and `!loadall` keep logging every plugin from `qlx_plugins` that cannot be loaded, also a missing one, followed by
+  the line `Plugin 'x' from qlx_plugins could not be loaded, see the error above.`
+* **Records of shinqlx itself no longer pass through the Python logger.** Messages such as `Loading plugin '…'...`,
+  `Unloading plugin '…'...`, the messages of `late_init`, the warning for an unknown return value of a handler or
+  command, the unknown game state and the missing ZMQ stats warning go straight to the log configuration. A handler that
+  a plugin attaches to the logger `shinqlx` no longer receives them; records of plugins and libraries still reach the
+  log through the handler of shinqlx, with their traceback. `shinqlx.log_exception(plugin)` writes under the logger of
+  the plugin as before. Records carry the Python name of the function in `func`.
+* **The name of a command in the warning for an unknown return value** is written as `["name"]` instead of `['name']`.
+
+### Internal
+
+* The banner of the chat log, `essentials` (`!seen`, `!time`, `!random`) and the time stamps of bans and silences are computed in
+  Rust (`chrono`, `rand`) instead of the Python modules `time`, `datetime` and `random`. The Cargo feature `clock` of
+  `chrono` is enabled for the local time.
+
+### Stubs
+
+* `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`.
+
 ## 0.8.0 (2026-11-19)
 
 Changes since 0.7.0.
