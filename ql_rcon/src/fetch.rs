@@ -2,8 +2,8 @@
 use core::time::Duration;
 use std::time::Instant;
 
-/// The rcon commands that make the server list its names.
-pub(crate) const FETCH_COMMANDS: [&str; 2] = ["cmdlist", "cvarlist"];
+/// The rcon commands that make the server list its maps, commands and cvars, in the order the lists arrive.
+pub(crate) const FETCH_COMMANDS: [&str; 3] = ["dir maps .bsp", "cmdlist", "cvarlist"];
 
 /// A server that never sends the end marker of `cvarlist` must not swallow lines forever.
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
@@ -13,17 +13,29 @@ const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) enum Feed {
     Show,
     Hide,
-    Done(Vec<String>),
+    Done(Fetched),
+}
+
+/// What the server reported: command and cvar names, and map names without the `.bsp`.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct Fetched {
+    pub(crate) names: Vec<String>,
+    pub(crate) maps: Vec<String>,
+}
+
+impl Fetched {
+    fn sorted(mut self) -> Self {
+        self.names = finished(self.names);
+        self.maps = finished(self.maps);
+        self
+    }
 }
 
 #[derive(Debug)]
 pub(crate) enum FetchState {
     Off,
     Waiting,
-    Collecting {
-        names: Vec<String>,
-        started: Instant,
-    },
+    Collecting { found: Fetched, started: Instant },
     Done,
 }
 
@@ -52,7 +64,7 @@ impl FetchState {
         }
 
         *self = Self::Collecting {
-            names: Vec::new(),
+            found: Fetched::default(),
             started: Instant::now(),
         };
         true
@@ -60,7 +72,7 @@ impl FetchState {
 
     /// Takes the names of the lists out of `line`; every other line stays visible.
     pub(crate) fn feed(&mut self, line: &str) -> Feed {
-        let Self::Collecting { names, .. } = self else {
+        let Self::Collecting { found, .. } = self else {
             return Feed::Show;
         };
 
@@ -68,16 +80,22 @@ impl FetchState {
         let mut words = line.split_whitespace();
         match (words.next(), words.next(), words.next()) {
             (None, ..) => Feed::Hide,
+            (Some("Directory"), Some("of"), _) => Feed::Hide,
+            (Some(dashes), None, _) if dashes.chars().all(|c| c == '-') => Feed::Hide,
+            (Some(file), None, _) if file.strip_suffix(".bsp").is_some_and(is_name) => {
+                found.maps.push(file.trim_end_matches(".bsp").to_string());
+                Feed::Hide
+            }
             (Some(count), Some("cvar"), Some("indexes")) if count.parse::<u32>().is_ok() => {
-                let names = finished(core::mem::take(names));
+                let fetched = core::mem::take(found).sorted();
                 *self = Self::Done;
-                Feed::Done(names)
+                Feed::Done(fetched)
             }
             (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => {
                 Feed::Hide
             }
             (Some(name), None, _) if is_name(name) => {
-                names.push(name.to_string());
+                found.names.push(name.to_string());
                 Feed::Hide
             }
             (Some(name), Some(value), _)
@@ -86,7 +104,7 @@ impl FetchState {
                     && line.ends_with('"')
                     && !value.is_empty() =>
             {
-                names.push(name.to_string());
+                found.names.push(name.to_string());
                 Feed::Hide
             }
             _ => Feed::Show,
@@ -94,23 +112,23 @@ impl FetchState {
     }
 
     /// Ends a collection whose end marker did not arrive in time and returns what was found.
-    pub(crate) fn expired(&mut self) -> Option<Vec<String>> {
-        let Self::Collecting { names, started } = self else {
+    pub(crate) fn expired(&mut self) -> Option<Fetched> {
+        let Self::Collecting { found, started } = self else {
             return None;
         };
         if started.elapsed() < FETCH_TIMEOUT {
             return None;
         }
 
-        let names = finished(core::mem::take(names));
+        let fetched = core::mem::take(found).sorted();
         *self = Self::Done;
-        Some(names)
+        Some(fetched)
     }
 }
 
 #[cfg(test)]
 mod fetch_tests {
-    use super::{Feed, FetchState};
+    use super::{Feed, FetchState, Fetched};
 
     fn collecting() -> FetchState {
         let mut state = FetchState::new(true);
@@ -151,11 +169,32 @@ mod fetch_tests {
         assert_eq!(state.feed("530 total cvars"), Feed::Hide);
         assert_eq!(
             state.feed("530 cvar indexes"),
-            Feed::Done(vec![
-                "sv_cheats".to_string(),
-                "sv_hostname".to_string(),
-                "touchFile".to_string()
-            ])
+            Feed::Done(Fetched {
+                names: vec![
+                    "sv_cheats".to_string(),
+                    "sv_hostname".to_string(),
+                    "touchFile".to_string()
+                ],
+                maps: Vec::new(),
+            })
+        );
+    }
+
+    #[test]
+    fn map_files_are_hidden_and_collected_without_the_extension() {
+        let mut state = collecting();
+
+        assert_eq!(state.feed("Directory of maps .bsp"), Feed::Hide);
+        assert_eq!(state.feed("---------------"), Feed::Hide);
+        assert_eq!(state.feed("zen.bsp"), Feed::Hide);
+        assert_eq!(state.feed("aerowalk.bsp"), Feed::Hide);
+        assert_eq!(state.feed("notes.txt"), Feed::Show);
+        assert_eq!(
+            state.feed("1 cvar indexes"),
+            Feed::Done(Fetched {
+                names: Vec::new(),
+                maps: vec!["aerowalk".to_string(), "zen".to_string()],
+            })
         );
     }
 
@@ -177,7 +216,10 @@ mod fetch_tests {
 
         assert_eq!(
             state.feed("1 cvar indexes"),
-            Feed::Done(vec!["kick".to_string(), "map".to_string()])
+            Feed::Done(Fetched {
+                names: vec!["kick".to_string(), "map".to_string()],
+                maps: Vec::new(),
+            })
         );
     }
 

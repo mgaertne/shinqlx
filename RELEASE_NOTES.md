@@ -25,7 +25,10 @@ Changes since 0.8.0.
   Own names go into `commands.txt` (all servers) and `commands-<host>.txt` (for example `commands-10_0_0_1_27961.txt`)
   in the config directory (`~/.config/ql_rcon/` on Linux), one name per line; empty lines and lines starting with `#` are
   skipped. `ql_rcon --fetch-completions` asks the server once for `cmdlist` and `cvarlist` (without showing the output),
-  and keeps the names in `completions-<host>.txt` of the same directory. The completion reads the three files on every Tab, so new names and edits are used at once.
+  and keeps the names in `completions-<host>.txt` of the same directory. The completion reads the three files on every Tab, so new names and edits are used at once. After `set`, `seta`, `sets` and `setu` it completes cvar names, and after
+  `set <cvar>` or after a cvar itself the default and the values from the usage of the console guide (918 cvars).
+  `--fetch-completions` also asks for `dir maps .bsp`; the maps are kept in `completions-maps-<host>.txt` and completed
+  after `map`, `devmap` and `callvote map`. Own maps go into `maps.txt` and `maps-<host>.txt`.
 
 ### Internal
 

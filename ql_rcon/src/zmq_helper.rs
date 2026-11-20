@@ -21,7 +21,7 @@ use uuid::Uuid;
 use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
-    fetch::{FETCH_COMMANDS, Feed, FetchState},
+    fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
     linefeed_helper::save_completions,
 };
 
@@ -191,13 +191,13 @@ async fn check_monitor(
 
 fn store_fetched_names(
     args: &CommandLineOptions,
-    names: &[String],
+    fetched: &Fetched,
     sender: &UnboundedSender<String>,
 ) -> Result<()> {
-    let message = match save_completions(args, names) {
+    let message = match save_completions(args, fetched) {
         Ok(file) => format!(
             "ZMQ fetched {} names for the completion into {}, they are used for the completion now.",
-            names.len(),
+            fetched.names.len() + fetched.maps.len(),
             file.display()
         ),
         Err(err) => format!("could not keep the fetched names: {err}"),
@@ -238,12 +238,12 @@ pub(crate) async fn run_zmq(
                     match fetch.feed(&zmq_str) {
                         Feed::Show => display_sender.send(zmq_str)?,
                         Feed::Hide => (),
-                        Feed::Done(names) => store_fetched_names(&args, &names, &display_sender)?,
+                        Feed::Done(fetched) => store_fetched_names(&args, &fetched, &display_sender)?,
                     }
                 }
 
-                if let Some(names) = fetch.expired() {
-                    store_fetched_names(&args, &names, &display_sender)?;
+                if let Some(fetched) = fetch.expired() {
+                    store_fetched_names(&args, &fetched, &display_sender)?;
                 }
 
                 check_monitor(&monitored_dealer, &display_sender, &args.host, &mut fetch).await?;

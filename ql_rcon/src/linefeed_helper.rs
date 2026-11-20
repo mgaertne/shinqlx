@@ -14,43 +14,134 @@ use tokio::{
     task,
 };
 
-use crate::{CONTINUE_RUNNING, CommandLineOptions};
+use crate::{CONTINUE_RUNNING, CommandLineOptions, fetch::Fetched};
 
 /// Console commands of Quake Live, one per line.
 const COMMANDS: &str = include_str!("commands.txt");
 /// Console variables of Quake Live, one per line.
 const CVARS: &str = include_str!("cvars.txt");
 
+/// Console variables with their default and the values named in their usage: `name<TAB>default<TAB>value|value`.
+const CVAR_VALUES: &str = include_str!("cvar_values.txt");
+
+/// The default of a cvar followed by the values of its usage, without repeats.
+fn known_values(cvar: &str) -> Vec<&'static str> {
+    let Some(mut fields) = CVAR_VALUES
+        .lines()
+        .map(|line| line.splitn(3, '\t'))
+        .find(|fields| {
+            fields
+                .clone()
+                .next()
+                .is_some_and(|name| name.eq_ignore_ascii_case(cvar))
+        })
+    else {
+        return Vec::new();
+    };
+
+    let default = fields.nth(1).unwrap_or_default();
+    let hints = fields.next().unwrap_or_default();
+    let mut values: Vec<&str> = Vec::new();
+    for value in core::iter::once(default).chain(hints.split('|')) {
+        if !value.is_empty() && !values.contains(&value) {
+            values.push(value);
+        }
+    }
+    values
+}
+
+fn is_set_command(command: &str) -> bool {
+    ["set", "seta", "sets", "setu"]
+        .iter()
+        .any(|set| command.eq_ignore_ascii_case(set))
+}
+
+/// Names the user keeps in files or the server reported with `--fetch-completions`.
+#[derive(Debug, Default)]
+struct UserLists {
+    names: Vec<String>,
+    maps: Vec<String>,
+}
+
+fn is_map_command(command: &str) -> bool {
+    ["map", "devmap"]
+        .iter()
+        .any(|map| command.eq_ignore_ascii_case(map))
+}
+
+/// Cvar names after `set`, the values of a cvar after `set <cvar>` or after the cvar itself, and map names after `map`,
+/// `devmap` and `callvote map`.
+fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<String> {
+    let word = word.to_lowercase();
+    let starts_with_word = |name: &str| name.to_lowercase().starts_with(&word);
+
+    match before.split_whitespace().collect::<Vec<_>>().as_slice() {
+        [command] if is_map_command(command) => user
+            .maps
+            .iter()
+            .filter(|name| starts_with_word(name))
+            .cloned()
+            .collect(),
+        [callvote, map] if callvote.eq_ignore_ascii_case("callvote") && is_map_command(map) => user
+            .maps
+            .iter()
+            .filter(|name| starts_with_word(name))
+            .cloned()
+            .collect(),
+        [command] if is_set_command(command) => user
+            .names
+            .iter()
+            .map(String::as_str)
+            .chain(CVARS.lines())
+            .filter(|name| starts_with_word(name))
+            .map(str::to_string)
+            .collect(),
+        [command, cvar] if is_set_command(command) => known_values(cvar)
+            .into_iter()
+            .filter(|value| starts_with_word(value))
+            .map(str::to_string)
+            .collect(),
+        [cvar] => known_values(cvar)
+            .into_iter()
+            .filter(|value| starts_with_word(value))
+            .map(str::to_string)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
 /// History entries starting with `buffer` come first, followed by the known commands and cvars that start with `word`
-/// when the first word of the line is being completed.
+/// when the first word of the line is being completed, or by the cvar names and values that fit the arguments.
 fn completions<'a>(
     buffer: &str,
     word: &str,
     start: usize,
     history: impl Iterator<Item = &'a str>,
-    user_names: &[String],
+    user: &UserLists,
 ) -> Vec<String> {
     let mut found: Vec<String> = history
         .filter(|item| item.starts_with(buffer))
         .map(|item| item[start..].to_string())
         .collect();
 
-    if start == 0 {
+    let known = if start == 0 {
         let word = word.to_lowercase();
-        let known = user_names
+        user.names
             .iter()
             .map(String::as_str)
             .chain(COMMANDS.lines())
             .chain(CVARS.lines())
             .filter(|name| name.to_lowercase().starts_with(&word))
             .map(str::to_string)
-            .collect::<Vec<_>>();
-        known.into_iter().for_each(|name| {
-            if !found.contains(&name) {
-                found.push(name)
-            }
-        });
-    }
+            .collect()
+    } else {
+        argument_completions(buffer.get(..start).unwrap_or_default(), word, user)
+    };
+    known.into_iter().for_each(|name: String| {
+        if !found.contains(&name) {
+            found.push(name)
+        }
+    });
 
     found
 }
@@ -66,46 +157,61 @@ fn config_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", "ql_rcon").map(|dirs| dirs.config_dir().to_path_buf())
 }
 
-/// The names fetched from the connected server by `--fetch-completions`.
-fn completions_file(args: &CommandLineOptions) -> Option<PathBuf> {
+/// The file that `--fetch-completions` keeps for the connected server: `completions-<host>.txt` for the names and
+/// `completions-maps-<host>.txt` for the maps.
+fn fetched_file(args: &CommandLineOptions, kind: &str) -> Option<PathBuf> {
     let slug = host_slug(args)?;
-    config_dir().map(|dir| dir.join(format!("completions-{slug}.txt")))
+    config_dir().map(|dir| dir.join(format!("{kind}-{slug}.txt")))
 }
 
-/// Keeps the fetched names for the next start and returns the file they were written to.
-pub(crate) fn save_completions(args: &CommandLineOptions, names: &[String]) -> io::Result<PathBuf> {
-    let file = completions_file(args).ok_or_else(|| {
+fn write_lines(file: &PathBuf, lines: &[String]) -> io::Result<()> {
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(file, lines.join("\n") + "\n")
+}
+
+/// Keeps what the server reported for the next completion and returns the file with the names.
+pub(crate) fn save_completions(
+    args: &CommandLineOptions,
+    fetched: &Fetched,
+) -> io::Result<PathBuf> {
+    let missing = || {
         io::Error::new(
             io::ErrorKind::NotFound,
             "no config directory or no tcp host",
         )
-    })?;
-    if let Some(dir) = file.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    std::fs::write(&file, names.join("\n") + "\n")?;
+    };
+    let names_file = fetched_file(args, "completions").ok_or_else(missing)?;
+    let maps_file = fetched_file(args, "completions-maps").ok_or_else(missing)?;
+    write_lines(&names_file, &fetched.names)?;
+    write_lines(&maps_file, &fetched.maps)?;
 
-    Ok(file)
+    Ok(names_file)
 }
 
-/// `commands.txt` for all servers, `commands-<host>.txt` and the fetched `completions-<host>.txt` for the connected one,
-/// all in the config directory.
-fn user_names_files(args: &CommandLineOptions) -> Vec<PathBuf> {
+/// `<stem>.txt` for all servers, `<stem>-<host>.txt` and the fetched `<fetched>-<host>.txt` for the connected one, all
+/// in the config directory.
+fn list_files(args: &CommandLineOptions, stem: &str, fetched: &str) -> Vec<PathBuf> {
     let Some(dir) = config_dir() else {
         return Vec::new();
     };
 
-    [Some("commands.txt".to_string())]
+    [Some(format!("{stem}.txt"))]
         .into_iter()
-        .chain([host_slug(args).map(|slug| format!("commands-{slug}.txt"))])
+        .chain([host_slug(args).map(|slug| format!("{stem}-{slug}.txt"))])
         .flatten()
         .map(|file_name| dir.join(file_name))
-        .chain(completions_file(args))
+        .chain(fetched_file(args, fetched))
         .collect()
 }
 
-fn load_user_names(args: &CommandLineOptions) -> Vec<String> {
-    user_names_files(args)
+fn user_names_files(args: &CommandLineOptions) -> Vec<PathBuf> {
+    list_files(args, "commands", "completions")
+}
+
+fn load_lines(files: &[PathBuf]) -> Vec<String> {
+    files
         .iter()
         .filter_map(|file| std::fs::read_to_string(file).ok())
         .flat_map(|text| {
@@ -114,6 +220,13 @@ fn load_user_names(args: &CommandLineOptions) -> Vec<String> {
                 .collect::<Vec<_>>()
         })
         .collect()
+}
+
+fn load_user_lists(args: &CommandLineOptions) -> UserLists {
+    UserLists {
+        names: load_lines(&user_names_files(args)),
+        maps: load_lines(&list_files(args, "maps", "completions-maps")),
+    }
 }
 
 struct HistoryCompleter {
@@ -134,7 +247,7 @@ impl Completer<DefaultTerminal> for HistoryCompleter {
                 word,
                 start,
                 prompter.history().rev(),
-                &load_user_names(&self.args),
+                &load_user_lists(&self.args),
             )
             .into_iter()
             .map(Completion::simple)
@@ -392,8 +505,9 @@ mod linefeed_helper_tests {
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, completions, get_history_file, parse_user_names, split_ql_colors,
-        terminal_buffer, user_names_files, write_formatted_ql_colors,
+        CommandLineOptions, UserLists, completions, get_history_file, known_values,
+        parse_user_names, split_ql_colors, terminal_buffer, user_names_files,
+        write_formatted_ql_colors,
     };
 
     fn rendered(buffer: Buffer) -> String {
@@ -492,21 +606,33 @@ mod linefeed_helper_tests {
 
     #[test]
     fn first_word_completes_known_commands_and_cvars() {
-        let found = completions("sta", "sta", 0, [].into_iter(), &[]);
+        let found = completions("sta", "sta", 0, [].into_iter(), &UserLists::default());
 
         assert!(found.iter().any(|name| name == "status"), "{found:?}");
     }
 
     #[test]
     fn first_word_completion_ignores_the_case() {
-        let found = completions("SV_HOST", "SV_HOST", 0, [].into_iter(), &[]);
+        let found = completions(
+            "SV_HOST",
+            "SV_HOST",
+            0,
+            [].into_iter(),
+            &UserLists::default(),
+        );
 
         assert!(found.iter().any(|name| name == "sv_hostname"), "{found:?}");
     }
 
     #[test]
     fn history_comes_first_and_is_not_repeated() {
-        let found = completions("kick", "kick", 0, ["kick bob", "kick"].into_iter(), &[]);
+        let found = completions(
+            "kick",
+            "kick",
+            0,
+            ["kick bob", "kick"].into_iter(),
+            &UserLists::default(),
+        );
 
         assert_eq!(found[..2], ["kick bob", "kick"]);
         assert_eq!(found.iter().filter(|name| *name == "kick").count(), 1);
@@ -514,10 +640,13 @@ mod linefeed_helper_tests {
 
     #[test]
     fn user_names_are_completed_and_not_repeated() {
-        let user_names = ["qlx_myplugin".to_string(), "status".to_string()];
+        let user = UserLists {
+            names: vec!["qlx_myplugin".to_string(), "status".to_string()],
+            maps: Vec::new(),
+        };
 
-        let found = completions("qlx_my", "qlx_my", 0, [].into_iter(), &user_names);
-        let status = completions("status", "status", 0, [].into_iter(), &user_names);
+        let found = completions("qlx_my", "qlx_my", 0, [].into_iter(), &user);
+        let status = completions("status", "status", 0, [].into_iter(), &user);
 
         assert_eq!(found, ["qlx_myplugin"]);
         assert_eq!(status.iter().filter(|name| *name == "status").count(), 1);
@@ -546,8 +675,81 @@ mod linefeed_helper_tests {
     }
 
     #[test]
+    fn set_completes_cvar_names() {
+        let found = completions(
+            "set sv_host",
+            "sv_host",
+            4,
+            [].into_iter(),
+            &UserLists::default(),
+        );
+
+        assert_eq!(found, ["sv_hostname"]);
+    }
+
+    #[test]
+    fn set_completes_the_default_and_the_values_of_the_cvar() {
+        let found = completions(
+            "seta r_debugSurface ",
+            "",
+            20,
+            [].into_iter(),
+            &UserLists::default(),
+        );
+
+        assert_eq!(found, ["0", "1", "2"]);
+    }
+
+    #[test]
+    fn a_cvar_completes_its_values_without_set() {
+        let found = completions(
+            "cg_drawFPS 1",
+            "1",
+            11,
+            [].into_iter(),
+            &UserLists::default(),
+        );
+
+        assert_eq!(found, ["1"]);
+    }
+
+    #[test]
+    fn map_commands_complete_map_names() {
+        let user = UserLists {
+            names: Vec::new(),
+            maps: vec!["aerowalk".to_string(), "zen".to_string()],
+        };
+
+        assert_eq!(
+            completions("map ", "", 4, [].into_iter(), &user),
+            ["aerowalk", "zen"]
+        );
+        assert_eq!(
+            completions("devmap Z", "Z", 7, [].into_iter(), &user),
+            ["zen"]
+        );
+        assert_eq!(
+            completions("callvote map a", "a", 13, [].into_iter(), &user),
+            ["aerowalk"]
+        );
+        assert!(completions("kick ", "", 5, [].into_iter(), &user).is_empty());
+    }
+
+    #[test]
+    fn the_default_of_a_cvar_without_value_hints_is_offered() {
+        assert_eq!(known_values("g_gravity"), ["800"]);
+        assert!(known_values("no_such_cvar").is_empty());
+    }
+
+    #[test]
     fn later_words_only_complete_from_the_history() {
-        let found = completions("kick bo", "bo", 5, ["kick bob"].into_iter(), &[]);
+        let found = completions(
+            "kick bo",
+            "bo",
+            5,
+            ["kick bob"].into_iter(),
+            &UserLists::default(),
+        );
 
         assert_eq!(found, ["bob"]);
     }
