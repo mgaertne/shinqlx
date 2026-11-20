@@ -14,14 +14,16 @@ use super::{
     create_cvar, create_cvar_limit, cvar_flag, cvar_float, cvar_int, register_command,
     register_hook,
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
-    tell,
     timed_entries::{
         Entry, active_entries, expiry_datetime, latest_entry, length_in_seconds, revoke_entries,
         store_entry,
     },
 };
 use crate::ffi::python::{
-    NonexistentPlayerError, Plugin, commands::CommandPriorities, delay, plugin::PluginMethods,
+    GameMethods, NonexistentPlayerError, Player, PlayerMethods, Plugin,
+    commands::CommandPriorities,
+    delay,
+    plugin::{PluginMethods, chat},
 };
 
 const LEAVER_BAN_CVAR: &str = "qlx_leaverBan";
@@ -36,7 +38,7 @@ enum LeaveAction {
 /// Bans players temporarily, also across server restarts, and optionally for leaving too many games.
 #[pyclass(name = "ban", module = "shinqlx", extends = Plugin, frozen)]
 pub(super) struct Ban {
-    players_start: Mutex<Vec<(i64, Py<PyAny>)>>,
+    players_start: Mutex<Vec<(i64, Py<Player>)>>,
     pending_warnings: Mutex<HashMap<i64, f64>>,
 }
 
@@ -50,10 +52,6 @@ fn bans_key(steam_id: i64) -> String {
 
 fn counter_key(steam_id: i64, counter: &str) -> String {
     format!("{}:{counter}", player_key(steam_id))
-}
-
-fn steam_id_of(player: &Bound<'_, PyAny>) -> PyResult<i64> {
-    player.getattr(intern!(player.py(), "steam_id"))?.extract()
 }
 
 fn ban_notice(banned: &Entry) -> String {
@@ -127,11 +125,11 @@ fn leave_status(
     ))
 }
 
-fn playing(py: Python<'_>) -> PyResult<Vec<Bound<'_, PyAny>>> {
+fn playing(py: Python<'_>) -> PyResult<Vec<Bound<'_, Player>>> {
     let teams = py.get_type::<Plugin>().call_method0(intern!(py, "teams"))?;
     ["red", "blue"]
         .into_iter()
-        .map(|team| teams.get_item(team)?.extract::<Vec<Bound<'_, PyAny>>>())
+        .map(|team| teams.get_item(team)?.extract::<Vec<Bound<'_, Player>>>())
         .try_fold(vec![], |mut players, team| {
             players.extend(team?);
             Ok(players)
@@ -139,14 +137,10 @@ fn playing(py: Python<'_>) -> PyResult<Vec<Bound<'_, PyAny>>> {
 }
 
 fn is_in_progress(plugin: &Bound<'_, Ban>) -> PyResult<bool> {
-    let game = plugin.getattr(intern!(plugin.py(), "game"))?;
-    if game.is_none() {
+    let Some(game) = plugin.as_super().get_game() else {
         return Ok(false);
-    }
-    Ok(game
-        .getattr(intern!(plugin.py(), "state"))?
-        .extract::<String>()?
-        == "in_progress")
+    };
+    Ok(Bound::new(plugin.py(), game)?.get_state()? == "in_progress")
 }
 
 #[pymethods]
@@ -184,22 +178,22 @@ impl Ban {
         )
     }
 
-    fn warn_player(_slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>, ratio: f64) -> PyResult<()> {
-        tell(
-            player,
+    fn warn_player(_slf: &Bound<'_, Self>, player: &Bound<'_, Player>, ratio: f64) -> PyResult<()> {
+        player.tell(
             &format!(
                 "^7You have only completed ^6{:.1}^7 percent of your games.",
                 ratio * 100.0
             ),
+            None,
         )?;
-        tell(player, "^7If you keep leaving you ^6will^7 be banned.")
+        player.tell("^7If you keep leaving you ^6will^7 be banned.", None)
     }
 
     fn handle_player_connect(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
     ) -> PyResult<Option<String>> {
-        let steam_id = steam_id_of(player)?;
+        let steam_id = player.get_steam_id();
         let database = slf.as_super().get_db()?;
         match leave_status(&database, steam_id)? {
             Some((Some(LeaveAction::Ban), _)) => {
@@ -216,7 +210,7 @@ impl Ban {
         Ok(latest_entry(&database, &bans_key(steam_id))?.map(|banned| ban_notice(&banned)))
     }
 
-    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
         delay(py, 4.0)?
             .call1((slf.getattr(intern!(py, "deliver_warning"))?,))?
@@ -224,14 +218,14 @@ impl Ban {
             .map(|_| ())
     }
 
-    fn deliver_warning(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn deliver_warning(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
-        let steam_id = steam_id_of(player)?;
+        let steam_id = player.get_steam_id();
         if !slf.get().pending_warnings.lock().contains_key(&steam_id) {
             return Ok(());
         }
 
-        match player.call_method0(intern!(py, "update")) {
+        match player.update() {
             Err(err) if err.is_instance_of::<NonexistentPlayerError>(py) => return Ok(()),
             result => result?,
         };
@@ -244,10 +238,10 @@ impl Ban {
 
     fn handle_player_disconnect(
         &self,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _reason: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        let steam_id = steam_id_of(player)?;
+        let steam_id = player.get_steam_id();
         if playing(player.py())?.len() % 2 != 0 {
             self.players_start.lock().retain(|(id, _)| *id != steam_id);
         }
@@ -257,9 +251,11 @@ impl Ban {
     fn handle_game_countdown(slf: &Bound<'_, Self>) -> PyResult<()> {
         let py = slf.py();
         if cvar_flag(py, LEAVER_BAN_CVAR)? {
-            py.get_type::<Plugin>().call_method1(
-                intern!(py, "msg"),
-                ("Leavers are being kept track of. Repeat offenders ^6will^7 be banned.",),
+            chat(
+                py,
+                "Leavers are being kept track of. Repeat offenders ^6will^7 be banned.",
+                100,
+                " ",
             )?;
         }
         Ok(())
@@ -276,7 +272,7 @@ impl Ban {
     fn remember_players(&self, py: Python<'_>) -> PyResult<()> {
         let players = playing(py)?
             .into_iter()
-            .map(|player| Ok((steam_id_of(&player)?, player.unbind())))
+            .map(|player| Ok((player.get_steam_id(), player.unbind())))
             .collect::<PyResult<Vec<_>>>()?;
         *self.players_start.lock() = players;
         Ok(())
@@ -296,8 +292,8 @@ impl Ban {
 
         let players_end = playing(py)?
             .iter()
-            .map(steam_id_of)
-            .collect::<PyResult<Vec<_>>>()?;
+            .map(PlayerMethods::get_steam_id)
+            .collect::<Vec<_>>();
         let (completed, leavers): (Vec<_>, Vec<_>) = slf
             .get()
             .players_start
@@ -326,29 +322,21 @@ impl Ban {
 
         let names = leavers
             .iter()
-            .map(|(_, player)| {
-                player
-                    .bind(py)
-                    .getattr(intern!(py, "clean_name"))?
-                    .extract::<String>()
-            })
-            .collect::<PyResult<Vec<_>>>()?;
-        py.get_type::<Plugin>().call_method1(
-            intern!(py, "msg"),
-            (format!("^7Leavers: ^6{}", names.join(" ")),),
-        )?;
+            .map(|(_, player)| player.bind(py).get_clean_name())
+            .collect::<Vec<_>>();
+        chat(py, &format!("^7Leavers: ^6{}", names.join(" ")), 100, " ")?;
         slf.get().players_start.lock().clear();
         Ok(())
     }
 
     fn handle_team_switch(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         old_team: &str,
         new_team: &str,
     ) -> PyResult<()> {
         let py = slf.py();
-        let steam_id = steam_id_of(player)?;
+        let steam_id = player.get_steam_id();
         let is_player_team = |team: &str| team == "red" || team == "blue";
 
         if is_player_team(old_team) && new_team == "spectator" && playing(py)?.len() % 2 == 0 {
@@ -378,7 +366,7 @@ impl Ban {
 
     fn cmd_ban(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -386,7 +374,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -416,7 +404,7 @@ impl Ban {
         let banned = store_entry(
             &database,
             &bans_key(steam_id),
-            &player.getattr(intern!(py, "steam_id"))?,
+            &player.get_steam_id().into_pyobject(py)?.into_any(),
             seconds,
             &msg[4..].join(" "),
         )?;
@@ -444,7 +432,7 @@ impl Ban {
 
     fn cmd_unban(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -452,7 +440,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -471,7 +459,7 @@ impl Ban {
 
     fn cmd_checkban(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -479,7 +467,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -510,7 +498,7 @@ impl Ban {
 
     fn cmd_forgive(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -518,7 +506,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -657,9 +645,12 @@ mod ban_tests {
         ffi::{
             c::prelude::CS_SERVERINFO,
             python::{
-                Plugin, PythonReturnCodes,
+                Player, PlayerMethods, Plugin, PythonReturnCodes,
                 native_plugins::{
-                    test_support::{FakeRedis, REDIS_2, REDIS_5, fixture_module},
+                    test_support::{
+                        FakeRedis, REDIS_2, REDIS_5, ServerCommands, fixture_module,
+                        real_player_with_id,
+                    },
                     timed_entries::{Entry, now},
                 },
                 plugin::PluginMethods,
@@ -672,8 +663,9 @@ mod ban_tests {
         prelude::*,
     };
 
-    const CALLER_ID: i64 = 76_561_198_000_000_001;
-    const TARGET_ID: i64 = 76_561_198_000_000_003;
+    const CALLER_ID: i64 = 1001;
+    const TARGET_ID: i64 = 1003;
+    const OTHER_ID: i64 = 1004;
     const FAR_FUTURE: f64 = 4_000_000_000.0;
     const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
     const LEAVER_CVARS: [(&str, &CStr); 4] = [
@@ -684,28 +676,7 @@ mod ban_tests {
     ];
 
     const FIXTURES: &CStr = c"
-class Player:
-    def __init__(self, client_id, steam_id, name):
-        self.id = client_id
-        self.steam_id = steam_id
-        self.name = name
-        self.clean_name = name[:-2]
-        self.told = []
-        self.gone = False
-
-    def tell(self, message):
-        self.told.append(message)
-
-    def update(self):
-        if self.gone:
-            raise shinqlx.NonexistentPlayerError(self.id)
-
-
-caller = Player(1, 76561198000000001, 'Caller^7')
-target = Player(3, 76561198000000003, 'Eve^7')
-other = Player(4, 76561198000000004, 'Mallory^7')
 team_members = {'red': [], 'blue': [], 'spectator': [], 'free': []}
-messages = []
 kicked = []
 kick_fails = []
 
@@ -721,10 +692,6 @@ def teams(cls, player_list=None):
     return team_members
 
 
-def msg(cls, text, chat_channel=None, **kwargs):
-    messages.append(text)
-
-
 def kick(cls, player, reason=''):
     if kick_fails:
         raise ValueError('Invalid player.')
@@ -733,7 +700,6 @@ def kick(cls, player, reason=''):
 
 player = classmethod(find_player)
 teams = classmethod(teams)
-msg = classmethod(msg)
 kick = classmethod(kick)
 ";
 
@@ -742,19 +708,13 @@ kick = classmethod(kick)
         module: Bound<'py, PyModule>,
         database: Bound<'py, PyAny>,
         channel: Bound<'py, PyAny>,
-        caller: Bound<'py, PyAny>,
-        target: Bound<'py, PyAny>,
-        other: Bound<'py, PyAny>,
+        caller: Bound<'py, Player>,
+        target: Bound<'py, Player>,
+        other: Bound<'py, Player>,
+        commands: ServerCommands,
     }
 
     impl Fixtures<'_> {
-        fn strings(&self, name: &str, attribute: &str) -> Vec<String> {
-            self.module
-                .getattr(name)
-                .and_then(|value| value.extract())
-                .unwrap_or_else(|_| panic!("could not get {name}.{attribute}"))
-        }
-
         fn replies(&self) -> Vec<String> {
             self.channel
                 .getattr("replies")
@@ -762,15 +722,8 @@ kick = classmethod(kick)
                 .expect("could not get the replies")
         }
 
-        fn messages(&self) -> Vec<String> {
-            self.strings("messages", "messages")
-        }
-
-        fn told(&self, player: &Bound<'_, PyAny>) -> Vec<String> {
-            player
-                .getattr("told")
-                .and_then(|told| told.extract())
-                .expect("could not get told messages")
+        fn printed(&self) -> Vec<String> {
+            self.commands.printed(self.plugin.py())
         }
 
         fn kicked(&self) -> Vec<(i64, String)> {
@@ -843,26 +796,18 @@ kick = classmethod(kick)
                 .expect("could not grant the permission");
         }
 
-        fn seat(&self, team: &str, players: &[&Bound<'_, PyAny>]) {
+        fn seat(&self, team: &str, players: &[&Bound<'_, Player>]) {
             self.module
                 .getattr("team_members")
                 .and_then(|members| members.set_item(team, players.to_vec()))
                 .expect("could not seat the players");
         }
 
-        fn start_with(&self, players: &[&Bound<'_, PyAny>]) {
+        fn start_with(&self, players: &[&Bound<'_, Player>]) {
             let mut start = self.plugin.get().players_start.lock();
             *start = players
                 .iter()
-                .map(|player| {
-                    (
-                        player
-                            .getattr("steam_id")
-                            .and_then(|id| id.extract())
-                            .expect("no steam id"),
-                        (*player).clone().unbind(),
-                    )
-                })
+                .map(|player| (player.get_steam_id(), (*player).clone().unbind()))
                 .collect();
         }
 
@@ -885,17 +830,31 @@ kick = classmethod(kick)
     ) where
         F: FnOnce(Fixtures<'_>),
     {
-        with_connected_players(engine, players, || {
+        let connected = [(1, "Caller^7"), (3, "Eve^7"), (4, "Mallory^7")]
+            .into_iter()
+            .chain(players.iter().copied())
+            .collect::<Vec<_>>();
+        with_connected_players(engine, &connected, || {
+            let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
                 let module = fixture_module(py, FIXTURES);
+                let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7");
+                let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7");
+                let other = real_player_with_id(py, 4, OTHER_ID, "Mallory^7");
+                for (name, player) in [("caller", &caller), ("target", &target), ("other", &other)]
+                {
+                    module
+                        .setattr(name, player)
+                        .expect("could not publish the player");
+                }
                 let plugin_class = py.get_type::<Plugin>();
                 let _restore_database =
                     RestoredAttribute::capture(plugin_class.as_any(), "database");
                 plugin_class
                     .setattr("database", module.getattr("Database").expect("no Database"))
                     .expect("could not set the database");
-                let _restored = ["player", "teams", "msg", "kick"].map(|name| {
+                let _restored = ["player", "teams", "kick"].map(|name| {
                     let restored = RestoredAttribute::capture(plugin_class.as_any(), name);
                     if name != "player" || players.is_empty() {
                         plugin_class
@@ -919,9 +878,10 @@ kick = classmethod(kick)
                     plugin,
                     database,
                     channel: get("Channel").call0().expect("no channel"),
-                    caller: get("caller"),
-                    target: get("target"),
-                    other: get("other"),
+                    caller,
+                    target,
+                    other,
+                    commands,
                     module: module.clone(),
                 });
             });
@@ -1541,7 +1501,7 @@ kick = classmethod(kick)
             assert_eq!(connected.ok(), Some(None));
             assert!(delivered.is_ok() && delivered_again.is_ok());
             assert_eq!(
-                fixtures.told(&fixtures.target),
+                fixtures.printed(),
                 [
                     "^7You have only completed ^675.0^7 percent of your games.",
                     "^7If you keep leaving you ^6will^7 be banned."
@@ -1558,7 +1518,7 @@ kick = classmethod(kick)
             let result = Ban::deliver_warning(&fixtures.plugin, &fixtures.target);
 
             assert!(result.is_ok());
-            assert!(fixtures.told(&fixtures.target).is_empty());
+            assert!(fixtures.printed().is_empty());
         });
     }
 
@@ -1573,15 +1533,18 @@ kick = classmethod(kick)
                 .pending_warnings
                 .lock()
                 .insert(TARGET_ID, 0.7);
+            let gone = real_player_with_id(fixtures.plugin.py(), 3, TARGET_ID + 1000, "Eve^7");
             fixtures
-                .target
-                .setattr("gone", true)
-                .expect("could not make the player leave");
+                .plugin
+                .get()
+                .pending_warnings
+                .lock()
+                .insert(TARGET_ID + 1000, 0.7);
 
-            let result = Ban::deliver_warning(&fixtures.plugin, &fixtures.target);
+            let result = Ban::deliver_warning(&fixtures.plugin, &gone);
 
             assert!(result.is_ok());
-            assert!(fixtures.told(&fixtures.target).is_empty());
+            assert!(fixtures.printed().is_empty());
         });
     }
 
@@ -1604,9 +1567,9 @@ kick = classmethod(kick)
             let result = Ban::handle_player_loaded(&fixtures.plugin, &fixtures.target);
 
             assert!(result.is_ok());
-            assert!(fixtures.told(&fixtures.target).is_empty());
+            assert!(fixtures.printed().is_empty());
             run_scheduled_task(py, before);
-            assert_eq!(fixtures.told(&fixtures.target).len(), 2);
+            assert_eq!(fixtures.printed().len(), 2);
         });
     }
 
@@ -1629,7 +1592,7 @@ kick = classmethod(kick)
             let result = Ban::handle_game_countdown(&fixtures.plugin);
 
             assert!(result.is_ok());
-            assert_eq!(fixtures.messages().len(), announcements);
+            assert_eq!(fixtures.printed().len(), announcements);
         });
     }
 
@@ -1690,13 +1653,10 @@ kick = classmethod(kick)
             assert!(result.is_ok());
             let stored = fixtures.strings_in_database();
             assert_eq!(stored[&counter_key(CALLER_ID, "games_completed")], "1");
-            assert_eq!(
-                stored[&counter_key(76_561_198_000_000_004, "games_completed")],
-                "1"
-            );
+            assert_eq!(stored[&counter_key(OTHER_ID, "games_completed")], "1");
             assert_eq!(stored[&counter_key(TARGET_ID, "games_left")], "1");
             assert_eq!(stored.len(), 3);
-            assert_eq!(fixtures.messages(), ["^7Leavers: ^6Eve"]);
+            assert_eq!(fixtures.printed(), ["^7Leavers: ^6Eve"]);
             assert!(fixtures.start_ids().is_empty());
         });
     }
@@ -1713,7 +1673,7 @@ kick = classmethod(kick)
             let result = Ban::handle_game_end(&fixtures.plugin, &data);
 
             assert!(result.is_ok());
-            assert!(fixtures.messages().is_empty());
+            assert!(fixtures.printed().is_empty());
             assert_eq!(fixtures.start_ids(), [CALLER_ID]);
         });
     }
@@ -1918,7 +1878,7 @@ kick = classmethod(kick)
 
             assert!(result.is_ok());
             assert_eq!(
-                fixtures.told(&fixtures.target),
+                fixtures.printed(),
                 [
                     "^7You have only completed ^666.7^7 percent of your games.",
                     "^7If you keep leaving you ^6will^7 be banned."

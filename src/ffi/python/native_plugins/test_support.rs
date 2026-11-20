@@ -211,6 +211,26 @@ pub(super) fn real_player<'py>(
     .expect("could not create the player")
 }
 
+/// A real player in the given client slot, without user info.
+pub(super) fn real_player_with_id<'py>(
+    py: Python<'py>,
+    id: i32,
+    steam_id: i64,
+    name: &str,
+) -> Bound<'py, Player> {
+    Bound::new(
+        py,
+        Player {
+            id,
+            steam_id,
+            name: name.to_owned().into(),
+            user_info: String::new(),
+            ..default_test_player()
+        },
+    )
+    .expect("could not create the player")
+}
+
 /// A channel with the given name.
 pub(super) fn named_channel<'py>(py: Python<'py>, name: &str) -> Bound<'py, AbstractChannel> {
     py.get_type::<AbstractChannel>()
@@ -242,6 +262,9 @@ impl ServerCommands {
             .returning(move |_client, command, _client_ok| {
                 recorded.lock().push(command.to_owned());
             });
+        let _ = Python::attach(run_all_frame_tasks);
+        sent.lock().clear();
+        executed.lock().clear();
         Self {
             sent,
             executed,
