@@ -2,8 +2,8 @@ use pyo3::{exceptions::PyKeyError, intern, prelude::*, types::PyTuple};
 
 use super::{create_cvar, register_command, register_hook};
 use crate::ffi::python::{
-    Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities, delay, get_cvar,
-    plugin::PluginMethods,
+    AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
+    delay, get_cvar, plugin::PluginMethods,
 };
 
 const MOTD_SET_KEY: &str = "minqlx:motd";
@@ -105,7 +105,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return Ok(Some(USAGE));
@@ -124,7 +124,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let database = slf.as_super().get_db()?;
@@ -143,7 +143,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let database = slf.as_super().get_db()?;
         match stored_motd(&database, &slf.get().motd_key)? {
@@ -157,7 +157,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let database = slf.as_super().get_db()?;
         let key = &slf.get().motd_key;
@@ -174,7 +174,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let database = slf.as_super().get_db()?;
@@ -194,7 +194,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let database = slf.as_super().get_db()?;
         let key = &slf.get().motd_key;
@@ -216,7 +216,7 @@ impl Motd {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let database = slf.as_super().get_db()?;
         let addition = joined_arguments(&msg);
@@ -306,7 +306,7 @@ mod motd_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                Player, Plugin,
+                AbstractChannel, Player, Plugin,
                 native_plugins::test_support::{ServerCommands, real_player},
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
@@ -322,7 +322,7 @@ mod motd_tests {
     struct Fixtures<'py> {
         plugin: Bound<'py, Motd>,
         player: Bound<'py, Player>,
-        channel: Bound<'py, PyAny>,
+        channel: Bound<'py, AbstractChannel>,
         database: Bound<'py, PyAny>,
         commands: ServerCommands,
     }
@@ -446,8 +446,12 @@ class Database:
         return self.flags.get(flag, default)
 
 
-class Channel:
-    pass
+import shinqlx
+
+
+class Channel(shinqlx.AbstractChannel):
+    def __init__(self):
+        super().__init__('fake')
 ",
                     c"",
                     c"",
@@ -481,7 +485,9 @@ class Channel:
                 test(Fixtures {
                     plugin,
                     player: real_player(py, 1234, "Ada^7", ""),
-                    channel: create("Channel"),
+                    channel: create("Channel")
+                        .cast_into::<AbstractChannel>()
+                        .expect("not a channel"),
                     database,
                     commands,
                 });

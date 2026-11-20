@@ -12,8 +12,8 @@ use super::{
     },
 };
 use crate::ffi::python::{
-    Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities, next_frame,
-    plugin::PluginMethods,
+    AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
+    next_frame, plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -143,7 +143,7 @@ impl Silence {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 4 {
             return usage();
@@ -200,7 +200,7 @@ impl Silence {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -233,7 +233,7 @@ impl Silence {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -319,7 +319,7 @@ mod silence_tests {
     use super::{STOP_ALL, Silence, Silenced, silences_key};
     use crate::{
         ffi::python::{
-            Player, Plugin, PythonReturnCodes,
+            AbstractChannel, Player, Plugin, PythonReturnCodes,
             native_plugins::{
                 test_support::{
                     FakeRedis, REDIS_2, REDIS_5, ServerCommands, fixture_module,
@@ -339,23 +339,12 @@ mod silence_tests {
     const FAR_FUTURE: f64 = 4_000_000_000.0;
     const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
 
-    const FIXTURES: &CStr = c"
-
-def find_player(cls, client_id, player_list=None):
-    if client_id == 3:
-        return target
-    if client_id == 1:
-        return caller
-    raise shinqlx.NonexistentPlayerError(client_id)
-
-
-player = classmethod(find_player)
-";
+    const FIXTURES: &CStr = c"";
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Silence>,
         database: Bound<'py, PyAny>,
-        channel: Bound<'py, PyAny>,
+        channel: Bound<'py, AbstractChannel>,
         caller: Bound<'py, Player>,
         target: Bound<'py, Player>,
         commands: ServerCommands,
@@ -468,12 +457,6 @@ player = classmethod(find_player)
                 plugin_class
                     .setattr("database", module.getattr("Database").expect("no Database"))
                     .expect("could not set the database");
-                let _restore_player = RestoredAttribute::capture(plugin_class.as_any(), "player");
-                if players.is_empty() {
-                    plugin_class
-                        .setattr("player", module.getattr("player").expect("no player"))
-                        .expect("could not replace Plugin.player");
-                }
 
                 let plugin = Bound::new(
                     py,
@@ -487,7 +470,12 @@ player = classmethod(find_player)
                 test(Fixtures {
                     plugin,
                     database,
-                    channel: get("Channel").call0().expect("no channel"),
+                    channel: get("Channel")
+                        .call0()
+                        .and_then(|channel| {
+                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
+                        })
+                        .expect("no channel"),
                     caller,
                     target,
                     commands,

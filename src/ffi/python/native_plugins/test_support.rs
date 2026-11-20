@@ -172,7 +172,7 @@ class Database:
         self.strings[key] = str(value)
 
 
-class Channel:
+class Channel(shinqlx.AbstractChannel):
     def __init__(self):
         self.replies = []
 

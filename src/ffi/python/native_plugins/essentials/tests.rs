@@ -16,7 +16,8 @@ use crate::{
             CS_SERVERINFO, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, MockCurrentLevel, team_t,
         },
         python::{
-            CHAT_CHANNEL, Player, PlayerInfo, Plugin, PythonReturnCodes, TeamChatChannel,
+            AbstractChannel, CHAT_CHANNEL, Player, PlayerInfo, Plugin, PythonReturnCodes,
+            TeamChatChannel,
             native_plugins::test_support::{
                 FakeRedis, REDIS_5, ServerCommands, fixture_module, real_player,
                 real_player_with_id,
@@ -57,13 +58,6 @@ redirected = []
 owner_id = [76561198000000009]
 
 
-def player(cls, ident, player_list=None):
-    for candidate in online:
-        if ident in (candidate.id, candidate.steam_id):
-            return candidate
-    return None
-
-
 def fake_owner():
     return owner_id[0]
 
@@ -84,17 +78,13 @@ class Redirect:
     def __exit__(self, *args):
         redirected.append('left')
 
-
-player = classmethod(player)
 ";
-
-const PLUGIN_METHODS: [&str; 1] = ["player"];
 
 struct Fixtures<'py> {
     plugin: Bound<'py, Essentials>,
     module: Bound<'py, PyModule>,
     database: Bound<'py, PyAny>,
-    channel: Bound<'py, PyAny>,
+    channel: Bound<'py, AbstractChannel>,
     caller: Bound<'py, Player>,
     target: Bound<'py, Player>,
     commands: ServerCommands,
@@ -237,13 +227,6 @@ fn with_essentials_players<F>(
             plugin_class
                 .setattr("database", module.getattr("Database").expect("no Database"))
                 .expect("could not set the database");
-            let _restored = PLUGIN_METHODS.map(|name| {
-                let restored = RestoredAttribute::capture(plugin_class.as_any(), name);
-                plugin_class
-                    .setattr(name, module.getattr(name).expect("missing fixture"))
-                    .expect("could not replace the Plugin method");
-                restored
-            });
             let shinqlx = py.import("shinqlx").expect("no shinqlx");
             let _restored_functions = [
                 ("owner", "fake_owner"),
@@ -285,7 +268,10 @@ fn with_essentials_players<F>(
             test(Fixtures {
                 plugin,
                 database,
-                channel: get("Channel").call0().expect("no channel"),
+                channel: get("Channel")
+                    .call0()
+                    .and_then(|channel| channel.cast_into::<AbstractChannel>().map_err(Into::into))
+                    .expect("no channel"),
                 caller,
                 target,
                 commands,
@@ -1166,7 +1152,7 @@ type Handler = fn(
     &Bound<'_, Essentials>,
     &Bound<'_, Player>,
     Vec<String>,
-    &Bound<'_, PyAny>,
+    &Bound<'_, AbstractChannel>,
 ) -> PyResult<Option<i32>>;
 
 fn handler(name: &str) -> Handler {

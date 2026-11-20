@@ -4,7 +4,7 @@ use super::super::{
     target::{Resolution, Target, reply, resolve_text, stop_all, usage},
     tell,
 };
-use crate::ffi::python::Player;
+use crate::ffi::python::{AbstractChannel, Player};
 
 pub(super) enum Lookup<'py> {
     Found(Bound<'py, Player>),
@@ -13,7 +13,7 @@ pub(super) enum Lookup<'py> {
 
 pub(super) fn lookup_player<'py>(
     caller: &Bound<'py, Player>,
-    channel: &Bound<'py, PyAny>,
+    channel: &Bound<'py, AbstractChannel>,
     text: &str,
     invalid: &str,
     tell_caller: bool,
@@ -34,7 +34,7 @@ pub(super) fn lookup_player<'py>(
 pub(super) fn act_on_player<'py>(
     caller: &Bound<'py, Player>,
     msg: &[String],
-    channel: &Bound<'py, PyAny>,
+    channel: &Bound<'py, AbstractChannel>,
     action: impl FnOnce(&Bound<'py, Player>) -> PyResult<()>,
 ) -> PyResult<Option<i32>> {
     let Some(ident) = msg.get(1) else {

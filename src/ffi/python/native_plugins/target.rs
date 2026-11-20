@@ -1,9 +1,7 @@
 use pyo3::{intern, prelude::*};
 
 use super::without_trailing_color_reset;
-use crate::ffi::python::{
-    NonexistentPlayerError, Player, PlayerMethods, Plugin, PythonReturnCodes,
-};
+use crate::ffi::python::{AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes};
 
 pub(super) const INVALID_CLIENT_ID: &str =
     "Invalid client ID. Use either a client ID or a SteamID64.";
@@ -28,7 +26,7 @@ impl Target<'_> {
     }
 }
 
-pub(super) fn reply(channel: &Bound<'_, PyAny>, message: &str) -> PyResult<Option<i32>> {
+pub(super) fn reply(channel: &Bound<'_, AbstractChannel>, message: &str) -> PyResult<Option<i32>> {
     channel
         .call_method1(intern!(channel.py(), "reply"), (message,))
         .map(|_| None)
@@ -45,17 +43,13 @@ pub(super) fn usage() -> PyResult<Option<i32>> {
 
 pub(super) fn find_player<'py>(
     py: Python<'py>,
-    client_id: i64,
+    ident: i64,
 ) -> PyResult<Option<Bound<'py, Player>>> {
-    match py
-        .get_type::<Plugin>()
-        .call_method1(intern!(py, "player"), (client_id,))
-    {
-        Ok(player) if !player.is_none() => Ok(Some(player.cast_into::<Player>()?)),
-        Ok(_) => Ok(None),
-        Err(err) if err.is_instance_of::<NonexistentPlayerError>(py) => Ok(None),
-        Err(err) => Err(err),
-    }
+    Plugin::players(&py.get_type::<Plugin>())?
+        .into_iter()
+        .find(|player| i64::from(player.id) == ident || player.steam_id == ident)
+        .map(|player| Bound::new(py, player))
+        .transpose()
 }
 
 pub(super) fn resolve_target<'py>(py: Python<'py>, ident: i64) -> PyResult<Option<Target<'py>>> {

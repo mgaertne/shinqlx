@@ -19,7 +19,7 @@ use super::{
     timed_entries::{local_time, now},
 };
 use crate::ffi::python::{
-    Game, GameMethods, Player, PlayerMethods, Plugin, abort, allready, change_map,
+    AbstractChannel, Game, GameMethods, Player, PlayerMethods, Plugin, abort, allready, change_map,
     commands::CommandPriorities,
     delay, get_cvar, is_vote_active, lock, pause,
     plugin::{PluginMethods, chat},
@@ -142,7 +142,7 @@ impl Essentials {
 
     fn decide_vote(
         py: Python<'_>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
         pass_it: bool,
     ) -> PyResult<Option<i32>> {
         if !is_vote_active() {
@@ -316,7 +316,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let class = plugin_class(py);
@@ -364,7 +364,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let connected = connected_players(py)?;
@@ -394,7 +394,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let recent = slf
@@ -431,7 +431,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let earlier = slf
@@ -463,7 +463,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(key) = msg.get(1) else {
             return usage();
@@ -511,7 +511,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(ident) = msg.get(1) else {
             return usage();
@@ -582,7 +582,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let mut offset = i64::from(Local::now().offset().local_minus_utc()).div_euclid(3600);
 
@@ -614,7 +614,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let shinqlx = py.import(intern!(py, "shinqlx"))?;
@@ -637,7 +637,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -659,7 +659,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         shuffle(slf.py()).map(|_| None)
     }
@@ -668,7 +668,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         pause(slf.py()).map(|_| None)
     }
@@ -677,7 +677,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         unpause(slf.py()).map(|_| None)
     }
@@ -686,7 +686,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(ident) = msg.get(1) else {
             return usage();
@@ -712,7 +712,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(ident) = msg.get(1) else {
             return usage();
@@ -730,7 +730,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let database = slf.as_super().get_db()?;
         let enabled = sounds_enabled(&database, player)?;
@@ -758,7 +758,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::play_for_everybody(slf, player, &msg, Plugin::play_sound)
     }
@@ -767,7 +767,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::play_for_everybody(slf, player, &msg, Plugin::play_music)
     }
@@ -776,7 +776,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::stop_playing(slf, player, Plugin::stop_sound)
     }
@@ -785,7 +785,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::stop_playing(slf, player, Plugin::stop_music)
     }
@@ -794,7 +794,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let reason = msg.get(2..).unwrap_or_default().join(" ");
         act_on_player(player, &msg, channel, |target| target.kick(&reason))
@@ -804,7 +804,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.tempban())
     }
@@ -813,7 +813,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::decide_vote(slf.py(), channel, true)
     }
@@ -822,7 +822,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::decide_vote(slf.py(), channel, false)
     }
@@ -831,7 +831,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(limit) = msg.get(1) else {
             return usage();
@@ -849,7 +849,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let [_, first, second, ..] = msg.as_slice() else {
             return usage();
@@ -872,7 +872,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.put("red"))
     }
@@ -881,7 +881,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.put("blue"))
     }
@@ -890,7 +890,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.put("spectator"))
     }
@@ -899,7 +899,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.put("free"))
     }
@@ -908,7 +908,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.addmod())
     }
@@ -917,7 +917,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.addadmin())
     }
@@ -926,7 +926,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.demote())
     }
@@ -935,7 +935,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(ident) = msg.get(1) else {
             return usage();
@@ -951,7 +951,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         act_on_player(player, &msg, channel, |target| target.unmute())
     }
@@ -960,7 +960,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::change_lock(player, &msg, lock)
     }
@@ -969,7 +969,7 @@ impl Essentials {
         _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         Self::change_lock(player, &msg, unlock)
     }
@@ -978,7 +978,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         match game_state(slf.py())?.as_deref() {
             None => reply(channel, "There is no game running."),
@@ -994,7 +994,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         match game_state(slf.py())?.as_deref() {
             None => reply(channel, "There is no game running."),
@@ -1007,7 +1007,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(map_name) = msg.get(1) else {
             return usage();
@@ -1019,7 +1019,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(size) = msg.get(1) else {
             return usage();
@@ -1049,7 +1049,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         match &slf.get().mappool {

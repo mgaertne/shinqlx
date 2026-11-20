@@ -4,7 +4,9 @@ use super::{
     register_command,
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
 };
-use crate::ffi::python::{Player, PlayerMethods, Plugin, plugin::PluginMethods, pyshinqlx_owner};
+use crate::ffi::python::{
+    AbstractChannel, Player, PlayerMethods, Plugin, plugin::PluginMethods, pyshinqlx_owner,
+};
 
 /// Database agnostic way of getting and setting the permissions of players.
 #[pyclass(name = "permission", module = "shinqlx", extends = Plugin, frozen)]
@@ -16,7 +18,7 @@ impl Permission {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 3 {
             return usage();
@@ -56,7 +58,7 @@ impl Permission {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -93,7 +95,7 @@ impl Permission {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let steam_id = player.get_steam_id();
         if pyshinqlx_owner(slf.py())? == Some(steam_id) {
@@ -172,7 +174,7 @@ mod permission_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                Player, Plugin, PythonReturnCodes,
+                AbstractChannel, Player, Plugin, PythonReturnCodes,
                 native_plugins::test_support::ServerCommands,
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
@@ -191,7 +193,7 @@ mod permission_tests {
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Permission>,
-        channel: Bound<'py, PyAny>,
+        channel: Bound<'py, AbstractChannel>,
         database: Bound<'py, PyAny>,
         player: Bound<'py, Player>,
         commands: ServerCommands,
@@ -246,7 +248,10 @@ mod permission_tests {
                 let module = PyModule::from_code(
                     py,
                     c"
-class Channel:
+import shinqlx
+
+
+class Channel(shinqlx.AbstractChannel):
     def __init__(self):
         self.replies = []
 
@@ -292,6 +297,9 @@ class Database:
                     channel: module
                         .getattr("Channel")
                         .and_then(|channel| channel.call0())
+                        .and_then(|channel| {
+                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
+                        })
                         .expect("could not create channel"),
                     database,
                     player: Bound::new(

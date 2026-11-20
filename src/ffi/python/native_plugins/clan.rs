@@ -6,7 +6,7 @@ use super::{
 use crate::ffi::{
     c::prelude::{CS_PLAYERS, MAX_CLIENTS},
     python::{
-        Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
+        AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
         commands::CommandPriorities,
         get_configstring, parse_variables,
         plugin::{PluginMethods, chat},
@@ -81,7 +81,7 @@ impl Clan {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        _channel: &Bound<'_, PyAny>,
+        _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let index = u16::try_from(CS_PLAYERS)? + u16::try_from(player.get_id())?;
@@ -161,7 +161,7 @@ mod clan_tests {
         ffi::{
             c::prelude::CS_PLAYERS,
             python::{
-                Player, Plugin,
+                AbstractChannel, Player, Plugin,
                 native_plugins::test_support::{ServerCommands, real_player},
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
@@ -178,7 +178,7 @@ mod clan_tests {
     struct Fixtures<'py> {
         plugin: Bound<'py, Clan>,
         player: Bound<'py, Player>,
-        channel: Bound<'py, PyAny>,
+        channel: Bound<'py, AbstractChannel>,
         database: Bound<'py, PyAny>,
         commands: ServerCommands,
     }
@@ -260,7 +260,13 @@ class Database:
                 test(Fixtures {
                     plugin,
                     player: real_player(py, STEAM_ID, "Ada^7", ""),
-                    channel: py.None().into_bound(py),
+                    channel: py
+                        .get_type::<AbstractChannel>()
+                        .call1(("fake",))
+                        .and_then(|channel| {
+                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
+                        })
+                        .expect("no channel"),
                     database,
                     commands,
                 });

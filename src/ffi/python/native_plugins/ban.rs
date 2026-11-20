@@ -20,7 +20,7 @@ use super::{
     },
 };
 use crate::ffi::python::{
-    GameMethods, NonexistentPlayerError, Player, PlayerMethods, Plugin,
+    AbstractChannel, GameMethods, NonexistentPlayerError, Player, PlayerMethods, Plugin,
     commands::CommandPriorities,
     delay,
     plugin::{PluginMethods, chat},
@@ -368,7 +368,7 @@ impl Ban {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 4 {
             return usage();
@@ -434,7 +434,7 @@ impl Ban {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -461,7 +461,7 @@ impl Ban {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -500,7 +500,7 @@ impl Ban {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
@@ -645,7 +645,7 @@ mod ban_tests {
         ffi::{
             c::prelude::CS_SERVERINFO,
             python::{
-                Player, PlayerMethods, Plugin, PythonReturnCodes,
+                AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes,
                 native_plugins::{
                     test_support::{
                         FakeRedis, REDIS_2, REDIS_5, ServerCommands, fixture_module,
@@ -707,7 +707,7 @@ kick = classmethod(kick)
         plugin: Bound<'py, Ban>,
         module: Bound<'py, PyModule>,
         database: Bound<'py, PyAny>,
-        channel: Bound<'py, PyAny>,
+        channel: Bound<'py, AbstractChannel>,
         caller: Bound<'py, Player>,
         target: Bound<'py, Player>,
         other: Bound<'py, Player>,
@@ -877,7 +877,12 @@ kick = classmethod(kick)
                 test(Fixtures {
                     plugin,
                     database,
-                    channel: get("Channel").call0().expect("no channel"),
+                    channel: get("Channel")
+                        .call0()
+                        .and_then(|channel| {
+                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
+                        })
+                        .expect("no channel"),
                     caller,
                     target,
                     other,

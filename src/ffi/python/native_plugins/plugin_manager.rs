@@ -4,7 +4,7 @@ use super::{
     register_command,
     target::{reply, usage},
 };
-use crate::ffi::python::{Player, Plugin, next_frame, plugin::PluginMethods};
+use crate::ffi::python::{AbstractChannel, Player, Plugin, next_frame, plugin::PluginMethods};
 
 const MANAGER_PERMISSION: i32 = 5;
 
@@ -27,7 +27,7 @@ fn shinqlx_function<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyA
 /// Runs the action for the plugin and tells the channel about the outcome.
 fn report(
     slf: &Bound<'_, PluginManager>,
-    channel: &Bound<'_, PyAny>,
+    channel: &Bound<'_, AbstractChannel>,
     plugin: &str,
     (success, failure): (&str, &str),
     action: &str,
@@ -66,7 +66,7 @@ impl PluginManager {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(plugin) = msg.get(1) else {
             return usage();
@@ -78,7 +78,7 @@ impl PluginManager {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(plugin) = msg.get(1) else {
             return usage();
@@ -96,7 +96,7 @@ impl PluginManager {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let Some(plugin) = msg.get(1) else {
             return usage();
@@ -109,7 +109,7 @@ impl PluginManager {
     fn reload_in_next_frame(
         slf: &Bound<'_, Self>,
         plugin: &str,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<()> {
         report(
             slf,
@@ -125,14 +125,17 @@ impl PluginManager {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         next_frame(&slf.getattr(intern!(py, "load_all_in_next_frame"))?)?.call1((channel,))?;
         Ok(None)
     }
 
-    fn load_all_in_next_frame(slf: &Bound<'_, Self>, channel: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn load_all_in_next_frame(
+        slf: &Bound<'_, Self>,
+        channel: &Bound<'_, AbstractChannel>,
+    ) -> PyResult<()> {
         let py = slf.py();
         match shinqlx_function(py, "load_preset_plugins").and_then(|load| load.call0()) {
             Ok(_) => reply(
@@ -151,7 +154,7 @@ impl PluginManager {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         for plugin in other_plugins(slf)? {
@@ -179,14 +182,17 @@ impl PluginManager {
         slf: &Bound<'_, Self>,
         _player: &Bound<'_, Player>,
         _msg: Vec<String>,
-        channel: &Bound<'_, PyAny>,
+        channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         next_frame(&slf.getattr(intern!(py, "reload_all_in_next_frame"))?)?.call1((channel,))?;
         Ok(None)
     }
 
-    fn reload_all_in_next_frame(slf: &Bound<'_, Self>, channel: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn reload_all_in_next_frame(
+        slf: &Bound<'_, Self>,
+        channel: &Bound<'_, AbstractChannel>,
+    ) -> PyResult<()> {
         let py = slf.py();
         for plugin in other_plugins(slf)? {
             if let Err(err) =
@@ -246,7 +252,7 @@ mod plugin_manager_tests {
     use super::{PluginManager, create};
     use crate::{
         ffi::python::{
-            COMMANDS, EVENT_DISPATCHERS, Plugin, PythonReturnCodes,
+            AbstractChannel, COMMANDS, EVENT_DISPATCHERS, Plugin, PythonReturnCodes,
             commands::CommandInvoker,
             events::EventDispatcherManager,
             native_plugins::test_support::{fixture_module, real_player},
@@ -295,7 +301,7 @@ def uninstall():
     struct Fixtures<'py> {
         plugin: Bound<'py, PluginManager>,
         module: Bound<'py, PyModule>,
-        channel: Bound<'py, PyAny>,
+        channel: Bound<'py, AbstractChannel>,
         mark: usize,
     }
 
@@ -403,6 +409,7 @@ def uninstall():
                 channel: module
                     .getattr("Channel")
                     .and_then(|c| c.call0())
+                    .and_then(|channel| channel.cast_into::<AbstractChannel>().map_err(Into::into))
                     .expect("no channel"),
                 module: module.clone(),
             });
