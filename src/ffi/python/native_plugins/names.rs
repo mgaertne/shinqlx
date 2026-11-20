@@ -215,7 +215,7 @@ mod names_tests {
             plugin::PluginMethods,
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{
-                RestoredAttribute, engine_with_cvars, with_connected_players,
+                RestoredAttribute, engine_with_cvars, recording_channel, with_connected_players,
             },
         },
         prelude::*,
@@ -306,15 +306,6 @@ class Database:
 
     def __delitem__(self, key):
         del self.data[key]
-
-
-
-import shinqlx
-
-
-class Channel(shinqlx.AbstractChannel):
-    def __init__(self):
-        super().__init__('fake')
 ",
                     c"",
                     c"",
@@ -336,18 +327,10 @@ class Channel(shinqlx.AbstractChannel):
                     .as_super()
                     .get_db()
                     .expect("could not get the database");
-                let create = |name: &str| {
-                    module
-                        .getattr(name)
-                        .and_then(|class| class.call0())
-                        .expect("could not create the fixture")
-                };
                 test(Fixtures {
                     plugin,
                     player: real_player(py, STEAM_ID, "Ada^7", ""),
-                    channel: create("Channel")
-                        .cast_into::<AbstractChannel>()
-                        .expect("not a channel"),
+                    channel: recording_channel(py),
                     database,
                     commands,
                 });

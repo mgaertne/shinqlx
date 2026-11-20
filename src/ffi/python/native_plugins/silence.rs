@@ -322,14 +322,16 @@ mod silence_tests {
             AbstractChannel, Player, Plugin, PythonReturnCodes,
             native_plugins::{
                 test_support::{
-                    FakeRedis, REDIS_2, REDIS_5, ServerCommands, fixture_module,
+                    FakeRedis, REDIS_2, REDIS_5, ServerCommands, database_module,
                     real_player_with_id,
                 },
                 timed_entries::now,
             },
             plugin::PluginMethods,
             pyshinqlx_setup_fixture::pyshinqlx_setup,
-            pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
+            pyshinqlx_test_support::{
+                RestoredAttribute, recorded_replies, recording_channel, with_connected_players,
+            },
         },
         prelude::*,
     };
@@ -338,8 +340,6 @@ mod silence_tests {
     const TARGET_ID: i64 = 1003;
     const FAR_FUTURE: f64 = 4_000_000_000.0;
     const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
-
-    const FIXTURES: &CStr = c"";
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Silence>,
@@ -352,10 +352,7 @@ mod silence_tests {
 
     impl Fixtures<'_> {
         fn replies(&self) -> Vec<String> {
-            self.channel
-                .getattr("replies")
-                .and_then(|replies| replies.extract())
-                .expect("could not get the replies")
+            recorded_replies(&self.channel)
         }
 
         fn printed(&self) -> Vec<String> {
@@ -443,7 +440,7 @@ mod silence_tests {
             let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
-                let module = fixture_module(py, FIXTURES);
+                let module = database_module(py);
                 let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7", "");
                 let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7", "");
                 for (name, player) in [("caller", &caller), ("target", &target)] {
@@ -466,16 +463,10 @@ mod silence_tests {
                 )
                 .expect("could not create the plugin");
                 let database = plugin.as_super().get_db().expect("no database");
-                let get = |name: &str| module.getattr(name).expect("missing fixture");
                 test(Fixtures {
                     plugin,
                     database,
-                    channel: get("Channel")
-                        .call0()
-                        .and_then(|channel| {
-                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
-                        })
-                        .expect("no channel"),
+                    channel: recording_channel(py),
                     caller,
                     target,
                     commands,

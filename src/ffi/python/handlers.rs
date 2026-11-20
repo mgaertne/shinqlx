@@ -8716,7 +8716,11 @@ mod print_redirector_tests {
     use rstest::*;
 
     use super::PrintRedirector;
-    use crate::ffi::python::{prelude::ChatChannel, pyshinqlx_setup_fixture::*};
+    use crate::ffi::python::{
+        prelude::ChatChannel,
+        pyshinqlx_setup_fixture::*,
+        pyshinqlx_test_support::{recorded_replies, recording_channel},
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -8772,35 +8776,25 @@ mod print_redirector_tests {
             let sample_module = PyModule::from_code(
                 py,
                 cr#"
-from shinqlx import AbstractChannel, redirect_print
+from shinqlx import redirect_print
 
 
-captured_text = ""
-
-
-class CapturingChannel(AbstractChannel):
-    def __init__(self):
-        super().__init__("capturing")
-
-    def reply(self, msg):
-        global captured_text
-        captured_text += msg
-
-
-def test_function():
-    channel = CapturingChannel()
+def test_function(channel):
     with redirect_print(channel) as redirect:
         redirect.append("this should be printed\n")
         redirect.append("second line should be printed\n")
-
-    assert(captured_text == "this should be printed\nsecond line should be printed\n")
                 "#,
                 c"print_redirector_sample.py",
                 c"print_redirector_sample",
             )
             .expect("this should not happen");
-            let result = sample_module.call_method0(intern!(py, "test_function"));
+            let channel = recording_channel(py);
+            let result = sample_module.call_method1(intern!(py, "test_function"), (&channel,));
             assert!(result.as_ref().is_ok(), "{:?}", result.as_ref());
+            assert_eq!(
+                recorded_replies(&channel),
+                ["this should be printed\nsecond line should be printed\n"]
+            );
         });
     }
 }

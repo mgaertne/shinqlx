@@ -257,7 +257,9 @@ mod plugin_manager_tests {
             events::EventDispatcherManager,
             native_plugins::test_support::{fixture_module, real_player},
             pyshinqlx_setup_fixture::pyshinqlx_setup,
-            pyshinqlx_test_support::{RestoredAttribute, run_all_frame_tasks},
+            pyshinqlx_test_support::{
+                RestoredAttribute, recorded_replies, recording_channel, run_all_frame_tasks,
+            },
         },
         logging::capture,
         prelude::*,
@@ -327,10 +329,7 @@ def uninstall():
         }
 
         fn replies(&self) -> Vec<String> {
-            self.channel
-                .getattr("replies")
-                .and_then(|replies| replies.extract())
-                .expect("could not get the replies")
+            recorded_replies(&self.channel)
         }
 
         fn logged(&self) -> Vec<String> {
@@ -406,11 +405,7 @@ def uninstall():
             test(Fixtures {
                 mark: capture::mark(),
                 plugin,
-                channel: module
-                    .getattr("Channel")
-                    .and_then(|c| c.call0())
-                    .and_then(|channel| channel.cast_into::<AbstractChannel>().map_err(Into::into))
-                    .expect("no channel"),
+                channel: recording_channel(py),
                 module: module.clone(),
             });
             module

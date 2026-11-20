@@ -310,7 +310,9 @@ mod motd_tests {
                 native_plugins::test_support::{ServerCommands, real_player},
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
-                pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
+                pyshinqlx_test_support::{
+                    RestoredAttribute, recording_channel, with_connected_players,
+                },
             },
         },
         prelude::*,
@@ -444,14 +446,6 @@ class Database:
 
     def get_flag(self, player, flag, default=False):
         return self.flags.get(flag, default)
-
-
-import shinqlx
-
-
-class Channel(shinqlx.AbstractChannel):
-    def __init__(self):
-        super().__init__('fake')
 ",
                     c"",
                     c"",
@@ -476,18 +470,10 @@ class Channel(shinqlx.AbstractChannel):
                     .as_super()
                     .get_db()
                     .expect("could not get the database");
-                let create = |name: &str| {
-                    module
-                        .getattr(name)
-                        .and_then(|class| class.call0())
-                        .expect("could not create the fixture")
-                };
                 test(Fixtures {
                     plugin,
                     player: real_player(py, 1234, "Ada^7", ""),
-                    channel: create("Channel")
-                        .cast_into::<AbstractChannel>()
-                        .expect("not a channel"),
+                    channel: recording_channel(py),
                     database,
                     commands,
                 });

@@ -170,17 +170,9 @@ class Database:
 
     def __setitem__(self, key, value):
         self.strings[key] = str(value)
-
-
-class Channel(shinqlx.AbstractChannel):
-    def __init__(self):
-        self.replies = []
-
-    def reply(self, message):
-        self.replies.append(message)
 ";
 
-/// Builds a module with a fake `Database`, `Pipeline` and `Channel` and the given further fixtures.
+/// Builds a module with a fake `Database` and `Pipeline` and the given further fixtures.
 pub(super) fn fixture_module<'py>(py: Python<'py>, fixtures: &CStr) -> Bound<'py, PyModule> {
     let code = CString::new(format!(
         "{DATABASE_FIXTURES}\n{}",
@@ -188,6 +180,11 @@ pub(super) fn fixture_module<'py>(py: Python<'py>, fixtures: &CStr) -> Bound<'py
     ))
     .expect("the fixtures contain no NUL byte");
     PyModule::from_code(py, &code, c"", c"").expect("could not create the fixtures")
+}
+
+/// Builds a module with the fake `Database` and `Pipeline` only.
+pub(super) fn database_module(py: Python<'_>) -> Bound<'_, PyModule> {
+    fixture_module(py, c"")
 }
 
 /// A real player with the steam id, name and ip. An empty ip leaves the user info empty.

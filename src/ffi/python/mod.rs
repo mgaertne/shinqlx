@@ -2025,7 +2025,8 @@ pub(crate) mod pyshinqlx_test_support {
     use pyo3::{intern, prelude::*};
 
     use super::{
-        Command, Flight, Holdable, Player, PlayerInfo, PlayerState, Powerups, Vector3, Weapons,
+        AbstractChannel, Command, Flight, Holdable, Player, PlayerInfo, PlayerState, Powerups,
+        Vector3, Weapons,
     };
     use crate::{
         ffi::c::prelude::{
@@ -2135,6 +2136,41 @@ pub(crate) mod pyshinqlx_test_support {
 
         let mut engine = engine.with_max_clients(slots);
         engine.run(test);
+    }
+
+    const RECORDING_CHANNEL: &CStr = c"
+import shinqlx
+
+
+class RecordingChannel(shinqlx.AbstractChannel):
+    def __init__(self):
+        super().__init__('recording')
+        self.replies = []
+
+    def reply(self, msg, limit=100, delimiter=' '):
+        self.replies.append(msg)
+";
+
+    /// A channel that records what is replied to it, see [`recorded_replies`].
+    pub(crate) fn recording_channel(py: Python<'_>) -> Bound<'_, AbstractChannel> {
+        PyModule::from_code(
+            py,
+            RECORDING_CHANNEL,
+            c"recording_channel.py",
+            c"recording_channel",
+        )
+        .and_then(|module| module.getattr("RecordingChannel"))
+        .and_then(|class| class.call0())
+        .and_then(|channel| Ok(channel.cast_into::<AbstractChannel>()?))
+        .expect("could not create the recording channel")
+    }
+
+    /// The messages that were replied to a channel from [`recording_channel`].
+    pub(crate) fn recorded_replies(channel: &Bound<'_, AbstractChannel>) -> Vec<String> {
+        channel
+            .getattr("replies")
+            .and_then(|replies| replies.extract())
+            .expect("could not get the replies")
     }
 
     pub(crate) struct RestoredAttribute<'py> {

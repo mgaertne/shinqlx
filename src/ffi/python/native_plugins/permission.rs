@@ -179,7 +179,8 @@ mod permission_tests {
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
                 pyshinqlx_test_support::{
-                    RestoredAttribute, default_test_player, with_connected_players,
+                    RestoredAttribute, default_test_player, recorded_replies, recording_channel,
+                    with_connected_players,
                 },
             },
         },
@@ -201,10 +202,7 @@ mod permission_tests {
 
     impl Fixtures<'_> {
         fn replies(&self) -> Vec<String> {
-            self.channel
-                .getattr("replies")
-                .and_then(|replies| replies.extract())
-                .expect("could not get replies")
+            recorded_replies(&self.channel)
         }
 
         fn calls(&self) -> Vec<(i64, i32)> {
@@ -248,17 +246,6 @@ mod permission_tests {
                 let module = PyModule::from_code(
                     py,
                     c"
-import shinqlx
-
-
-class Channel(shinqlx.AbstractChannel):
-    def __init__(self):
-        self.replies = []
-
-    def reply(self, message):
-        self.replies.append(message)
-
-
 class Database:
     def __init__(self, plugin):
         self.permissions = {}
@@ -294,13 +281,7 @@ class Database:
                 let database = plugin.as_super().get_db().expect("could not get database");
                 test(Fixtures {
                     plugin,
-                    channel: module
-                        .getattr("Channel")
-                        .and_then(|channel| channel.call0())
-                        .and_then(|channel| {
-                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
-                        })
-                        .expect("could not create channel"),
+                    channel: recording_channel(py),
                     database,
                     player: Bound::new(
                         py,

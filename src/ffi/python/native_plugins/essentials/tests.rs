@@ -19,14 +19,15 @@ use crate::{
             AbstractChannel, CHAT_CHANNEL, Player, PlayerInfo, Plugin, PythonReturnCodes,
             TeamChatChannel,
             native_plugins::test_support::{
-                FakeRedis, REDIS_5, ServerCommands, fixture_module, real_player,
+                FakeRedis, REDIS_5, ServerCommands, database_module, real_player,
                 real_player_with_id,
             },
             plugin::PluginMethods,
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{
                 RECORDED_VOTE_STATES, RestoredAttribute, default_test_player_info,
-                engine_with_cvars, with_connected_teamed_players,
+                engine_with_cvars, recorded_replies, recording_channel,
+                with_connected_teamed_players,
             },
         },
     },
@@ -37,8 +38,6 @@ const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
 const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
 const CALLER_ID: i64 = 1001;
 const TARGET_ID: i64 = 1003;
-
-const FIXTURES: &CStr = c"";
 
 struct Fixtures<'py> {
     plugin: Bound<'py, Essentials>,
@@ -51,10 +50,7 @@ struct Fixtures<'py> {
 
 impl Fixtures<'_> {
     fn replies(&self) -> Vec<String> {
-        self.channel
-            .getattr("replies")
-            .and_then(|replies| replies.extract())
-            .expect("could not get the replies")
+        recorded_replies(&self.channel)
     }
 
     fn told(&self, _player: &Bound<'_, Player>) -> Vec<String> {
@@ -173,7 +169,7 @@ fn with_essentials_players<F>(
         let commands = ServerCommands::capture();
         Python::attach(|py| {
             let _fake_redis = FakeRedis::install(py, REDIS_5);
-            let module = fixture_module(py, FIXTURES);
+            let module = database_module(py);
             let plugin_class = py.get_type::<Plugin>();
             let _restore_database = RestoredAttribute::capture(plugin_class.as_any(), "database");
             plugin_class
@@ -192,7 +188,6 @@ fn with_essentials_players<F>(
             )
             .expect("could not create the plugin");
             let database = plugin.as_super().get_db().expect("no database");
-            let get = |name: &str| module.getattr(name).expect("missing fixture");
             let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7", "1.1.1.1");
             let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7", "");
             for (player, team) in [(&caller, team_t::TEAM_RED), (&target, team_t::TEAM_BLUE)] {
@@ -204,10 +199,7 @@ fn with_essentials_players<F>(
             test(Fixtures {
                 plugin,
                 database,
-                channel: get("Channel")
-                    .call0()
-                    .and_then(|channel| channel.cast_into::<AbstractChannel>().map_err(Into::into))
-                    .expect("no channel"),
+                channel: recording_channel(py),
                 caller,
                 target,
                 commands,

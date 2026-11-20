@@ -1062,6 +1062,7 @@ mod decorators_tests {
                     TeamSwitchAttemptDispatcher,
                 },
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::recording_channel,
             },
         },
         prelude::*,
@@ -1252,6 +1253,9 @@ def handler(self, *args): pass
         locals
             .set_item("shinqlx", py.import("shinqlx").expect("no shinqlx"))
             .expect("could not set shinqlx");
+        locals
+            .set_item("channel", recording_channel(py))
+            .expect("could not set channel");
         let code = alloc::ffi::CString::new(checks).expect("this should not happen");
         py.run(&code, Some(&locals), Some(&locals))
             .expect("checks failed");
@@ -1457,11 +1461,7 @@ results = [
                 py,
                 &plugin,
                 &format!(
-                    "class Channel:\n    \
-                         def __init__(self): self.replies = []\n    \
-                         def reply(self, message): self.replies.append(message)\n\
-                     channel = Channel()\n\
-                     assert len(plugin.commands) == 1\n\
+                    "assert len(plugin.commands) == 1\n\
                      assert plugin.commands[0].handler(None, ['!foo'], channel) is None\n\
                      assert plugin.calls == {expected_calls}, plugin.calls\n\
                      assert channel.replies == {expected_replies}, channel.replies"
@@ -1502,18 +1502,10 @@ results = [
          self.calls.append('bar')";
 
     const GUARD_CHECKS: &str = r#"
-class Channel:
-    def __init__(self):
-        self.replies = []
-
-    def reply(self, message):
-        self.replies.append(message)
-
 hook = plugin.hooks[0][1]
 handlers = {command.name[0]: command.handler for command in plugin.commands}
 foo, bar = handlers["foo"], handlers["bar"]
 assert hook.__name__ == "on_team_switch_attempt"
-channel = Channel()
 "#;
 
     #[rstest]

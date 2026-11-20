@@ -165,7 +165,9 @@ mod clan_tests {
                 native_plugins::test_support::{ServerCommands, real_player},
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
-                pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
+                pyshinqlx_test_support::{
+                    RestoredAttribute, recording_channel, with_connected_players,
+                },
             },
         },
         hooks::mock_hooks::shinqlx_set_configstring_context,
@@ -260,13 +262,7 @@ class Database:
                 test(Fixtures {
                     plugin,
                     player: real_player(py, STEAM_ID, "Ada^7", ""),
-                    channel: py
-                        .get_type::<AbstractChannel>()
-                        .call1(("fake",))
-                        .and_then(|channel| {
-                            channel.cast_into::<AbstractChannel>().map_err(Into::into)
-                        })
-                        .expect("no channel"),
+                    channel: recording_channel(py),
                     database,
                     commands,
                 });
