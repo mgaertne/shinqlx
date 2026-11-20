@@ -15,13 +15,14 @@ use arzmq::{
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
-    sync::PyOnceLock,
-    types::PyString,
+    types::{IntoPyDict, PyCFunction, PyDict, PyString, PyTuple},
 };
 use serde_json::{Value, from_str};
 use tap::TapFallible;
 
-use super::{EVENT_DISPATCHERS, event_dispatcher, log_exception, prelude::*};
+use super::{
+    EVENT_DISPATCHERS, defer_next_frame, event_dispatcher, is_false, log_exception, prelude::*,
+};
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
@@ -29,29 +30,16 @@ fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, 
         .and_then(|json_module| json_module.call_method1(intern!(py, "loads"), (json_str,)))
 }
 
-static THREAD_SAFE_DISPATCH: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-static THREAD_SAFE_TEAM_SWITCH_DISPATCH: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
-
-fn dispatch_thread_safe(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    THREAD_SAFE_DISPATCH
-        .get_or_try_init(py, || {
-            PyModule::from_code(
-                py,
-                cr#"
-import shinqlx
-
-
-@shinqlx.next_frame
-def thread_safe_dispatch(dispatcher, *args):
-    dispatcher.dispatch(*args)
-    "#,
-                c"",
-                c"",
-            )
-            .and_then(|module| module.getattr(intern!(py, "thread_safe_dispatch")))
-            .map(Bound::unbind)
-        })
-        .map(|thread_safe_dispatch| thread_safe_dispatch.bind(py).to_owned())
+/// Dispatches the event in the next frame, because the stats are received in another thread.
+fn dispatch_next_frame<'py, A>(dispatcher: &Bound<'py, PyAny>, args: A) -> PyResult<()>
+where
+    A: IntoPyObject<'py, Output = Bound<'py, PyTuple>>,
+    PyErr: From<A::Error>,
+{
+    defer_next_frame(
+        &dispatcher.getattr(intern!(dispatcher.py(), "dispatch"))?,
+        args,
+    )
 }
 
 /// Whether the dispatcher for the event exists and nobody is listening to it.
@@ -80,11 +68,7 @@ fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
             return Ok(());
         }
 
-        let json_data = to_py_json_data(py, stats)?;
-        dispatch_thread_safe(py).and_then(|thread_safe_dispatcher| {
-            thread_safe_dispatcher.call1((stats_dispatcher, json_data))
-        })?;
-        Ok(())
+        dispatch_next_frame(&stats_dispatcher, (to_py_json_data(py, stats)?,))
     })
 }
 
@@ -95,13 +79,8 @@ fn dispatch_json_event(
     stats: &str,
 ) -> PyResult<()> {
     let json_data = to_py_json_data(py, stats)?;
-    event_dispatcher(py, event, error_msg).and_then(|dispatcher| {
-        dispatch_thread_safe(py)
-            .and_then(|thread_safe_dispatcher| {
-                thread_safe_dispatcher.call1((dispatcher, json_data))
-            })
-            .map(|_| ())
-    })
+    event_dispatcher(py, event, error_msg)
+        .and_then(|dispatcher| dispatch_next_frame(&dispatcher, (json_data,)))
 }
 
 fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
@@ -212,20 +191,20 @@ fn dispatch_player_death_events(
     };
 
     let json_data = to_py_json_data(py, stats)?;
-    let thread_safe_dispatcher = dispatch_thread_safe(py)?;
     event_dispatcher(
         py,
         intern!(py, "death"),
         "could not get access to death dispatcher",
     )
     .and_then(|death_dispatcher| {
-        thread_safe_dispatcher.call1((
-            death_dispatcher,
-            victim.to_owned(),
-            opt_killer.to_owned(),
-            json_data.to_owned(),
-        ))?;
-        Ok(())
+        dispatch_next_frame(
+            &death_dispatcher,
+            (
+                victim.to_owned(),
+                opt_killer.to_owned(),
+                json_data.to_owned(),
+            ),
+        )
     })?;
 
     if opt_killer.is_some() {
@@ -235,8 +214,7 @@ fn dispatch_player_death_events(
             "could not get access to kill dispatcher",
         )
         .and_then(|kill_dispatcher| {
-            thread_safe_dispatcher.call1((kill_dispatcher, victim, opt_killer, json_data))?;
-            Ok(())
+            dispatch_next_frame(&kill_dispatcher, (victim, opt_killer, json_data))
         })?;
     }
 
@@ -286,44 +264,31 @@ fn dispatch_team_switch_event(
         return Ok(());
     };
 
-    let thread_safe_team_switch_dispatcher = THREAD_SAFE_TEAM_SWITCH_DISPATCH
-        .get_or_try_init(py, || {
-            PyModule::from_code(
-                py,
-                cr#"
-import shinqlx
-
-
-@shinqlx.next_frame
-def thread_safe_team_switch_dispatch(dispatcher, player, old_team, new_team):
-    res = dispatcher.dispatch(player, old_team, new_team)
-    if res is False:
-        player.put(old_team)
-        "#,
-                c"",
-                c"",
-            )
-            .and_then(|module| module.getattr(intern!(py, "thread_safe_team_switch_dispatch")))
-            .map(Bound::unbind)
-        })?
-        .bind(py);
-
-    event_dispatcher(
+    let team_switch_dispatcher = event_dispatcher(
         py,
         intern!(py, "team_switch"),
         "could not get access to team_switch dispatcher",
-    )
-    .and_then(|team_switch_dispatcher| {
-        thread_safe_team_switch_dispatcher.call1((
-            team_switch_dispatcher,
-            player,
-            old_team,
-            new_team,
-        ))?;
-        Ok(())
-    })?;
-
-    Ok(())
+    )?
+    .unbind();
+    let player = Bound::new(py, player)?.unbind();
+    let (old_team, new_team) = (old_team.to_owned(), new_team.to_owned());
+    let dispatch_and_revert = PyCFunction::new_closure(
+        py,
+        Some(c"team_switch_dispatch"),
+        None,
+        move |arguments: &Bound<'_, PyTuple>, _keywords: Option<&Bound<'_, PyDict>>| {
+            let py = arguments.py();
+            let player = player.bind(py);
+            let result = team_switch_dispatcher
+                .bind(py)
+                .call_method1(intern!(py, "dispatch"), (player, &old_team, &new_team))?;
+            if is_false(&result) {
+                player.put(&old_team)?;
+            }
+            Ok::<(), PyErr>(())
+        },
+    )?;
+    defer_next_frame(dispatch_and_revert.as_any(), ())
 }
 
 static IN_PROGRESS: LazyLock<AtomicBool> = LazyLock::new(AtomicBool::default);
@@ -436,18 +401,14 @@ impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
     }
 
     fn keep_receiving(&self) -> PyResult<()> {
-        PyModule::from_code(
-            self.py(),
-            cr#"
-import threading
-
-def run_zmq_thread(poller):
-    threading.Thread(target=poller._poll_zmq).start()
-"#,
-            c"",
-            c"",
-        )?
-        .call_method1(intern!(self.py(), "run_zmq_thread"), (self,))?;
+        let py = self.py();
+        py.import(intern!(py, "threading"))?
+            .getattr(intern!(py, "Thread"))?
+            .call(
+                (),
+                Some(&[("target", self.getattr(intern!(py, "_poll_zmq"))?)].into_py_dict(py)?),
+            )?
+            .call_method0(intern!(py, "start"))?;
 
         Ok(())
     }
