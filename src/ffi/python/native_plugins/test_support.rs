@@ -12,7 +12,8 @@ use crate::{
         },
     },
     hooks::mock_hooks::{
-        shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
+        shinqlx_drop_client_context, shinqlx_execute_client_command_context,
+        shinqlx_send_server_command_context,
     },
 };
 
@@ -219,6 +220,7 @@ pub(super) fn real_player_with_id<'py>(
     id: i32,
     steam_id: i64,
     name: &str,
+    ip: &str,
 ) -> Bound<'py, Player> {
     Bound::new(
         py,
@@ -226,7 +228,11 @@ pub(super) fn real_player_with_id<'py>(
             id,
             steam_id,
             name: name.to_owned().into(),
-            user_info: String::new(),
+            user_info: if ip.is_empty() {
+                String::new()
+            } else {
+                format!(r"\ip\{ip}")
+            },
             ..default_test_player()
         },
     )
@@ -245,6 +251,7 @@ pub(super) fn named_channel<'py>(py: Python<'py>, name: &str) -> Bound<'py, Abst
 pub(super) struct ServerCommands {
     sent: Arc<Mutex<Vec<String>>>,
     executed: Arc<Mutex<Vec<String>>>,
+    dropped: Arc<Mutex<Vec<String>>>,
     _contexts: Vec<Box<dyn Any>>,
 }
 
@@ -264,14 +271,30 @@ impl ServerCommands {
             .returning(move |_client, command, _client_ok| {
                 recorded.lock().push(command.to_owned());
             });
+        let dropped = Arc::new(Mutex::new(Vec::new()));
+        let recorded = dropped.clone();
+        let drop_context = shinqlx_drop_client_context();
+        drop_context.expect().returning(move |_client, reason| {
+            recorded.lock().push(reason.to_owned());
+        });
         Python::attach(drop_pending_frame_tasks);
         sent.lock().clear();
         executed.lock().clear();
         Self {
             sent,
             executed,
-            _contexts: vec![Box::new(context), Box::new(execute_context)],
+            dropped,
+            _contexts: vec![
+                Box::new(context),
+                Box::new(execute_context),
+                Box::new(drop_context),
+            ],
         }
+    }
+
+    /// The reasons of the clients that were dropped from the server.
+    pub(super) fn dropped(&self) -> Vec<String> {
+        self.dropped.lock().clone()
     }
 
     /// All server commands the engine was told to send, in order.

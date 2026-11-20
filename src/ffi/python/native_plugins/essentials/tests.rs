@@ -11,11 +11,13 @@ use super::{
 };
 use crate::{
     ffi::python::{
-        Plugin, PythonReturnCodes,
-        native_plugins::test_support::{FakeRedis, REDIS_5, fixture_module, real_player},
+        Player, Plugin, PythonReturnCodes,
+        native_plugins::test_support::{
+            FakeRedis, REDIS_5, ServerCommands, fixture_module, real_player, real_player_with_id,
+        },
         plugin::PluginMethods,
         pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::{RestoredAttribute, engine_with_cvars},
+        pyshinqlx_test_support::{RestoredAttribute, engine_with_cvars, with_connected_players},
     },
     prelude::*,
 };
@@ -29,53 +31,22 @@ const FIXTURES: &CStr = c"
 import shinqlx
 
 
-class Player:
-    def __init__(self, client_id, steam_id, name, ip):
-        self.id = client_id
-        self.steam_id = steam_id
-        self.name = name
-        self.clean_name = name[:-2]
-        self.ip = ip
-        self.told = []
-
-    def tell(self, message):
-        self.told.append(message)
-
-    def kick(self, reason=''):
-        actions.append(('kick', self.id, reason))
-
-    def tempban(self):
-        actions.append(('tempban', self.id))
-
-    def put(self, team):
-        actions.append(('put', self.id, team))
-
-    def addmod(self):
-        actions.append(('addmod', self.id))
-
-    def addadmin(self):
-        actions.append(('addadmin', self.id))
-
-    def demote(self):
-        actions.append(('demote', self.id))
-
-    def mute(self):
-        actions.append(('mute', self.id))
-
-    def unmute(self):
-        actions.append(('unmute', self.id))
-
-    def __str__(self):
-        return self.name
-
-
 actions = []
 
 
-caller = Player(1, 76561198000000001, 'Caller^7', '1.1.1.1')
-target = Player(3, 76561198000000003, 'Eve^7', '')
-online = [caller, target]
-team_members = {'red': [caller], 'blue': [target], 'free': [], 'spectator': []}
+caller = None
+target = None
+online = []
+team_members = {'red': [], 'blue': [], 'free': [], 'spectator': []}
+
+
+def seat(new_caller, new_target):
+    global caller, target
+    caller = new_caller
+    target = new_target
+    online[:] = [caller, target]
+    team_members['red'] = [caller]
+    team_members['blue'] = [target]
 vote = {'active': False, 'counts': None}
 forced = []
 console = []
@@ -96,13 +67,11 @@ game = property(lambda self: game_holder[0])
 
 def recorder(name, result=None):
     def record(cls, *args):
-        actions.append((name,) + tuple(a.id if isinstance(a, Player) else a for a in args))
+        actions.append((name,) + tuple(a.id if hasattr(a, 'id') else a for a in args))
         return result
     return record
 
 
-slap = recorder('slap')
-slay = recorder('slay')
 stop_sound = recorder('stop_sound')
 stop_music = recorder('stop_music')
 switch = recorder('switch')
@@ -175,13 +144,13 @@ class Redirect:
 
 
 for _name in ('players', 'find_player', 'player', 'teams', 'is_vote_active',
-              'current_vote_count', 'force_vote', 'slap', 'slay',
+              'current_vote_count', 'force_vote',
               'stop_sound', 'stop_music', 'switch', 'lock', 'unlock',
               'msg', 'play_sound', 'play_music'):
     globals()[_name] = classmethod(globals()[_name])
 ";
 
-const PLUGIN_METHODS: [&str; 17] = [
+const PLUGIN_METHODS: [&str; 15] = [
     "players",
     "find_player",
     "player",
@@ -189,8 +158,6 @@ const PLUGIN_METHODS: [&str; 17] = [
     "is_vote_active",
     "current_vote_count",
     "force_vote",
-    "slap",
-    "slay",
     "stop_sound",
     "stop_music",
     "switch",
@@ -206,8 +173,9 @@ struct Fixtures<'py> {
     module: Bound<'py, PyModule>,
     database: Bound<'py, PyAny>,
     channel: Bound<'py, PyAny>,
-    caller: Bound<'py, PyAny>,
-    target: Bound<'py, PyAny>,
+    caller: Bound<'py, Player>,
+    target: Bound<'py, Player>,
+    commands: ServerCommands,
 }
 
 impl Fixtures<'_> {
@@ -218,11 +186,8 @@ impl Fixtures<'_> {
             .expect("could not get the replies")
     }
 
-    fn told(&self, player: &Bound<'_, PyAny>) -> Vec<String> {
-        player
-            .getattr("told")
-            .and_then(|told| told.extract())
-            .expect("could not get told messages")
+    fn told(&self, _player: &Bound<'_, Player>) -> Vec<String> {
+        self.commands.printed(self.plugin.py())
     }
 
     fn strings(&self, name: &str) -> Vec<String> {
@@ -292,11 +257,12 @@ where
     with_essentials_engine(engine_with_cvars(cvars), mappool, test);
 }
 
-fn with_essentials_engine<F>(mut engine: MockEngineBuilder, mappool: Option<&str>, test: F)
+fn with_essentials_engine<F>(engine: MockEngineBuilder, mappool: Option<&str>, test: F)
 where
     F: FnOnce(Fixtures<'_>),
 {
-    engine.run(|| {
+    with_connected_players(engine, &[(1, "Caller^7"), (3, "Eve^7")], || {
+        let commands = ServerCommands::capture();
         Python::attach(|py| {
             let _fake_redis = FakeRedis::install(py, REDIS_5);
             let module = fixture_module(py, FIXTURES);
@@ -343,12 +309,18 @@ where
             .expect("could not create the plugin");
             let database = plugin.as_super().get_db().expect("no database");
             let get = |name: &str| module.getattr(name).expect("missing fixture");
+            let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7", "1.1.1.1");
+            let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7", "");
+            get("seat")
+                .call1((&caller, &target))
+                .expect("could not seat the players");
             test(Fixtures {
                 plugin,
                 database,
                 channel: get("Channel").call0().expect("no channel"),
-                caller: get("caller"),
-                target: get("target"),
+                caller,
+                target,
+                commands,
                 module: module.clone(),
             });
         });
@@ -671,13 +643,8 @@ fn the_latest_commands_are_recorded_and_listed_without_the_current_one(_pyshinql
         let py = fixtures.plugin.py();
         let command = py.None();
         for args in ["first", "second", "listing"] {
-            Essentials::handle_command(
-                &fixtures.plugin,
-                &fixtures.caller,
-                command.bind(py),
-                &pyo3::types::PyString::new(py, args),
-            )
-            .expect("could not record the command");
+            Essentials::handle_command(&fixtures.plugin, &fixtures.caller, command.bind(py), args)
+                .expect("could not record the command");
         }
 
         let result = Essentials::cmd_commands(
@@ -707,13 +674,8 @@ fn only_eleven_commands_are_recorded(_pyshinqlx_setup: ()) {
         let py = fixtures.plugin.py();
         let command = py.None();
         for _ in 0..15 {
-            Essentials::handle_command(
-                &fixtures.plugin,
-                &fixtures.caller,
-                command.bind(py),
-                &pyo3::types::PyString::new(py, "x"),
-            )
-            .expect("could not record the command");
+            Essentials::handle_command(&fixtures.plugin, &fixtures.caller, command.bind(py), "x")
+                .expect("could not record the command");
         }
 
         assert_eq!(fixtures.plugin.get().recent_commands.lock().len(), 11);
@@ -1273,7 +1235,7 @@ const NO_VOTEPASS_UNENFORCED: [(&str, &CStr); 6] = [
 
 type Handler = fn(
     &Bound<'_, Essentials>,
-    &Bound<'_, PyAny>,
+    &Bound<'_, Player>,
     Vec<String>,
     &Bound<'_, PyAny>,
 ) -> PyResult<Option<i32>>;
@@ -1304,7 +1266,7 @@ fn handler(name: &str) -> Handler {
 }
 
 impl Fixtures<'_> {
-    fn run(&self, name: &str, caller: &Bound<'_, PyAny>, words: &[&str]) -> Option<Option<i32>> {
+    fn run(&self, name: &str, caller: &Bound<'_, Player>, words: &[&str]) -> Option<Option<i32>> {
         handler(name)(&self.plugin, caller, msg(words), &self.channel).ok()
     }
 
@@ -1329,31 +1291,47 @@ impl Fixtures<'_> {
 }
 
 #[rstest]
-#[case("kick", &["kick", "3", "bad", "manners"], "[('kick', 3, 'bad manners')]")]
-#[case("kick", &["kick", "3"], "[('kick', 3, '')]")]
-#[case("kickban", &["kickban", "3"], "[('tempban', 3)]")]
-#[case("red", &["red", "3"], "[('put', 3, 'red')]")]
-#[case("blue", &["blue", "3"], "[('put', 3, 'blue')]")]
-#[case("spectate", &["spec", "3"], "[('put', 3, 'spectator')]")]
-#[case("free", &["free", "3"], "[('put', 3, 'free')]")]
-#[case("addmod", &["addmod", "3"], "[('addmod', 3)]")]
-#[case("addadmin", &["addadmin", "3"], "[('addadmin', 3)]")]
-#[case("demote", &["demote", "3"], "[('demote', 3)]")]
-#[case("mute", &["mute", "3"], "[('mute', 3)]")]
-#[case("unmute", &["unmute", "3"], "[('unmute', 3)]")]
+#[case("kick", &["kick", "3", "bad", "manners"], None, Some("bad manners"))]
+#[case("kick", &["kick", "3"], None, Some(""))]
+#[case("kickban", &["kickban", "3"], Some("tempban 3"), None)]
+#[case("red", &["red", "3"], Some("put 3 red"), None)]
+#[case("blue", &["blue", "3"], Some("put 3 blue"), None)]
+#[case("spectate", &["spec", "3"], Some("put 3 spectator"), None)]
+#[case("free", &["free", "3"], Some("put 3 free"), None)]
+#[case("addmod", &["addmod", "3"], Some("addmod 3"), None)]
+#[case("addadmin", &["addadmin", "3"], Some("addadmin 3"), None)]
+#[case("demote", &["demote", "3"], Some("demote 3"), None)]
+#[case("mute", &["mute", "3"], Some("mute 3"), None)]
+#[case("unmute", &["unmute", "3"], Some("unmute 3"), None)]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn player_commands_act_on_the_resolved_player(
     _pyshinqlx_setup: (),
     #[case] command: &str,
     #[case] words: &[&str],
-    #[case] expected: &str,
+    #[case] console_command: Option<&'static str>,
+    #[case] dropped_for: Option<&str>,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = console_command.map_or_else(
+        || engine_with_cvars(&NO_VOTEPASS),
+        |expected| engine_with_cvars(&NO_VOTEPASS).with_execute_console_command(expected, 1),
+    );
+    with_essentials_engine(engine, None, |fixtures| {
         let result = fixtures.run(command, &fixtures.caller, words);
 
         assert_eq!(result, Some(None));
-        assert_eq!(fixtures.actions(), expected);
+        assert_eq!(fixtures.actions(), "[]");
+        let expected_drops = dropped_for.map(|reason| {
+            if reason.is_empty() {
+                "was kicked.".to_owned()
+            } else {
+                reason.to_owned()
+            }
+        });
+        assert_eq!(
+            fixtures.commands.dropped(),
+            expected_drops.into_iter().collect::<Vec<_>>()
+        );
     });
 }
 
@@ -1417,21 +1395,21 @@ fn muting_oneself_is_refused(_pyshinqlx_setup: ()) {
 }
 
 #[rstest]
-#[case(&["slap", "3"], "[('slap', 3, 0)]")]
-#[case(&["slap", "3", "-5"], "[('slap', 3, -5)]")]
-#[case(&["slay", "3"], "[('slay', 3)]")]
+#[case(&["slap", "3"], "slap 3 0")]
+#[case(&["slap", "3", "-5"], "slap 3 -5")]
+#[case(&["slay", "3"], "slay 3")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn slap_and_slay_stop_all_processing(
     _pyshinqlx_setup: (),
     #[case] words: &[&str],
-    #[case] expected: &str,
+    #[case] expected: &'static str,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command(expected, 1);
+    with_essentials_engine(engine, None, |fixtures| {
         let result = fixtures.run(words[0], &fixtures.caller, words);
 
         assert_eq!(result, Some(Some(STOP_ALL)));
-        assert_eq!(fixtures.actions(), expected);
     });
 }
 

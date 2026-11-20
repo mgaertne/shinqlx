@@ -8,7 +8,7 @@ use super::{
     super::{target::stop_all, tell},
     command_prefix,
 };
-use crate::ffi::python::get_cvar;
+use crate::ffi::python::{Player, get_cvar};
 
 pub(super) type Mappool = BTreeMap<String, Vec<String>>;
 
@@ -67,7 +67,7 @@ pub(super) fn mappool_listing(mappool: &Mappool, indent: usize) -> String {
         .join("\n")
 }
 
-pub(super) fn mappool_error(caller: &Bound<'_, PyAny>, message: &str) -> PyResult<Option<i32>> {
+pub(super) fn mappool_error(caller: &Bound<'_, Player>, message: &str) -> PyResult<Option<i32>> {
     tell(
         caller,
         &format!(

@@ -21,7 +21,7 @@ impl Permission {
         if msg.len() < 3 {
             return usage();
         }
-        let target = match resolve_text(slf.py(), player.as_any(), &msg[1])? {
+        let target = match resolve_text(slf.py(), player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -61,7 +61,7 @@ impl Permission {
         if msg.len() < 2 {
             return usage();
         }
-        let target = match resolve_text(slf.py(), player.as_any(), &msg[1])? {
+        let target = match resolve_text(slf.py(), player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),

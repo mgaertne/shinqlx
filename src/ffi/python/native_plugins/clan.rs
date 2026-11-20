@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 use super::{
-    register_client_command, register_hook, target::find_connected_player, without_excessive_colors,
+    register_client_command, register_hook, target::find_player, without_excessive_colors,
 };
 use crate::ffi::{
     c::prelude::{CS_PLAYERS, MAX_CLIENTS},
@@ -63,7 +63,7 @@ impl Clan {
         let Some(client_id) = client_id_of(index) else {
             return Ok(None);
         };
-        let Some(player) = find_connected_player(slf.py(), client_id)? else {
+        let Some(player) = find_player(slf.py(), client_id)? else {
             return Ok(None);
         };
 

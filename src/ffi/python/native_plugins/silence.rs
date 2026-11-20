@@ -149,7 +149,7 @@ impl Silence {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -206,7 +206,7 @@ impl Silence {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -239,7 +239,7 @@ impl Silence {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -455,8 +455,8 @@ player = classmethod(find_player)
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
                 let module = fixture_module(py, FIXTURES);
-                let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7");
-                let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7");
+                let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7", "");
+                let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7", "");
                 for (name, player) in [("caller", &caller), ("target", &target)] {
                     module
                         .setattr(name, player)

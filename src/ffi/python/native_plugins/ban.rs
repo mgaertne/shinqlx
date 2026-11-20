@@ -374,7 +374,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -440,7 +440,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -467,7 +467,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -506,7 +506,7 @@ impl Ban {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player.as_any(), &msg[1])? {
+        let target = match resolve_text(py, player, &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -839,9 +839,9 @@ kick = classmethod(kick)
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
                 let module = fixture_module(py, FIXTURES);
-                let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7");
-                let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7");
-                let other = real_player_with_id(py, 4, OTHER_ID, "Mallory^7");
+                let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7", "");
+                let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7", "");
+                let other = real_player_with_id(py, 4, OTHER_ID, "Mallory^7", "");
                 for (name, player) in [("caller", &caller), ("target", &target), ("other", &other)]
                 {
                     module
@@ -1533,7 +1533,7 @@ kick = classmethod(kick)
                 .pending_warnings
                 .lock()
                 .insert(TARGET_ID, 0.7);
-            let gone = real_player_with_id(fixtures.plugin.py(), 3, TARGET_ID + 1000, "Eve^7");
+            let gone = real_player_with_id(fixtures.plugin.py(), 3, TARGET_ID + 1000, "Eve^7", "");
             fixtures
                 .plugin
                 .get()

@@ -1,14 +1,16 @@
 use pyo3::{intern, prelude::*};
 
 use super::without_trailing_color_reset;
-use crate::ffi::python::{NonexistentPlayerError, Player, Plugin, PythonReturnCodes};
+use crate::ffi::python::{
+    NonexistentPlayerError, Player, PlayerMethods, Plugin, PythonReturnCodes,
+};
 
 pub(super) const INVALID_CLIENT_ID: &str =
     "Invalid client ID. Use either a client ID or a SteamID64.";
 
 pub(super) enum Target<'py> {
     Id(i64),
-    Player(i64, Bound<'py, PyAny>),
+    Player(i64, Bound<'py, Player>),
 }
 
 impl Target<'_> {
@@ -18,7 +20,7 @@ impl Target<'_> {
         }
     }
 
-    pub(super) fn player(&self) -> Option<&Bound<'_, PyAny>> {
+    pub(super) fn player(&self) -> Option<&Bound<'_, Player>> {
         match self {
             Target::Id(_) => None,
             Target::Player(_, player) => Some(player),
@@ -44,29 +46,13 @@ pub(super) fn usage() -> PyResult<Option<i32>> {
 pub(super) fn find_player<'py>(
     py: Python<'py>,
     client_id: i64,
-) -> PyResult<Option<Bound<'py, PyAny>>> {
+) -> PyResult<Option<Bound<'py, Player>>> {
     match py
         .get_type::<Plugin>()
         .call_method1(intern!(py, "player"), (client_id,))
     {
-        Ok(player) if !player.is_none() => Ok(Some(player)),
+        Ok(player) if !player.is_none() => Ok(Some(player.cast_into::<Player>()?)),
         Ok(_) => Ok(None),
-        Err(err) if err.is_instance_of::<NonexistentPlayerError>(py) => Ok(None),
-        Err(err) => Err(err),
-    }
-}
-
-pub(super) fn find_connected_player<'py>(
-    py: Python<'py>,
-    client_id: i64,
-) -> PyResult<Option<Bound<'py, Player>>> {
-    let player = Plugin::player(
-        &py.get_type::<Plugin>(),
-        client_id.into_pyobject(py)?.as_any(),
-        None,
-    );
-    match player {
-        Ok(player) => player.map(|player| Bound::new(py, player)).transpose(),
         Err(err) if err.is_instance_of::<NonexistentPlayerError>(py) => Ok(None),
         Err(err) => Err(err),
     }
@@ -80,8 +66,7 @@ pub(super) fn resolve_target<'py>(py: Python<'py>, ident: i64) -> PyResult<Optio
     let Some(player) = find_player(py, ident)? else {
         return Ok(None);
     };
-    let steam_id = player.getattr(intern!(py, "steam_id"))?.extract()?;
-    Ok(Some(Target::Player(steam_id, player)))
+    Ok(Some(Target::Player(player.get_steam_id(), player)))
 }
 
 pub(super) enum Resolution<'py> {
@@ -92,7 +77,7 @@ pub(super) enum Resolution<'py> {
 
 pub(super) fn resolve_text<'py>(
     py: Python<'py>,
-    caller: &Bound<'py, PyAny>,
+    caller: &Bound<'py, Player>,
     text: &str,
 ) -> PyResult<Resolution<'py>> {
     let text = text.trim();
@@ -102,23 +87,23 @@ pub(super) fn resolve_text<'py>(
         );
     }
 
-    let Some(found) = Plugin::find_by_name_or_id(&py.get_type::<Plugin>(), caller, text, None)?
+    let Some(found) =
+        Plugin::find_by_name_or_id(&py.get_type::<Plugin>(), caller.as_any(), text, None)?
     else {
         return Ok(Resolution::Reported);
     };
     let steam_id = found.steam_id;
     Ok(Resolution::Target(Target::Player(
         steam_id,
-        Bound::new(py, found)?.into_any(),
+        Bound::new(py, found)?,
     )))
 }
 
 pub(super) fn display_name(target: &Target<'_>) -> PyResult<String> {
     match target {
         Target::Id(steam_id) => Ok(steam_id.to_string()),
-        Target::Player(_, player) => player
-            .getattr(intern!(player.py(), "name"))?
-            .extract::<String>()
-            .map(|name| without_trailing_color_reset(&name).to_owned()),
+        Target::Player(_, player) => {
+            Ok(without_trailing_color_reset(&player.get_name()).to_owned())
+        }
     }
 }

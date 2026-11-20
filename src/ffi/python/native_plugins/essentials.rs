@@ -46,17 +46,13 @@ const VOTE_RESOLUTION_DELAY: f64 = 29.0;
 pub(super) struct Essentials {
     vote_count: AtomicI64,
     last_vote: AtomicI64,
-    recent_commands: Mutex<VecDeque<(Py<PyAny>, String)>>,
-    recent_disconnects: Mutex<VecDeque<(Py<PyAny>, f64)>>,
+    recent_commands: Mutex<VecDeque<(Py<Player>, String)>>,
+    recent_disconnects: Mutex<VecDeque<(Py<Player>, f64)>>,
     mappool: Option<Mappool>,
 }
 
 fn plugin_class(py: Python<'_>) -> Bound<'_, pyo3::types::PyType> {
     py.get_type::<Plugin>()
-}
-
-fn steam_id_of(player: &Bound<'_, PyAny>) -> PyResult<i64> {
-    player.getattr(intern!(player.py(), "steam_id"))?.extract()
 }
 
 fn player_key(steam_id: i64) -> String {
@@ -86,7 +82,7 @@ fn game_state(plugin: &Bound<'_, Essentials>) -> PyResult<Option<String>> {
 impl Essentials {
     fn play_for_everybody(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: &[String],
         play: &str,
     ) -> PyResult<Option<i32>> {
@@ -107,9 +103,9 @@ impl Essentials {
 
         let everybody = class
             .call_method0(intern!(slf.py(), "players"))?
-            .extract::<Vec<Bound<'_, PyAny>>>()?;
+            .extract::<Vec<Bound<'_, Player>>>()?;
         for other in everybody {
-            if !other.eq(player)? && sounds_enabled(&database, &other)? {
+            if !other.as_any().eq(player)? && sounds_enabled(&database, &other)? {
                 class.call_method1(play, (path, &other))?;
             }
         }
@@ -118,7 +114,7 @@ impl Essentials {
 
     fn stop_playing(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         stop: &str,
     ) -> PyResult<Option<i32>> {
         if !sounds_enabled(&slf.as_super().get_db()?, player)? {
@@ -147,7 +143,7 @@ impl Essentials {
 
     fn change_lock(
         py: Python<'_>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: &[String],
         method: &str,
     ) -> PyResult<Option<i32>> {
@@ -195,7 +191,7 @@ impl Essentials {
     ) -> PyResult<()> {
         {
             let mut recent = slf.get().recent_disconnects.lock();
-            recent.push_front((player.clone().into_any().unbind(), now()));
+            recent.push_front((player.clone().unbind(), now()));
             recent.truncate(RECENT_DISCONNECTS);
         }
 
@@ -205,7 +201,7 @@ impl Essentials {
 
     fn handle_vote_called(
         slf: &Bound<'_, Self>,
-        caller: &Bound<'_, PyAny>,
+        caller: &Bound<'_, Player>,
         vote: &str,
         args: &str,
     ) -> PyResult<Option<i32>> {
@@ -308,19 +304,19 @@ impl Essentials {
 
     fn handle_command(
         slf: &Bound<'_, Self>,
-        caller: &Bound<'_, PyAny>,
+        caller: &Bound<'_, Player>,
         _command: &Bound<'_, PyAny>,
-        args: &Bound<'_, PyAny>,
+        args: &str,
     ) -> PyResult<()> {
         let mut recent = slf.get().recent_commands.lock();
-        recent.push_front((caller.clone().unbind(), args.str()?.extract()?));
+        recent.push_front((caller.clone().unbind(), args.to_owned()));
         recent.truncate(RECENT_COMMANDS);
         Ok(())
     }
 
     fn cmd_id(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -328,19 +324,13 @@ impl Essentials {
         let class = plugin_class(py);
         let connected = class
             .call_method0(intern!(py, "players"))?
-            .extract::<Vec<Bound<'_, PyAny>>>()?;
+            .extract::<Vec<Bound<'_, Player>>>()?;
 
-        let list_alternatives = |players: &[Bound<'_, PyAny>]| -> PyResult<()> {
+        let list_alternatives = |players: &[Bound<'_, Player>]| -> PyResult<()> {
             let lines = players
                 .iter()
-                .map(|candidate| {
-                    Ok(format!(
-                        "  {}^6:^7 {}",
-                        candidate.getattr(intern!(py, "id"))?,
-                        candidate.getattr(intern!(py, "name"))?
-                    ))
-                })
-                .collect::<PyResult<Vec<_>>>()?;
+                .map(|candidate| format!("  {}^6:^7 {}", candidate.get_id(), candidate.get_name()))
+                .collect::<Vec<_>>();
             tell(player, &lines.join("\n"))
         };
 
@@ -350,17 +340,14 @@ impl Essentials {
             tell(player, "All connected players:")?;
             list_alternatives(&connected)?;
         } else {
-            let mut found: Vec<Bound<'_, PyAny>> = vec![];
+            let mut found: Vec<Bound<'_, Player>> = vec![];
             for name in &msg[1..] {
                 for candidate in class
                     .call_method1(intern!(py, "find_player"), (name,))?
-                    .extract::<Vec<Bound<'_, PyAny>>>()?
+                    .extract::<Vec<Bound<'_, Player>>>()?
                 {
-                    let steam_id = steam_id_of(&candidate)?;
-                    if !found
-                        .iter()
-                        .any(|known| steam_id_of(known).is_ok_and(|id| id == steam_id))
-                    {
+                    let steam_id = candidate.get_steam_id();
+                    if !found.iter().any(|known| known.get_steam_id() == steam_id) {
                         found.push(candidate);
                     }
                 }
@@ -381,14 +368,14 @@ impl Essentials {
 
     fn cmd_players(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let connected = plugin_class(py)
             .call_method0(intern!(py, "players"))?
-            .extract::<Vec<Bound<'_, PyAny>>>()?;
+            .extract::<Vec<Bound<'_, Player>>>()?;
         if connected.is_empty() {
             tell(player, "There are no players connected at the moment.")?;
             return stop_all();
@@ -401,9 +388,9 @@ impl Essentials {
         for candidate in &connected {
             table.push_str(&format!(
                 "{:>2} | {:>17} | {:<15} | {}\n",
-                candidate.getattr(intern!(py, "id"))?.extract::<i64>()?,
-                steam_id_of(candidate)?,
-                candidate.getattr(intern!(py, "ip"))?.extract::<String>()?,
+                candidate.get_id(),
+                candidate.get_steam_id(),
+                candidate.get_ip(),
                 candidate.str()?
             ));
         }
@@ -413,7 +400,7 @@ impl Essentials {
 
     fn cmd_disconnects(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -438,8 +425,8 @@ impl Essentials {
                     player,
                     &format!(
                         "  {} ({}): ^6{}^7 seconds ago",
-                        disconnected.getattr(intern!(py, "name"))?,
-                        disconnected.getattr(intern!(py, "steam_id"))?,
+                        disconnected.get_name(),
+                        disconnected.get_steam_id(),
                         (now() - at).round()
                     ),
                 )?;
@@ -450,7 +437,7 @@ impl Essentials {
 
     fn cmd_commands(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -473,10 +460,7 @@ impl Essentials {
             for (caller, args) in &earlier {
                 tell(
                     player,
-                    &format!(
-                        "  {} executed: {args}",
-                        caller.bind(py).getattr(intern!(py, "name"))?
-                    ),
+                    &format!("  {} executed: {args}", caller.bind(py).get_name()),
                 )?;
             }
         }
@@ -485,7 +469,7 @@ impl Essentials {
 
     fn cmd_db(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -533,7 +517,7 @@ impl Essentials {
 
     fn cmd_seen(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -604,7 +588,7 @@ impl Essentials {
 
     fn cmd_time(
         _slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -636,7 +620,7 @@ impl Essentials {
 
     fn cmd_help(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -659,7 +643,7 @@ impl Essentials {
 
     fn cmd_rcon(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -681,7 +665,7 @@ impl Essentials {
 
     fn cmd_shuffle(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -690,7 +674,7 @@ impl Essentials {
 
     fn cmd_pause(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -699,7 +683,7 @@ impl Essentials {
 
     fn cmd_unpause(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -707,8 +691,8 @@ impl Essentials {
     }
 
     fn cmd_slap(
-        slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -728,13 +712,13 @@ impl Essentials {
                 return stop_all();
             }
         };
-        plugin_class(slf.py()).call_method1(intern!(slf.py(), "slap"), (target, damage))?;
+        target.slap(damage)?;
         stop_all()
     }
 
     fn cmd_slay(
-        slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        _slf: &Bound<'_, Self>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -746,13 +730,13 @@ impl Essentials {
             return stop_all();
         };
 
-        plugin_class(slf.py()).call_method1(intern!(slf.py(), "slay"), (target,))?;
+        target.slay()?;
         stop_all()
     }
 
     fn cmd_enable_sounds(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -780,7 +764,7 @@ impl Essentials {
 
     fn cmd_sound(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -789,7 +773,7 @@ impl Essentials {
 
     fn cmd_music(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -798,7 +782,7 @@ impl Essentials {
 
     fn cmd_stopsound(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -807,7 +791,7 @@ impl Essentials {
 
     fn cmd_stopmusic(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -816,34 +800,26 @@ impl Essentials {
 
     fn cmd_kick(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         let reason = msg.get(2..).unwrap_or_default().join(" ");
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method1(intern!(target.py(), "kick"), (reason,))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.kick(&reason))
     }
 
     fn cmd_kickban(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method0(intern!(target.py(), "tempban"))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.tempban())
     }
 
     fn cmd_yes(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -852,7 +828,7 @@ impl Essentials {
 
     fn cmd_no(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -861,7 +837,7 @@ impl Essentials {
 
     fn cmd_random(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -879,7 +855,7 @@ impl Essentials {
 
     fn cmd_switch(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -904,98 +880,70 @@ impl Essentials {
 
     fn cmd_red(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method1(intern!(target.py(), "put"), ("red",))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.put("red"))
     }
 
     fn cmd_blue(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method1(intern!(target.py(), "put"), ("blue",))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.put("blue"))
     }
 
     fn cmd_spectate(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method1(intern!(target.py(), "put"), ("spectator",))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.put("spectator"))
     }
 
     fn cmd_free(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method1(intern!(target.py(), "put"), ("free",))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.put("free"))
     }
 
     fn cmd_addmod(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method0(intern!(target.py(), "addmod"))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.addmod())
     }
 
     fn cmd_addadmin(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method0(intern!(target.py(), "addadmin"))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.addadmin())
     }
 
     fn cmd_demote(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method0(intern!(target.py(), "demote"))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.demote())
     }
 
     fn cmd_mute(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1003,30 +951,24 @@ impl Essentials {
             return usage();
         };
         match lookup_player(player, channel, ident, "Invalid ID.", false)? {
-            Lookup::Found(target) if target.eq(player)? => reply(channel, "I refuse."),
-            Lookup::Found(target) => target
-                .call_method0(intern!(target.py(), "mute"))
-                .map(|_| None),
+            Lookup::Found(target) if target.as_any().eq(player)? => reply(channel, "I refuse."),
+            Lookup::Found(target) => target.mute().map(|()| None),
             Lookup::Finished(code) => Ok(code),
         }
     }
 
     fn cmd_unmute(
         _slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        act_on_player(player, &msg, channel, |target| {
-            target
-                .call_method0(intern!(target.py(), "unmute"))
-                .map(drop)
-        })
+        act_on_player(player, &msg, channel, |target| target.unmute())
     }
 
     fn cmd_lock(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1035,7 +977,7 @@ impl Essentials {
 
     fn cmd_unlock(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1044,7 +986,7 @@ impl Essentials {
 
     fn cmd_allready(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1060,7 +1002,7 @@ impl Essentials {
 
     fn cmd_abort(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1073,7 +1015,7 @@ impl Essentials {
 
     fn cmd_map(
         slf: &Bound<'_, Self>,
-        _player: &Bound<'_, PyAny>,
+        _player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1085,7 +1027,7 @@ impl Essentials {
 
     fn cmd_teamsize(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -1114,7 +1056,7 @@ impl Essentials {
 
     fn cmd_mappool(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {

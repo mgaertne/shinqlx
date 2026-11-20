@@ -19,6 +19,7 @@ use pyo3::{intern, prelude::*, types::PyString};
 use regex_lite::Regex;
 
 use super::{
+    Player, PlayerMethods,
     commands::CommandPriorities,
     plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
     pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
@@ -63,10 +64,8 @@ fn without_excessive_colors(text: &str) -> String {
     EXCESSIVE_COLORS.replace_all(text, "$1").into_owned()
 }
 
-fn tell(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
-    player
-        .call_method1(intern!(player.py(), "tell"), (message,))
-        .map(|_| ())
+fn tell(player: &Bound<'_, Player>, message: &str) -> PyResult<()> {
+    player.tell(message, None)
 }
 
 fn cvar_flag(py: Python<'_>, name: &str) -> PyResult<bool> {

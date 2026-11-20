@@ -4,14 +4,15 @@ use super::super::{
     target::{Resolution, Target, reply, resolve_text, stop_all, usage},
     tell,
 };
+use crate::ffi::python::Player;
 
 pub(super) enum Lookup<'py> {
-    Found(Bound<'py, PyAny>),
+    Found(Bound<'py, Player>),
     Finished(Option<i32>),
 }
 
 pub(super) fn lookup_player<'py>(
-    caller: &Bound<'py, PyAny>,
+    caller: &Bound<'py, Player>,
     channel: &Bound<'py, PyAny>,
     text: &str,
     invalid: &str,
@@ -31,10 +32,10 @@ pub(super) fn lookup_player<'py>(
 }
 
 pub(super) fn act_on_player<'py>(
-    caller: &Bound<'py, PyAny>,
+    caller: &Bound<'py, Player>,
     msg: &[String],
     channel: &Bound<'py, PyAny>,
-    action: impl FnOnce(&Bound<'py, PyAny>) -> PyResult<()>,
+    action: impl FnOnce(&Bound<'py, Player>) -> PyResult<()>,
 ) -> PyResult<Option<i32>> {
     let Some(ident) = msg.get(1) else {
         return usage();

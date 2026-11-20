@@ -1,12 +1,13 @@
 use pyo3::{intern, prelude::*, types::IntoPyDict};
 
 use super::{super::tell, command_prefix};
+use crate::ffi::python::Player;
 
 pub(super) const SOUNDS_FLAG: &str = "essentials:sounds_enabled";
 
 pub(super) fn sounds_enabled(
     database: &Bound<'_, PyAny>,
-    player: &Bound<'_, PyAny>,
+    player: &Bound<'_, Player>,
 ) -> PyResult<bool> {
     let py = database.py();
     database
@@ -18,7 +19,7 @@ pub(super) fn sounds_enabled(
         .extract()
 }
 
-pub(super) fn tell_sounds_disabled(player: &Bound<'_, PyAny>) -> PyResult<()> {
+pub(super) fn tell_sounds_disabled(player: &Bound<'_, Player>) -> PyResult<()> {
     tell(
         player,
         &format!(
