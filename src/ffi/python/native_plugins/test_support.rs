@@ -9,7 +9,9 @@ use crate::{
         AbstractChannel, Player,
         pyshinqlx_test_support::{default_test_player, run_all_frame_tasks},
     },
-    hooks::mock_hooks::shinqlx_send_server_command_context,
+    hooks::mock_hooks::{
+        shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
+    },
 };
 
 pub(super) const REDIS_5: &CStr = c"VERSION = (5, 0, 0)\n";
@@ -220,7 +222,8 @@ pub(super) fn named_channel<'py>(py: Python<'py>, name: &str) -> Bound<'py, Abst
 /// Records the commands that the mocked engine is told to send to the clients.
 pub(super) struct ServerCommands {
     sent: Arc<Mutex<Vec<String>>>,
-    _context: Box<dyn Any>,
+    executed: Arc<Mutex<Vec<String>>>,
+    _contexts: Vec<Box<dyn Any>>,
 }
 
 impl ServerCommands {
@@ -231,10 +234,24 @@ impl ServerCommands {
         context.expect().returning(move |_client, command| {
             recorded.lock().push(command.to_owned());
         });
+        let executed = Arc::new(Mutex::new(Vec::new()));
+        let recorded = executed.clone();
+        let execute_context = shinqlx_execute_client_command_context();
+        execute_context
+            .expect()
+            .returning(move |_client, command, _client_ok| {
+                recorded.lock().push(command.to_owned());
+            });
         Self {
             sent,
-            _context: Box::new(context),
+            executed,
+            _contexts: vec![Box::new(context), Box::new(execute_context)],
         }
+    }
+
+    /// The client commands the engine was told to execute, e.g. for a changed name.
+    pub(super) fn executed(&self) -> Vec<String> {
+        self.executed.lock().clone()
     }
 
     /// The texts of the `print` commands, which is what `tell` and the chat send.

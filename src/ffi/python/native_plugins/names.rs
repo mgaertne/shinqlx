@@ -5,11 +5,11 @@ use parking_lot::Mutex;
 use pyo3::{intern, prelude::*, types::PyDict};
 
 use super::{
-    create_cvar, cvar_flag, register_client_command, register_hook, tell, without_excessive_colors,
+    create_cvar, cvar_flag, register_client_command, register_hook, without_excessive_colors,
 };
 use crate::ffi::python::{
-    Plugin, PythonReturnCodes, clean_text, commands::CommandPriorities, get_cvar,
-    plugin::PluginMethods,
+    Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text, commands::CommandPriorities,
+    get_cvar, plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -37,58 +37,48 @@ fn name_key(steam_id: i64) -> String {
     format!("minqlx:players:{steam_id}:colored_name")
 }
 
-fn steam_id_of(player: &Bound<'_, PyAny>) -> PyResult<i64> {
-    player.getattr(intern!(player.py(), "steam_id"))?.extract()
-}
-
-fn clean_name_of(player: &Bound<'_, PyAny>) -> PyResult<String> {
-    player
-        .getattr(intern!(player.py(), "clean_name"))?
-        .extract()
-}
-
-fn matches_steam_name(name: &str, player: &Bound<'_, PyAny>) -> PyResult<bool> {
-    Ok(clean_text(&name).to_lowercase() == clean_name_of(player)?.to_lowercase())
+fn matches_steam_name(name: &str, player: &Bound<'_, Player>) -> bool {
+    clean_text(&name).to_lowercase() == player.get_clean_name().to_lowercase()
 }
 
 #[pymethods]
 impl Names {
-    fn handle_player_connect(&self, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn handle_player_connect(&self, player: &Bound<'_, Player>) -> PyResult<()> {
         self.steam_names
             .lock()
-            .insert(steam_id_of(player)?, clean_name_of(player)?);
+            .insert(player.get_steam_id(), player.get_clean_name());
         Ok(())
     }
 
-    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
         let database = slf.as_super().get_db()?;
-        let key = name_key(steam_id_of(player)?);
+        let key = name_key(player.get_steam_id());
         if !database.contains(&key)? {
             return Ok(());
         }
 
         let registered_name = database.get_item(&key)?.extract::<String>()?;
-        if !cvar_flag(py, ENFORCE_STEAM_NAME_CVAR)? || matches_steam_name(&registered_name, player)?
+        if !cvar_flag(py, ENFORCE_STEAM_NAME_CVAR)? || matches_steam_name(&registered_name, player)
         {
             slf.get().name_set.store(true, Ordering::Release);
-            player.setattr(intern!(py, "name"), registered_name)?;
+            player.set_name(&registered_name)?;
         }
         Ok(())
     }
 
     fn handle_player_disconnect(
         &self,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _reason: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        self.steam_names.lock().remove(&steam_id_of(player)?);
+        self.steam_names.lock().remove(&player.get_steam_id());
         Ok(())
     }
 
     fn handle_userinfo<'py>(
         slf: &Bound<'py, Self>,
-        player: &Bound<'py, PyAny>,
+        player: &Bound<'py, Player>,
         changed: &Bound<'py, PyDict>,
     ) -> PyResult<Option<Bound<'py, PyDict>>> {
         let names = slf.get();
@@ -99,7 +89,7 @@ impl Names {
             return Ok(None);
         };
 
-        let steam_id = steam_id_of(player)?;
+        let steam_id = player.get_steam_id();
         let database = slf.as_super().get_db()?;
         let key = name_key(steam_id);
         let new_clean_name = clean_text(&new_name.extract::<String>()?);
@@ -108,7 +98,7 @@ impl Names {
             return Ok(None);
         }
 
-        let current_clean_name = clean_name_of(player)?;
+        let current_clean_name = player.get_clean_name();
         let steam_name = names
             .steam_names
             .lock()
@@ -121,33 +111,33 @@ impl Names {
         }
 
         database.del_item(&key)?;
-        tell(player, "Your registered name has been reset.")?;
+        player.tell("Your registered name has been reset.", None)?;
         Ok(None)
     }
 
     fn cmd_name(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let database = slf.as_super().get_db()?;
-        let key = name_key(steam_id_of(player)?);
+        let key = name_key(player.get_steam_id());
 
         if msg.len() < 2 {
             if !database.contains(&key)? {
                 return Ok(Some(USAGE));
             }
             database.del_item(&key)?;
-            tell(player, "Your registered name has been removed.")?;
+            player.tell("Your registered name has been removed.", None)?;
             return Ok(Some(STOP_ALL));
         }
 
         let name = without_excessive_colors(&msg[1..].join(" "));
         let rejection = if name.len() > MAX_NAME_BYTES {
             Some("The name is too long. Consider using fewer colors or a shorter name.")
-        } else if !matches_steam_name(&name, player)? && cvar_flag(py, ENFORCE_STEAM_NAME_CVAR)? {
+        } else if !matches_steam_name(&name, player) && cvar_flag(py, ENFORCE_STEAM_NAME_CVAR)? {
             Some("The new name must match your current Steam name.")
         } else if name.contains('\\') {
             Some("The character '^6\\^7' cannot be used. Sorry for the inconvenience.")
@@ -157,20 +147,20 @@ impl Names {
             None
         };
         if let Some(rejection) = rejection {
-            tell(player, rejection)?;
+            player.tell(rejection, None)?;
             return Ok(Some(STOP_ALL));
         }
 
         let name = format!("^7{name}");
         slf.get().name_set.store(true, Ordering::Release);
-        player.setattr(intern!(py, "name"), &name)?;
+        player.set_name(&name)?;
         database.set_item(&key, &name)?;
         let prefix = get_cvar("qlx_commandPrefix")?.unwrap_or_default();
-        tell(
-            player,
+        player.tell(
             &format!(
                 "The name has been registered. To make me forget about it, a simple ^6{prefix}name^7 will do it."
             ),
+            None,
         )?;
         Ok(Some(STOP_ALL))
     }
@@ -220,10 +210,13 @@ mod names_tests {
     use super::{Names, STOP_ALL, USAGE, name_key};
     use crate::{
         ffi::python::{
-            Plugin,
+            Player, Plugin,
+            native_plugins::test_support::{ServerCommands, real_player},
             plugin::PluginMethods,
             pyshinqlx_setup_fixture::pyshinqlx_setup,
-            pyshinqlx_test_support::{RestoredAttribute, engine_with_cvars},
+            pyshinqlx_test_support::{
+                RestoredAttribute, engine_with_cvars, with_connected_players,
+            },
         },
         prelude::*,
     };
@@ -232,24 +225,24 @@ mod names_tests {
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Names>,
-        player: Bound<'py, PyAny>,
+        player: Bound<'py, Player>,
         channel: Bound<'py, PyAny>,
         database: Bound<'py, PyAny>,
+        commands: ServerCommands,
     }
 
     impl Fixtures<'_> {
         fn told(&self) -> Vec<String> {
-            self.player
-                .getattr("told")
-                .and_then(|told| told.extract())
-                .expect("could not get told messages")
+            self.commands.printed(self.plugin.py())
         }
 
-        fn player_name(&self) -> String {
-            self.player
-                .getattr("name")
-                .and_then(|name| name.extract())
-                .expect("could not get the name")
+        fn requested_name(&self) -> Option<String> {
+            self.commands
+                .executed()
+                .last()
+                .and_then(|command| command.strip_prefix(r#"userinfo "\name\"#))
+                .and_then(|name| name.strip_suffix('"'))
+                .map(str::to_owned)
         }
 
         fn stored(&self) -> Option<String> {
@@ -288,11 +281,12 @@ mod names_tests {
     where
         F: FnOnce(Fixtures<'_>),
     {
-        let mut engine = engine_with_cvars(&[
+        let engine = engine_with_cvars(&[
             ("qlx_enforceSteamName", enforce),
             ("qlx_commandPrefix", c"!"),
         ]);
-        engine.run(|| {
+        with_connected_players(engine, &[(2, "Ada^7")], || {
+            let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let module = PyModule::from_code(
                     py,
@@ -313,17 +307,6 @@ class Database:
     def __delitem__(self, key):
         del self.data[key]
 
-
-class Player:
-    steam_id = 76561198000000001
-    clean_name = 'Ada'
-
-    def __init__(self):
-        self.name = 'Ada^7'
-        self.told = []
-
-    def tell(self, message):
-        self.told.append(message)
 
 
 class Channel:
@@ -357,9 +340,10 @@ class Channel:
                 };
                 test(Fixtures {
                     plugin,
-                    player: create("Player"),
+                    player: real_player(py, STEAM_ID, "Ada^7", ""),
                     channel: create("Channel"),
                     database,
+                    commands,
                 });
             });
         });
@@ -417,7 +401,7 @@ class Channel:
             let result = Names::handle_player_loaded(&fixtures.plugin, &fixtures.player);
 
             assert!(result.is_ok());
-            assert_eq!(fixtures.player_name(), "Ada^7");
+            assert_eq!(fixtures.requested_name(), None);
             assert!(!fixtures.name_set());
         });
     }
@@ -442,8 +426,8 @@ class Channel:
             assert!(result.is_ok());
             assert_eq!(fixtures.name_set(), applied);
             assert_eq!(
-                fixtures.player_name(),
-                if applied { registered } else { "Ada^7" }
+                fixtures.requested_name().as_deref(),
+                applied.then_some(registered)
             );
         });
     }
@@ -669,7 +653,7 @@ class Channel:
 
             assert_eq!(result.ok(), Some(Some(STOP_ALL)));
             assert_eq!(fixtures.stored().as_deref(), Some("^7^2A^3d^5a"));
-            assert_eq!(fixtures.player_name(), "^7^2A^3d^5a");
+            assert_eq!(fixtures.requested_name().as_deref(), Some("^7^2A^3d^5a"));
             assert_eq!(
                 fixtures.told(),
                 [

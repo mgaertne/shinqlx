@@ -4,7 +4,7 @@ use super::{
     register_command,
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
 };
-use crate::ffi::python::{Plugin, plugin::PluginMethods, pyshinqlx_owner};
+use crate::ffi::python::{Player, PlayerMethods, Plugin, plugin::PluginMethods, pyshinqlx_owner};
 
 /// Database agnostic way of getting and setting the permissions of players.
 #[pyclass(name = "permission", module = "shinqlx", extends = Plugin, frozen)]
@@ -14,14 +14,14 @@ pub(super) struct Permission;
 impl Permission {
     fn cmd_setperm(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 3 {
             return usage();
         }
-        let target = match resolve_text(slf.py(), player, &msg[1])? {
+        let target = match resolve_text(slf.py(), player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -54,14 +54,14 @@ impl Permission {
 
     fn cmd_getperm(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         if msg.len() < 2 {
             return usage();
         }
-        let target = match resolve_text(slf.py(), player, &msg[1])? {
+        let target = match resolve_text(slf.py(), player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -91,11 +91,11 @@ impl Permission {
 
     fn cmd_myperm(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        let steam_id: i64 = player.getattr(intern!(slf.py(), "steam_id"))?.extract()?;
+        let steam_id = player.get_steam_id();
         if pyshinqlx_owner(slf.py())? == Some(steam_id) {
             return reply(channel, "You can do anything to me, master.");
         }
@@ -172,10 +172,13 @@ mod permission_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                Plugin, PythonReturnCodes,
+                Player, Plugin, PythonReturnCodes,
+                native_plugins::test_support::ServerCommands,
                 plugin::PluginMethods,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
-                pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
+                pyshinqlx_test_support::{
+                    RestoredAttribute, default_test_player, with_connected_players,
+                },
             },
         },
         prelude::*,
@@ -183,13 +186,15 @@ mod permission_tests {
 
     const OWNER_ID: i64 = 76_561_198_000_000_001;
     const OTHER_ID: i64 = 76_561_198_000_000_002;
+    const CALLER_ID: i32 = 30;
     const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Permission>,
         channel: Bound<'py, PyAny>,
         database: Bound<'py, PyAny>,
-        player: Bound<'py, PyAny>,
+        player: Bound<'py, Player>,
+        commands: ServerCommands,
     }
 
     impl Fixtures<'_> {
@@ -208,10 +213,7 @@ mod permission_tests {
         }
 
         fn told(&self) -> Vec<String> {
-            self.player
-                .getattr("told")
-                .and_then(|told| told.extract())
-                .expect("could not get told messages")
+            self.commands.printed(self.plugin.py())
         }
 
         fn know(&self, steam_id: i64, level: i32) {
@@ -237,7 +239,9 @@ mod permission_tests {
             move |_| CVar::try_from(raw_owner_cvar.borrow_mut() as *mut cvar_t).ok(),
             0..,
         );
-        with_connected_players(engine, players, || {
+        let players = [players, &[(CALLER_ID, "Caller")]].concat();
+        with_connected_players(engine, &players, || {
+            let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let module = PyModule::from_code(
                     py,
@@ -262,15 +266,6 @@ class Database:
         self.calls.append((who, level))
         self.permissions[who] = level
 
-
-class Player:
-    def __init__(self, steam_id):
-        self.steam_id = steam_id
-        self.name = 'Caller'
-        self.told = []
-
-    def tell(self, message):
-        self.told.append(message)
 ",
                     c"",
                     c"",
@@ -299,10 +294,17 @@ class Player:
                         .and_then(|channel| channel.call0())
                         .expect("could not create channel"),
                     database,
-                    player: module
-                        .getattr("Player")
-                        .and_then(|player| player.call1((steam_id_of_caller,)))
-                        .expect("could not create player"),
+                    player: Bound::new(
+                        py,
+                        Player {
+                            id: CALLER_ID,
+                            steam_id: steam_id_of_caller,
+                            name: "Caller".to_owned().into(),
+                            ..default_test_player()
+                        },
+                    )
+                    .expect("could not create player"),
+                    commands,
                 });
             });
         });
