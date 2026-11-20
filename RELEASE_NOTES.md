@@ -22,6 +22,9 @@ Changes since 0.8.0.
 
 * **`ql_rcon` completes the first word with the commands and cvars of Quake Live** (about 160 commands and 1040 cvars,
   names taken from the console guide at https://www.euere.eu/ql/), after the matching history entries; the case is ignored.
+  Own names go into `commands.txt` (all servers) and `commands-<host>.txt` (for example `commands-10_0_0_1_27961.txt`)
+  in the config directory (`~/.config/ql_rcon/` on Linux), one name per line; empty lines and lines starting with `#` are
+  skipped.
 
 ### Internal
 

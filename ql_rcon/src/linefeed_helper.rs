@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::Result;
-use directories::UserDirs;
+use directories::{ProjectDirs, UserDirs};
 use linefeed::{Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal};
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::{
@@ -28,6 +28,7 @@ fn completions<'a>(
     word: &str,
     start: usize,
     history: impl Iterator<Item = &'a str>,
+    user_names: &[String],
 ) -> Vec<String> {
     let mut found: Vec<String> = history
         .filter(|item| item.starts_with(buffer))
@@ -36,8 +37,10 @@ fn completions<'a>(
 
     if start == 0 {
         let word = word.to_lowercase();
-        let known = COMMANDS
-            .lines()
+        let known = user_names
+            .iter()
+            .map(String::as_str)
+            .chain(COMMANDS.lines())
             .chain(CVARS.lines())
             .filter(|name| name.to_lowercase().starts_with(&word))
             .map(str::to_string)
@@ -52,7 +55,43 @@ fn completions<'a>(
     found
 }
 
-struct HistoryCompleter {}
+/// Names from a user file: one per line, empty lines and lines starting with `#` are skipped.
+fn parse_user_names(text: &str) -> impl Iterator<Item = &str> {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+}
+
+/// `commands.txt` for all servers and `commands-<host>.txt` for the connected one, both in the config directory.
+fn user_names_files(args: &CommandLineOptions) -> Vec<PathBuf> {
+    let Some(project_dirs) = ProjectDirs::from("", "", "ql_rcon") else {
+        return Vec::new();
+    };
+    let config_dir = project_dirs.config_dir();
+
+    [Some("commands.txt".to_string())]
+        .into_iter()
+        .chain([host_slug(args).map(|slug| format!("commands-{slug}.txt"))])
+        .flatten()
+        .map(|file_name| config_dir.join(file_name))
+        .collect()
+}
+
+fn load_user_names(args: &CommandLineOptions) -> Vec<String> {
+    user_names_files(args)
+        .iter()
+        .filter_map(|file| std::fs::read_to_string(file).ok())
+        .flat_map(|text| {
+            parse_user_names(&text)
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+struct HistoryCompleter {
+    user_names: Vec<String>,
+}
 
 impl Completer<DefaultTerminal> for HistoryCompleter {
     fn complete(
@@ -63,10 +102,16 @@ impl Completer<DefaultTerminal> for HistoryCompleter {
         _end: usize,
     ) -> Option<Vec<Completion>> {
         Some(
-            completions(prompter.buffer(), word, start, prompter.history().rev())
-                .into_iter()
-                .map(Completion::simple)
-                .collect(),
+            completions(
+                prompter.buffer(),
+                word,
+                start,
+                prompter.history().rev(),
+                &self.user_names,
+            )
+            .into_iter()
+            .map(Completion::simple)
+            .collect(),
         )
     }
 }
@@ -139,15 +184,18 @@ fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
     Ok(())
 }
 
+fn host_slug(args: &CommandLineOptions) -> Option<String> {
+    args.host
+        .strip_prefix("tcp://")
+        .map(|hostname| hostname.replace(".", "_").replace(":", "_"))
+}
+
 fn get_history_file(args: &CommandLineOptions) -> Option<PathBuf> {
     UserDirs::new().map(|user_dirs| {
         let mut home_dir = user_dirs.home_dir().to_path_buf();
-        match &args.host.strip_prefix("tcp://") {
+        match host_slug(args) {
             None => home_dir.push(".ql_zmq_rcon.history"),
-            Some(hostname) => home_dir.push(format!(
-                ".ql_zmq_rcon-{}.history",
-                hostname.replace(".", "_").replace(":", "_")
-            )),
+            Some(slug) => home_dir.push(format!(".ql_zmq_rcon-{slug}.history")),
         }
         home_dir
     })
@@ -172,7 +220,9 @@ fn terminal(args: &CommandLineOptions) -> Result<Interface<DefaultTerminal>> {
         editor.load_history(&history_file)?;
     };
 
-    let history_completer = HistoryCompleter {};
+    let history_completer = HistoryCompleter {
+        user_names: load_user_names(args),
+    };
     editor.set_completer(Arc::new(history_completer));
 
     Ok(editor)
@@ -317,8 +367,8 @@ mod linefeed_helper_tests {
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, completions, get_history_file, split_ql_colors, terminal_buffer,
-        write_formatted_ql_colors,
+        CommandLineOptions, completions, get_history_file, parse_user_names, split_ql_colors,
+        terminal_buffer, user_names_files, write_formatted_ql_colors,
     };
 
     fn rendered(buffer: Buffer) -> String {
@@ -417,29 +467,63 @@ mod linefeed_helper_tests {
 
     #[test]
     fn first_word_completes_known_commands_and_cvars() {
-        let found = completions("sta", "sta", 0, [].into_iter());
+        let found = completions("sta", "sta", 0, [].into_iter(), &[]);
 
         assert!(found.iter().any(|name| name == "status"), "{found:?}");
     }
 
     #[test]
     fn first_word_completion_ignores_the_case() {
-        let found = completions("SV_HOST", "SV_HOST", 0, [].into_iter());
+        let found = completions("SV_HOST", "SV_HOST", 0, [].into_iter(), &[]);
 
         assert!(found.iter().any(|name| name == "sv_hostname"), "{found:?}");
     }
 
     #[test]
     fn history_comes_first_and_is_not_repeated() {
-        let found = completions("kick", "kick", 0, ["kick bob", "kick"].into_iter());
+        let found = completions("kick", "kick", 0, ["kick bob", "kick"].into_iter(), &[]);
 
         assert_eq!(found[..2], ["kick bob", "kick"]);
         assert_eq!(found.iter().filter(|name| *name == "kick").count(), 1);
     }
 
     #[test]
+    fn user_names_are_completed_and_not_repeated() {
+        let user_names = ["qlx_myplugin".to_string(), "status".to_string()];
+
+        let found = completions("qlx_my", "qlx_my", 0, [].into_iter(), &user_names);
+        let status = completions("status", "status", 0, [].into_iter(), &user_names);
+
+        assert_eq!(found, ["qlx_myplugin"]);
+        assert_eq!(status.iter().filter(|name| *name == "status").count(), 1);
+    }
+
+    #[test]
+    fn user_files_skip_comments_and_empty_lines() {
+        let names =
+            parse_user_names("# my server\n\n  !mycmd \nqlx_a\n  # indented\n").collect::<Vec<_>>();
+
+        assert_eq!(names, ["!mycmd", "qlx_a"]);
+    }
+
+    #[test]
+    fn user_files_are_named_after_the_host() {
+        let args =
+            CommandLineOptions::try_parse_from(["ql_rcon", "--host", "tcp://10.0.0.1:27961"])
+                .expect("the options are valid");
+
+        let files = user_names_files(&args);
+
+        assert!(files.len() <= 2);
+        assert!(
+            files.iter().all(|file| file.ends_with("commands.txt")
+                || file.ends_with("commands-10_0_0_1_27961.txt"))
+        );
+    }
+
+    #[test]
     fn later_words_only_complete_from_the_history() {
-        let found = completions("kick bo", "bo", 5, ["kick bob"].into_iter());
+        let found = completions("kick bo", "bo", 5, ["kick bob"].into_iter(), &[]);
 
         assert_eq!(found, ["bob"]);
     }
