@@ -19,8 +19,11 @@ use super::{
     timed_entries::{local_time, now},
 };
 use crate::ffi::python::{
-    Player, PlayerMethods, Plugin, abort, allready, change_map, commands::CommandPriorities, delay,
-    get_cvar, pause, plugin::PluginMethods, shuffle, unpause,
+    Game, GameMethods, Player, PlayerMethods, Plugin, abort, allready, change_map,
+    commands::CommandPriorities,
+    delay, get_cvar, is_vote_active, lock, pause,
+    plugin::{PluginMethods, chat},
+    pyshinqlx_force_vote, shuffle, unlock, unpause,
 };
 
 mod bookkeeping;
@@ -84,13 +87,15 @@ fn players_in_teams(py: Python<'_>, teams: &[&str]) -> PyResult<usize> {
         .count())
 }
 
-fn game_state(plugin: &Bound<'_, Essentials>) -> PyResult<Option<String>> {
-    let py = plugin.py();
-    let game = plugin.getattr(intern!(py, "game"))?;
-    if game.is_none() {
-        return Ok(None);
-    }
-    game.getattr(intern!(py, "state"))?.extract().map(Some)
+fn current_game(py: Python<'_>) -> PyResult<Option<Bound<'_, Game>>> {
+    Game::py_new(py, true)
+        .ok()
+        .map(|game| Bound::new(py, game))
+        .transpose()
+}
+
+fn game_state(py: Python<'_>) -> PyResult<Option<String>> {
+    current_game(py)?.map(|game| game.get_state()).transpose()
 }
 
 impl Essentials {
@@ -140,23 +145,16 @@ impl Essentials {
         channel: &Bound<'_, PyAny>,
         pass_it: bool,
     ) -> PyResult<Option<i32>> {
-        let class = plugin_class(py);
-        if !class
-            .call_method0(intern!(py, "is_vote_active"))?
-            .is_truthy()?
-        {
+        if !is_vote_active() {
             return reply(channel, "There is no active vote!");
         }
-        class
-            .call_method1(intern!(py, "force_vote"), (pass_it,))
-            .map(|_| None)
+        pyshinqlx_force_vote(py, pass_it).map(|_| None)
     }
 
     fn change_lock(
-        py: Python<'_>,
         player: &Bound<'_, Player>,
         msg: &[String],
-        method: &str,
+        change: fn(Option<&str>) -> PyResult<()>,
     ) -> PyResult<Option<i32>> {
         let team = match msg.get(1) {
             None => None,
@@ -174,7 +172,7 @@ impl Essentials {
                 }
             },
         };
-        plugin_class(py).call_method1(method, (team,)).map(|_| None)
+        change(team).map(|()| None)
     }
 }
 
@@ -255,14 +253,9 @@ impl Essentials {
             };
             let factory = match split_args.next() {
                 Some(factory) => Some(factory.to_owned()),
-                None => {
-                    let game = slf.getattr(intern!(py, "game"))?;
-                    if game.is_none() {
-                        None
-                    } else {
-                        game.getattr(intern!(py, "factory"))?.extract()?
-                    }
-                }
+                None => current_game(py)?
+                    .map(|game| game.get_factory())
+                    .transpose()?,
             };
             if factory.is_some_and(|factory| !factory.is_empty() && !factories.contains(&factory)) {
                 return mappool_error(caller, "This factory is not allowed on that map.");
@@ -286,14 +279,10 @@ impl Essentials {
             return Ok(());
         }
 
-        let class = plugin_class(py);
-        if !class
-            .call_method0(intern!(py, "is_vote_active"))?
-            .is_truthy()?
-        {
+        if !is_vote_active() {
             return Ok(());
         }
-        let votes = class.call_method0(intern!(py, "current_vote_count"))?;
+        let votes = Plugin::current_vote_count(&plugin_class(py))?;
         if votes.is_none() {
             return Ok(());
         }
@@ -308,9 +297,7 @@ impl Essentials {
                 return Ok(());
             }
         }
-        class
-            .call_method1(intern!(py, "force_vote"), (true,))
-            .map(|_| ())
+        pyshinqlx_force_vote(py, true).map(|_| ())
     }
 
     fn handle_command(
@@ -970,21 +957,21 @@ impl Essentials {
     }
 
     fn cmd_lock(
-        slf: &Bound<'_, Self>,
+        _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        Self::change_lock(slf.py(), player, &msg, "lock")
+        Self::change_lock(player, &msg, lock)
     }
 
     fn cmd_unlock(
-        slf: &Bound<'_, Self>,
+        _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        Self::change_lock(slf.py(), player, &msg, "unlock")
+        Self::change_lock(player, &msg, unlock)
     }
 
     fn cmd_allready(
@@ -993,7 +980,7 @@ impl Essentials {
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        match game_state(slf)?.as_deref() {
+        match game_state(slf.py())?.as_deref() {
             None => reply(channel, "There is no game running."),
             Some("warmup") => allready(slf.py()).map(|_| None),
             Some(_) => reply(
@@ -1009,7 +996,7 @@ impl Essentials {
         _msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        match game_state(slf)?.as_deref() {
+        match game_state(slf.py())?.as_deref() {
             None => reply(channel, "There is no game running."),
             Some("warmup") => reply(channel, "But the game isn't even on, you doofus!"),
             Some(_) => abort(slf.py()).map(|_| None),
@@ -1037,22 +1024,23 @@ impl Essentials {
         let Some(size) = msg.get(1) else {
             return usage();
         };
-        let Ok(size) = size.parse::<i64>() else {
+        let Ok(size) = size.parse::<i32>() else {
             return reply(channel, "^7Unintelligible size.");
         };
 
         let py = slf.py();
-        let game = slf.getattr(intern!(py, "game"))?;
-        if game.is_none() {
+        let Some(game) = current_game(py)? else {
             return reply(channel, "There is no game running.");
-        }
-        game.setattr(intern!(py, "teamsize"), size)?;
-        plugin_class(py).call_method1(
-            intern!(py, "msg"),
-            (format!(
+        };
+        game.set_teamsize(size)?;
+        chat(
+            py,
+            &format!(
                 "The teamsize has been set to ^6{size}^7 by {}.",
                 player.str()?
-            ),),
+            ),
+            100,
+            " ",
         )?;
         stop_all()
     }

@@ -2029,8 +2029,8 @@ pub(crate) mod pyshinqlx_test_support {
     };
     use crate::{
         ffi::c::prelude::{
-            CVar, CVarBuilder, MockClient, MockGameEntity, clientState_t, cvar_t, privileges_t,
-            team_t, weapon_t,
+            CVar, CVarBuilder, MockClient, MockGameClient, MockGameEntity, clientState_t, cvar_t,
+            privileges_t, team_t, weapon_t,
         },
         prelude::MockEngineBuilder,
     };
@@ -2068,6 +2068,10 @@ pub(crate) mod pyshinqlx_test_support {
             .collect::<Vec<_>>();
         with_connected_teamed_players(engine, &teamed, test);
     }
+
+    /// The vote states the connected players of the mocked engine were given, in order.
+    pub(crate) static RECORDED_VOTE_STATES: parking_lot::Mutex<Vec<bool>> =
+        parking_lot::Mutex::new(Vec::new());
 
     /// Like [`with_connected_players`], with every player on the given team.
     pub(crate) fn with_connected_teamed_players<F>(
@@ -2115,6 +2119,13 @@ pub(crate) mod pyshinqlx_test_support {
                         .expect_get_player_name()
                         .returning(move || name.to_string());
                     entity.expect_get_team().returning(move || team);
+                    entity.expect_get_game_client().returning(|| {
+                        let mut game_client = MockGameClient::new();
+                        game_client
+                            .expect_set_vote_state()
+                            .returning(|passed| RECORDED_VOTE_STATES.lock().push(passed));
+                        Ok(game_client)
+                    });
                     entity
                         .expect_get_privileges()
                         .returning(|| privileges_t::PRIV_NONE);

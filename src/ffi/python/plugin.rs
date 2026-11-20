@@ -816,7 +816,7 @@ impl Plugin {
     }
 
     #[classmethod]
-    fn current_vote_count<'py>(cls: &Bound<'py, PyType>) -> PyResult<Bound<'py, PyAny>> {
+    pub(crate) fn current_vote_count<'py>(cls: &Bound<'py, PyType>) -> PyResult<Bound<'py, PyAny>> {
         let Some(ref main_engine) = *MAIN_ENGINE.load() else {
             cold_path();
             return Ok(cls.py().None().into_bound(cls.py()));

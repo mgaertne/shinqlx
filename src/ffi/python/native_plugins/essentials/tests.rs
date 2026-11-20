@@ -1,5 +1,6 @@
 use core::{ffi::CStr, sync::atomic::Ordering};
 
+use mockall::predicate;
 use pyo3::{prelude::*, types::PyDict};
 use rstest::rstest;
 
@@ -11,9 +12,11 @@ use super::{
 };
 use crate::{
     ffi::{
-        c::prelude::team_t,
+        c::prelude::{
+            CS_SERVERINFO, CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES, MockCurrentLevel, team_t,
+        },
         python::{
-            Player, PlayerInfo, Plugin, PythonReturnCodes,
+            CHAT_CHANNEL, Player, PlayerInfo, Plugin, PythonReturnCodes, TeamChatChannel,
             native_plugins::test_support::{
                 FakeRedis, REDIS_5, ServerCommands, fixture_module, real_player,
                 real_player_with_id,
@@ -21,8 +24,8 @@ use crate::{
             plugin::PluginMethods,
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{
-                RestoredAttribute, default_test_player_info, engine_with_cvars,
-                with_connected_teamed_players,
+                RECORDED_VOTE_STATES, RestoredAttribute, default_test_player_info,
+                engine_with_cvars, with_connected_teamed_players,
             },
         },
     },
@@ -38,9 +41,6 @@ const FIXTURES: &CStr = c"
 import shinqlx
 
 
-actions = []
-
-
 caller = None
 target = None
 online = []
@@ -51,34 +51,10 @@ def seat(new_caller, new_target):
     caller = new_caller
     target = new_target
     online[:] = [caller, target]
-vote = {'active': False, 'counts': None}
-forced = []
+
 console = []
 redirected = []
-game_info = {'factory': 'ca'}
 owner_id = [76561198000000009]
-
-
-class FakeGame:
-    factory = 'ca'
-    state = 'warmup'
-    teamsize = 4
-
-
-game_holder = [FakeGame()]
-game = property(lambda self: game_holder[0])
-
-
-def recorder(name, result=None):
-    def record(cls, *args):
-        actions.append((name,) + tuple(a.id if hasattr(a, 'id') else a for a in args))
-        return result
-    return record
-
-
-lock = recorder('lock')
-unlock = recorder('unlock')
-msg = recorder('msg')
 
 
 def player(cls, ident, player_list=None):
@@ -86,19 +62,6 @@ def player(cls, ident, player_list=None):
         if ident in (candidate.id, candidate.steam_id):
             return candidate
     return None
-
-
-def is_vote_active(cls):
-    return vote['active']
-
-
-def current_vote_count(cls):
-    return vote['counts']
-
-
-def force_vote(cls, pass_it):
-    forced.append(pass_it)
-    return True
 
 
 def fake_owner():
@@ -122,20 +85,10 @@ class Redirect:
         redirected.append('left')
 
 
-for _name in ('player', 'is_vote_active', 'current_vote_count', 'force_vote',
-              'lock', 'unlock', 'msg'):
-    globals()[_name] = classmethod(globals()[_name])
+player = classmethod(player)
 ";
 
-const PLUGIN_METHODS: [&str; 7] = [
-    "player",
-    "is_vote_active",
-    "current_vote_count",
-    "force_vote",
-    "lock",
-    "unlock",
-    "msg",
-];
+const PLUGIN_METHODS: [&str; 1] = ["player"];
 
 struct Fixtures<'py> {
     plugin: Bound<'py, Essentials>,
@@ -166,17 +119,8 @@ impl Fixtures<'_> {
             .expect("could not get the strings")
     }
 
-    fn forced(&self) -> usize {
-        self.module
-            .getattr("forced")
-            .and_then(|forced| forced.len())
-            .expect("could not count the forced votes")
-    }
-
-    fn set_vote(&self, active: bool, counts: Option<(i64, i64)>) {
-        let vote = self.module.getattr("vote").expect("no vote");
-        vote.set_item("active", active).expect("no active");
-        vote.set_item("counts", counts).expect("no counts");
+    fn forced(&self) -> Vec<bool> {
+        RECORDED_VOTE_STATES.lock().clone()
     }
 
     fn store(&self, key: &str, value: &str) {
@@ -226,6 +170,31 @@ where
     with_essentials_engine(engine_with_cvars(cvars), mappool, test);
 }
 
+fn with_vote(
+    engine: MockEngineBuilder,
+    active: bool,
+    counts: Option<(i64, i64)>,
+) -> MockEngineBuilder {
+    let (yes, no) = counts.map_or_else(Default::default, |(yes, no)| {
+        (yes.to_string(), no.to_string())
+    });
+    engine
+        .with_get_configstring(
+            CS_VOTE_STRING as u16,
+            if active { "map campgrounds" } else { "" },
+            0..,
+        )
+        .with_get_configstring(CS_VOTE_YES as u16, yes, 0..)
+        .with_get_configstring(CS_VOTE_NO as u16, no, 0..)
+}
+
+fn with_game(engine: MockEngineBuilder, state: Option<&str>) -> MockEngineBuilder {
+    let serverinfo = state.map_or_else(String::new, |state| {
+        format!(r"\g_gameState\{state}\g_factory\ca\mapname\campgrounds")
+    });
+    engine.with_get_configstring(CS_SERVERINFO as u16, serverinfo, 0..)
+}
+
 const IN_TEAMS: [(i32, &str, team_t); 2] = [
     (1, "Caller^7", team_t::TEAM_RED),
     (3, "Eve^7", team_t::TEAM_BLUE),
@@ -246,7 +215,19 @@ fn with_essentials_players<F>(
 ) where
     F: FnOnce(Fixtures<'_>),
 {
+    let engine = engine
+        .with_get_configstring(CS_VOTE_STRING as u16, "", 0..)
+        .with_get_configstring(CS_VOTE_YES as u16, "", 0..)
+        .with_get_configstring(CS_VOTE_NO as u16, "", 0..)
+        .with_get_configstring(CS_SERVERINFO as u16, "", 0..);
     with_connected_teamed_players(engine, players, || {
+        let vote_time = MockCurrentLevel::try_get_context();
+        vote_time.expect().returning(|| {
+            let mut level = MockCurrentLevel::new();
+            level.expect_get_vote_time().return_const(21);
+            Ok(level)
+        });
+        RECORDED_VOTE_STATES.lock().clear();
         let commands = ServerCommands::capture();
         Python::attach(|py| {
             let _fake_redis = FakeRedis::install(py, REDIS_5);
@@ -256,10 +237,6 @@ fn with_essentials_players<F>(
             plugin_class
                 .setattr("database", module.getattr("Database").expect("no Database"))
                 .expect("could not set the database");
-            let _restore_game = RestoredAttribute::capture(plugin_class.as_any(), "game");
-            plugin_class
-                .setattr("game", module.getattr("game").expect("no game"))
-                .expect("could not set the game");
             let _restored = PLUGIN_METHODS.map(|name| {
                 let restored = RestoredAttribute::capture(plugin_class.as_any(), name);
                 plugin_class
@@ -521,9 +498,9 @@ fn map_votes_inside_of_the_mappool_pass_on(_pyshinqlx_setup: (), #[case] args: &
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn votes_are_passed_automatically_after_the_delay(_pyshinqlx_setup: ()) {
-    with_essentials(&VOTE_CVARS, None, |fixtures| {
+    let engine = with_vote(engine_with_cvars(&VOTE_CVARS), true, Some((2, 0)));
+    with_essentials_engine(engine, None, |fixtures| {
         let py = fixtures.plugin.py();
-        fixtures.set_vote(true, Some((2, 0)));
         let scheduler = py
             .import("shinqlx")
             .and_then(|shinqlx| shinqlx.getattr("frame_tasks"))
@@ -558,7 +535,7 @@ fn votes_are_passed_automatically_after_the_delay(_pyshinqlx_setup: ()) {
         scheduler
             .call_method1("cancel", (task,))
             .expect("could not cancel the task");
-        assert_eq!(fixtures.forced(), 1);
+        assert_eq!(fixtures.forced(), [true, true]);
     });
 }
 
@@ -579,13 +556,12 @@ fn a_vote_is_only_forced_when_it_is_leading_and_enough_players_took_part(
     #[case] require: f64,
     #[case] forced: bool,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        fixtures.set_vote(active, counts);
-
+    let engine = with_vote(engine_with_cvars(&NO_VOTEPASS), active, counts);
+    with_essentials_engine(engine, None, |fixtures| {
         let result = Essentials::force(&fixtures.plugin, require, 0);
 
         assert!(result.is_ok());
-        assert_eq!(fixtures.forced(), usize::from(forced));
+        assert_eq!(fixtures.forced().len(), 2 * usize::from(forced));
     });
 }
 
@@ -593,14 +569,14 @@ fn a_vote_is_only_forced_when_it_is_leading_and_enough_players_took_part(
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn an_outdated_vote_is_not_forced(_pyshinqlx_setup: ()) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        fixtures.set_vote(true, Some((2, 0)));
+    let engine = with_vote(engine_with_cvars(&NO_VOTEPASS), true, Some((2, 0)));
+    with_essentials_engine(engine, None, |fixtures| {
         fixtures.plugin.get().last_vote.store(5, Ordering::SeqCst);
 
         let result = Essentials::force(&fixtures.plugin, 0.0, 4);
 
         assert!(result.is_ok());
-        assert_eq!(fixtures.forced(), 0);
+        assert!(fixtures.forced().is_empty());
     });
 }
 
@@ -612,19 +588,13 @@ fn nobody_in_the_teams_means_no_forced_vote(_pyshinqlx_setup: ()) {
         (1, "Caller^7", team_t::TEAM_SPECTATOR),
         (3, "Eve^7", team_t::TEAM_SPECTATOR),
     ];
-    with_essentials_players(
-        engine_with_cvars(&NO_VOTEPASS),
-        &spectators,
-        None,
-        |fixtures| {
-            fixtures.set_vote(true, Some((2, 0)));
+    let engine = with_vote(engine_with_cvars(&NO_VOTEPASS), true, Some((2, 0)));
+    with_essentials_players(engine, &spectators, None, |fixtures| {
+        let result = Essentials::force(&fixtures.plugin, 0.5, 0);
 
-            let result = Essentials::force(&fixtures.plugin, 0.5, 0);
-
-            assert!(result.is_ok());
-            assert_eq!(fixtures.forced(), 0);
-        },
-    );
+        assert!(result.is_ok());
+        assert!(fixtures.forced().is_empty());
+    });
 }
 
 #[rstest]
@@ -1228,25 +1198,6 @@ impl Fixtures<'_> {
     fn run(&self, name: &str, caller: &Bound<'_, Player>, words: &[&str]) -> Option<Option<i32>> {
         handler(name)(&self.plugin, caller, msg(words), &self.channel).ok()
     }
-
-    fn actions(&self) -> String {
-        self.module
-            .getattr("actions")
-            .and_then(|actions| actions.repr())
-            .map(|repr| repr.to_string())
-            .expect("could not read the actions")
-    }
-
-    fn set_game(&self, state: Option<&str>) {
-        let holder = self.module.getattr("game_holder").expect("no game holder");
-        match state {
-            Some(state) => holder
-                .get_item(0)
-                .and_then(|game| game.setattr("state", state)),
-            None => holder.set_item(0, self.module.py().None()),
-        }
-        .expect("could not set the game");
-    }
 }
 
 #[rstest]
@@ -1279,7 +1230,6 @@ fn player_commands_act_on_the_resolved_player(
         let result = fixtures.run(command, &fixtures.caller, words);
 
         assert_eq!(result, Some(None));
-        assert_eq!(fixtures.actions(), "[]");
         let expected_drops = dropped_for.map(|reason| {
             if reason.is_empty() {
                 "was kicked.".to_owned()
@@ -1321,7 +1271,6 @@ fn commands_without_arguments_ask_for_usage(_pyshinqlx_setup: (), #[case] comman
         let result = fixtures.run(command, &fixtures.caller, &[command]);
 
         assert_eq!(result, Some(Some(USAGE)));
-        assert_eq!(fixtures.actions(), "[]");
     });
 }
 
@@ -1336,7 +1285,6 @@ fn player_commands_reject_unknown_ids(_pyshinqlx_setup: (), #[case] ident: &str)
 
         assert_eq!(result, Some(None));
         assert_eq!(fixtures.replies(), ["Invalid ID."]);
-        assert_eq!(fixtures.actions(), "[]");
     });
 }
 
@@ -1349,7 +1297,6 @@ fn muting_oneself_is_refused(_pyshinqlx_setup: ()) {
 
         assert_eq!(result, Some(None));
         assert_eq!(fixtures.replies(), ["I refuse."]);
-        assert_eq!(fixtures.actions(), "[]");
     });
 }
 
@@ -1388,7 +1335,6 @@ fn slap_and_slay_tell_the_caller_about_invalid_values(
 
         assert_eq!(result, Some(Some(STOP_ALL)));
         assert_eq!(fixtures.told(&fixtures.caller), [expected]);
-        assert_eq!(fixtures.actions(), "[]");
     });
 }
 
@@ -1601,8 +1547,8 @@ fn yes_and_no_decide_the_active_vote(
     #[case] yes: bool,
     #[case] expected_replies: &[&str],
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        fixtures.set_vote(active, None);
+    let engine = with_vote(engine_with_cvars(&NO_VOTEPASS), active, None);
+    with_essentials_engine(engine, None, |fixtures| {
         let handler = if yes {
             Essentials::cmd_yes
         } else {
@@ -1618,7 +1564,10 @@ fn yes_and_no_decide_the_active_vote(
 
         assert_eq!(result.ok(), Some(None));
         assert_eq!(fixtures.replies(), expected_replies);
-        assert_eq!(fixtures.forced(), usize::from(active));
+        assert_eq!(
+            fixtures.forced(),
+            if active { vec![yes; 2] } else { vec![] }
+        );
     });
 }
 
@@ -1680,20 +1629,21 @@ fn switch_swaps_the_teams_of_two_players(
 }
 
 #[rstest]
-#[case("cmd_lock", &["lock"], "[('lock', None)]")]
-#[case("cmd_lock", &["lock", "red"], "[('lock', 'red')]")]
-#[case("cmd_lock", &["lock", "Blue"], "[('lock', 'blue')]")]
-#[case("cmd_unlock", &["unlock", "s"], "[('unlock', 'spectator')]")]
-#[case("cmd_unlock", &["unlock"], "[('unlock', None)]")]
+#[case("cmd_lock", &["lock"], "lock")]
+#[case("cmd_lock", &["lock", "red"], "lock red")]
+#[case("cmd_lock", &["lock", "Blue"], "lock blue")]
+#[case("cmd_unlock", &["unlock", "s"], "unlock spectator")]
+#[case("cmd_unlock", &["unlock"], "unlock")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn teams_are_locked_and_unlocked_by_their_initial(
     _pyshinqlx_setup: (),
     #[case] command: &str,
     #[case] words: &[&str],
-    #[case] expected: &str,
+    #[case] expected: &'static str,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command(expected, 1);
+    with_essentials_engine(engine, None, |fixtures| {
         let handler = if command == "cmd_lock" {
             Essentials::cmd_lock
         } else {
@@ -1708,7 +1658,6 @@ fn teams_are_locked_and_unlocked_by_their_initial(
         );
 
         assert_eq!(result.ok(), Some(None));
-        assert_eq!(fixtures.actions(), expected);
     });
 }
 
@@ -1728,13 +1677,12 @@ fn locking_an_unknown_team_is_refused(_pyshinqlx_setup: (), #[case] team: &str) 
 
         assert_eq!(result.ok(), Some(Some(STOP_ALL)));
         assert_eq!(fixtures.told(&fixtures.caller), ["Invalid team."]);
-        assert_eq!(fixtures.actions(), "[]");
     });
 }
 
 #[rstest]
-#[case(Some("warmup"), 1, &[])]
-#[case(Some("in_progress"), 0, &["But the game's already in progress, you silly goose!"])]
+#[case(Some("PRE_GAME"), 1, &[])]
+#[case(Some("IN_PROGRESS"), 0, &["But the game's already in progress, you silly goose!"])]
 #[case(None, 0, &["There is no game running."])]
 #[cfg_attr(miri, ignore)]
 #[serial]
@@ -1744,10 +1692,11 @@ fn allready_only_works_during_warmup(
     #[case] commands: usize,
     #[case] expected_replies: &[&str],
 ) {
-    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command("allready", commands);
+    let engine = with_game(
+        engine_with_cvars(&NO_VOTEPASS).with_execute_console_command("allready", commands),
+        state,
+    );
     with_essentials_engine(engine, None, |fixtures| {
-        fixtures.set_game(state);
-
         let result = Essentials::cmd_allready(
             &fixtures.plugin,
             &fixtures.caller,
@@ -1761,8 +1710,8 @@ fn allready_only_works_during_warmup(
 }
 
 #[rstest]
-#[case(Some("in_progress"), 1, &[])]
-#[case(Some("warmup"), 0, &["But the game isn't even on, you doofus!"])]
+#[case(Some("IN_PROGRESS"), 1, &[])]
+#[case(Some("PRE_GAME"), 0, &["But the game isn't even on, you doofus!"])]
 #[case(None, 0, &["There is no game running."])]
 #[cfg_attr(miri, ignore)]
 #[serial]
@@ -1772,11 +1721,11 @@ fn abort_only_works_during_a_game(
     #[case] commands: usize,
     #[case] expected_replies: &[&str],
 ) {
-    let engine =
-        engine_with_cvars(&NO_VOTEPASS).with_execute_console_command("map_restart", commands);
+    let engine = with_game(
+        engine_with_cvars(&NO_VOTEPASS).with_execute_console_command("map_restart", commands),
+        state,
+    );
     with_essentials_engine(engine, None, |fixtures| {
-        fixtures.set_game(state);
-
         let result = Essentials::cmd_abort(
             &fixtures.plugin,
             &fixtures.caller,
@@ -1811,27 +1760,50 @@ fn map_changes_the_map_with_an_optional_factory(
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn teamsize_sets_the_size_and_announces_it(_pyshinqlx_setup: ()) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = with_game(
+        engine_with_cvars(&[("qlx_commandPrefix", c"!"), ("teamsize", c"4")]),
+        Some("PRE_GAME"),
+    )
+    .configure(|engine| {
+        engine
+            .expect_set_cvar_forced()
+            .with(
+                predicate::eq("teamsize"),
+                predicate::eq("6"),
+                predicate::eq(false),
+            )
+            .times(1)
+            .returning(|_, _, _| None);
+    });
+    with_essentials_engine(engine, None, |fixtures| {
+        let py = fixtures.plugin.py();
+        let chat_channel = Py::new(
+            py,
+            TeamChatChannel::py_new(
+                py,
+                "all",
+                "chat",
+                "print \"{}\n\"\n",
+                py.None().bind(py),
+                None,
+            ),
+        )
+        .expect("could not create the chat channel");
+        CHAT_CHANNEL.store(Some(chat_channel.into()));
+
         let result = fixtures.run("teamsize", &fixtures.caller, &["ts", "6"]);
+        CHAT_CHANNEL.store(None);
 
         assert_eq!(result, Some(Some(STOP_ALL)));
         assert_eq!(
-            fixtures.actions(),
-            "[('msg', 'The teamsize has been set to ^66^7 by Caller^7.')]"
+            fixtures.told(&fixtures.caller),
+            ["The teamsize has been set to ^66^7 by Caller^7."]
         );
-        let size: i64 = fixtures
-            .module
-            .getattr("game_holder")
-            .and_then(|holder| holder.get_item(0))
-            .and_then(|game| game.getattr("teamsize"))
-            .and_then(|size| size.extract())
-            .expect("no teamsize");
-        assert_eq!(size, 6);
     });
 }
 
 #[rstest]
-#[case(Some("warmup"), "^7Unintelligible size.", "x")]
+#[case(Some("PRE_GAME"), "^7Unintelligible size.", "x")]
 #[case(None, "There is no game running.", "4")]
 #[cfg_attr(miri, ignore)]
 #[serial]
@@ -1841,13 +1813,11 @@ fn teamsize_reports_problems(
     #[case] expected: &str,
     #[case] size: &str,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        fixtures.set_game(state);
-
+    let engine = with_game(engine_with_cvars(&NO_VOTEPASS), state);
+    with_essentials_engine(engine, None, |fixtures| {
         let result = fixtures.run("teamsize", &fixtures.caller, &["ts", size]);
 
         assert_eq!(result, Some(None));
         assert_eq!(fixtures.replies(), [expected]);
-        assert_eq!(fixtures.actions(), "[]");
     });
 }
