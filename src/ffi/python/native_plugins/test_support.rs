@@ -7,7 +7,9 @@ use pyo3::{prelude::*, types::PyDict};
 use crate::{
     ffi::python::{
         AbstractChannel, Player,
-        pyshinqlx_test_support::{default_test_player, run_all_frame_tasks},
+        pyshinqlx_test_support::{
+            default_test_player, drop_pending_frame_tasks, run_all_frame_tasks,
+        },
     },
     hooks::mock_hooks::{
         shinqlx_execute_client_command_context, shinqlx_send_server_command_context,
@@ -262,7 +264,7 @@ impl ServerCommands {
             .returning(move |_client, command, _client_ok| {
                 recorded.lock().push(command.to_owned());
             });
-        let _ = Python::attach(run_all_frame_tasks);
+        Python::attach(drop_pending_frame_tasks);
         sent.lock().clear();
         executed.lock().clear();
         Self {

@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
 use parking_lot::Mutex;
-use pyo3::{exceptions::PyValueError, intern, prelude::*, types::PyDict};
+use pyo3::{intern, prelude::*, types::PyDict};
 
 use super::{
     register_command, register_hook,
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
-    tell,
     timed_entries::{
         Entry, active_entries, expiry_datetime, latest_entry, length_in_seconds, now,
         revoke_entries, store_entry,
     },
 };
 use crate::ffi::python::{
-    Plugin, PythonReturnCodes, commands::CommandPriorities, next_frame, plugin::PluginMethods,
+    Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities, next_frame,
+    plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -44,13 +44,6 @@ fn silences_key(steam_id: i64) -> String {
     format!("minqlx:players:{steam_id}:silences")
 }
 
-fn mute(target_player: &Bound<'_, PyAny>) -> PyResult<()> {
-    match target_player.call_method0(intern!(target_player.py(), "mute")) {
-        Err(err) if err.is_instance_of::<PyValueError>(target_player.py()) => Ok(()),
-        result => result.map(|_| ()),
-    }
-}
-
 #[pymethods]
 impl Silence {
     /// The expiry, the score and the reason of the longest active silence, for other plugins.
@@ -69,8 +62,8 @@ impl Silence {
             .transpose()
     }
 
-    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
-        let steam_id = player.getattr(intern!(slf.py(), "steam_id"))?.extract()?;
+    fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
+        let steam_id = player.get_steam_id();
         let Some(silenced) = latest_entry(&slf.as_super().get_db()?, &silences_key(steam_id))?
         else {
             return Ok(());
@@ -78,32 +71,29 @@ impl Silence {
 
         let notice = silenced.notice();
         slf.get().silenced.lock().insert(steam_id, silenced);
-        player.call_method0(intern!(slf.py(), "mute"))?;
-        tell(player, &notice)
+        player.mute()?;
+        player.tell(&notice, None)
     }
 
     fn handle_player_disconnect(
         &self,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _reason: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        let steam_id = player
-            .getattr(intern!(player.py(), "steam_id"))?
-            .extract()?;
-        self.silenced.lock().remove(&steam_id);
+        self.silenced.lock().remove(&player.get_steam_id());
         Ok(())
     }
 
     fn handle_client_command(
         slf: &Bound<'_, Self>,
-        player: Option<&Bound<'_, PyAny>>,
+        player: Option<&Bound<'_, Player>>,
         cmd: &str,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let Some(player) = player else {
             return Ok(None);
         };
-        let steam_id = player.getattr(intern!(py, "steam_id"))?.extract()?;
+        let steam_id = player.get_steam_id();
         let Some(silenced) = slf.get().silenced.lock().get(&steam_id).cloned() else {
             return Ok(None);
         };
@@ -114,32 +104,32 @@ impl Silence {
         }
 
         if now() < silenced.score {
-            tell(player, &silenced.notice())?;
+            player.tell(&silenced.notice(), None)?;
         } else {
             slf.get().silenced.lock().remove(&steam_id);
-            player.call_method0(intern!(py, "unmute"))?;
+            player.unmute()?;
             let client_command = py
                 .import(intern!(py, "shinqlx"))?
                 .getattr(intern!(py, "client_command"))?;
-            next_frame(&client_command)?.call1((player.getattr(intern!(py, "id"))?, cmd))?;
+            next_frame(&client_command)?.call1((player.get_id(), cmd))?;
         }
         Ok(Some(STOP_ALL))
     }
 
     fn handle_userinfo<'py>(
         slf: &Bound<'py, Self>,
-        player: &Bound<'py, PyAny>,
+        player: &Bound<'py, Player>,
         changed: &Bound<'py, PyDict>,
     ) -> PyResult<Option<Bound<'py, PyDict>>> {
         let py = slf.py();
-        let steam_id = player.getattr(intern!(py, "steam_id"))?.extract()?;
+        let steam_id = player.get_steam_id();
         if !slf.get().silenced.lock().contains_key(&steam_id)
             || !changed.contains(intern!(py, "name"))?
         {
             return Ok(None);
         }
 
-        let current_name = player.getattr(intern!(py, "name"))?.extract::<String>()?;
+        let current_name = player.get_name();
         changed.set_item(
             intern!(py, "name"),
             current_name
@@ -151,7 +141,7 @@ impl Silence {
 
     fn cmd_silence(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -159,7 +149,7 @@ impl Silence {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -190,7 +180,7 @@ impl Silence {
         let silenced = store_entry(
             &database,
             &silences_key(steam_id),
-            &player.getattr(intern!(py, "steam_id"))?,
+            &player.get_steam_id().into_pyobject(py)?.into_any(),
             seconds,
             &msg[4..].join(" "),
         )?;
@@ -198,7 +188,7 @@ impl Silence {
         let expires = silenced.expires.clone();
         if let Some(target_player) = target.player() {
             slf.get().silenced.lock().insert(steam_id, silenced);
-            mute(target_player)?;
+            target_player.cast::<Player>()?.mute()?;
         }
         reply(
             channel,
@@ -208,7 +198,7 @@ impl Silence {
 
     fn cmd_unsilence(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -216,7 +206,7 @@ impl Silence {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -234,14 +224,14 @@ impl Silence {
 
         slf.get().silenced.lock().remove(&steam_id);
         if let Some(target_player) = target.player() {
-            target_player.call_method0(intern!(py, "unmute"))?;
+            target_player.cast::<Player>()?.unmute()?;
         }
         reply(channel, &format!("^6{name}^7 has been unsilenced."))
     }
 
     fn cmd_checksilence(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
@@ -249,7 +239,7 @@ impl Silence {
             return usage();
         }
         let py = slf.py();
-        let target = match resolve_text(py, player, &msg[1])? {
+        let target = match resolve_text(py, player.as_any(), &msg[1])? {
             Resolution::Target(target) => target,
             Resolution::UnknownClientId => return reply(channel, INVALID_CLIENT_ID),
             Resolution::Reported => return stop_all(),
@@ -329,9 +319,12 @@ mod silence_tests {
     use super::{STOP_ALL, Silence, Silenced, silences_key};
     use crate::{
         ffi::python::{
-            Plugin, PythonReturnCodes,
+            Player, Plugin, PythonReturnCodes,
             native_plugins::{
-                test_support::{FakeRedis, REDIS_2, REDIS_5, fixture_module},
+                test_support::{
+                    FakeRedis, REDIS_2, REDIS_5, ServerCommands, fixture_module,
+                    real_player_with_id,
+                },
                 timed_entries::now,
             },
             plugin::PluginMethods,
@@ -341,36 +334,12 @@ mod silence_tests {
         prelude::*,
     };
 
-    const CALLER_ID: i64 = 76_561_198_000_000_001;
-    const TARGET_ID: i64 = 76_561_198_000_000_003;
+    const CALLER_ID: i64 = 1001;
+    const TARGET_ID: i64 = 1003;
     const FAR_FUTURE: f64 = 4_000_000_000.0;
     const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
 
     const FIXTURES: &CStr = c"
-class Player:
-    def __init__(self, client_id, steam_id, name):
-        self.id = client_id
-        self.steam_id = steam_id
-        self.name = name
-        self.told = []
-        self.muted = False
-        self.mute_raises = False
-
-    def tell(self, message):
-        self.told.append(message)
-
-    def mute(self):
-        if self.mute_raises:
-            raise ValueError('cannot mute')
-        self.muted = True
-
-    def unmute(self):
-        self.muted = False
-
-
-caller = Player(1, 76561198000000001, 'Caller^7')
-target = Player(3, 76561198000000003, 'Eve^7')
-
 
 def find_player(cls, client_id, player_list=None):
     if client_id == 3:
@@ -387,8 +356,9 @@ player = classmethod(find_player)
         plugin: Bound<'py, Silence>,
         database: Bound<'py, PyAny>,
         channel: Bound<'py, PyAny>,
-        caller: Bound<'py, PyAny>,
-        target: Bound<'py, PyAny>,
+        caller: Bound<'py, Player>,
+        target: Bound<'py, Player>,
+        commands: ServerCommands,
     }
 
     impl Fixtures<'_> {
@@ -399,18 +369,8 @@ player = classmethod(find_player)
                 .expect("could not get the replies")
         }
 
-        fn told(&self, player: &Bound<'_, PyAny>) -> Vec<String> {
-            player
-                .getattr("told")
-                .and_then(|told| told.extract())
-                .expect("could not get told messages")
-        }
-
-        fn muted(&self) -> bool {
-            self.target
-                .getattr("muted")
-                .and_then(|muted| muted.extract())
-                .expect("could not get the muted flag")
+        fn printed(&self) -> Vec<String> {
+            self.commands.printed(self.plugin.py())
         }
 
         fn zsets(&self) -> HashMap<String, HashMap<String, f64>> {
@@ -475,10 +435,33 @@ player = classmethod(find_player)
     where
         F: FnOnce(Fixtures<'_>),
     {
-        with_connected_players(MockEngineBuilder::default(), players, || {
+        with_silence_engine(MockEngineBuilder::default(), redis, players, test);
+    }
+
+    fn with_silence_engine<F>(
+        engine: MockEngineBuilder,
+        redis: &'static CStr,
+        players: &[(i32, &'static str)],
+        test: F,
+    ) where
+        F: FnOnce(Fixtures<'_>),
+    {
+        let connected = [(1, "Caller^7"), (3, "Eve^7")]
+            .into_iter()
+            .chain(players.iter().copied())
+            .collect::<Vec<_>>();
+        with_connected_players(engine, &connected, || {
+            let commands = ServerCommands::capture();
             Python::attach(|py| {
                 let _fake_redis = FakeRedis::install(py, redis);
                 let module = fixture_module(py, FIXTURES);
+                let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7");
+                let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7");
+                for (name, player) in [("caller", &caller), ("target", &target)] {
+                    module
+                        .setattr(name, player)
+                        .expect("could not publish the player");
+                }
                 let plugin_class = py.get_type::<Plugin>();
                 let _restore_database =
                     RestoredAttribute::capture(plugin_class.as_any(), "database");
@@ -505,8 +488,9 @@ player = classmethod(find_player)
                     plugin,
                     database,
                     channel: get("Channel").call0().expect("no channel"),
-                    caller: get("caller"),
-                    target: get("target"),
+                    caller,
+                    target,
+                    commands,
                 });
             });
         });
@@ -621,7 +605,6 @@ player = classmethod(find_player)
                 ["^6Eve^7 has permission level 2 or more and cannot be silenced."]
             );
             assert!(fixtures.zsets().is_empty());
-            assert!(!fixtures.muted());
         });
     }
 
@@ -642,7 +625,6 @@ player = classmethod(find_player)
 
             assert_eq!(result.ok(), Some(Some(USAGE)));
             assert!(fixtures.zsets().is_empty());
-            assert!(!fixtures.muted());
         });
     }
 
@@ -657,39 +639,43 @@ player = classmethod(find_player)
         #[case] redis: &'static CStr,
         #[case] hset_supports_mapping: bool,
     ) {
-        with_silence(redis, &[], |fixtures| {
-            fixtures
-                .database
-                .setattr("hset_supports_mapping", hset_supports_mapping)
-                .expect("could not configure the database");
-            let before = now();
-
-            let result = Silence::cmd_silence(
-                &fixtures.plugin,
-                &fixtures.caller,
-                msg(&["silence", "3", "1", "day", "very", "rude"]),
-                &fixtures.channel,
-            );
-
-            assert_eq!(result.ok(), Some(None));
-            let key = silences_key(TARGET_ID);
-            let score = fixtures.zsets()[&key]["0"];
-            assert!((before + 86_400.0..=now() + 86_400.0).contains(&score));
-            let details = &fixtures.hashes()[&format!("{key}:0")];
-            assert_eq!(details["reason"], "very rude");
-            assert_eq!(details["issued_by"], CALLER_ID.to_string());
-            assert!(fixtures.muted());
-            assert_eq!(
+        with_silence_engine(
+            MockEngineBuilder::default().with_execute_console_command("mute 3", 1),
+            redis,
+            &[],
+            |fixtures| {
                 fixtures
-                    .remembered(TARGET_ID)
-                    .map(|silenced| silenced.reason),
-                Some("very rude".to_owned())
-            );
-            let replies = fixtures.replies();
-            assert_eq!(replies.len(), 1);
-            assert!(replies[0].starts_with("^6Eve ^7has been silenced. Silence expires on ^6"));
-            assert!(replies[0].ends_with("^7."));
-        });
+                    .database
+                    .setattr("hset_supports_mapping", hset_supports_mapping)
+                    .expect("could not configure the database");
+                let before = now();
+
+                let result = Silence::cmd_silence(
+                    &fixtures.plugin,
+                    &fixtures.caller,
+                    msg(&["silence", "3", "1", "day", "very", "rude"]),
+                    &fixtures.channel,
+                );
+
+                assert_eq!(result.ok(), Some(None));
+                let key = silences_key(TARGET_ID);
+                let score = fixtures.zsets()[&key]["0"];
+                assert!((before + 86_400.0..=now() + 86_400.0).contains(&score));
+                let details = &fixtures.hashes()[&format!("{key}:0")];
+                assert_eq!(details["reason"], "very rude");
+                assert_eq!(details["issued_by"], CALLER_ID.to_string());
+                assert_eq!(
+                    fixtures
+                        .remembered(TARGET_ID)
+                        .map(|silenced| silenced.reason),
+                    Some("very rude".to_owned())
+                );
+                let replies = fixtures.replies();
+                assert_eq!(replies.len(), 1);
+                assert!(replies[0].starts_with("^6Eve ^7has been silenced. Silence expires on ^6"));
+                assert!(replies[0].ends_with("^7."));
+            },
+        );
     }
 
     #[rstest]
@@ -712,28 +698,6 @@ player = classmethod(find_player)
             assert!(fixtures.hashes().contains_key(&format!("{key}:1")));
             assert!(fixtures.remembered(76_561_198_000_000_099).is_none());
             assert!(fixtures.replies()[0].starts_with("^676561198000000099 ^7has been silenced."));
-        });
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn silence_ignores_players_that_cannot_be_muted(_pyshinqlx_setup: ()) {
-        with_silence(REDIS_5, &[], |fixtures| {
-            fixtures
-                .target
-                .setattr("mute_raises", true)
-                .expect("could not configure the player");
-
-            let result = Silence::cmd_silence(
-                &fixtures.plugin,
-                &fixtures.caller,
-                msg(&["silence", "3", "1", "hour"]),
-                &fixtures.channel,
-            );
-
-            assert_eq!(result.ok(), Some(None));
-            assert!(fixtures.remembered(TARGET_ID).is_some());
         });
     }
 
@@ -785,36 +749,36 @@ player = classmethod(find_player)
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn unsilence_lifts_every_active_silence(_pyshinqlx_setup: (), #[case] redis: &'static CStr) {
-        with_silence(redis, &[], |fixtures| {
-            fixtures.silence(TARGET_ID, 0, FAR_FUTURE, "2096-10-02 12:00:00", "one");
-            fixtures.silence(
-                TARGET_ID,
-                1,
-                FAR_FUTURE + 10.0,
-                "2096-10-02 12:00:10",
-                "two",
-            );
-            fixtures.remember(TARGET_ID, FAR_FUTURE, "one");
-            fixtures
-                .target
-                .setattr("muted", true)
-                .expect("could not mute the player");
+        with_silence_engine(
+            MockEngineBuilder::default().with_execute_console_command("unmute 3", 1),
+            redis,
+            &[],
+            |fixtures| {
+                fixtures.silence(TARGET_ID, 0, FAR_FUTURE, "2096-10-02 12:00:00", "one");
+                fixtures.silence(
+                    TARGET_ID,
+                    1,
+                    FAR_FUTURE + 10.0,
+                    "2096-10-02 12:00:10",
+                    "two",
+                );
+                fixtures.remember(TARGET_ID, FAR_FUTURE, "one");
 
-            let result = Silence::cmd_unsilence(
-                &fixtures.plugin,
-                &fixtures.caller,
-                msg(&["unsilence", "3"]),
-                &fixtures.channel,
-            );
+                let result = Silence::cmd_unsilence(
+                    &fixtures.plugin,
+                    &fixtures.caller,
+                    msg(&["unsilence", "3"]),
+                    &fixtures.channel,
+                );
 
-            assert_eq!(result.ok(), Some(None));
-            let scores = &fixtures.zsets()[&silences_key(TARGET_ID)];
-            assert_eq!(scores["0"], 0.0);
-            assert_eq!(scores["1"], 0.0);
-            assert!(fixtures.remembered(TARGET_ID).is_none());
-            assert!(!fixtures.muted());
-            assert_eq!(fixtures.replies(), ["^6Eve^7 has been unsilenced."]);
-        });
+                assert_eq!(result.ok(), Some(None));
+                let scores = &fixtures.zsets()[&silences_key(TARGET_ID)];
+                assert_eq!(scores["0"], 0.0);
+                assert_eq!(scores["1"], 0.0);
+                assert!(fixtures.remembered(TARGET_ID).is_none());
+                assert_eq!(fixtures.replies(), ["^6Eve^7 has been unsilenced."]);
+            },
+        );
     }
 
     #[rstest]
@@ -902,21 +866,25 @@ player = classmethod(find_player)
         #[case] reason: &str,
         #[case] expected: &str,
     ) {
-        with_silence(REDIS_5, &[], |fixtures| {
-            fixtures.silence(TARGET_ID, 0, FAR_FUTURE, "2096-10-02 12:00:00", reason);
+        with_silence_engine(
+            MockEngineBuilder::default().with_execute_console_command("mute 3", 1),
+            REDIS_5,
+            &[],
+            |fixtures| {
+                fixtures.silence(TARGET_ID, 0, FAR_FUTURE, "2096-10-02 12:00:00", reason);
 
-            let result = Silence::handle_player_loaded(&fixtures.plugin, &fixtures.target);
+                let result = Silence::handle_player_loaded(&fixtures.plugin, &fixtures.target);
 
-            assert!(result.is_ok());
-            assert!(fixtures.muted());
-            assert_eq!(fixtures.told(&fixtures.target), [expected]);
-            assert_eq!(
-                fixtures
-                    .remembered(TARGET_ID)
-                    .map(|silenced| silenced.score),
-                Some(FAR_FUTURE)
-            );
-        });
+                assert!(result.is_ok());
+                assert_eq!(fixtures.printed(), [expected]);
+                assert_eq!(
+                    fixtures
+                        .remembered(TARGET_ID)
+                        .map(|silenced| silenced.score),
+                    Some(FAR_FUTURE)
+                );
+            },
+        );
     }
 
     #[rstest]
@@ -927,8 +895,7 @@ player = classmethod(find_player)
             let result = Silence::handle_player_loaded(&fixtures.plugin, &fixtures.target);
 
             assert!(result.is_ok());
-            assert!(!fixtures.muted());
-            assert!(fixtures.told(&fixtures.target).is_empty());
+            assert!(fixtures.printed().is_empty());
             assert!(fixtures.remembered(TARGET_ID).is_none());
         });
     }
@@ -980,7 +947,7 @@ player = classmethod(find_player)
             );
 
             assert!(result.is_ok_and(|result| result.is_none()));
-            assert!(fixtures.told(&fixtures.target).is_empty());
+            assert!(fixtures.printed().is_empty());
         });
     }
 
@@ -999,7 +966,7 @@ player = classmethod(find_player)
 
             assert_eq!(result.ok(), Some(Some(STOP_ALL)));
             assert_eq!(
-                fixtures.told(&fixtures.target),
+                fixtures.printed(),
                 ["You are muted on this server until ^62096-10-02 12:00:00^7: spam"]
             );
             assert!(fixtures.remembered(TARGET_ID).is_some());
@@ -1012,41 +979,41 @@ player = classmethod(find_player)
     fn an_expired_silence_is_lifted_and_the_chat_message_repeated_in_the_next_frame(
         _pyshinqlx_setup: (),
     ) {
-        with_silence(REDIS_5, &[], |fixtures| {
-            fixtures.remember(TARGET_ID, 1.0, "");
-            fixtures
-                .target
-                .setattr("muted", true)
-                .expect("could not mute the player");
+        with_silence_engine(
+            MockEngineBuilder::default().with_execute_console_command("unmute 3", 1),
+            REDIS_5,
+            &[],
+            |fixtures| {
+                fixtures.remember(TARGET_ID, 1.0, "");
 
-            let result = Silence::handle_client_command(
-                &fixtures.plugin,
-                Some(&fixtures.target),
-                "say hello",
-            );
-
-            assert_eq!(result.ok(), Some(Some(STOP_ALL)));
-            assert!(fixtures.remembered(TARGET_ID).is_none());
-            assert!(!fixtures.muted());
-            assert!(fixtures.told(&fixtures.target).is_empty());
-
-            Python::attach(|py| {
-                let queued = py
-                    .import("shinqlx")
-                    .and_then(|shinqlx| shinqlx.getattr("next_frame_tasks"))
-                    .and_then(|tasks| tasks.call_method0("get_nowait"))
-                    .expect("the chat message should have been repeated");
-                let (function, args, _kwargs) = queued
-                    .extract::<(Bound<'_, PyAny>, (i32, String), Bound<'_, PyAny>)>()
-                    .expect("unexpected task");
-                assert!(
-                    py.import("shinqlx")
-                        .and_then(|shinqlx| shinqlx.getattr("client_command"))
-                        .is_ok_and(|client_command| function.is(&client_command))
+                let result = Silence::handle_client_command(
+                    &fixtures.plugin,
+                    Some(&fixtures.target),
+                    "say hello",
                 );
-                assert_eq!(args, (3, "say hello".to_owned()));
-            });
-        });
+
+                assert_eq!(result.ok(), Some(Some(STOP_ALL)));
+                assert!(fixtures.remembered(TARGET_ID).is_none());
+
+                Python::attach(|py| {
+                    let queued = py
+                        .import("shinqlx")
+                        .and_then(|shinqlx| shinqlx.getattr("next_frame_tasks"))
+                        .and_then(|tasks| tasks.call_method0("get_nowait"))
+                        .expect("the chat message should have been repeated");
+                    let (function, args, _kwargs) = queued
+                        .extract::<(Bound<'_, PyAny>, (i32, String), Bound<'_, PyAny>)>()
+                        .expect("unexpected task");
+                    assert!(
+                        py.import("shinqlx")
+                            .and_then(|shinqlx| shinqlx.getattr("client_command"))
+                            .is_ok_and(|client_command| function.is(&client_command))
+                    );
+                    assert_eq!(args, (3, "say hello".to_owned()));
+                });
+                assert!(fixtures.printed().is_empty());
+            },
+        );
     }
 
     #[rstest]

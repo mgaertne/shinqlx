@@ -2154,6 +2154,25 @@ while not shinqlx.next_frame_tasks.empty():
         Ok(())
     }
 
+    /// Drops the tasks that are queued in the shared schedulers without running them.
+    pub(crate) fn drop_pending_frame_tasks(py: Python<'_>) {
+        py.run(
+            cr#"
+import shinqlx
+
+for scheduler in (shinqlx.frame_tasks, shinqlx.next_frame_tasks):
+    for entry in list(getattr(scheduler, "queue", [])):
+        if hasattr(scheduler, "cancel"):
+            scheduler.cancel(entry)
+while not shinqlx.next_frame_tasks.empty():
+    shinqlx.next_frame_tasks.get(block=False)
+"#,
+            None,
+            None,
+        )
+        .expect("clearing the schedulers cannot fail");
+    }
+
     pub(crate) fn default_test_player_info() -> PlayerInfo {
         PlayerInfo {
             client_id: 2,
@@ -2390,7 +2409,7 @@ pub(crate) mod pyshinqlx_setup_fixture {
     use pyo3::{Python, append_to_inittab, ffi::Py_IsInitialized, prelude::*, types::PyDict};
     use rstest::fixture;
 
-    use super::pyshinqlx_module;
+    use super::{pyshinqlx_module, pyshinqlx_test_support::drop_pending_frame_tasks};
 
     const WATCHDOG_INTERVAL: Duration = Duration::from_secs(15);
     const TRACEBACKS_AFTER_SECONDS: u32 = 120;
@@ -2473,22 +2492,6 @@ pub(crate) mod pyshinqlx_setup_fixture {
     /// Drops the tasks other tests left in the shared schedulers, for tests that count queued tasks.
     #[fixture]
     pub(crate) fn empty_frame_tasks(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            py.run(
-                cr#"
-import shinqlx
-
-for scheduler in (shinqlx.frame_tasks, shinqlx.next_frame_tasks):
-    for entry in list(getattr(scheduler, "queue", [])):
-        if hasattr(scheduler, "cancel"):
-            scheduler.cancel(entry)
-while not shinqlx.next_frame_tasks.empty():
-    shinqlx.next_frame_tasks.get(block=False)
-"#,
-                None,
-                None,
-            )
-            .expect("clearing the schedulers cannot fail");
-        });
+        Python::attach(drop_pending_frame_tasks);
     }
 }
