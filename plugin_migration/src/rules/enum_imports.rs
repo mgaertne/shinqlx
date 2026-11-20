@@ -56,7 +56,7 @@ fn is_name_in_other_expression(node: Node<'_>) -> bool {
 }
 
 fn is_inside_import(node: Node<'_>) -> bool {
-    std::iter::successors(node.parent(), |parent| parent.parent()).any(|parent| {
+    core::iter::successors(node.parent(), |parent| parent.parent()).any(|parent| {
         matches!(
             parent.kind(),
             "import_statement" | "import_from_statement" | "future_import_statement"
@@ -88,7 +88,7 @@ fn is_shinqlx_import(statement: Node<'_>, source: &Source<'_>) -> bool {
 fn is_otherwise_bound(class: &str, source: &Source<'_>) -> bool {
     uses_of_everywhere(class, source).into_iter().any(|node| {
         is_binding(node)
-            || std::iter::successors(node.parent(), |parent| parent.parent())
+            || core::iter::successors(node.parent(), |parent| parent.parent())
                 .find(|parent| {
                     matches!(
                         parent.kind(),
