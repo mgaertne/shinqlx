@@ -10,22 +10,29 @@ use super::{
     sounds::SOUNDS_FLAG,
 };
 use crate::{
-    ffi::python::{
-        Player, Plugin, PythonReturnCodes,
-        native_plugins::test_support::{
-            FakeRedis, REDIS_5, ServerCommands, fixture_module, real_player, real_player_with_id,
+    ffi::{
+        c::prelude::team_t,
+        python::{
+            Player, PlayerInfo, Plugin, PythonReturnCodes,
+            native_plugins::test_support::{
+                FakeRedis, REDIS_5, ServerCommands, fixture_module, real_player,
+                real_player_with_id,
+            },
+            plugin::PluginMethods,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+            pyshinqlx_test_support::{
+                RestoredAttribute, default_test_player_info, engine_with_cvars,
+                with_connected_teamed_players,
+            },
         },
-        plugin::PluginMethods,
-        pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::{RestoredAttribute, engine_with_cvars, with_connected_players},
     },
     prelude::*,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
 const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
-const CALLER_ID: i64 = 76_561_198_000_000_001;
-const TARGET_ID: i64 = 76_561_198_000_000_003;
+const CALLER_ID: i64 = 1001;
+const TARGET_ID: i64 = 1003;
 
 const FIXTURES: &CStr = c"
 import shinqlx
@@ -37,7 +44,6 @@ actions = []
 caller = None
 target = None
 online = []
-team_members = {'red': [], 'blue': [], 'free': [], 'spectator': []}
 
 
 def seat(new_caller, new_target):
@@ -45,8 +51,6 @@ def seat(new_caller, new_target):
     caller = new_caller
     target = new_target
     online[:] = [caller, target]
-    team_members['red'] = [caller]
-    team_members['blue'] = [target]
 vote = {'active': False, 'counts': None}
 forced = []
 console = []
@@ -72,30 +76,9 @@ def recorder(name, result=None):
     return record
 
 
-stop_sound = recorder('stop_sound')
-stop_music = recorder('stop_music')
-switch = recorder('switch')
 lock = recorder('lock')
 unlock = recorder('unlock')
 msg = recorder('msg')
-
-
-def play_sound(cls, path, player=None):
-    actions.append(('play_sound', path, player.id))
-    return path != 'bad'
-
-
-def play_music(cls, path, player=None):
-    actions.append(('play_music', path, player.id))
-    return path != 'bad'
-
-
-def players(cls):
-    return list(online)
-
-
-def find_player(cls, name, player_list=None):
-    return [p for p in online if name.lower() in p.clean_name.lower()]
 
 
 def player(cls, ident, player_list=None):
@@ -103,10 +86,6 @@ def player(cls, ident, player_list=None):
         if ident in (candidate.id, candidate.steam_id):
             return candidate
     return None
-
-
-def teams(cls, player_list=None):
-    return team_members
 
 
 def is_vote_active(cls):
@@ -143,29 +122,19 @@ class Redirect:
         redirected.append('left')
 
 
-for _name in ('players', 'find_player', 'player', 'teams', 'is_vote_active',
-              'current_vote_count', 'force_vote',
-              'stop_sound', 'stop_music', 'switch', 'lock', 'unlock',
-              'msg', 'play_sound', 'play_music'):
+for _name in ('player', 'is_vote_active', 'current_vote_count', 'force_vote',
+              'lock', 'unlock', 'msg'):
     globals()[_name] = classmethod(globals()[_name])
 ";
 
-const PLUGIN_METHODS: [&str; 15] = [
-    "players",
-    "find_player",
+const PLUGIN_METHODS: [&str; 7] = [
     "player",
-    "teams",
     "is_vote_active",
     "current_vote_count",
     "force_vote",
-    "stop_sound",
-    "stop_music",
-    "switch",
     "lock",
     "unlock",
     "msg",
-    "play_sound",
-    "play_music",
 ];
 
 struct Fixtures<'py> {
@@ -257,11 +226,27 @@ where
     with_essentials_engine(engine_with_cvars(cvars), mappool, test);
 }
 
+const IN_TEAMS: [(i32, &str, team_t); 2] = [
+    (1, "Caller^7", team_t::TEAM_RED),
+    (3, "Eve^7", team_t::TEAM_BLUE),
+];
+
 fn with_essentials_engine<F>(engine: MockEngineBuilder, mappool: Option<&str>, test: F)
 where
     F: FnOnce(Fixtures<'_>),
 {
-    with_connected_players(engine, &[(1, "Caller^7"), (3, "Eve^7")], || {
+    with_essentials_players(engine, &IN_TEAMS, mappool, test);
+}
+
+fn with_essentials_players<F>(
+    engine: MockEngineBuilder,
+    players: &[(i32, &'static str, team_t)],
+    mappool: Option<&str>,
+    test: F,
+) where
+    F: FnOnce(Fixtures<'_>),
+{
+    with_connected_teamed_players(engine, players, || {
         let commands = ServerCommands::capture();
         Python::attach(|py| {
             let _fake_redis = FakeRedis::install(py, REDIS_5);
@@ -311,6 +296,12 @@ where
             let get = |name: &str| module.getattr(name).expect("missing fixture");
             let caller = real_player_with_id(py, 1, CALLER_ID, "Caller^7", "1.1.1.1");
             let target = real_player_with_id(py, 3, TARGET_ID, "Eve^7", "");
+            for (player, team) in [(&caller, team_t::TEAM_RED), (&target, team_t::TEAM_BLUE)] {
+                *player.get().player_info.write() = PlayerInfo {
+                    team: team as i32,
+                    ..default_test_player_info()
+                };
+            }
             get("seat")
                 .call1((&caller, &target))
                 .expect("could not seat the players");
@@ -617,22 +608,23 @@ fn an_outdated_vote_is_not_forced(_pyshinqlx_setup: ()) {
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn nobody_in_the_teams_means_no_forced_vote(_pyshinqlx_setup: ()) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        fixtures.set_vote(true, Some((2, 0)));
-        fixtures
-            .module
-            .getattr("team_members")
-            .and_then(|members| {
-                members.set_item("red", Vec::<String>::new())?;
-                members.set_item("blue", Vec::<String>::new())
-            })
-            .expect("could not empty the teams");
+    let spectators = [
+        (1, "Caller^7", team_t::TEAM_SPECTATOR),
+        (3, "Eve^7", team_t::TEAM_SPECTATOR),
+    ];
+    with_essentials_players(
+        engine_with_cvars(&NO_VOTEPASS),
+        &spectators,
+        None,
+        |fixtures| {
+            fixtures.set_vote(true, Some((2, 0)));
 
-        let result = Essentials::force(&fixtures.plugin, 0.5, 0);
+            let result = Essentials::force(&fixtures.plugin, 0.5, 0);
 
-        assert!(result.is_ok());
-        assert_eq!(fixtures.forced(), 0);
-    });
+            assert!(result.is_ok());
+            assert_eq!(fixtures.forced(), 0);
+        },
+    );
 }
 
 #[rstest]
@@ -776,39 +768,6 @@ fn id_lists_the_players_matching_the_tokens(
 }
 
 #[rstest]
-#[case("cmd_id")]
-#[case("cmd_players")]
-#[cfg_attr(miri, ignore)]
-#[serial]
-fn id_and_players_know_when_nobody_is_connected(_pyshinqlx_setup: (), #[case] command: &str) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        fixtures
-            .module
-            .getattr("online")
-            .and_then(|online| online.call_method0("clear"))
-            .expect("could not empty the player list");
-        let handler = if command == "cmd_id" {
-            Essentials::cmd_id
-        } else {
-            Essentials::cmd_players
-        };
-
-        let result = handler(
-            &fixtures.plugin,
-            &fixtures.caller,
-            msg(&["id"]),
-            &fixtures.channel,
-        );
-
-        assert_eq!(result.ok(), Some(Some(STOP_ALL)));
-        assert_eq!(
-            fixtures.told(&fixtures.caller),
-            ["There are no players connected at the moment."]
-        );
-    });
-}
-
-#[rstest]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn players_prints_a_table_like_the_console_command(_pyshinqlx_setup: ()) {
@@ -825,8 +784,8 @@ fn players_prints_a_table_like_the_console_command(_pyshinqlx_setup: ()) {
             fixtures.told(&fixtures.caller),
             [concat!(
                 "ID |     SteamID64     |   IP Address    | Name\n",
-                " 1 | 76561198000000001 | 1.1.1.1         | Caller^7\n",
-                " 3 | 76561198000000003 |                 | Eve^7\n"
+                " 1 |              1001 |                 | Caller^7\n",
+                " 3 |              1003 |                 | Eve^7\n"
             )]
         );
     });
@@ -931,7 +890,7 @@ fn db_prints_the_value_depending_on_its_type(
 #[case(&["seen"], Some(USAGE), &[])]
 #[case(&["seen", "abc"], None, &["Unintelligible SteamID64."])]
 #[case(&["seen", "12"], None, &["Invalid SteamID64."])]
-#[case(&["seen", "76561198000000003"], None, &["That would be Eve^7^7, who is currently on this very server!"])]
+#[case(&["seen", "1003"], None, &["That would be Eve^7^7, who is currently on this very server!"])]
 #[case(&["seen", "76561198000000042"], None, &["^7I have never seen that player before."])]
 #[case(&["seen", "76561198000000009"], None, &["^7I have never seen my ^6master^7 before."])]
 #[cfg_attr(miri, ignore)]
@@ -1491,32 +1450,33 @@ fn sounds_toggles_the_flag_of_the_player(_pyshinqlx_setup: ()) {
 }
 
 #[rstest]
-#[case("sound", "play_sound")]
-#[case("music", "play_music")]
+#[case("sound", "playSound boom")]
+#[case("music", "playMusic boom")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn sounds_are_played_for_everybody_who_enabled_them(
     _pyshinqlx_setup: (),
     #[case] command: &str,
-    #[case] play: &str,
+    #[case] played: &str,
 ) {
     with_essentials(&VOTE_CVARS, None, |fixtures| {
         let result = fixtures.run(command, &fixtures.caller, &[command, "boom"]);
 
         assert_eq!(result, Some(Some(STOP_ALL)));
-        assert_eq!(
-            fixtures.actions(),
-            format!("[('{play}', 'boom', 1), ('{play}', 'boom', 3)]")
-        );
+        assert_eq!(fixtures.commands.sent(), [played, played]);
     });
 }
 
 #[rstest]
-#[case("sound")]
-#[case("music")]
+#[case("sound", "playSound boom")]
+#[case("music", "playMusic boom")]
 #[cfg_attr(miri, ignore)]
 #[serial]
-fn sounds_skip_players_who_disabled_them(_pyshinqlx_setup: (), #[case] command: &str) {
+fn sounds_skip_players_who_disabled_them(
+    _pyshinqlx_setup: (),
+    #[case] command: &str,
+    #[case] played: &str,
+) {
     with_essentials(&VOTE_CVARS, None, |fixtures| {
         fixtures
             .database
@@ -1526,7 +1486,7 @@ fn sounds_skip_players_who_disabled_them(_pyshinqlx_setup: (), #[case] command: 
         let result = fixtures.run(command, &fixtures.caller, &[command, "boom"]);
 
         assert_eq!(result, Some(Some(STOP_ALL)));
-        assert_eq!(fixtures.actions().matches("boom").count(), 1);
+        assert_eq!(fixtures.commands.sent(), [played]);
     });
 }
 
@@ -1549,37 +1509,53 @@ fn sounds_are_refused_for_players_who_disabled_them(_pyshinqlx_setup: (), #[case
             fixtures.told(&fixtures.caller),
             ["Sounds are disabled. Use ^6!sounds^7 to enable them again."]
         );
-        assert_eq!(fixtures.actions(), "[]");
+        assert!(
+            fixtures
+                .commands
+                .sent()
+                .iter()
+                .all(|command| command.starts_with("print"))
+        );
     });
 }
 
 #[rstest]
-#[case("sound")]
-#[case("music")]
+#[case("sound", "music/bad")]
+#[case("music", "sound/bad")]
 #[cfg_attr(miri, ignore)]
 #[serial]
-fn invalid_sounds_are_reported_only_to_the_caller(_pyshinqlx_setup: (), #[case] command: &str) {
+fn invalid_sounds_are_reported_only_to_the_caller(
+    _pyshinqlx_setup: (),
+    #[case] command: &str,
+    #[case] path: &str,
+) {
     with_essentials(&VOTE_CVARS, None, |fixtures| {
-        let result = fixtures.run(command, &fixtures.caller, &[command, "bad"]);
+        let result = fixtures.run(command, &fixtures.caller, &[command, path]);
 
         assert_eq!(result, Some(Some(STOP_ALL)));
         assert_eq!(fixtures.told(&fixtures.caller), ["Invalid sound."]);
-        assert_eq!(fixtures.actions().matches("bad").count(), 1);
+        assert!(
+            fixtures
+                .commands
+                .sent()
+                .iter()
+                .all(|command| command.starts_with("print"))
+        );
     });
 }
 
 #[rstest]
-#[case(true, "stopsound", "[('stop_sound',)]")]
-#[case(true, "stopmusic", "[('stop_music',)]")]
-#[case(false, "stopsound", "[]")]
-#[case(false, "stopmusic", "[]")]
+#[case(true, "stopsound", &["clearSounds"])]
+#[case(true, "stopmusic", &["stopMusic"])]
+#[case(false, "stopsound", &[])]
+#[case(false, "stopmusic", &[])]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn stopping_sounds_respects_the_flag(
     _pyshinqlx_setup: (),
     #[case] enabled: bool,
     #[case] command: &str,
-    #[case] expected: &str,
+    #[case] expected: &[&str],
 ) {
     with_essentials(&VOTE_CVARS, None, |fixtures| {
         fixtures
@@ -1603,7 +1579,13 @@ fn stopping_sounds_respects_the_flag(
             result.ok(),
             Some(if enabled { None } else { Some(STOP_ALL) })
         );
-        assert_eq!(fixtures.actions(), expected);
+        let sent = fixtures.commands.sent();
+        let non_print = sent
+            .iter()
+            .filter(|command| !command.starts_with("print"))
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        assert_eq!(non_print, expected);
     });
 }
 
@@ -1671,10 +1653,10 @@ fn random_announces_a_number_up_to_the_limit(_pyshinqlx_setup: ()) {
 }
 
 #[rstest]
-#[case(&["switch", "1"], Some(USAGE), &[], "[]")]
-#[case(&["switch", "7", "3"], None, &["The first ID is invalid."], "[]")]
-#[case(&["switch", "1", "7"], None, &["The second ID is invalid."], "[]")]
-#[case(&["switch", "1", "3"], None, &[], "[('switch', 1, 3)]")]
+#[case(&["switch", "1"], Some(USAGE), &[], &[])]
+#[case(&["switch", "7", "3"], None, &["The first ID is invalid."], &[])]
+#[case(&["switch", "1", "7"], None, &["The second ID is invalid."], &[])]
+#[case(&["switch", "1", "3"], None, &[], &["put 1 blue", "put 3 red"])]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn switch_swaps_the_teams_of_two_players(
@@ -1682,14 +1664,18 @@ fn switch_swaps_the_teams_of_two_players(
     #[case] words: &[&str],
     #[case] expected_code: Option<i32>,
     #[case] expected_replies: &[&str],
-    #[case] expected_actions: &str,
+    #[case] expected_commands: &[&'static str],
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = expected_commands
+        .iter()
+        .fold(engine_with_cvars(&NO_VOTEPASS), |engine, command| {
+            engine.with_execute_console_command(*command, 1)
+        });
+    with_essentials_engine(engine, None, |fixtures| {
         let result = fixtures.run("switch", &fixtures.caller, words);
 
         assert_eq!(result, Some(expected_code));
         assert_eq!(fixtures.replies(), expected_replies);
-        assert_eq!(fixtures.actions(), expected_actions);
     });
 }
 

@@ -688,7 +688,7 @@ impl Plugin {
     /// Find a player based on part of a players name.
     #[classmethod]
     #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
-    fn find_player(
+    pub(crate) fn find_player(
         cls: &Bound<'_, PyType>,
         name: &str,
         player_list: Option<Vec<Player>>,
@@ -956,7 +956,7 @@ impl Plugin {
 
     #[classmethod]
     #[pyo3(signature = (music_path, player = None), text_signature = "(music_path, player = None)")]
-    fn play_music(
+    pub(crate) fn play_music(
         cls: &Bound<'_, PyType>,
         music_path: &str,
         player: Option<Player>,
@@ -972,14 +972,14 @@ impl Plugin {
 
     #[classmethod]
     #[pyo3(signature = (player = None), text_signature = "(player = None)")]
-    fn stop_sound(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
+    pub(crate) fn stop_sound(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
         pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "clearSounds")
             .map(|_| ())
     }
 
     #[classmethod]
     #[pyo3(signature = (player = None), text_signature = "(player = None)")]
-    fn stop_music(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
+    pub(crate) fn stop_music(cls: &Bound<'_, PyType>, player: Option<Player>) -> PyResult<()> {
         pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), "stopMusic")
             .map(|_| ())
     }

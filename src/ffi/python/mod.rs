@@ -2062,11 +2062,26 @@ pub(crate) mod pyshinqlx_test_support {
     ) where
         F: FnOnce(),
     {
-        let slots = players.iter().map(|(id, _)| id + 1).max().unwrap_or(0);
+        let teamed = players
+            .iter()
+            .map(|(id, name)| (*id, *name, team_t::TEAM_RED))
+            .collect::<Vec<_>>();
+        with_connected_teamed_players(engine, &teamed, test);
+    }
+
+    /// Like [`with_connected_players`], with every player on the given team.
+    pub(crate) fn with_connected_teamed_players<F>(
+        engine: MockEngineBuilder,
+        players: &[(i32, &'static str, team_t)],
+        test: F,
+    ) where
+        F: FnOnce(),
+    {
+        let slots = players.iter().map(|(id, _, _)| id + 1).max().unwrap_or(0);
 
         let clients = MockClient::from_context();
         for id in 0..slots {
-            let connected = players.iter().any(|(player_id, _)| *player_id == id);
+            let connected = players.iter().any(|(player_id, _, _)| *player_id == id);
             clients
                 .expect()
                 .with(predicate::eq(id))
@@ -2088,8 +2103,9 @@ pub(crate) mod pyshinqlx_test_support {
         }
 
         let entities = MockGameEntity::from_context();
-        for (id, name) in players {
+        for (id, name, team) in players {
             let name = *name;
+            let team = *team;
             entities
                 .expect()
                 .with(predicate::eq(*id))
@@ -2098,7 +2114,7 @@ pub(crate) mod pyshinqlx_test_support {
                     entity
                         .expect_get_player_name()
                         .returning(move || name.to_string());
-                    entity.expect_get_team().returning(|| team_t::TEAM_RED);
+                    entity.expect_get_team().returning(move || team);
                     entity
                         .expect_get_privileges()
                         .returning(|| privileges_t::PRIV_NONE);

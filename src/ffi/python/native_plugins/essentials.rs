@@ -35,6 +35,9 @@ use self::{
     sounds::{SOUNDS_FLAG, sounds_enabled, tell_sounds_disabled},
 };
 
+type PlaySound = fn(&Bound<'_, pyo3::types::PyType>, &str, Option<Player>) -> PyResult<bool>;
+type StopSound = fn(&Bound<'_, pyo3::types::PyType>, Option<Player>) -> PyResult<()>;
+
 const DATETIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const TIME_FORMAT: &str = "%H:%M:%S";
 const RECENT_COMMANDS: usize = 11;
@@ -63,11 +66,22 @@ fn command_prefix() -> PyResult<String> {
     Ok(get_cvar("qlx_commandPrefix")?.unwrap_or_default())
 }
 
+fn connected_players(py: Python<'_>) -> PyResult<Vec<Bound<'_, Player>>> {
+    Plugin::players(&plugin_class(py))?
+        .into_iter()
+        .map(|player| Bound::new(py, player))
+        .collect()
+}
+
 fn players_in_teams(py: Python<'_>, teams: &[&str]) -> PyResult<usize> {
-    let all_teams = plugin_class(py).call_method0(intern!(py, "teams"))?;
-    teams.iter().try_fold(0, |count, team| {
-        Ok(count + all_teams.get_item(*team)?.len()?)
-    })
+    Ok(Plugin::players(&plugin_class(py))?
+        .iter()
+        .filter(|player| {
+            player
+                .get_team(py)
+                .is_ok_and(|team| teams.contains(&team.as_str()))
+        })
+        .count())
 }
 
 fn game_state(plugin: &Bound<'_, Essentials>) -> PyResult<Option<String>> {
@@ -84,7 +98,7 @@ impl Essentials {
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: &[String],
-        play: &str,
+        play: PlaySound,
     ) -> PyResult<Option<i32>> {
         let Some(path) = msg.get(1) else {
             return usage();
@@ -96,17 +110,14 @@ impl Essentials {
         }
 
         let class = plugin_class(slf.py());
-        if !class.call_method1(play, (path, player))?.is_truthy()? {
+        if !play(&class, path, Some(player.get().clone()))? {
             tell(player, "Invalid sound.")?;
             return stop_all();
         }
 
-        let everybody = class
-            .call_method0(intern!(slf.py(), "players"))?
-            .extract::<Vec<Bound<'_, Player>>>()?;
-        for other in everybody {
+        for other in connected_players(slf.py())? {
             if !other.as_any().eq(player)? && sounds_enabled(&database, &other)? {
-                class.call_method1(play, (path, &other))?;
+                play(&class, path, Some(other.get().clone()))?;
             }
         }
         stop_all()
@@ -115,13 +126,13 @@ impl Essentials {
     fn stop_playing(
         slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
-        stop: &str,
+        stop: StopSound,
     ) -> PyResult<Option<i32>> {
         if !sounds_enabled(&slf.as_super().get_db()?, player)? {
             tell_sounds_disabled(player)?;
             return stop_all();
         }
-        plugin_class(slf.py()).call_method0(stop).map(|_| None)
+        stop(&plugin_class(slf.py()), None).map(|()| None)
     }
 
     fn decide_vote(
@@ -322,9 +333,7 @@ impl Essentials {
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         let class = plugin_class(py);
-        let connected = class
-            .call_method0(intern!(py, "players"))?
-            .extract::<Vec<Bound<'_, Player>>>()?;
+        let connected = connected_players(py)?;
 
         let list_alternatives = |players: &[Bound<'_, Player>]| -> PyResult<()> {
             let lines = players
@@ -342,10 +351,8 @@ impl Essentials {
         } else {
             let mut found: Vec<Bound<'_, Player>> = vec![];
             for name in &msg[1..] {
-                for candidate in class
-                    .call_method1(intern!(py, "find_player"), (name,))?
-                    .extract::<Vec<Bound<'_, Player>>>()?
-                {
+                for candidate in Plugin::find_player(&class, name, None) {
+                    let candidate = Bound::new(py, candidate)?;
                     let steam_id = candidate.get_steam_id();
                     if !found.iter().any(|known| known.get_steam_id() == steam_id) {
                         found.push(candidate);
@@ -373,9 +380,7 @@ impl Essentials {
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
-        let connected = plugin_class(py)
-            .call_method0(intern!(py, "players"))?
-            .extract::<Vec<Bound<'_, Player>>>()?;
+        let connected = connected_players(py)?;
         if connected.is_empty() {
             tell(player, "There are no players connected at the moment.")?;
             return stop_all();
@@ -768,7 +773,7 @@ impl Essentials {
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        Self::play_for_everybody(slf, player, &msg, "play_sound")
+        Self::play_for_everybody(slf, player, &msg, Plugin::play_sound)
     }
 
     fn cmd_music(
@@ -777,7 +782,7 @@ impl Essentials {
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        Self::play_for_everybody(slf, player, &msg, "play_music")
+        Self::play_for_everybody(slf, player, &msg, Plugin::play_music)
     }
 
     fn cmd_stopsound(
@@ -786,7 +791,7 @@ impl Essentials {
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        Self::stop_playing(slf, player, "stop_sound")
+        Self::stop_playing(slf, player, Plugin::stop_sound)
     }
 
     fn cmd_stopmusic(
@@ -795,7 +800,7 @@ impl Essentials {
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        Self::stop_playing(slf, player, "stop_music")
+        Self::stop_playing(slf, player, Plugin::stop_music)
     }
 
     fn cmd_kick(
@@ -854,7 +859,7 @@ impl Essentials {
     }
 
     fn cmd_switch(
-        slf: &Bound<'_, Self>,
+        _slf: &Bound<'_, Self>,
         player: &Bound<'_, Player>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
@@ -873,9 +878,7 @@ impl Essentials {
             return Ok(None);
         };
 
-        plugin_class(slf.py())
-            .call_method1(intern!(slf.py(), "switch"), (first, second))
-            .map(|_| None)
+        first.switch(&second).map(|()| None)
     }
 
     fn cmd_red(
