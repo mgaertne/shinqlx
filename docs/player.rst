@@ -14,7 +14,7 @@ Players
    :param int client_id: the ``client_id`` of the player
    :param PlayerInfo | None info: the player's pre-determined player info. (default: ``None``)
 
-   A class that represents a player on the server. As opposed to minqlbot, attributes are all the values from when the class was instantiated. This means for instance if a player is on the blue team when you check, but then moves to red, it will still be blue when you check a second time. To update it, use :meth:`~.Player.update`. Note that if you update it and the player has disconnected, it will raise a :exc:`NonexistentPlayerError` exception.
+   A class that represents a player on the server. Attributes are all the values from when the class was instantiated. This means for instance if a player is on the blue team when you check, but then moves to red, it will still be blue when you check a second time. To update it, use :meth:`~.Player.update`. Note that if you update it and the player has disconnected, it will raise a :exc:`NonexistentPlayerError` exception.
 
    .. property:: cvars
       :type: dict[str, str | int]
@@ -405,19 +405,19 @@ Players
       :param int damage: The amount of damage to deal to the player when slapping. (default: ``0``)
 
    .. method:: slay()
-      :classmethod:
 
-      Slay (kill) a player instantly.
+      Slay (kill) the player instantly. Use :meth:`Plugin.slay <shinqlx.Plugin.slay>` to slay a player given by name,
+      client id or :class:`Player`.
 
-   .. method:: slay_with_mod(mod) -> bool
+   .. method:: slay_with_mod(means_of_death) -> None
 
-      Kill the player in the game with a means of death. The player stays connected to the server.
+      Kill the player in the game with a means of death. The player stays connected to the server. Other than in
+      minqlx the method returns ``None``, see :ref:`migration_slay`.
 
       .. seealso::
          :ref:`means_of_death` for the different means of death value.
 
-      :param int mod: The means of death to slay the player with.
-      :return: ``False`` if the player was invalid, ``True`` otherwise.
+      :param int means_of_death: The means of death to slay the player with.
       :raises ValueError: if the ``client_id`` is not in the range between ``0`` and ``sv_maxclients``.
 
    .. method:: all_players() -> list[Player]

@@ -49,6 +49,8 @@ Teams
 
 .. class:: Teams
 
+   .. shinqlx-only::
+
    The teams of Quake Live. :class:`str` of a member is the name that :attr:`Player.team` returns.
 
    .. attribute:: FREE
@@ -75,6 +77,8 @@ Privileges
 ----------
 
 .. class:: Privileges
+
+   .. shinqlx-only::
 
    The privilege levels of a player. :class:`str` of a member is the name that :attr:`Player.privileges` returns.
 
@@ -107,6 +111,8 @@ ConnectionStates
 ----------------
 
 .. class:: ConnectionStates
+
+   .. shinqlx-only::
 
    The connection states of a client, as in :attr:`Player.connection_state`. :class:`str` of a member is the
    lower-case name, e.g. ``"active"``.
@@ -141,6 +147,8 @@ VoteStates
 
 .. class:: VoteStates
 
+   .. shinqlx-only::
+
    The states of a vote on the server.
 
    .. attribute:: NONE
@@ -169,6 +177,8 @@ GameStates
 
 .. class:: GameStates
 
+   .. shinqlx-only::
+
    The states of a game, as :attr:`Game.state` returns them. A member compares equal to that string and has the hash of
    it, so unlike the other enumerations a dictionary keyed by the strings can be searched with a member and vice versa.
 
@@ -196,6 +206,8 @@ Weapon
 ------
 
 .. class:: Weapon
+
+   .. shinqlx-only::
 
    The weapons of Quake Live. :class:`str` of a member is the short name that :meth:`Player.weapon` accepts and that
    the fields of :class:`Weapons` use, so ``getattr(player.weapons(), str(Weapon.ROCKET_LAUNCHER))`` is the amount of
@@ -261,6 +273,8 @@ Holdable
 
 .. class:: Holdable
 
+   .. shinqlx-only::
+
    The holdable items. ``str(member)`` is the name that :attr:`Player.holdable` returns and accepts, the integer value is
    the item index of the engine. A member compares equal to its name, to the index and to nothing else.
 
@@ -300,6 +314,8 @@ MeansOfDeath
 
 .. class:: MeansOfDeath
 
+   .. shinqlx-only::
+
    The causes of a death, e.g. the argument of :func:`slay_with_mod`. See :ref:`means_of_death` for the meaning of
    the values. The members are named like the constants ``MOD_*`` without the prefix, e.g.
    ``MeansOfDeath.ROCKET_SPLASH`` is equal to :data:`MOD_ROCKET_SPLASH`.
@@ -314,6 +330,8 @@ CvarFlags
 ---------
 
 .. class:: CvarFlags
+
+   .. shinqlx-only::
 
    The flags of a cvar, e.g. for :meth:`Plugin.set_cvar`. Members can be combined with ``|`` and checked with ``&``,
    the result is a plain :class:`int`. See :ref:`cvar_flags` for the meaning of the flags.
@@ -332,6 +350,8 @@ DamageFlags
 
 .. class:: DamageFlags
 
+   .. shinqlx-only::
+
    The flags of the damage that a player takes, as passed to the ``damage`` event. Members can be combined with
    ``|`` and checked with ``&``, the result is a plain :class:`int`. See :ref:`damage_flags` for the meaning of
    the flags.
@@ -343,6 +363,8 @@ ConfigString
 ------------
 
 .. class:: ConfigString
+
+   .. shinqlx-only::
 
    The indices of the configstrings of the server, usable wherever :func:`get_configstring` and
    :func:`set_configstring` expect an index. The members are named like the engine's constants without the ``CS_``
@@ -373,6 +395,8 @@ Priorities
 ----------
 
 .. class:: Priorities
+
+   .. shinqlx-only::
 
    The priorities of hooks and commands. The handler with the highest priority is called first.
 
@@ -405,6 +429,8 @@ ReturnCodes
 -----------
 
 .. class:: ReturnCodes
+
+   .. shinqlx-only::
 
    The values that handlers of hooks and commands can return.
 
@@ -441,6 +467,8 @@ Permissions
 -----------
 
 .. class:: Permissions
+
+   .. shinqlx-only::
 
    The permission levels of the commands of the plugins. The level of a player is stored in the database
    (:meth:`database.AbstractDatabase.set_permission`) and compared with the ``permission`` of a command. This is not
@@ -492,6 +520,8 @@ Events
 ------
 
 .. class:: Events
+
+   .. shinqlx-only::
 
    The names of the events that plugins can hook, e.g. ``Events.PLAYER_CONNECT`` for ``"player_connect"``. Unlike the
    other enumerations, ``Events`` is a string enumeration (``class Events(str, enum.Enum)``): a member *is* the string, so

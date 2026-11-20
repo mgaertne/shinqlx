@@ -53,6 +53,8 @@ Channels
    .. method:: recipients() -> list[int] | None
       :abstractmethod:
 
+      .. shinqlx-only::
+
       The ids of the recipients for this channel. Used by :meth:`reply`.
 
       :return: a list of ids of the recipients for this channel, or ``None`` if the message should go to all players.
@@ -67,6 +69,8 @@ Channels
 
 .. class:: TeamChatChannel(team = "all"", name = "chat", fmt = 'print "{}\n"\n')
 
+   .. shinqlx-only::
+
    :param str team: The name of the team for this channel.
    :param str name: The name of the channel.
    :param str fmt: Format string to be used when issuing :meth:`send_server_command` to send the message.
@@ -74,6 +78,8 @@ Channels
    A subclass of :class:`shinqlx.ChatChannel` for team chat to and from the server.
 
    .. method:: recipients() -> list[int] | None
+
+      .. shinqlx-only::
 
       The ids of the recipients for this channel. Used by :meth:`ChatChannel.reply()`.
 
@@ -86,6 +92,8 @@ Channels
    A subclass of :class:`shinqlx.ChatChannel` private in-game messages..
 
    .. method:: recipients() -> list[int] | None
+
+      .. shinqlx-only::
 
       The ids of the recipients for this channel. Used by :meth:`ChatChannel.reply()`.
 

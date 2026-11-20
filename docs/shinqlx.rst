@@ -123,6 +123,8 @@ Classes
    .. property:: is_chatting
       :type: bool
 
+      .. shinqlx-only::
+
       Whether the player is currently chatting.
 
    .. property:: is_frozen
@@ -682,6 +684,8 @@ Functions
 
 .. function:: get_targetting_entities(entity_id) -> list[int]
 
+   .. shinqlx-only::
+
    get a list of entities that target a given entity
 
    .. seealso::
@@ -794,6 +798,8 @@ Functions
 
 .. decorator:: later(*, seconds=None, frames=None)
 
+   .. shinqlx-only::
+
    Defers a function call by a number of seconds or by a number of game frames. Exactly one of the two keyword-only
    arguments has to be given; both or none raise a :class:`TypeError`.
 
@@ -818,6 +824,10 @@ Functions
 .. function:: load_plugin(plugin)
 
    Load a plugin.
+
+   .. shinqlx-only::
+
+      The built-in Rust plugins and the prefixes ``p!`` and ``r!`` below.
 
    Plugins written in Rust are built into shinqlx. A prefix selects where the plugin comes from: ``p!name`` loads
    the Python plugin ``name`` from the plugins directory, ``r!name`` the built-in Rust plugin. Without a prefix, the
@@ -882,7 +892,12 @@ Constants
 .. data:: DEBUG
    :type: bool
 
-   Flag whether shinqlx is running in debug mode.
+   .. shinqlx-only::
+
+      minqlx calls it ``IS_DEBUG``, which shinqlx does not provide.
+
+   Whether shinqlx was built as a debug build. It does not control the logging: the log level is configured in the
+   logging configuration, see :ref:`logging`.
 
 .. data:: GAMETYPES
    :type: dict[int, str]
@@ -1233,25 +1248,35 @@ Descriptions from the quake live C-source comments.
 .. data:: DAMAGE_RADIUS
    :type: int
 
+   .. shinqlx-only::
+
    damage was indirect
 
 .. data:: DAMAGE_NO_ARMOR
    :type: int
+
+   .. shinqlx-only::
 
    armour does not protect from this damage
 
 .. data:: DAMAGE_NO_KNOCKBACK
    :type: int
 
+   .. shinqlx-only::
+
    do not affect velocity, just view angles
 
 .. data:: DAMAGE_NO_PROTECTION
    :type: int
 
+   .. shinqlx-only::
+
    armor, shields, invulnerability, and godmode have no effect
 
 .. data:: DAMAGE_NO_TEAM_PROTECTION
    :type: int
+
+   .. shinqlx-only::
 
    armor, shields, invulnerability, and godmode have no effect
 

@@ -98,6 +98,8 @@ Low-level handlers. These are all called by the Rust-code, not within Python.
 
 .. function:: handle_damage(target_id, attacker_id, damage, dflags, mod) -> bool | None
 
+   .. shinqlx-only::
+
    This will be called whenever damage is happening in the game.
 
    :param int target_id: The target identifier of the inflicted damage

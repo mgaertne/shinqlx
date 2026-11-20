@@ -85,6 +85,38 @@ Events
          * shinqlx.RET_STOP_ALL -- Stop handlers **and** the event.
          * Any other value -- Passed on to :meth:`handle_return`, which will by default simply send a warning to the logger about an unknown value being returned. Can be overridden so that events can have their own special return values.
 
+      The return codes in detail:
+
+      .. list-table::
+         :header-rows: 1
+         :widths: 25 25 25 25
+
+         * - Return value
+           - Further handlers
+           - Event reaches the engine
+           - Result of ``dispatch``
+         * - ``RET_NONE`` or ``None``
+           - are called
+           - yes
+           - ``True``, unless an earlier handler returned ``RET_STOP_EVENT``
+         * - ``RET_STOP``
+           - are not called
+           - yes
+           - ``True``
+         * - ``RET_STOP_EVENT``
+           - are called
+           - no
+           - ``False``, unless a later handler returns ``RET_STOP``
+         * - ``RET_STOP_ALL``
+           - are not called
+           - no
+           - ``False``
+
+      The handlers run ordered by their priority, from :const:`PRI_HIGHEST <shinqlx.PRI_HIGHEST>` to
+      :const:`PRI_LOWEST <shinqlx.PRI_LOWEST>`. Within one priority the handlers of the plugins run in the order in
+      which the plugins registered their first hook for the event. An exception in a handler is logged and the next
+      handler is called.
+
       :param args: Any arguments.
       :param kwargs: Any keyword arguments.
       :return: Whether to pass the event to the engine, or a changed event value that is passed on to the engine.
@@ -505,6 +537,8 @@ Concrete Event dispatchers
       :return: Whether to pass on the event to the engine.
 
 .. class:: DamageDispatcher
+
+   .. shinqlx-only::
 
    ``name = "damage"``
 

@@ -27,6 +27,22 @@ Plugins
       in code called by commands or events. That could make players lag. Helper decorators
       like :func:`shinqlx.thread` can be useful.
 
+   .. _plugin_threads:
+
+   .. note::
+      **Threads, deferred calls and unloading**
+
+      * Hooks and commands run on the game thread, in the frame in which the event happens.
+      * :func:`shinqlx.thread` runs the function in a daemon thread. A function that is called from a thread that
+        :func:`shinqlx.thread` has started runs in this thread and does not start another one.
+      * :func:`shinqlx.next_frame`, :func:`shinqlx.delay` and :func:`shinqlx.later` queue the call. It runs on the
+        game thread in the next frame, or when the delay is over.
+      * Unloading a plugin first dispatches the ``unload`` event, then removes the hooks and the commands of the plugin
+        and finally removes it from :attr:`plugins`. It does **not** cancel calls that are queued by
+        :func:`shinqlx.next_frame`, :func:`shinqlx.delay` or :func:`shinqlx.later` and it does not stop a running
+        thread. Both keep the plugin instance alive and still run after the unload, also on a reload. Stop them in a
+        handler of the ``unload`` event, for example with a flag that they check.
+
    .. property:: database
       :type: shinqlx.database.Redis | None
       :classmethod:
@@ -502,11 +518,12 @@ Plugins
    .. method:: find_by_name_or_id(player, target, player_list = None) -> Player | None
       :classmethod:
 
+      .. shinqlx-only::
+
       Find exactly one player by client ID or by name, for commands that should accept either.
 
       A client ID of a connected player always wins, and may also be written as ``id:5`` or ``id=5``.
       Everything else is matched against part of the names of the players, ignoring case and color codes.
-      This is only available in shinqlx.
 
       If there is no matching player, or more than one, the calling ``player`` is told so, listing the
       candidates when there are several.
@@ -834,12 +851,16 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
 
 .. function:: hook(event, priority = PRI_NORMAL)
 
+   .. shinqlx-only::
+
    Hooks the decorated method to an event. A method can be decorated multiple times to hook it to several events.
 
    :param str | Events event: The name of the event to hook the method to.
    :param int | Priorities priority: The priority of the hook. (default: ``PRI_NORMAL``)
 
 .. function:: command(name, **options)
+
+   .. shinqlx-only::
 
    Makes the decorated method a command. A method can be decorated multiple times.
 
@@ -873,6 +894,8 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
 
 .. function:: game(state = None, message = None)
 
+   .. shinqlx-only::
+
    Runs the decorated method only while a game is running, and with ``state`` only in that state of the game.
    Otherwise the call is skipped and returns ``None``, so a skipped hook never stops the event for other plugins. It
    can be combined with :func:`hook` and :func:`command` in any order, and it works the same for a method that the
@@ -889,6 +912,8 @@ plugin is loaded, and they are removed again when it is unloaded or reloaded, ju
    The name and the documentation of the method are kept.
 
 .. class:: Cvar(name, default = None, *, type = None, flags = 0, minimum = None, maximum = None)
+
+   .. shinqlx-only::
 
    Declares a cvar of the plugin as a read-only attribute of the plugin class. When the plugin is loaded, the cvar is
    created with the default value before the plugin is instantiated, so the constructor can already read it. A cvar that

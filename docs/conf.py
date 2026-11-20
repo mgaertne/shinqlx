@@ -47,3 +47,22 @@ highlight_language = "Python"
 maximum_signature_line_length = 48
 
 nitpicky = True
+
+
+def setup(app):
+    from docutils import nodes
+    from sphinx.util.docutils import SphinxDirective
+
+    class ShinqlxOnly(SphinxDirective):
+        has_content = True
+
+        def run(self):
+            badge = nodes.container(classes=["shinqlx-only"])
+            badge += nodes.inline("shinqlx only", "shinqlx only", classes=["shinqlx-only-label"])
+            if self.content:
+                self.state.nested_parse(self.content, self.content_offset, badge)
+            return [badge]
+
+    app.add_directive("shinqlx-only", ShinqlxOnly)
+    app.add_css_file("shinqlx.css")
+    return {"parallel_read_safe": True, "parallel_write_safe": True}

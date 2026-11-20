@@ -29,8 +29,23 @@ Low-level classes and functions
 * :ref:`Enumerations <enums>`
 * :ref:`Commands <commands>`
 * :ref:`EventDispatcher <events>`
+* :ref:`Event data <event_data>`
 * :ref:`Handlers <handlers>`
 * :ref:`StatsListener <zmq>`
+* `Release notes <https://github.com/mgaertne/shinqlx/blob/main/RELEASE_NOTES.md>`_
+* `Source code on GitHub <https://github.com/mgaertne/shinqlx>`_
+* `License (BSD-3-Clause) <https://github.com/mgaertne/shinqlx/blob/main/LICENSE>`_
+
+*****************************
+shinqlx and minqlx
+*****************************
+
+shinqlx is compatible with minqlx. Whatever is not marked is available in both. What only shinqlx offers is marked with
+a badge:
+
+.. shinqlx-only::
+
+For the places where shinqlx differs from minqlx, see :ref:`Migration from minqlx <migration>`.
 
 ******************
 Indices and tables
@@ -53,6 +68,7 @@ Indices and tables
    enums
    commands
    events
+   event_data
    handlers
    zmq
 

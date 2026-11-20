@@ -147,6 +147,10 @@ The keyword of the means of death is called ``means_of_death`` instead of ``mod`
 Rust. Calls with a positional argument keep working. The same goes for the function :func:`slay_with_mod` of the module,
 whose keyword is ``mean_of_death``.
 
+``Player.slay_with_mod`` returns ``None``. The function :func:`slay_with_mod` of the module and minqlx return a
+:class:`bool`, which says whether the client id belongs to a connected player. Hence do not use the return value of the
+method of the player.
+
 .. _migration_names:
 
 Names and signatures that differ
@@ -160,6 +164,8 @@ Names and signatures that differ
   :class:`TeamChatChannel`.
 * The class ``PlayerDisonnectDispatcher`` of minqlx has a typo in its name, it is spelled ``PlayerDisconnectDispatcher``
   in shinqlx. Only code that names the class is affected, the event ``player_disconnect`` is the same.
+* The constant ``IS_DEBUG`` of minqlx does not exist. :data:`DEBUG` tells whether shinqlx is a debug build, and the
+  amount of logging is set in the logging configuration, see :ref:`logging`.
 * :func:`thread` takes only the function. The keyword ``force`` of minqlx, which started a second thread from inside of
   a threaded function, is gone, and a call with it raises a :class:`TypeError`.
 * ``main_logger`` is not part of the module, use :func:`get_logger`. minqlx also passed on the modules that its own

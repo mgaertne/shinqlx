@@ -5,6 +5,10 @@
 Built-in Rust plugins
 #######################
 
+.. shinqlx-only::
+
+   The whole page: minqlx has no built-in Rust plugins.
+
 shinqlx ships with ports of the default minqlx plugins that are written in Rust and compiled into the server mod.
 They are drop-in replacements: they keep the commands, the cvars and the database keys of the Python plugins, so the
 data of an existing server is kept, and other plugins that read these keys, for example the ``alias`` and ``ip``
