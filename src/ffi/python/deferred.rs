@@ -202,7 +202,7 @@ impl DeferredCall {
 
 #[cfg(test)]
 mod deferred_call_tests {
-    use std::ffi::CString;
+    use alloc::ffi::CString;
 
     use pyo3::{exceptions::PyTypeError, intern, prelude::*, types::IntoPyDict};
     use rstest::rstest;

@@ -1,3 +1,4 @@
+use core::hint::cold_path;
 use std::{fs::create_dir_all, path::Path};
 
 use chrono::Local;
@@ -106,8 +107,10 @@ impl ChatLog {
 }
 
 fn create_chatlog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    let home_path = get_cvar("fs_homepath")?
-        .ok_or_else(|| PyEnvironmentError::new_err("cvar fs_homepath is not set"))?;
+    let home_path = get_cvar("fs_homepath")?.ok_or_else(|| {
+        cold_path();
+        PyEnvironmentError::new_err("cvar fs_homepath is not set")
+    })?;
     let directory = Path::new(&home_path).join("chatlogs");
     create_dir_all(&directory)?;
     let file_path = directory.join("chat.log");

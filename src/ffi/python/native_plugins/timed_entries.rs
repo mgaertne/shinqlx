@@ -1,3 +1,4 @@
+use core::hint::cold_path;
 use std::{
     collections::HashMap,
     sync::LazyLock,
@@ -46,7 +47,10 @@ pub(super) fn local_time(epoch: f64) -> PyResult<String> {
         .timestamp_opt(epoch.floor() as i64, 0)
         .single()
         .map(|time| time.format(TIME_FORMAT).to_string())
-        .ok_or_else(|| PyValueError::new_err("timestamp out of range for platform time_t"))
+        .ok_or_else(|| {
+            cold_path();
+            PyValueError::new_err("timestamp out of range for platform time_t")
+        })
 }
 
 pub(super) fn expiry_datetime<'py>(py: Python<'py>, expires: &str) -> PyResult<Bound<'py, PyAny>> {

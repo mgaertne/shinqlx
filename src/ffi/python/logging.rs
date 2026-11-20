@@ -388,7 +388,7 @@ mod shinqlx_handler_tests {
 
     fn log_through_python_handler(
         py: Python<'_>,
-        code: &std::ffi::CStr,
+        code: &core::ffi::CStr,
     ) -> Vec<(log::Level, String, String)> {
         capture::install();
         let handler = Bound::new(py, ShinqlxHandler).expect("could not create the handler");
@@ -399,7 +399,8 @@ mod shinqlx_handler_tests {
             })
             .expect("could not get the logger");
         logger
-            .call_method1(intern!(py, "setLevel"), (10,))
+            .setattr(intern!(py, "propagate"), false)
+            .and_then(|_| logger.call_method1(intern!(py, "setLevel"), (10,)))
             .and_then(|_| logger.call_method1(intern!(py, "addHandler"), (&handler,)))
             .expect("could not attach the handler");
         let mark = capture::mark();

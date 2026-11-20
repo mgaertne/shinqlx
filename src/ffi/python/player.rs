@@ -1745,6 +1745,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let other_team = other_player.get_team()?;
 
         if own_team == other_team {
+            cold_path();
             return Err(PyValueError::new_err("Both players are on the same team."));
         }
 

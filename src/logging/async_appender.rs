@@ -1,14 +1,11 @@
+use alloc::{collections::VecDeque, sync::Arc};
 use core::{
     fmt,
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
 use std::{
-    collections::VecDeque,
-    sync::{
-        Arc,
-        mpsc::{Receiver, SyncSender, TrySendError, sync_channel},
-    },
+    sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel},
     thread,
 };
 

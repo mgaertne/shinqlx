@@ -977,17 +977,20 @@ pub(super) fn later<'py>(
 ) -> PyResult<Bound<'py, PyAny>> {
     let deferral = match (seconds, frames) {
         (Some(_), Some(_)) => {
+            cold_path();
             return Err(PyTypeError::new_err(
                 "later() takes either seconds or frames, not both",
             ));
         }
         (None, None) => {
+            cold_path();
             return Err(PyTypeError::new_err(
                 "later() needs either seconds or frames",
             ));
         }
         (Some(seconds), None) if seconds.is_finite() && seconds >= 0.0 => Deferral::Delay(seconds),
         (Some(_), None) => {
+            cold_path();
             return Err(PyValueError::new_err(
                 "seconds has to be a finite number that is not negative",
             ));
@@ -997,7 +1000,10 @@ pub(super) fn later<'py>(
             u32::try_from(frames)
                 .ok()
                 .filter(|&frames| frames >= 1)
-                .ok_or_else(|| PyValueError::new_err("frames has to be a positive integer"))?,
+                .ok_or_else(|| {
+                    cold_path();
+                    PyValueError::new_err("frames has to be a positive integer")
+                })?,
         ),
     };
 
@@ -1062,7 +1068,7 @@ mod decorators_tests {
     };
 
     fn decorated_plugin<'py>(py: Python<'py>, class_body: &str) -> Bound<'py, PyAny> {
-        let code = std::ffi::CString::new(format!(
+        let code = alloc::ffi::CString::new(format!(
             "import shinqlx\n\nclass decorated_plugin(shinqlx.Plugin):\n{class_body}\n"
         ))
         .expect("this should not happen");
@@ -1246,7 +1252,7 @@ def handler(self, *args): pass
         locals
             .set_item("shinqlx", py.import("shinqlx").expect("no shinqlx"))
             .expect("could not set shinqlx");
-        let code = std::ffi::CString::new(checks).expect("this should not happen");
+        let code = alloc::ffi::CString::new(checks).expect("this should not happen");
         py.run(&code, Some(&locals), Some(&locals))
             .expect("checks failed");
     }
@@ -1576,8 +1582,8 @@ channel = Channel()
 
 #[cfg(test)]
 mod decorator_signature_tests {
+    use alloc::ffi::CString;
     use core::borrow::BorrowMut;
-    use std::ffi::CString;
 
     use pyo3::{exceptions::PyTypeError, intern, prelude::*, types::PyDict};
     use rstest::rstest;
@@ -1881,7 +1887,7 @@ TestClass().test_func()
 
 #[cfg(test)]
 mod later_tests {
-    use std::ffi::CString;
+    use alloc::ffi::CString;
 
     use pyo3::prelude::*;
     use rstest::rstest;
@@ -2393,7 +2399,7 @@ mod cvar_declaration_tests {
     };
 
     fn plugin_module<'py>(py: Python<'py>, source: &str) -> PyResult<Bound<'py, PyModule>> {
-        let code = std::ffi::CString::new(format!("import shinqlx\n\n{source}\n"))
+        let code = alloc::ffi::CString::new(format!("import shinqlx\n\n{source}\n"))
             .expect("this should not happen");
         PyModule::from_code(py, &code, c"", c"")
     }
@@ -2539,7 +2545,7 @@ mod cvar_declaration_tests {
         #[case] cvar_value: &str,
         #[case] expected: &str,
     ) {
-        let value = std::ffi::CString::new(cvar_value).expect("this should not happen");
+        let value = alloc::ffi::CString::new(cvar_value).expect("this should not happen");
         let mut raw_cvar = CVarBuilder::default()
             .string(value.as_ptr().cast_mut())
             .build()
@@ -2566,7 +2572,7 @@ mod cvar_declaration_tests {
                         .expect("could not read the field");
                     let expected = py
                         .eval(
-                            &std::ffi::CString::new(expected).expect("this should not happen"),
+                            &alloc::ffi::CString::new(expected).expect("this should not happen"),
                             None,
                             None,
                         )

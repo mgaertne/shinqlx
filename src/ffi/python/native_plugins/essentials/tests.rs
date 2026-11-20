@@ -1,5 +1,4 @@
-use core::ffi::CStr;
-use std::sync::atomic::Ordering;
+use core::{ffi::CStr, sync::atomic::Ordering};
 
 use pyo3::{prelude::*, types::PyDict};
 use rstest::rstest;

@@ -74,7 +74,7 @@ pub(crate) fn register_events_enum(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
     let globals = PyDict::new(py);
     globals.set_item(intern!(py, "__name__"), "_shinqlx")?;
-    let source = std::ffi::CString::new(events_class_source())?;
+    let source = alloc::ffi::CString::new(events_class_source())?;
     py.run(&source, Some(&globals), None)?;
 
     let events = globals

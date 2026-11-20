@@ -1,5 +1,6 @@
-use std::{
-    collections::VecDeque,
+use alloc::collections::VecDeque;
+use core::{
+    hint::cold_path,
     sync::atomic::{AtomicI64, Ordering},
 };
 
@@ -634,7 +635,10 @@ impl Essentials {
         let zone = i32::try_from(offset * 3600)
             .ok()
             .and_then(FixedOffset::east_opt)
-            .ok_or_else(|| PyValueError::new_err("time zone offset out of range"))?;
+            .ok_or_else(|| {
+                cold_path();
+                PyValueError::new_err("time zone offset out of range")
+            })?;
         let current = Utc::now().with_timezone(&zone).format(TIME_FORMAT);
 
         let message = match offset {

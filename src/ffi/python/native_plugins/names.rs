@@ -283,7 +283,7 @@ mod names_tests {
         }
     }
 
-    fn with_names<F>(enforce: &'static std::ffi::CStr, test: F)
+    fn with_names<F>(enforce: &'static core::ffi::CStr, test: F)
     where
         F: FnOnce(Fixtures<'_>),
     {
@@ -429,7 +429,7 @@ class Channel:
     #[serial]
     fn loading_applies_the_registered_name_if_allowed(
         _pyshinqlx_setup: (),
-        #[case] enforce: &'static std::ffi::CStr,
+        #[case] enforce: &'static core::ffi::CStr,
         #[case] registered: &str,
         #[case] applied: bool,
     ) {
@@ -627,7 +627,7 @@ class Channel:
     #[serial]
     fn name_registers_valid_names_and_rejects_the_others(
         _pyshinqlx_setup: (),
-        #[case] enforce: &'static std::ffi::CStr,
+        #[case] enforce: &'static core::ffi::CStr,
         #[case] words: &[&str],
         #[case] told_prefix: &str,
         #[case] registered: bool,

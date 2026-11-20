@@ -148,6 +148,9 @@ unimplemented = "warn"
 allow_attributes_without_reason = "warn"
 unwrap_used = "warn"
 undocumented_unsafe_blocks = "warn"
+std_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+alloc_instead_of_core = "warn"
 
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "deny"

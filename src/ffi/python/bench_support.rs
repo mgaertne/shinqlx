@@ -347,7 +347,7 @@ impl PythonCase {
             .map(|line| format!("        {line}"))
             .collect::<Vec<_>>()
             .join("\n");
-        let source = std::ffi::CString::new(format!(
+        let source = alloc::ffi::CString::new(format!(
             "import shinqlx\n{setup}\n\ndef run(count):\n    for _ in range(count):\n{indented_body}\n"
         ))
         .expect("the snippet must not contain a nul byte");
@@ -378,8 +378,8 @@ pub struct NameOfCase(Py<PyAny>);
 impl NameOfCase {
     /// Evaluates the expression, e.g. `shinqlx.Teams.RED` or `"red"`.
     pub fn new(expression: &str) -> Self {
-        let code =
-            std::ffi::CString::new(expression).expect("the expression must not contain a nul byte");
+        let code = alloc::ffi::CString::new(expression)
+            .expect("the expression must not contain a nul byte");
         Python::attach(|py| {
             let globals = PyDict::new(py);
             globals
@@ -421,7 +421,7 @@ impl DeclaredCvarsCase {
             .map(|index| format!("    def method_{index}(self):\n        return {index}"))
             .collect::<Vec<_>>()
             .join("\n");
-        let source = std::ffi::CString::new(format!(
+        let source = alloc::ffi::CString::new(format!(
             "import shinqlx\n\nclass bench_plugin(shinqlx.Plugin):\n{cvar_lines}\n{method_lines}\n    pass\n"
         ))
         .expect("the class must not contain a nul byte");

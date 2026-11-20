@@ -1494,7 +1494,7 @@ fn get_cvar_strips_the_whitespace_around_the_items(_pyshinqlx_setup: ()) {
                     .expect("result was not OK");
 
                     let items = PySet::new(py, result.try_iter().expect("not iterable").flatten())
-                        .and_then(|items| items.extract::<std::collections::BTreeSet<String>>())
+                        .and_then(|items| items.extract::<alloc::collections::BTreeSet<String>>())
                         .expect("could not read the items");
                     assert_eq!(
                         items,
@@ -1555,7 +1555,7 @@ fn get_cvar_keeps_the_order_of_the_stripped_items(_pyshinqlx_setup: ()) {
 #[serial]
 fn get_cvar_converts_an_empty_value_to_an_empty_collection(
     _pyshinqlx_setup: (),
-    #[case] cvar_string: &std::ffi::CStr,
+    #[case] cvar_string: &core::ffi::CStr,
 ) {
     let mut raw_cvar = CVarBuilder::default()
         .string(cvar_string.as_ptr().cast_mut())
