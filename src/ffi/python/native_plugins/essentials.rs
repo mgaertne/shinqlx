@@ -3,14 +3,17 @@ use std::{
     sync::atomic::{AtomicI64, Ordering},
 };
 
+use chrono::{FixedOffset, Local, NaiveDateTime, Utc};
 use parking_lot::Mutex;
 use pyo3::{
     PyTraverseError,
+    exceptions::PyValueError,
     gc::PyVisit,
     intern,
     prelude::*,
     types::{IntoPyDict, PyFloat, PyInt},
 };
+use rand::RngExt;
 
 use super::{
     cvar_flag, register_client_command, register_command, register_hook,
@@ -204,7 +207,6 @@ impl Essentials {
         player: &Bound<'_, PyAny>,
         _reason: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
-        let py = slf.py();
         {
             let mut recent = slf.get().recent_disconnects.lock();
             recent.push_front((player.clone().unbind(), now()));
@@ -212,9 +214,7 @@ impl Essentials {
         }
 
         let key = format!("{}:last_seen", player_key(steam_id_of(player)?));
-        slf.as_super()
-            .get_db()?
-            .set_item(key, local_time(py, now())?)
+        slf.as_super().get_db()?.set_item(key, local_time(now())?)
     }
 
     fn handle_vote_called(
@@ -590,18 +590,15 @@ impl Essentials {
             return reply(channel, &format!("^7I have never seen {name} before."));
         }
 
-        let datetime = py
-            .import(intern!(py, "datetime"))?
-            .getattr(intern!(py, "datetime"))?;
-        let then = datetime.call_method1(
-            intern!(py, "strptime"),
-            (database.get_item(&key)?, DATETIME_FORMAT),
-        )?;
-        let elapsed = datetime
-            .call_method0(intern!(py, "now"))?
-            .call_method1(intern!(py, "__sub__"), (then,))?;
-        let days = elapsed.getattr(intern!(py, "days"))?.extract::<i64>()?;
-        let seconds = elapsed.getattr(intern!(py, "seconds"))?.extract::<i64>()?;
+        let last_seen = database.get_item(&key)?.extract::<String>()?;
+        let then = NaiveDateTime::parse_from_str(&last_seen, DATETIME_FORMAT).map_err(|_| {
+            PyValueError::new_err(format!(
+                "time data '{last_seen}' does not match format '{DATETIME_FORMAT}'"
+            ))
+        })?;
+        let elapsed = Local::now().naive_local() - then;
+        let days = elapsed.num_days();
+        let seconds = elapsed.num_seconds() - days * 86_400;
         let (hours, minutes) = (seconds / 3600, seconds % 3600 / 60);
 
         if days != 0 {
@@ -620,26 +617,12 @@ impl Essentials {
     }
 
     fn cmd_time(
-        slf: &Bound<'_, Self>,
+        _slf: &Bound<'_, Self>,
         _player: &Bound<'_, PyAny>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        let py = slf.py();
-        let time = py.import(intern!(py, "time"))?;
-        let in_daylight_saving = time
-            .call_method0(intern!(py, "localtime"))?
-            .getattr(intern!(py, "tm_isdst"))?
-            .extract::<i64>()?
-            != 0;
-        let local_seconds = time
-            .getattr(if in_daylight_saving {
-                "altzone"
-            } else {
-                "timezone"
-            })?
-            .extract::<i64>()?;
-        let mut offset = -(local_seconds.div_euclid(60).div_euclid(60));
+        let mut offset = i64::from(Local::now().offset().local_minus_utc()).div_euclid(3600);
 
         if let Some(requested) = msg.get(1) {
             match requested.parse::<i64>() {
@@ -648,14 +631,11 @@ impl Essentials {
             }
         }
 
-        let datetime = py.import(intern!(py, "datetime"))?;
-        let zone = datetime.getattr(intern!(py, "timezone"))?.call1((datetime
-            .getattr(intern!(py, "timedelta"))?
-            .call1((0, 0, 0, 0, 0, offset))?,))?;
-        let current = datetime
-            .getattr(intern!(py, "datetime"))?
-            .call_method1(intern!(py, "now"), (zone,))?
-            .call_method1(intern!(py, "strftime"), (TIME_FORMAT,))?;
+        let zone = i32::try_from(offset * 3600)
+            .ok()
+            .and_then(FixedOffset::east_opt)
+            .ok_or_else(|| PyValueError::new_err("time zone offset out of range"))?;
+        let current = Utc::now().with_timezone(&zone).format(TIME_FORMAT);
 
         let message = match offset {
             0 => format!("The current time is: ^6{current} UTC"),
@@ -897,7 +877,7 @@ impl Essentials {
     }
 
     fn cmd_random(
-        slf: &Bound<'_, Self>,
+        _slf: &Bound<'_, Self>,
         player: &Bound<'_, PyAny>,
         msg: Vec<String>,
         channel: &Bound<'_, PyAny>,
@@ -910,10 +890,7 @@ impl Essentials {
             return stop_all();
         };
 
-        let number = slf
-            .py()
-            .import(intern!(slf.py(), "random"))?
-            .call_method1(intern!(slf.py(), "randint"), (1, limit))?;
+        let number = rand::rng().random_range(1..=limit);
         reply(channel, &format!("^3Random number is: ^5{number}"))
     }
 

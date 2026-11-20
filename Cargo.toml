@@ -80,7 +80,7 @@ log4rs = { version = ">=1.4", default-features = false, features = ["console_app
 serde = { version = ">=1.0", default-features = false, features = ["derive", "std"] }
 signal-hook = { version = ">=0.4", default-features = false }
 signal-hook-registry = { version = ">=1.4", default-features = false }
-chrono = { version = ">=0.4.41", default-features = false, features = ["now"] }
+chrono = { version = ">=0.4.41", default-features = false, features = ["now", "clock"] }
 itertools = { version = ">=0.15", default-features = false, features = ["use_alloc"] }
 arrayvec = { version = ">=0.7", default-features = false }
 cfg-if = { version = ">=1.0", default-features = false }

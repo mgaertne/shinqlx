@@ -1,5 +1,6 @@
 use std::{fs::create_dir_all, path::Path};
 
+use chrono::Local;
 use pyo3::{
     PyTraverseError,
     exceptions::PyEnvironmentError,
@@ -134,10 +135,7 @@ fn create_chatlog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     let chatlog = logging.getattr(intern!(py, "Logger"))?.call1(("log",))?;
     chatlog.call_method1(intern!(py, "addHandler"), (handler,))?;
-    let started = py
-        .import(intern!(py, "datetime"))?
-        .getattr(intern!(py, "datetime"))?
-        .call_method0(intern!(py, "now"))?;
+    let started = Local::now().format("%Y-%m-%d %H:%M:%S%.6f");
     chatlog.call_method1(
         intern!(py, "info"),
         (format!(

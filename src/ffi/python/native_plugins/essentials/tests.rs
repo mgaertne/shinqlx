@@ -1026,10 +1026,8 @@ fn seen_tells_how_long_ago_a_player_was_seen(
     #[case] recent: bool,
 ) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        let py = fixtures.plugin.py();
         let stamp = if recent {
             crate::ffi::python::native_plugins::timed_entries::local_time(
-                py,
                 crate::ffi::python::native_plugins::timed_entries::now() - 3_900.0,
             )
             .expect("no time")
@@ -1120,20 +1118,14 @@ fn time_reports_the_time_in_the_requested_zone(
 #[rstest]
 #[cfg_attr(miri, ignore)]
 #[serial]
-fn time_uses_the_daylight_saving_offset_by_default(_pyshinqlx_setup: ()) {
+fn time_uses_the_local_offset_by_default(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        let py = fixtures.plugin.py();
-        let time = py.import("time").expect("no time module");
-        let _restored_localtime = RestoredAttribute::capture(time.as_any(), "localtime");
-        let _restored_altzone = RestoredAttribute::capture(time.as_any(), "altzone");
-        time.setattr(
-            "localtime",
-            py.eval(c"lambda: type('Now', (), {'tm_isdst': 1})()", None, None)
-                .expect("could not build localtime"),
-        )
-        .expect("could not replace localtime");
-        time.setattr("altzone", -7200)
-            .expect("could not replace altzone");
+        let offset = chrono::Local::now().offset().local_minus_utc() / 3600;
+        let suffix = match offset {
+            0 => " UTC".to_owned(),
+            offset if offset > 0 => format!(" UTC+{offset}"),
+            offset => format!(" UTC{offset}"),
+        };
 
         let result = Essentials::cmd_time(
             &fixtures.plugin,
@@ -1145,7 +1137,7 @@ fn time_uses_the_daylight_saving_offset_by_default(_pyshinqlx_setup: ()) {
         assert_eq!(result.ok(), Some(None));
         let replies = fixtures.replies();
         assert_eq!(replies.len(), 1);
-        assert!(replies[0].ends_with(" UTC+2"));
+        assert!(replies[0].ends_with(&suffix), "{replies:?}");
     });
 }
 

@@ -4,8 +4,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use chrono::{Local, TimeZone};
 use pyo3::{
-    exceptions::PyTypeError,
+    exceptions::{PyTypeError, PyValueError},
     intern,
     prelude::*,
     types::{IntoPyDict, PyDict, PyTuple},
@@ -36,16 +37,16 @@ pub(super) fn now() -> f64 {
         .map_or(0.0, |elapsed| elapsed.as_secs_f64())
 }
 
-pub(super) fn local_time(py: Python<'_>, epoch: f64) -> PyResult<String> {
-    let time = py.import(intern!(py, "time"))?;
-    time.call_method1(
-        intern!(py, "strftime"),
-        (
-            TIME_FORMAT,
-            time.call_method1(intern!(py, "localtime"), (epoch,))?,
-        ),
-    )?
-    .extract()
+pub(super) fn local_time(epoch: f64) -> PyResult<String> {
+    #[allow(
+        clippy::cast_possible_truncation,
+        reason = "epochs far outside of the i64 range are rejected as out of range below"
+    )]
+    Local
+        .timestamp_opt(epoch.floor() as i64, 0)
+        .single()
+        .map(|time| time.format(TIME_FORMAT).to_string())
+        .ok_or_else(|| PyValueError::new_err("timestamp out of range for platform time_t"))
 }
 
 pub(super) fn expiry_datetime<'py>(py: Python<'py>, expires: &str) -> PyResult<Bound<'py, PyAny>> {
@@ -106,7 +107,7 @@ pub(super) fn latest_entry(database: &Bound<'_, PyAny>, key: &str) -> PyResult<O
     Ok(Some(Entry {
         expires: match details.get("expires") {
             Some(expires) => expires.clone(),
-            None => local_time(py, *score)?,
+            None => local_time(*score)?,
         },
         score: *score,
         reason: details.get("reason").cloned().unwrap_or_default(),
@@ -153,14 +154,14 @@ pub(super) fn store_entry(
     let py = database.py();
     let issued_at = now();
     let score = issued_at + seconds;
-    let expires = local_time(py, score)?;
+    let expires = local_time(score)?;
     let entry_id = database
         .call_method1(intern!(py, "zcard"), (key,))?
         .extract::<i64>()?;
     let details = PyDict::new(py);
     details.set_item(intern!(py, "expires"), &expires)?;
     details.set_item(intern!(py, "reason"), reason)?;
-    details.set_item(intern!(py, "issued"), local_time(py, issued_at)?)?;
+    details.set_item(intern!(py, "issued"), local_time(issued_at)?)?;
     details.set_item(intern!(py, "issued_by"), issued_by)?;
 
     let pipeline = database.call_method0(intern!(py, "pipeline"))?;
