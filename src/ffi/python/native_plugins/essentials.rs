@@ -19,7 +19,8 @@ use super::{
     timed_entries::{local_time, now},
 };
 use crate::ffi::python::{
-    Plugin, commands::CommandPriorities, delay, get_cvar, plugin::PluginMethods,
+    Plugin, abort, allready, change_map, commands::CommandPriorities, delay, get_cvar, pause,
+    plugin::PluginMethods, shuffle, unpause,
 };
 
 mod bookkeeping;
@@ -684,9 +685,7 @@ impl Essentials {
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        plugin_class(slf.py())
-            .call_method0(intern!(slf.py(), "shuffle"))
-            .map(|_| None)
+        shuffle(slf.py()).map(|_| None)
     }
 
     fn cmd_pause(
@@ -695,9 +694,7 @@ impl Essentials {
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        plugin_class(slf.py())
-            .call_method0(intern!(slf.py(), "pause"))
-            .map(|_| None)
+        pause(slf.py()).map(|_| None)
     }
 
     fn cmd_unpause(
@@ -706,9 +703,7 @@ impl Essentials {
         _msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
-        plugin_class(slf.py())
-            .call_method0(intern!(slf.py(), "unpause"))
-            .map(|_| None)
+        unpause(slf.py()).map(|_| None)
     }
 
     fn cmd_slap(
@@ -1055,9 +1050,7 @@ impl Essentials {
     ) -> PyResult<Option<i32>> {
         match game_state(slf)?.as_deref() {
             None => reply(channel, "There is no game running."),
-            Some("warmup") => plugin_class(slf.py())
-                .call_method0(intern!(slf.py(), "allready"))
-                .map(|_| None),
+            Some("warmup") => allready(slf.py()).map(|_| None),
             Some(_) => reply(
                 channel,
                 "But the game's already in progress, you silly goose!",
@@ -1074,9 +1067,7 @@ impl Essentials {
         match game_state(slf)?.as_deref() {
             None => reply(channel, "There is no game running."),
             Some("warmup") => reply(channel, "But the game isn't even on, you doofus!"),
-            Some(_) => plugin_class(slf.py())
-                .call_method0(intern!(slf.py(), "abort"))
-                .map(|_| None),
+            Some(_) => abort(slf.py()).map(|_| None),
         }
     }
 
@@ -1089,9 +1080,7 @@ impl Essentials {
         let Some(map_name) = msg.get(1) else {
             return usage();
         };
-        plugin_class(slf.py())
-            .call_method1(intern!(slf.py(), "change_map"), (map_name, msg.get(2)))
-            .map(|_| None)
+        change_map(slf.py(), map_name, msg.get(2).map(String::as_str)).map(|_| None)
     }
 
     fn cmd_teamsize(

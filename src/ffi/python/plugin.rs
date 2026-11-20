@@ -15,11 +15,11 @@ mod lookup;
 use self::lookup::{TargetLookup, lookup_target, players_matching_name};
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
-    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, Teams, addadmin, addmod,
-    addscore, addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
-    is_vote_active, lock, mute, opsay, prelude::*, put, pyshinqlx_get_logger,
-    pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once, set_teamsize, tempban, unban, unlock,
-    unmute,
+    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, Teams, abort, addadmin,
+    addmod, addscore, addteamscore, allready, ban, change_map, client_id,
+    commands::CommandPriorities, console_command, demote, is_vote_active, lock, mute, opsay, pause,
+    prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
+    set_teamsize, shuffle, tempban, unban, unlock, unmute, unpause,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -909,19 +909,13 @@ impl Plugin {
 
     #[classmethod]
     fn shuffle(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().detach(|| console_command("forceshuffle"))
+        shuffle(cls.py())
     }
 
     #[classmethod]
     #[pyo3(signature = (new_map, factory = None), text_signature = "(new_map, factory = None)")]
     fn change_map(cls: &Bound<'_, PyType>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
-        cls.py().detach(|| {
-            let mapchange_command = match factory {
-                None => format!("map {new_map}"),
-                Some(game_factory) => format!("map {new_map} {game_factory}"),
-            };
-            console_command(&mapchange_command)
-        })
+        change_map(cls.py(), new_map, factory)
     }
 
     #[classmethod]
@@ -1027,17 +1021,17 @@ impl Plugin {
 
     #[classmethod]
     fn allready(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().detach(|| console_command("allready"))
+        allready(cls.py())
     }
 
     #[classmethod]
     fn pause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().detach(|| console_command("pause"))
+        pause(cls.py())
     }
 
     #[classmethod]
     fn unpause(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().detach(|| console_command("unpause"))
+        unpause(cls.py())
     }
 
     #[classmethod]
@@ -1112,7 +1106,7 @@ impl Plugin {
 
     #[classmethod]
     fn abort(cls: &Bound<'_, PyType>) -> PyResult<()> {
-        cls.py().detach(|| console_command("map_restart"))
+        abort(cls.py())
     }
 
     #[classmethod]

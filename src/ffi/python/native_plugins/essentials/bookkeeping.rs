@@ -1,6 +1,7 @@
-use pyo3::{intern, prelude::*};
+use pyo3::{intern, prelude::*, types::PyString};
 
-use super::{player_key, plugin_class, steam_id_of};
+use super::{player_key, steam_id_of};
+use crate::ffi::python::clean_py_text;
 
 pub(super) fn update_player(
     database: &Bound<'_, PyAny>,
@@ -27,13 +28,11 @@ pub(super) fn update_player(
         let known = database
             .call_method1(intern!(py, "lrange"), (&base_key, 0, -1))?
             .try_iter()?
-            .map(|known_name| {
-                plugin_class(py).call_method1(intern!(py, "clean_text"), (known_name?,))
-            })
+            .map(|known_name| clean_py_text(known_name?.cast::<PyString>()?))
             .collect::<PyResult<Vec<_>>>()?;
         let mut is_known = false;
         for known_name in &known {
-            is_known |= known_name.eq(&clean_name)?;
+            is_known |= known_name.as_any().eq(&clean_name)?;
         }
         if !is_known {
             pipeline.call_method1(intern!(py, "lpush"), (&base_key, &name))?;

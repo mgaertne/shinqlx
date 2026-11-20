@@ -109,6 +109,36 @@ pub(crate) fn console_command(cmd: &str) -> PyResult<()> {
     })
 }
 
+pub(crate) fn shuffle(py: Python<'_>) -> PyResult<()> {
+    py.detach(|| console_command("forceshuffle"))
+}
+
+pub(crate) fn pause(py: Python<'_>) -> PyResult<()> {
+    py.detach(|| console_command("pause"))
+}
+
+pub(crate) fn unpause(py: Python<'_>) -> PyResult<()> {
+    py.detach(|| console_command("unpause"))
+}
+
+pub(crate) fn allready(py: Python<'_>) -> PyResult<()> {
+    py.detach(|| console_command("allready"))
+}
+
+pub(crate) fn abort(py: Python<'_>) -> PyResult<()> {
+    py.detach(|| console_command("map_restart"))
+}
+
+pub(crate) fn change_map(py: Python<'_>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
+    py.detach(|| {
+        let mapchange_command = match factory {
+            None => format!("map {new_map}"),
+            Some(game_factory) => format!("map {new_map} {game_factory}"),
+        };
+        console_command(&mapchange_command)
+    })
+}
+
 pub(crate) fn get_configstring(index: u16) -> PyResult<String> {
     if !(0..MAX_CONFIGSTRINGS as u16).contains(&index) {
         cold_path();

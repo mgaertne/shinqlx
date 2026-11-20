@@ -101,9 +101,6 @@ def recorder(name, result=None):
     return record
 
 
-shuffle = recorder('shuffle')
-pause = recorder('pause')
-unpause = recorder('unpause')
 slap = recorder('slap')
 slay = recorder('slay')
 stop_sound = recorder('stop_sound')
@@ -111,9 +108,6 @@ stop_music = recorder('stop_music')
 switch = recorder('switch')
 lock = recorder('lock')
 unlock = recorder('unlock')
-allready = recorder('allready')
-abort = recorder('abort')
-change_map = recorder('change_map')
 msg = recorder('msg')
 
 
@@ -144,10 +138,6 @@ def player(cls, ident, player_list=None):
 
 def teams(cls, player_list=None):
     return team_members
-
-
-def clean_text(cls, text):
-    return text.replace('^7', '')
 
 
 def is_vote_active(cls):
@@ -184,25 +174,21 @@ class Redirect:
         redirected.append('left')
 
 
-for _name in ('players', 'find_player', 'player', 'teams', 'clean_text', 'is_vote_active',
-              'current_vote_count', 'force_vote', 'shuffle', 'pause', 'unpause', 'slap', 'slay',
-              'stop_sound', 'stop_music', 'switch', 'lock', 'unlock', 'allready', 'abort',
-              'change_map', 'msg', 'play_sound', 'play_music'):
+for _name in ('players', 'find_player', 'player', 'teams', 'is_vote_active',
+              'current_vote_count', 'force_vote', 'slap', 'slay',
+              'stop_sound', 'stop_music', 'switch', 'lock', 'unlock',
+              'msg', 'play_sound', 'play_music'):
     globals()[_name] = classmethod(globals()[_name])
 ";
 
-const PLUGIN_METHODS: [&str; 24] = [
+const PLUGIN_METHODS: [&str; 17] = [
     "players",
     "find_player",
     "player",
     "teams",
-    "clean_text",
     "is_vote_active",
     "current_vote_count",
     "force_vote",
-    "shuffle",
-    "pause",
-    "unpause",
     "slap",
     "slay",
     "stop_sound",
@@ -210,9 +196,6 @@ const PLUGIN_METHODS: [&str; 24] = [
     "switch",
     "lock",
     "unlock",
-    "allready",
-    "abort",
-    "change_map",
     "msg",
     "play_sound",
     "play_music",
@@ -306,7 +289,13 @@ fn with_essentials<F>(cvars: &[(&'static str, &'static CStr)], mappool: Option<&
 where
     F: FnOnce(Fixtures<'_>),
 {
-    let mut engine = engine_with_cvars(cvars);
+    with_essentials_engine(engine_with_cvars(cvars), mappool, test);
+}
+
+fn with_essentials_engine<F>(mut engine: MockEngineBuilder, mappool: Option<&str>, test: F)
+where
+    F: FnOnce(Fixtures<'_>),
+{
     engine.run(|| {
         Python::attach(|py| {
             let _fake_redis = FakeRedis::install(py, REDIS_5);
@@ -1477,17 +1466,18 @@ fn slap_and_slay_tell_the_caller_about_invalid_values(
 }
 
 #[rstest]
-#[case("cmd_shuffle", "[('shuffle',)]")]
-#[case("cmd_pause", "[('pause',)]")]
-#[case("cmd_unpause", "[('unpause',)]")]
+#[case("cmd_shuffle", "forceshuffle")]
+#[case("cmd_pause", "pause")]
+#[case("cmd_unpause", "unpause")]
 #[cfg_attr(miri, ignore)]
 #[serial]
-fn game_control_commands_call_the_plugin(
+fn game_control_commands_send_the_console_command(
     _pyshinqlx_setup: (),
     #[case] command: &str,
-    #[case] expected: &str,
+    #[case] expected: &'static str,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command(expected, 1);
+    with_essentials_engine(engine, None, |fixtures| {
         let handler = match command {
             "cmd_shuffle" => Essentials::cmd_shuffle,
             "cmd_pause" => Essentials::cmd_pause,
@@ -1502,7 +1492,6 @@ fn game_control_commands_call_the_plugin(
         );
 
         assert_eq!(result.ok(), Some(None));
-        assert_eq!(fixtures.actions(), expected);
     });
 }
 
@@ -1790,18 +1779,19 @@ fn locking_an_unknown_team_is_refused(_pyshinqlx_setup: (), #[case] team: &str) 
 }
 
 #[rstest]
-#[case(Some("warmup"), "[('allready',)]", &[])]
-#[case(Some("in_progress"), "[]", &["But the game's already in progress, you silly goose!"])]
-#[case(None, "[]", &["There is no game running."])]
+#[case(Some("warmup"), 1, &[])]
+#[case(Some("in_progress"), 0, &["But the game's already in progress, you silly goose!"])]
+#[case(None, 0, &["There is no game running."])]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn allready_only_works_during_warmup(
     _pyshinqlx_setup: (),
     #[case] state: Option<&str>,
-    #[case] expected_actions: &str,
+    #[case] commands: usize,
     #[case] expected_replies: &[&str],
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command("allready", commands);
+    with_essentials_engine(engine, None, |fixtures| {
         fixtures.set_game(state);
 
         let result = Essentials::cmd_allready(
@@ -1812,24 +1802,25 @@ fn allready_only_works_during_warmup(
         );
 
         assert_eq!(result.as_ref().ok(), Some(&None), "{result:?}");
-        assert_eq!(fixtures.actions(), expected_actions);
         assert_eq!(fixtures.replies(), expected_replies);
     });
 }
 
 #[rstest]
-#[case(Some("in_progress"), "[('abort',)]", &[])]
-#[case(Some("warmup"), "[]", &["But the game isn't even on, you doofus!"])]
-#[case(None, "[]", &["There is no game running."])]
+#[case(Some("in_progress"), 1, &[])]
+#[case(Some("warmup"), 0, &["But the game isn't even on, you doofus!"])]
+#[case(None, 0, &["There is no game running."])]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn abort_only_works_during_a_game(
     _pyshinqlx_setup: (),
     #[case] state: Option<&str>,
-    #[case] expected_actions: &str,
+    #[case] commands: usize,
     #[case] expected_replies: &[&str],
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine =
+        engine_with_cvars(&NO_VOTEPASS).with_execute_console_command("map_restart", commands);
+    with_essentials_engine(engine, None, |fixtures| {
         fixtures.set_game(state);
 
         let result = Essentials::cmd_abort(
@@ -1840,26 +1831,25 @@ fn abort_only_works_during_a_game(
         );
 
         assert_eq!(result.ok(), Some(None));
-        assert_eq!(fixtures.actions(), expected_actions);
         assert_eq!(fixtures.replies(), expected_replies);
     });
 }
 
 #[rstest]
-#[case(&["map", "campgrounds"], "[('change_map', 'campgrounds', None)]")]
-#[case(&["map", "campgrounds", "ffa"], "[('change_map', 'campgrounds', 'ffa')]")]
+#[case(&["map", "campgrounds"], "map campgrounds")]
+#[case(&["map", "campgrounds", "ffa"], "map campgrounds ffa")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn map_changes_the_map_with_an_optional_factory(
     _pyshinqlx_setup: (),
     #[case] words: &[&str],
-    #[case] expected: &str,
+    #[case] expected: &'static str,
 ) {
-    with_essentials(&NO_VOTEPASS, None, |fixtures| {
+    let engine = engine_with_cvars(&NO_VOTEPASS).with_execute_console_command(expected, 1);
+    with_essentials_engine(engine, None, |fixtures| {
         let result = fixtures.run("map", &fixtures.caller, words);
 
         assert_eq!(result, Some(None));
-        assert_eq!(fixtures.actions(), expected);
     });
 }
 
