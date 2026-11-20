@@ -1,6 +1,6 @@
 use pyo3::{exceptions::PyKeyError, intern, prelude::*, types::PyTuple};
 
-use super::{register_command, register_hook, tell};
+use super::{create_cvar, register_command, register_hook, tell};
 use crate::ffi::python::{
     Plugin, PythonReturnCodes, commands::CommandPriorities, delay, get_cvar, plugin::PluginMethods,
 };
@@ -280,17 +280,11 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         .as_super()
         .get_db()?
         .call_method1(intern!(py, "sadd"), (MOTD_SET_KEY, &motd.home))?;
-    let plugin_class = py.get_type::<Plugin>();
-    plugin_class.call_method1(
-        intern!(py, "set_cvar_once"),
-        ("qlx_motdSound", "sound/vo/crash_new/37b_07_alt.wav"),
-    )?;
-    plugin_class.call_method1(
-        intern!(py, "set_cvar_once"),
-        (
-            "qlx_motdHeader",
-            "^6======= ^7Message of the Day ^6=======^7",
-        ),
+    create_cvar(py, "qlx_motdSound", "sound/vo/crash_new/37b_07_alt.wav")?;
+    create_cvar(
+        py,
+        "qlx_motdHeader",
+        "^6======= ^7Message of the Day ^6=======^7",
     )?;
 
     Ok(plugin.into_any())

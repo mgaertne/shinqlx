@@ -15,12 +15,13 @@ mod workshop;
 
 use std::sync::LazyLock;
 
-use pyo3::{intern, prelude::*};
+use pyo3::{intern, prelude::*, types::PyString};
 use regex_lite::Regex;
 
 use super::{
     commands::CommandPriorities,
-    plugin::{Plugin, PluginMethods},
+    plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
+    pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
 };
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
@@ -69,12 +70,31 @@ fn tell(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
 }
 
 fn cvar_flag(py: Python<'_>, name: &str) -> PyResult<bool> {
-    py.get_type::<Plugin>()
-        .call_method1(
-            intern!(py, "get_cvar"),
-            (name, py.get_type::<pyo3::types::PyBool>()),
-        )?
-        .is_truthy()
+    read_cvar_as(py, name, CvarType::Bool)?.is_truthy()
+}
+
+fn cvar_int(py: Python<'_>, name: &str) -> PyResult<i64> {
+    read_cvar_as(py, name, CvarType::Int)?.extract()
+}
+
+fn cvar_float(py: Python<'_>, name: &str) -> PyResult<f64> {
+    read_cvar_as(py, name, CvarType::Float)?.extract()
+}
+
+/// Creates the cvar with the value unless it exists already.
+fn create_cvar(py: Python<'_>, name: &str, value: &str) -> PyResult<()> {
+    pyshinqlx_set_cvar_once(py, name, PyString::new(py, value).as_any(), 0).map(|_| ())
+}
+
+/// Creates the cvar with the value and the limits unless it exists already.
+fn create_cvar_limit(
+    py: Python<'_>,
+    name: &str,
+    value: &str,
+    minimum: &str,
+    maximum: &str,
+) -> PyResult<()> {
+    pyshinqlx_set_cvar_limit_once(py, name, value, minimum, maximum, 0).map(|_| ())
 }
 
 fn register_command(
@@ -109,7 +129,7 @@ fn add_command(
 ) -> PyResult<()> {
     let py = plugin.py();
     let name = match names {
-        [single] => pyo3::types::PyString::new(py, single).into_any(),
+        [single] => PyString::new(py, single).into_any(),
         several => pyo3::types::PyTuple::new(py, several)?.into_any(),
     };
     plugin.add_command(

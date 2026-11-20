@@ -4,10 +4,11 @@ use pyo3::{
     types::{PyDict, PyList, PyTuple},
 };
 
+use super::create_cvar;
 use crate::ffi::python::{
     commands::CommandPriorities,
     game::GameMethods,
-    plugin::{Plugin, PluginMethods},
+    plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
 };
 
 /// Adds the workshop items of the cvar `qlx_workshopReferences` to every map, and to the running one when it is loaded.
@@ -33,10 +34,7 @@ fn add_references(plugin: &Bound<'_, Workshop>) -> PyResult<()> {
     };
     let game = Bound::new(py, game)?;
 
-    let references = py.get_type::<Plugin>().call_method1(
-        intern!(py, "get_cvar"),
-        ("qlx_workshopReferences", py.get_type::<PyList>()),
-    )?;
+    let references = read_cvar_as(py, "qlx_workshopReferences", CvarType::List)?;
     let present = game.get_workshop_items()?;
     let workshop_items = PyList::new(py, &present)?;
     for reference in references.try_iter()? {
@@ -64,8 +62,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         &plugin.getattr(intern!(py, "handle_map"))?,
         CommandPriorities::PRI_NORMAL as i32,
     )?;
-    py.get_type::<Plugin>()
-        .call_method1(intern!(py, "set_cvar_once"), ("qlx_workshopReferences", ""))?;
+    create_cvar(py, "qlx_workshopReferences", "")?;
     add_references(&plugin)?;
 
     Ok(plugin.into_any())

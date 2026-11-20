@@ -7,17 +7,13 @@ use core::{
 use chrono::{FixedOffset, Local, NaiveDateTime, Utc};
 use parking_lot::Mutex;
 use pyo3::{
-    PyTraverseError,
-    exceptions::PyValueError,
-    gc::PyVisit,
-    intern,
-    prelude::*,
-    types::{IntoPyDict, PyFloat, PyInt},
+    PyTraverseError, exceptions::PyValueError, gc::PyVisit, intern, prelude::*, types::IntoPyDict,
 };
 use rand::RngExt;
 
 use super::{
-    cvar_flag, register_client_command, register_command, register_hook,
+    create_cvar, create_cvar_limit, cvar_flag, cvar_float, cvar_int, register_client_command,
+    register_command, register_hook,
     target::{find_player, reply, stop_all, usage},
     tell,
     timed_entries::{local_time, now},
@@ -56,18 +52,6 @@ pub(super) struct Essentials {
 
 fn plugin_class(py: Python<'_>) -> Bound<'_, pyo3::types::PyType> {
     py.get_type::<Plugin>()
-}
-
-fn cvar_int(py: Python<'_>, name: &str) -> PyResult<i64> {
-    plugin_class(py)
-        .call_method1(intern!(py, "get_cvar"), (name, py.get_type::<PyInt>()))?
-        .extract()
-}
-
-fn cvar_float(py: Python<'_>, name: &str) -> PyResult<f64> {
-    plugin_class(py)
-        .call_method1(intern!(py, "get_cvar"), (name, py.get_type::<PyFloat>()))?
-        .extract()
 }
 
 fn steam_id_of(player: &Bound<'_, PyAny>) -> PyResult<i64> {
@@ -1160,15 +1144,11 @@ impl Essentials {
 }
 
 pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    let class = plugin_class(py);
-    class.call_method1(intern!(py, "set_cvar_once"), ("qlx_votepass", "1"))?;
-    class.call_method1(
-        intern!(py, "set_cvar_limit_once"),
-        ("qlx_votepassThreshold", "0.33", "0", "1"),
-    )?;
-    class.call_method1(intern!(py, "set_cvar_once"), ("qlx_teamsizeMinimum", "1"))?;
-    class.call_method1(intern!(py, "set_cvar_once"), ("qlx_teamsizeMaximum", "8"))?;
-    class.call_method1(intern!(py, "set_cvar_once"), ("qlx_enforceMappool", "0"))?;
+    create_cvar(py, "qlx_votepass", "1")?;
+    create_cvar_limit(py, "qlx_votepassThreshold", "0.33", "0", "1")?;
+    create_cvar(py, "qlx_teamsizeMinimum", "1")?;
+    create_cvar(py, "qlx_teamsizeMaximum", "8")?;
+    create_cvar(py, "qlx_enforceMappool", "0")?;
 
     let plugin = Bound::new(
         py,

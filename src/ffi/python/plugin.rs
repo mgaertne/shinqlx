@@ -17,8 +17,9 @@ use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
     EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, Teams, addadmin, addmod,
     addscore, addteamscore, ban, client_id, commands::CommandPriorities, console_command, demote,
-    is_vote_active, lock, mute, opsay, prelude::*, put, pyshinqlx_get_logger, set_teamsize,
-    tempban, unban, unlock, unmute,
+    is_vote_active, lock, mute, opsay, prelude::*, put, pyshinqlx_get_logger,
+    pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once, set_teamsize, tempban, unban, unlock,
+    unmute,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -451,24 +452,7 @@ impl Plugin {
         value: &Bound<'_, PyAny>,
         flags: i32,
     ) -> PyResult<bool> {
-        let value_str = value.str()?.to_string();
-
-        cls.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or_else(
-                || {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err("could not get main_engine"))
-                },
-                |main_engine| {
-                    Ok(main_engine
-                        .find_cvar(name)
-                        .tap_none(|| {
-                            main_engine.get_cvar(name, value_str.as_str(), Some(flags));
-                        })
-                        .is_none())
-                },
-            )
-        })
+        pyshinqlx_set_cvar_once(cls.py(), name, value, flags)
     }
 
     /// Sets a cvar with upper and lower limits. If the cvar exists, not do anything.
@@ -482,32 +466,14 @@ impl Plugin {
         maximum: &Bound<'_, PyAny>,
         flags: i32,
     ) -> PyResult<bool> {
-        let value_str = value.str()?.to_string();
-        let minimum_str = minimum.str()?.to_string();
-        let maximum_str = maximum.str()?.to_string();
-
-        cls.py().detach(|| {
-            MAIN_ENGINE.load().as_ref().map_or_else(
-                || {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err("could not get main_engine"))
-                },
-                |main_engine| {
-                    Ok(main_engine
-                        .find_cvar(name)
-                        .tap_none(|| {
-                            main_engine.set_cvar_limit(
-                                name,
-                                value_str.as_str(),
-                                minimum_str.as_str(),
-                                maximum_str.as_str(),
-                                Some(flags),
-                            );
-                        })
-                        .is_none())
-                },
-            )
-        })
+        pyshinqlx_set_cvar_limit_once(
+            cls.py(),
+            name,
+            &value.str()?.to_string(),
+            &minimum.str()?.to_string(),
+            &maximum.str()?.to_string(),
+            flags,
+        )
     }
 
     /// Get a list of all the players on the server.

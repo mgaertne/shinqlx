@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use parking_lot::Mutex;
 use pyo3::{intern, prelude::*, types::PyDict};
 
-use super::{cvar_flag, register_client_command, register_hook, tell, without_excessive_colors};
+use super::{
+    create_cvar, cvar_flag, register_client_command, register_hook, tell, without_excessive_colors,
+};
 use crate::ffi::python::{
     Plugin, PythonReturnCodes, clean_text, commands::CommandPriorities, get_cvar,
     plugin::PluginMethods,
@@ -200,8 +202,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         "<name>",
     )?;
 
-    py.get_type::<Plugin>()
-        .call_method1(intern!(py, "set_cvar_once"), (ENFORCE_STEAM_NAME_CVAR, "1"))?;
+    create_cvar(py, ENFORCE_STEAM_NAME_CVAR, "1")?;
 
     Ok(plugin.into_any())
 }

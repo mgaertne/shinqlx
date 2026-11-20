@@ -3,15 +3,10 @@ use std::{fs::create_dir_all, path::Path};
 
 use chrono::Local;
 use pyo3::{
-    PyTraverseError,
-    exceptions::PyEnvironmentError,
-    gc::PyVisit,
-    intern,
-    prelude::*,
-    types::{PyDict, PyInt},
+    PyTraverseError, exceptions::PyEnvironmentError, gc::PyVisit, intern, prelude::*, types::PyDict,
 };
 
-use super::register_hook;
+use super::{create_cvar, cvar_int, register_hook};
 use crate::ffi::python::{Plugin, clean_text, commands::CommandPriorities, get_cvar};
 
 const CHATLOG_COUNT_CVAR: &str = "qlx_chatlogs";
@@ -115,12 +110,8 @@ fn create_chatlog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     create_dir_all(&directory)?;
     let file_path = directory.join("chat.log");
 
-    let plugin_class = py.get_type::<Plugin>();
-    let int_type = py.get_type::<PyInt>();
-    let max_logs =
-        plugin_class.call_method1(intern!(py, "get_cvar"), (CHATLOG_COUNT_CVAR, &int_type))?;
-    let max_size =
-        plugin_class.call_method1(intern!(py, "get_cvar"), (CHATLOG_SIZE_CVAR, &int_type))?;
+    let max_logs = cvar_int(py, CHATLOG_COUNT_CVAR)?;
+    let max_size = cvar_int(py, CHATLOG_SIZE_CVAR)?;
 
     let logging = py.import(intern!(py, "logging"))?;
     let formatter = logging
@@ -150,12 +141,8 @@ fn create_chatlog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 }
 
 pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
-    let plugin_class = py.get_type::<Plugin>();
-    plugin_class.call_method1(intern!(py, "set_cvar_once"), (CHATLOG_COUNT_CVAR, "3"))?;
-    plugin_class.call_method1(
-        intern!(py, "set_cvar_once"),
-        (CHATLOG_SIZE_CVAR, (3 * 10_u32.pow(6)).to_string()),
-    )?;
+    create_cvar(py, CHATLOG_COUNT_CVAR, "3")?;
+    create_cvar(py, CHATLOG_SIZE_CVAR, &(3 * 10_u32.pow(6)).to_string())?;
     let chatlog = create_chatlog(py)?;
 
     let plugin = Bound::new(

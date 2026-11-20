@@ -7,11 +7,12 @@ use pyo3::{
     gc::PyVisit,
     intern,
     prelude::*,
-    types::{PyDict, PyFloat, PyInt},
+    types::{PyDict, PyInt},
 };
 
 use super::{
-    cvar_flag, register_command, register_hook,
+    create_cvar, create_cvar_limit, cvar_flag, cvar_float, cvar_int, register_command,
+    register_hook,
     target::{INVALID_CLIENT_ID, Resolution, display_name, reply, resolve_text, stop_all, usage},
     tell,
     timed_entries::{
@@ -117,24 +118,12 @@ fn leave_status(
         return Ok(None);
     };
 
-    let plugin_class = py.get_type::<Plugin>();
-    let minimum_games = plugin_class
-        .call_method1(
-            intern!(py, "get_cvar"),
-            ("qlx_leaverBanMinimumGames", py.get_type::<PyInt>()),
-        )?
-        .extract()?;
-    let threshold = |name: &str| -> PyResult<f64> {
-        plugin_class
-            .call_method1(intern!(py, "get_cvar"), (name, py.get_type::<PyFloat>()))?
-            .extract()
-    };
     Ok(leave_action(
         completed,
         left,
-        minimum_games,
-        threshold("qlx_leaverBanWarnThreshold")?,
-        threshold("qlx_leaverBanThreshold")?,
+        cvar_int(py, "qlx_leaverBanMinimumGames")?,
+        cvar_float(py, "qlx_leaverBanWarnThreshold")?,
+        cvar_float(py, "qlx_leaverBanThreshold")?,
     ))
 }
 
@@ -591,18 +580,14 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         }),
     )?;
 
-    let plugin_class = py.get_type::<Plugin>();
-    plugin_class.call_method1(intern!(py, "set_cvar_once"), (LEAVER_BAN_CVAR, "0"))?;
+    create_cvar(py, LEAVER_BAN_CVAR, "0")?;
     for (name, value) in [
         ("qlx_leaverBanThreshold", "0.63"),
         ("qlx_leaverBanWarnThreshold", "0.78"),
     ] {
-        plugin_class.call_method1(intern!(py, "set_cvar_limit_once"), (name, value, "0", "1"))?;
+        create_cvar_limit(py, name, value, "0", "1")?;
     }
-    plugin_class.call_method1(
-        intern!(py, "set_cvar_once"),
-        ("qlx_leaverBanMinimumGames", "15"),
-    )?;
+    create_cvar(py, "qlx_leaverBanMinimumGames", "15")?;
 
     for (event, handler, priority) in [
         (
