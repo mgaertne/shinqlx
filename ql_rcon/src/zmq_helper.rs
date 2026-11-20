@@ -18,7 +18,12 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
+use crate::{
+    CONTINUE_RUNNING,
+    cmd_line::CommandLineOptions,
+    fetch::{FETCH_COMMANDS, Feed, FetchState},
+    linefeed_helper::save_completions,
+};
 
 /// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -124,6 +129,7 @@ async fn handle_monitor_event(
     monitored_dealer: &MonitoredDealer,
     sender: &UnboundedSender<String>,
     endpoint: &str,
+    fetch: &mut FetchState,
 ) -> Result<()> {
     match event {
         MonitorSocketEvent::Connected => {
@@ -136,6 +142,11 @@ async fn handle_monitor_event(
         MonitorSocketEvent::HandshakeSucceeded => {
             FIRST_TIME.store(true, Ordering::Release);
             sender.send(format!("ZMQ connected to {}.", endpoint))?;
+            if fetch.handshake_succeeded() {
+                for command in FETCH_COMMANDS {
+                    monitored_dealer.send(command, SendFlags::DONT_WAIT).await;
+                }
+            }
         }
 
         MonitorSocketEvent::HandshakeFailedAuth(_)
@@ -169,10 +180,29 @@ async fn check_monitor(
     monitored_dealer: &MonitoredDealer,
     sender: &UnboundedSender<String>,
     endpoint: &str,
+    fetch: &mut FetchState,
 ) -> Result<()> {
     while let Some(event) = monitored_dealer.check_monitor().await {
-        handle_monitor_event(event, monitored_dealer, sender, endpoint).await?;
+        handle_monitor_event(event, monitored_dealer, sender, endpoint, fetch).await?;
     }
+
+    Ok(())
+}
+
+fn store_fetched_names(
+    args: &CommandLineOptions,
+    names: &[String],
+    sender: &UnboundedSender<String>,
+) -> Result<()> {
+    let message = match save_completions(args, names) {
+        Ok(file) => format!(
+            "ZMQ fetched {} names for the completion into {}, they are used for the completion now.",
+            names.len(),
+            file.display()
+        ),
+        Err(err) => format!("could not keep the fetched names: {err}"),
+    };
+    sender.send(message)?;
 
     Ok(())
 }
@@ -189,6 +219,8 @@ pub(crate) async fn run_zmq(
 
     monitored_dealer.connect(&args.host)?;
 
+    let mut fetch = FetchState::new(args.fetch_completions);
+
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
@@ -202,11 +234,19 @@ pub(crate) async fn run_zmq(
 
             _ = poll.tick() => {
                 while let Some(zmq_msg) = monitored_dealer.recv_msg().await {
-                    let zmq_str = zmq_msg.to_string();
-                    display_sender.send(trim_ql_msg(&zmq_str))?;
+                    let zmq_str = trim_ql_msg(&zmq_msg.to_string());
+                    match fetch.feed(&zmq_str) {
+                        Feed::Show => display_sender.send(zmq_str)?,
+                        Feed::Hide => (),
+                        Feed::Done(names) => store_fetched_names(&args, &names, &display_sender)?,
+                    }
                 }
 
-                check_monitor(&monitored_dealer, &display_sender, &args.host).await?;
+                if let Some(names) = fetch.expired() {
+                    store_fetched_names(&args, &names, &display_sender)?;
+                }
+
+                check_monitor(&monitored_dealer, &display_sender, &args.host, &mut fetch).await?;
             }
         );
     }
@@ -257,6 +297,7 @@ mod zmq_helper_tests {
                 password: "secret".to_string(),
                 identity: "tester".to_string(),
                 color: ColorChoice::Never,
+                fetch_completions: false,
             },
             zmq_receiver,
             display_sender,

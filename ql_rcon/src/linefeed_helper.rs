@@ -62,18 +62,45 @@ fn parse_user_names(text: &str) -> impl Iterator<Item = &str> {
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
 }
 
-/// `commands.txt` for all servers and `commands-<host>.txt` for the connected one, both in the config directory.
+fn config_dir() -> Option<PathBuf> {
+    ProjectDirs::from("", "", "ql_rcon").map(|dirs| dirs.config_dir().to_path_buf())
+}
+
+/// The names fetched from the connected server by `--fetch-completions`.
+fn completions_file(args: &CommandLineOptions) -> Option<PathBuf> {
+    let slug = host_slug(args)?;
+    config_dir().map(|dir| dir.join(format!("completions-{slug}.txt")))
+}
+
+/// Keeps the fetched names for the next start and returns the file they were written to.
+pub(crate) fn save_completions(args: &CommandLineOptions, names: &[String]) -> io::Result<PathBuf> {
+    let file = completions_file(args).ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "no config directory or no tcp host",
+        )
+    })?;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(&file, names.join("\n") + "\n")?;
+
+    Ok(file)
+}
+
+/// `commands.txt` for all servers, `commands-<host>.txt` and the fetched `completions-<host>.txt` for the connected one,
+/// all in the config directory.
 fn user_names_files(args: &CommandLineOptions) -> Vec<PathBuf> {
-    let Some(project_dirs) = ProjectDirs::from("", "", "ql_rcon") else {
+    let Some(dir) = config_dir() else {
         return Vec::new();
     };
-    let config_dir = project_dirs.config_dir();
 
     [Some("commands.txt".to_string())]
         .into_iter()
         .chain([host_slug(args).map(|slug| format!("commands-{slug}.txt"))])
         .flatten()
-        .map(|file_name| config_dir.join(file_name))
+        .map(|file_name| dir.join(file_name))
+        .chain(completions_file(args))
         .collect()
 }
 
@@ -90,7 +117,7 @@ fn load_user_names(args: &CommandLineOptions) -> Vec<String> {
 }
 
 struct HistoryCompleter {
-    user_names: Vec<String>,
+    args: CommandLineOptions,
 }
 
 impl Completer<DefaultTerminal> for HistoryCompleter {
@@ -107,7 +134,7 @@ impl Completer<DefaultTerminal> for HistoryCompleter {
                 word,
                 start,
                 prompter.history().rev(),
-                &self.user_names,
+                &load_user_names(&self.args),
             )
             .into_iter()
             .map(Completion::simple)
@@ -220,9 +247,7 @@ fn terminal(args: &CommandLineOptions) -> Result<Interface<DefaultTerminal>> {
         editor.load_history(&history_file)?;
     };
 
-    let history_completer = HistoryCompleter {
-        user_names: load_user_names(args),
-    };
+    let history_completer = HistoryCompleter { args: args.clone() };
     editor.set_completer(Arc::new(history_completer));
 
     Ok(editor)
@@ -514,11 +539,10 @@ mod linefeed_helper_tests {
 
         let files = user_names_files(&args);
 
-        assert!(files.len() <= 2);
-        assert!(
-            files.iter().all(|file| file.ends_with("commands.txt")
-                || file.ends_with("commands-10_0_0_1_27961.txt"))
-        );
+        assert!(files.len() <= 3);
+        assert!(files.iter().all(|file| file.ends_with("commands.txt")
+            || file.ends_with("commands-10_0_0_1_27961.txt")
+            || file.ends_with("completions-10_0_0_1_27961.txt")));
     }
 
     #[test]

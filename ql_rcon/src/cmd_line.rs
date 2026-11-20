@@ -17,6 +17,9 @@ pub(crate) struct CommandLineOptions {
     /// Use color output
     #[arg(long, default_value = "auto")]
     pub(crate) color: ColorChoice,
+    /// Ask the server for its commands and cvars and keep them for the completion of the next start
+    #[arg(long)]
+    pub(crate) fetch_completions: bool,
 }
 
 #[cfg(test)]
@@ -34,6 +37,7 @@ mod cmd_line_tests {
         assert_eq!(args.password, "");
         assert_eq!(args.identity, "");
         assert_eq!(args.color, ColorChoice::Auto);
+        assert!(!args.fetch_completions);
     }
 
     #[test]

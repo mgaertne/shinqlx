@@ -24,7 +24,8 @@ Changes since 0.8.0.
   names taken from the console guide at https://www.euere.eu/ql/), after the matching history entries; the case is ignored.
   Own names go into `commands.txt` (all servers) and `commands-<host>.txt` (for example `commands-10_0_0_1_27961.txt`)
   in the config directory (`~/.config/ql_rcon/` on Linux), one name per line; empty lines and lines starting with `#` are
-  skipped.
+  skipped. `ql_rcon --fetch-completions` asks the server once for `cmdlist` and `cvarlist` (without showing the output),
+  and keeps the names in `completions-<host>.txt` of the same directory. The completion reads the three files on every Tab, so new names and edits are used at once.
 
 ### Internal
 
