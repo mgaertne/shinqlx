@@ -21,7 +21,7 @@ use super::{
 use crate::ffi::python::{
     AbstractChannel, Game, GameMethods, Player, PlayerMethods, Plugin, abort, allready, change_map,
     commands::CommandPriorities,
-    console_command, delay, get_cvar,
+    console_command, defer_delay, get_cvar,
     handlers::{PrintRedirectorMethods, redirect_print},
     is_vote_active, lock, pause,
     plugin::{PluginMethods, chat},
@@ -268,9 +268,11 @@ impl Essentials {
             let vote_id = slf.get().vote_count.fetch_add(1, Ordering::SeqCst);
             slf.get().last_vote.store(vote_id, Ordering::SeqCst);
             let threshold = cvar_float(py, "qlx_votepassThreshold")?;
-            delay(py, VOTE_RESOLUTION_DELAY)?
-                .call1((slf.getattr(intern!(py, "force"))?,))?
-                .call1((threshold, vote_id))?;
+            defer_delay(
+                &slf.getattr(intern!(py, "force"))?,
+                VOTE_RESOLUTION_DELAY,
+                (threshold, vote_id),
+            )?;
         }
         Ok(None)
     }

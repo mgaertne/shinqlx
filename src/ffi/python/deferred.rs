@@ -27,6 +27,32 @@ fn enqueue_for_next_frame<'py>(
     Ok(())
 }
 
+/// Queues the call of the function with the arguments for the next frame.
+pub(super) fn defer_next_frame<'py, A>(func: &Bound<'py, PyAny>, args: A) -> PyResult<()>
+where
+    A: IntoPyObject<'py, Output = Bound<'py, PyTuple>>,
+    PyErr: From<A::Error>,
+{
+    let py = func.py();
+    enqueue_for_next_frame(py, func, &args.into_pyobject(py)?, &PyDict::new(py))
+}
+
+/// Queues the call of the function with the arguments after the seconds.
+pub(super) fn defer_delay<'py, A>(func: &Bound<'py, PyAny>, seconds: f64, args: A) -> PyResult<()>
+where
+    A: IntoPyObject<'py, Output = Bound<'py, PyTuple>>,
+    PyErr: From<A::Error>,
+{
+    let py = func.py();
+    py.import(intern!(py, "shinqlx"))?
+        .getattr(intern!(py, "frame_tasks"))?
+        .call_method1(
+            intern!(py, "enter"),
+            (seconds, 1, func, args.into_pyobject(py)?, PyDict::new(py)),
+        )?;
+    Ok(())
+}
+
 /// Waits the frames that are left by queueing itself for the next frame again, and calls the function in the last one.
 #[pyclass(module = "shinqlx", name = "FrameCountdown", frozen)]
 pub(super) struct FrameCountdown {

@@ -4,7 +4,9 @@ use super::{
     register_command,
     target::{reply, usage},
 };
-use crate::ffi::python::{AbstractChannel, Player, Plugin, next_frame, plugin::PluginMethods};
+use crate::ffi::python::{
+    AbstractChannel, Player, Plugin, defer_next_frame, plugin::PluginMethods,
+};
 
 const MANAGER_PERMISSION: i32 = 5;
 
@@ -102,7 +104,10 @@ impl PluginManager {
             return usage();
         };
         let py = slf.py();
-        next_frame(&slf.getattr(intern!(py, "reload_in_next_frame"))?)?.call1((plugin, channel))?;
+        defer_next_frame(
+            &slf.getattr(intern!(py, "reload_in_next_frame"))?,
+            (plugin, channel),
+        )?;
         Ok(None)
     }
 
@@ -128,7 +133,10 @@ impl PluginManager {
         channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
-        next_frame(&slf.getattr(intern!(py, "load_all_in_next_frame"))?)?.call1((channel,))?;
+        defer_next_frame(
+            &slf.getattr(intern!(py, "load_all_in_next_frame"))?,
+            (channel,),
+        )?;
         Ok(None)
     }
 
@@ -185,7 +193,10 @@ impl PluginManager {
         channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
-        next_frame(&slf.getattr(intern!(py, "reload_all_in_next_frame"))?)?.call1((channel,))?;
+        defer_next_frame(
+            &slf.getattr(intern!(py, "reload_all_in_next_frame"))?,
+            (channel,),
+        )?;
         Ok(None)
     }
 

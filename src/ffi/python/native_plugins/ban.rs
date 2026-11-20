@@ -22,7 +22,7 @@ use super::{
 use crate::ffi::python::{
     AbstractChannel, GameMethods, NonexistentPlayerError, Player, PlayerMethods, Plugin,
     commands::CommandPriorities,
-    delay,
+    defer_delay,
     plugin::{PluginMethods, chat},
 };
 
@@ -213,10 +213,11 @@ impl Ban {
 
     fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
-        delay(py, 4.0)?
-            .call1((slf.getattr(intern!(py, "deliver_warning"))?,))?
-            .call1((player,))
-            .map(|_| ())
+        defer_delay(
+            &slf.getattr(intern!(py, "deliver_warning"))?,
+            4.0,
+            (player,),
+        )
     }
 
     fn deliver_warning(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
@@ -264,10 +265,7 @@ impl Ban {
 
     fn handle_game_start(slf: &Bound<'_, Self>, _game: &Bound<'_, PyAny>) -> PyResult<()> {
         let py = slf.py();
-        delay(py, 1.0)?
-            .call1((slf.getattr(intern!(py, "remember_players"))?,))?
-            .call0()
-            .map(|_| ())
+        defer_delay(&slf.getattr(intern!(py, "remember_players"))?, 1.0, ())
     }
 
     fn remember_players(&self, py: Python<'_>) -> PyResult<()> {

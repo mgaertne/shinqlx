@@ -13,7 +13,7 @@ use super::{
 };
 use crate::ffi::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
-    next_frame, plugin::PluginMethods,
+    defer_next_frame, plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -111,7 +111,7 @@ impl Silence {
             let client_command = py
                 .import(intern!(py, "shinqlx"))?
                 .getattr(intern!(py, "client_command"))?;
-            next_frame(&client_command)?.call1((player.get_id(), cmd))?;
+            defer_next_frame(&client_command, (player.get_id(), cmd))?;
         }
         Ok(Some(STOP_ALL))
     }

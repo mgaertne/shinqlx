@@ -3,7 +3,7 @@ use pyo3::{exceptions::PyKeyError, intern, prelude::*, types::PyTuple};
 use super::{create_cvar, register_command, register_hook};
 use crate::ffi::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
-    delay, get_cvar, plugin::PluginMethods,
+    defer_delay, get_cvar, plugin::PluginMethods,
 };
 
 const MOTD_SET_KEY: &str = "minqlx:motd";
@@ -66,10 +66,7 @@ fn send_motd_lines(player: &Bound<'_, Player>, motd: &str) -> PyResult<()> {
 impl Motd {
     fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let py = slf.py();
-        delay(py, 2.0)?
-            .call1((slf.getattr(intern!(py, "deliver_motd"))?,))?
-            .call1((player,))
-            .map(|_| ())
+        defer_delay(&slf.getattr(intern!(py, "deliver_motd"))?, 2.0, (player,))
     }
 
     fn deliver_motd(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
