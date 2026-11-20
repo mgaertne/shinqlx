@@ -19,8 +19,8 @@ use super::{
     timed_entries::{local_time, now},
 };
 use crate::ffi::python::{
-    Plugin, abort, allready, change_map, commands::CommandPriorities, delay, get_cvar, pause,
-    plugin::PluginMethods, shuffle, unpause,
+    Player, PlayerMethods, Plugin, abort, allready, change_map, commands::CommandPriorities, delay,
+    get_cvar, pause, plugin::PluginMethods, shuffle, unpause,
 };
 
 mod bookkeeping;
@@ -184,22 +184,22 @@ impl Essentials {
             .try_for_each(|(player, _)| visit.call(player))
     }
 
-    fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         update_player(&slf.as_super().get_db()?, player)
     }
 
     fn handle_player_disconnect(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         _reason: &Bound<'_, PyAny>,
     ) -> PyResult<()> {
         {
             let mut recent = slf.get().recent_disconnects.lock();
-            recent.push_front((player.clone().unbind(), now()));
+            recent.push_front((player.clone().into_any().unbind(), now()));
             recent.truncate(RECENT_DISCONNECTS);
         }
 
-        let key = format!("{}:last_seen", player_key(steam_id_of(player)?));
+        let key = format!("{}:last_seen", player_key(player.get_steam_id()));
         slf.as_super().get_db()?.set_item(key, local_time(now())?)
     }
 

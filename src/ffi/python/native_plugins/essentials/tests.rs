@@ -11,11 +11,11 @@ use super::{
 };
 use crate::{
     ffi::python::{
-        Plugin, PythonReturnCodes,
+        Player, Plugin, PythonReturnCodes,
         native_plugins::test_support::{FakeRedis, REDIS_5, fixture_module},
         plugin::PluginMethods,
         pyshinqlx_setup_fixture::pyshinqlx_setup,
-        pyshinqlx_test_support::{RestoredAttribute, engine_with_cvars},
+        pyshinqlx_test_support::{RestoredAttribute, default_test_player, engine_with_cvars},
     },
     prelude::*,
 };
@@ -355,6 +355,24 @@ where
     });
 }
 
+fn real_player<'py>(py: Python<'py>, steam_id: i64, name: &str, ip: &str) -> Bound<'py, Player> {
+    let user_info = if ip.is_empty() {
+        String::new()
+    } else {
+        format!(r"\ip\{ip}")
+    };
+    Bound::new(
+        py,
+        Player {
+            steam_id,
+            name: name.to_owned().into(),
+            user_info,
+            ..default_test_player()
+        },
+    )
+    .expect("could not create the player")
+}
+
 fn msg(words: &[&str]) -> Vec<String> {
     words.iter().map(|word| (*word).to_owned()).collect()
 }
@@ -397,7 +415,8 @@ fn the_mappool_file_is_parsed_into_maps_and_factories() {
 #[serial]
 fn connecting_players_are_added_to_the_player_ip_and_name_lists(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        let result = Essentials::handle_player_connect(&fixtures.plugin, &fixtures.caller);
+        let caller = real_player(fixtures.plugin.py(), CALLER_ID, "Caller^7", "1.1.1.1");
+        let result = Essentials::handle_player_connect(&fixtures.plugin, &caller);
 
         assert!(result.is_ok());
         assert_eq!(fixtures.names(CALLER_ID), ["Caller^7"]);
@@ -422,7 +441,8 @@ fn connecting_players_are_added_to_the_player_ip_and_name_lists(_pyshinqlx_setup
 #[serial]
 fn players_without_an_ip_are_only_added_to_the_player_list(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        let result = Essentials::handle_player_connect(&fixtures.plugin, &fixtures.target);
+        let target = real_player(fixtures.plugin.py(), TARGET_ID, "Eve^7", "");
+        let result = Essentials::handle_player_connect(&fixtures.plugin, &target);
 
         assert!(result.is_ok());
         assert_eq!(fixtures.names(TARGET_ID), ["Eve^7"]);
@@ -435,18 +455,14 @@ fn players_without_an_ip_are_only_added_to_the_player_list(_pyshinqlx_setup: ())
 #[serial]
 fn known_players_only_get_new_names_remembered(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
-        Essentials::handle_player_connect(&fixtures.plugin, &fixtures.target)
-            .expect("first connect failed");
-        Essentials::handle_player_connect(&fixtures.plugin, &fixtures.target)
+        let target = real_player(fixtures.plugin.py(), TARGET_ID, "Eve^7", "");
+        Essentials::handle_player_connect(&fixtures.plugin, &target).expect("first connect failed");
+        Essentials::handle_player_connect(&fixtures.plugin, &target)
             .expect("second connect failed");
         assert_eq!(fixtures.names(TARGET_ID), ["Eve^7"]);
 
-        fixtures
-            .target
-            .setattr("name", "^1Eve2^7")
-            .and_then(|_| fixtures.target.setattr("clean_name", "Eve2"))
-            .expect("could not rename");
-        let result = Essentials::handle_player_connect(&fixtures.plugin, &fixtures.target);
+        *target.get().name.write() = "^1Eve2^7".to_owned();
+        let result = Essentials::handle_player_connect(&fixtures.plugin, &target);
 
         assert!(result.is_ok());
         assert_eq!(fixtures.names(TARGET_ID), ["^1Eve2^7", "Eve^7"]);
@@ -459,12 +475,10 @@ fn known_players_only_get_new_names_remembered(_pyshinqlx_setup: ()) {
 fn disconnecting_players_are_remembered_and_stamped(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
         let py = fixtures.plugin.py();
+        let target = real_player(py, TARGET_ID, "Eve^7", "");
 
-        let result = Essentials::handle_player_disconnect(
-            &fixtures.plugin,
-            &fixtures.target,
-            py.None().bind(py),
-        );
+        let result =
+            Essentials::handle_player_disconnect(&fixtures.plugin, &target, py.None().bind(py));
 
         assert!(result.is_ok());
         assert_eq!(fixtures.plugin.get().recent_disconnects.lock().len(), 1);
@@ -481,13 +495,10 @@ fn disconnecting_players_are_remembered_and_stamped(_pyshinqlx_setup: ()) {
 fn only_the_ten_latest_disconnects_are_kept(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
         let py = fixtures.plugin.py();
+        let target = real_player(py, TARGET_ID, "Eve^7", "");
         for _ in 0..12 {
-            Essentials::handle_player_disconnect(
-                &fixtures.plugin,
-                &fixtures.target,
-                py.None().bind(py),
-            )
-            .expect("disconnect failed");
+            Essentials::handle_player_disconnect(&fixtures.plugin, &target, py.None().bind(py))
+                .expect("disconnect failed");
         }
 
         assert_eq!(fixtures.plugin.get().recent_disconnects.lock().len(), 10);
@@ -773,12 +784,9 @@ fn no_disconnects_are_reported(_pyshinqlx_setup: ()) {
 fn recent_disconnects_are_listed(_pyshinqlx_setup: ()) {
     with_essentials(&NO_VOTEPASS, None, |fixtures| {
         let py = fixtures.plugin.py();
-        Essentials::handle_player_disconnect(
-            &fixtures.plugin,
-            &fixtures.target,
-            py.None().bind(py),
-        )
-        .expect("disconnect failed");
+        let target = real_player(py, TARGET_ID, "Eve^7", "");
+        Essentials::handle_player_disconnect(&fixtures.plugin, &target, py.None().bind(py))
+            .expect("disconnect failed");
 
         let result = Essentials::cmd_disconnects(
             &fixtures.plugin,
