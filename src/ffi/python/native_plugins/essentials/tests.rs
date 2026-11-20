@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     ffi::python::{
-        Player, Plugin, PythonReturnCodes,
+        Plugin, PythonReturnCodes,
         native_plugins::test_support::{FakeRedis, REDIS_5, fixture_module, real_player},
         plugin::PluginMethods,
         pyshinqlx_setup_fixture::pyshinqlx_setup,

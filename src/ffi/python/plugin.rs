@@ -31,6 +31,19 @@ use crate::{
     quake_live_engine::{ConsoleCommand, FindCVar, GetCVar, GetConfigstring, SetCVarLimit},
 };
 
+/// Sends the message to everybody in the chat.
+pub(crate) fn chat(py: Python<'_>, msg: &str, limit: i32, delimiter: &str) -> PyResult<()> {
+    CHAT_CHANNEL
+        .load()
+        .as_ref()
+        .map_or(Ok(()), |main_chat_channel| {
+            main_chat_channel
+                .bind(py)
+                .as_super()
+                .reply(msg, limit, delimiter)
+        })
+}
+
 fn tell_caller(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
     if player.is_none() {
         return Ok(());
@@ -478,7 +491,7 @@ impl Plugin {
 
     /// Get a list of all the players on the server.
     #[classmethod]
-    fn players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
+    pub(crate) fn players(cls: &Bound<'_, PyType>) -> PyResult<Vec<Player>> {
         Player::all_players(&cls.py().get_type::<Player>())
     }
 
@@ -487,7 +500,7 @@ impl Plugin {
     /// and [64, inf) to be a Steam ID.
     #[classmethod]
     #[pyo3(signature = (name, player_list = None), text_signature = "(name, player_list = None)")]
-    fn player(
+    pub(crate) fn player(
         cls: &Bound<'_, PyType>,
         name: &Bound<'_, PyAny>,
         player_list: Option<Vec<Player>>,
@@ -550,18 +563,7 @@ impl Plugin {
         );
 
         match chat_channel {
-            None => {
-                return CHAT_CHANNEL
-                    .load()
-                    .as_ref()
-                    .map(|main_chat_channel| {
-                        main_chat_channel
-                            .bind(cls.py())
-                            .as_super()
-                            .reply(msg, limit, &delimiter)
-                    })
-                    .unwrap_or(Ok(()));
-            }
+            None => return chat(cls.py(), msg, limit, &delimiter),
             Some(channel) => {
                 if channel
                     .as_any()

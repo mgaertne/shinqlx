@@ -1,7 +1,7 @@
 use pyo3::{intern, prelude::*};
 
 use super::without_trailing_color_reset;
-use crate::ffi::python::{NonexistentPlayerError, Plugin, PythonReturnCodes};
+use crate::ffi::python::{NonexistentPlayerError, Player, Plugin, PythonReturnCodes};
 
 pub(super) const INVALID_CLIENT_ID: &str =
     "Invalid client ID. Use either a client ID or a SteamID64.";
@@ -51,6 +51,22 @@ pub(super) fn find_player<'py>(
     {
         Ok(player) if !player.is_none() => Ok(Some(player)),
         Ok(_) => Ok(None),
+        Err(err) if err.is_instance_of::<NonexistentPlayerError>(py) => Ok(None),
+        Err(err) => Err(err),
+    }
+}
+
+pub(super) fn find_connected_player<'py>(
+    py: Python<'py>,
+    client_id: i64,
+) -> PyResult<Option<Bound<'py, Player>>> {
+    let player = Plugin::player(
+        &py.get_type::<Plugin>(),
+        client_id.into_pyobject(py)?.as_any(),
+        None,
+    );
+    match player {
+        Ok(player) => player.map(|player| Bound::new(py, player)).transpose(),
         Err(err) if err.is_instance_of::<NonexistentPlayerError>(py) => Ok(None),
         Err(err) => Err(err),
     }

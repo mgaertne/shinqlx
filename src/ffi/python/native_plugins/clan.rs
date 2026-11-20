@@ -1,13 +1,16 @@
-use pyo3::{intern, prelude::*};
+use pyo3::prelude::*;
 
 use super::{
-    register_client_command, register_hook, target::find_player, tell, without_excessive_colors,
+    register_client_command, register_hook, target::find_connected_player, without_excessive_colors,
 };
 use crate::ffi::{
     c::prelude::{CS_PLAYERS, MAX_CLIENTS},
     python::{
-        Plugin, PythonReturnCodes, clean_text, commands::CommandPriorities, get_configstring,
-        parse_variables, plugin::PluginMethods, set_configstring,
+        Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
+        commands::CommandPriorities,
+        get_configstring, parse_variables,
+        plugin::{PluginMethods, chat},
+        set_configstring,
     },
 };
 
@@ -60,13 +63,12 @@ impl Clan {
         let Some(client_id) = client_id_of(index) else {
             return Ok(None);
         };
-        let Some(player) = find_player(slf.py(), client_id)? else {
+        let Some(player) = find_connected_player(slf.py(), client_id)? else {
             return Ok(None);
         };
 
-        let steam_id = player.getattr(intern!(slf.py(), "steam_id"))?.extract()?;
         let database = slf.as_super().get_db()?;
-        let key = tag_key(steam_id);
+        let key = tag_key(player.get_steam_id());
         if !database.contains(&key)? {
             return Ok(None);
         }
@@ -77,15 +79,14 @@ impl Clan {
 
     fn cmd_clan(
         slf: &Bound<'_, Self>,
-        player: &Bound<'_, PyAny>,
+        player: &Bound<'_, Player>,
         msg: Vec<String>,
         _channel: &Bound<'_, PyAny>,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
-        let index =
-            u16::try_from(CS_PLAYERS)? + player.getattr(intern!(py, "id"))?.extract::<u16>()?;
+        let index = u16::try_from(CS_PLAYERS)? + u16::try_from(player.get_id())?;
         let database = slf.as_super().get_db()?;
-        let key = tag_key(player.getattr(intern!(py, "steam_id"))?.extract()?);
+        let key = tag_key(player.get_steam_id());
 
         let Some(requested_tag) = msg.get(1) else {
             if database.contains(&key)? {
@@ -94,21 +95,21 @@ impl Clan {
                     index,
                     &configstring_without_clan_tag(&get_configstring(index)?),
                 )?;
-                tell(player, "The clan tag has been cleared.")?;
+                player.tell("The clan tag has been cleared.", None)?;
             } else {
                 let command = msg.first().map_or("clan", String::as_str);
-                tell(
-                    player,
+                player.tell(
                     &format!("Usage to set a clan tag: ^6{command} <clan_tag>"),
+                    None,
                 )?;
             }
             return Ok(Some(STOP_EVENT));
         };
 
         if clean_text(requested_tag).chars().count() > MAX_TAG_LENGTH {
-            tell(
-                player,
+            player.tell(
                 "The clan tag can only be at most 5 characters long, excluding colors.",
+                None,
             )?;
             return Ok(Some(STOP_EVENT));
         }
@@ -119,10 +120,7 @@ impl Clan {
             index,
             &configstring_with_clan_tag(&get_configstring(index)?, &tag),
         )?;
-        py.get_type::<Plugin>().call_method1(
-            intern!(py, "msg"),
-            (format!("{} changed clan tag to {tag}", player.str()?),),
-        )?;
+        chat(py, &format!("{player} changed clan tag to {tag}"), 100, " ")?;
         Ok(Some(STOP_EVENT))
     }
 }
@@ -163,38 +161,31 @@ mod clan_tests {
         ffi::{
             c::prelude::CS_PLAYERS,
             python::{
-                Plugin, plugin::PluginMethods, pyshinqlx_setup_fixture::pyshinqlx_setup,
-                pyshinqlx_test_support::RestoredAttribute,
+                Player, Plugin,
+                native_plugins::test_support::{ServerCommands, real_player},
+                plugin::PluginMethods,
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::{RestoredAttribute, with_connected_players},
             },
         },
         hooks::mock_hooks::shinqlx_set_configstring_context,
         prelude::*,
     };
 
-    const STEAM_ID: i64 = 76_561_198_000_000_003;
-    const CLIENT_ID: u32 = 3;
+    const STEAM_ID: i64 = 1002;
+    const CLIENT_ID: u32 = 2;
 
     struct Fixtures<'py> {
         plugin: Bound<'py, Clan>,
-        player: Bound<'py, PyAny>,
+        player: Bound<'py, Player>,
         channel: Bound<'py, PyAny>,
         database: Bound<'py, PyAny>,
-        module: Bound<'py, PyModule>,
+        commands: ServerCommands,
     }
 
     impl Fixtures<'_> {
-        fn told(&self) -> Vec<String> {
-            self.player
-                .getattr("told")
-                .and_then(|told| told.extract())
-                .expect("could not get told messages")
-        }
-
-        fn broadcasts(&self) -> Vec<String> {
-            self.module
-                .getattr("broadcasts")
-                .and_then(|broadcasts| broadcasts.extract())
-                .expect("could not get the broadcasts")
+        fn printed(&self) -> Vec<String> {
+            self.commands.printed(self.plugin.py())
         }
 
         fn stored(&self) -> Option<String> {
@@ -217,13 +208,19 @@ mod clan_tests {
     where
         F: FnOnce(Fixtures<'_>),
     {
-        Python::attach(|py| {
-            let module = PyModule::from_code(
-                py,
-                c"
-import shinqlx
+        with_clan_engine(MockEngineBuilder::default(), test);
+    }
 
-
+    fn with_clan_engine<F>(engine: MockEngineBuilder, test: F)
+    where
+        F: FnOnce(Fixtures<'_>),
+    {
+        with_connected_players(engine, &[(2, "Ada^7"), (3, "Eve^7")], || {
+            let commands = ServerCommands::capture();
+            Python::attach(|py| {
+                let module = PyModule::from_code(
+                    py,
+                    c"
 class Database:
     def __init__(self, plugin):
         self.data = {}
@@ -239,80 +236,34 @@ class Database:
 
     def __delitem__(self, key):
         del self.data[key]
-
-
-class Player:
-    id = 3
-    steam_id = 76561198000000003
-
-    def __init__(self):
-        self.told = []
-
-    def tell(self, message):
-        self.told.append(message)
-
-    def __str__(self):
-        return 'Ada^7'
-
-
-class Channel:
-    pass
-
-
-broadcasts = []
-players = {3: Player()}
-
-
-def find_player(cls, client_id, player_list=None):
-    if client_id not in players:
-        raise shinqlx.NonexistentPlayerError(client_id)
-    return players[client_id]
-
-
-def broadcast(cls, message):
-    broadcasts.append(message)
-
-
-player = classmethod(find_player)
-msg = classmethod(broadcast)
 ",
-                c"",
-                c"",
-            )
-            .expect("could not create the fixtures");
-            let plugin_class = py.get_type::<Plugin>();
-            let _restore_database = RestoredAttribute::capture(plugin_class.as_any(), "database");
-            let _restore_player = RestoredAttribute::capture(plugin_class.as_any(), "player");
-            let _restore_msg = RestoredAttribute::capture(plugin_class.as_any(), "msg");
-            for (name, value) in [
-                ("database", module.getattr("Database").expect("no Database")),
-                ("player", module.getattr("player").expect("no player")),
-                ("msg", module.getattr("msg").expect("no msg")),
-            ] {
+                    c"",
+                    c"",
+                )
+                .expect("could not create the fixtures");
+                let plugin_class = py.get_type::<Plugin>();
+                let _restore_database =
+                    RestoredAttribute::capture(plugin_class.as_any(), "database");
                 plugin_class
-                    .setattr(name, value)
-                    .expect("could not replace the plugin member");
-            }
+                    .setattr("database", module.getattr("Database").expect("no Database"))
+                    .expect("could not replace the database");
 
-            let plugin = Bound::new(
-                py,
-                PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Clan),
-            )
-            .expect("could not create the plugin");
-            let database = plugin
-                .as_super()
-                .get_db()
-                .expect("could not get the database");
-            let players = module.getattr("players").expect("no players");
-            test(Fixtures {
-                plugin,
-                player: players.get_item(3).expect("no player"),
-                channel: module
-                    .getattr("Channel")
-                    .and_then(|channel| channel.call0())
-                    .expect("no channel"),
-                database,
-                module,
+                let plugin = Bound::new(
+                    py,
+                    PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Clan),
+                )
+                .expect("could not create the plugin");
+                let database = plugin
+                    .as_super()
+                    .get_db()
+                    .expect("could not get the database");
+                test(Fixtures {
+                    plugin,
+                    player: real_player(py, STEAM_ID, "Ada^7", ""),
+                    channel: py.None().into_bound(py),
+                    database,
+                    commands,
+                });
             });
         });
     }
@@ -365,7 +316,7 @@ msg = classmethod(broadcast)
     #[case(0, "n\\Ada")]
     #[case(CS_PLAYERS + 64, "n\\Ada")]
     #[case(CS_PLAYERS + CLIENT_ID, "")]
-    #[case(CS_PLAYERS + 4, "n\\Eve")]
+    #[case(CS_PLAYERS + 3, "n\\Eve")]
     #[case(CS_PLAYERS + CLIENT_ID, "n\\Ada")]
     #[cfg_attr(miri, ignore)]
     #[serial]
@@ -412,7 +363,7 @@ msg = classmethod(broadcast)
 
             assert_eq!(result.ok(), Some(Some(STOP_EVENT)));
             assert_eq!(
-                fixtures.told(),
+                fixtures.printed(),
                 ["Usage to set a clan tag: ^6setclan <clan_tag>"]
             );
         });
@@ -431,28 +382,25 @@ msg = classmethod(broadcast)
             )
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_get_configstring(
-                (CS_PLAYERS + CLIENT_ID) as u16,
-                "n\\Ada\\cn\\Tag\\xcn\\Tag\\t\\1",
-                1,
-            )
-            .run(|| {
-                with_clan(|fixtures| {
-                    fixtures.store("Tag");
+        let engine = MockEngineBuilder::default().with_get_configstring(
+            (CS_PLAYERS + CLIENT_ID) as u16,
+            "n\\Ada\\cn\\Tag\\xcn\\Tag\\t\\1",
+            1,
+        );
+        with_clan_engine(engine, |fixtures| {
+            fixtures.store("Tag");
 
-                    let result = Clan::cmd_clan(
-                        &fixtures.plugin,
-                        &fixtures.player,
-                        msg(&["clan"]),
-                        &fixtures.channel,
-                    );
+            let result = Clan::cmd_clan(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["clan"]),
+                &fixtures.channel,
+            );
 
-                    assert_eq!(result.ok(), Some(Some(STOP_EVENT)));
-                    assert_eq!(fixtures.stored(), None);
-                    assert_eq!(fixtures.told(), ["The clan tag has been cleared."]);
-                });
-            });
+            assert_eq!(result.ok(), Some(Some(STOP_EVENT)));
+            assert_eq!(fixtures.stored(), None);
+            assert_eq!(fixtures.printed(), ["The clan tag has been cleared."]);
+        });
     }
 
     #[rstest]
@@ -470,7 +418,7 @@ msg = classmethod(broadcast)
             assert_eq!(result.ok(), Some(Some(STOP_EVENT)));
             assert_eq!(fixtures.stored(), None);
             assert_eq!(
-                fixtures.told(),
+                fixtures.printed(),
                 ["The clan tag can only be at most 5 characters long, excluding colors."]
             );
         });
@@ -489,22 +437,23 @@ msg = classmethod(broadcast)
             )
             .times(1);
 
-        MockEngineBuilder::default()
-            .with_get_configstring((CS_PLAYERS + CLIENT_ID) as u16, "n\\Ada\\t\\1", 1)
-            .run(|| {
-                with_clan(|fixtures| {
-                    let result = Clan::cmd_clan(
-                        &fixtures.plugin,
-                        &fixtures.player,
-                        msg(&["clan", "^1^2ab"]),
-                        &fixtures.channel,
-                    );
+        let engine = MockEngineBuilder::default().with_get_configstring(
+            (CS_PLAYERS + CLIENT_ID) as u16,
+            "n\\Ada\\t\\1",
+            1,
+        );
+        with_clan_engine(engine, |fixtures| {
+            let result = Clan::cmd_clan(
+                &fixtures.plugin,
+                &fixtures.player,
+                msg(&["clan", "^1^2ab"]),
+                &fixtures.channel,
+            );
 
-                    assert_eq!(result.ok(), Some(Some(STOP_EVENT)));
-                    assert_eq!(fixtures.stored().as_deref(), Some("^2ab"));
-                    assert_eq!(fixtures.broadcasts(), ["Ada^7 changed clan tag to ^2ab"]);
-                });
-            });
+            assert_eq!(result.ok(), Some(Some(STOP_EVENT)));
+            assert_eq!(fixtures.stored().as_deref(), Some("^2ab"));
+            assert_eq!(fixtures.printed(), ["Ada^7 changed clan tag to ^2ab"]);
+        });
     }
 }
 

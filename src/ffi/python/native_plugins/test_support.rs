@@ -1,9 +1,16 @@
-use alloc::ffi::CString;
-use core::ffi::CStr;
+use alloc::{ffi::CString, sync::Arc};
+use core::{any::Any, ffi::CStr};
 
+use parking_lot::Mutex;
 use pyo3::{prelude::*, types::PyDict};
 
-use crate::ffi::python::{AbstractChannel, Player, pyshinqlx_test_support::default_test_player};
+use crate::{
+    ffi::python::{
+        AbstractChannel, Player,
+        pyshinqlx_test_support::{default_test_player, run_all_frame_tasks},
+    },
+    hooks::mock_hooks::shinqlx_send_server_command_context,
+};
 
 pub(super) const REDIS_5: &CStr = c"VERSION = (5, 0, 0)\n";
 pub(super) const REDIS_2: &CStr = c"VERSION = (2, 10, 6)\n";
@@ -208,4 +215,40 @@ pub(super) fn named_channel<'py>(py: Python<'py>, name: &str) -> Bound<'py, Abst
         .call1((name,))
         .and_then(|channel| Ok(channel.cast_into::<AbstractChannel>()?))
         .expect("could not create the channel")
+}
+
+/// Records the commands that the mocked engine is told to send to the clients.
+pub(super) struct ServerCommands {
+    sent: Arc<Mutex<Vec<String>>>,
+    _context: Box<dyn Any>,
+}
+
+impl ServerCommands {
+    pub(super) fn capture() -> Self {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let recorded = sent.clone();
+        let context = shinqlx_send_server_command_context();
+        context.expect().returning(move |_client, command| {
+            recorded.lock().push(command.to_owned());
+        });
+        Self {
+            sent,
+            _context: Box::new(context),
+        }
+    }
+
+    /// The texts of the `print` commands, which is what `tell` and the chat send.
+    pub(super) fn printed(&self, py: Python<'_>) -> Vec<String> {
+        let _ = run_all_frame_tasks(py);
+        self.sent
+            .lock()
+            .iter()
+            .filter_map(|command| {
+                command
+                    .strip_prefix("print \"")
+                    .and_then(|text| text.strip_suffix("\n\"\n"))
+                    .map(str::to_owned)
+            })
+            .collect()
+    }
 }
