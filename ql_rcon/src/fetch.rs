@@ -386,6 +386,41 @@ mod fetch_tests {
     }
 
     #[test]
+    fn the_eight_flag_slots_of_the_server_come_before_the_cvar_line() {
+        let mut state = FetchState::new(false);
+        state.user_sent("cvarlist");
+        let mut shown = Vec::new();
+
+        for (flags, line) in [
+            (["", "", "R", "", "", "", "", ""], " net_port \"27970\""),
+            (
+                ["S", "", "", "", "A", "", "", ""],
+                " sv_hostname \"leaktest-A\"",
+            ),
+            (["", "", "", "", "", "", "", ""], " sv_cheats \"0\""),
+        ] {
+            for slot in flags {
+                match state.feed(if slot.is_empty() { " " } else { slot }) {
+                    Feed::Hide => (),
+                    other => shown.push(format!("{other:?}")),
+                }
+            }
+            if let Feed::Replace(text) = state.feed(line) {
+                shown.push(text);
+            }
+        }
+
+        assert_eq!(
+            shown,
+            [
+                "R    net_port \"27970\"",
+                "SA   sv_hostname \"leaktest-A\"",
+                "     sv_cheats \"0\"",
+            ]
+        );
+    }
+
+    #[test]
     fn empty_lines_of_a_list_typed_by_the_user_are_not_shown() {
         let mut state = FetchState::new(false);
         state.user_sent("cvarlist");
