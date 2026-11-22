@@ -2,6 +2,9 @@
 
 /// `cvar<TAB>value<TAB>label<TAB>e|b`: one value of an enumeration (`e`) or one bit of a bit field (`b`).
 const ENUMS: &str = include_str!("cvar_enums.txt");
+/// `cvar<TAB>flags`, the letters of the guide: A archive, C cheat, I init, L latched, R read-only, S server info, T saved
+/// to the QL database, U user info, W write-protected.
+const FLAGS: &str = include_str!("cvar_flags.txt");
 /// `name<TAB>first line of the description`.
 const HELP: &str = include_str!("help.txt");
 
@@ -19,6 +22,18 @@ pub(crate) fn value_labels(cvar: &str) -> Vec<(&'static str, &'static str)> {
         .collect()
 }
 
+/// The flags of a cvar as the guide lists them, for example `AL`.
+pub(crate) fn flags_for(cvar: &str) -> &'static str {
+    FLAGS
+        .lines()
+        .find_map(|line| {
+            line.split_once('\t')
+                .filter(|(known, _)| known.eq_ignore_ascii_case(cvar))
+                .map(|(_, flags)| flags)
+        })
+        .unwrap_or_default()
+}
+
 /// The first line of the description of a command or cvar.
 pub(crate) fn help_for(name: &str) -> Option<&'static str> {
     HELP.lines().find_map(|line| {
@@ -30,7 +45,13 @@ pub(crate) fn help_for(name: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod guide_tests {
-    use super::{help_for, value_labels};
+    use super::{flags_for, help_for, value_labels};
+
+    #[test]
+    fn flags_are_found_in_any_case() {
+        assert_eq!(flags_for("SV_CHEATS"), "R");
+        assert_eq!(flags_for("no_such_cvar"), "");
+    }
 
     #[test]
     fn enumerations_name_their_values() {

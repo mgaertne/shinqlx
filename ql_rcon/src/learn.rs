@@ -8,6 +8,10 @@ pub(crate) enum Learned {
         text: String,
     },
     Factories(Vec<String>),
+    /// A cvar that only changes with the next restart.
+    Latched(String),
+    /// A cvar that the server refuses to set.
+    ReadOnly(String),
     Cvar {
         name: String,
         default: String,
@@ -67,10 +71,26 @@ fn cvar(line: &str) -> Option<Learned> {
     })
 }
 
+/// Parses `<cvar> will be changed to <value> upon restarting.`
+fn latched(line: &str) -> Option<Learned> {
+    let (name, rest) = line.split_once(" will be changed to ")?;
+    (rest.ends_with(" upon restarting.") && is_name(name))
+        .then(|| Learned::Latched(name.to_string()))
+}
+
+/// Parses `<cvar> is read only.`
+fn read_only(line: &str) -> Option<Learned> {
+    let name = line.strip_suffix(" is read only.")?;
+    is_name(name).then(|| Learned::ReadOnly(name.to_string()))
+}
+
 /// Recognises a usage line or the answer to a cvar query; any other line yields `None`.
 fn learn_line(line: &str) -> Option<Learned> {
     let line = line.trim();
-    usage(line).or_else(|| cvar(line))
+    usage(line)
+        .or_else(|| cvar(line))
+        .or_else(|| latched(line))
+        .or_else(|| read_only(line))
 }
 
 /// Reads the replies line by line; the list of factories that `map` prints spans several lines.
@@ -160,6 +180,24 @@ mod learn_tests {
                 maximum: "3".to_string(),
             })
         );
+    }
+
+    #[test]
+    fn the_latched_message_names_the_cvar() {
+        assert_eq!(
+            Learner::default().feed("bot_enable will be changed to 1 upon restarting."),
+            Some(Learned::Latched("bot_enable".to_string()))
+        );
+        assert_eq!(Learner::default().feed("say will be changed to soon"), None);
+    }
+
+    #[test]
+    fn the_read_only_message_names_the_cvar() {
+        assert_eq!(
+            Learner::default().feed("sv_cheats is read only."),
+            Some(Learned::ReadOnly("sv_cheats".to_string()))
+        );
+        assert_eq!(Learner::default().feed("the map is read only."), None);
     }
 
     #[test]

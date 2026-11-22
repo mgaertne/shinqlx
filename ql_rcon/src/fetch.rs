@@ -14,6 +14,7 @@ pub(crate) enum Feed {
     Show,
     Hide,
     Done(Fetched),
+    ShowAndDone(Fetched),
 }
 
 /// What the server reported: command and cvar names, and map names without the `.bsp`.
@@ -35,9 +36,17 @@ impl Fetched {
 pub(crate) enum FetchState {
     Off,
     Waiting,
-    Collecting { found: Fetched, started: Instant },
+    Collecting {
+        found: Fetched,
+        started: Instant,
+        last_line: Instant,
+        visible: bool,
+    },
     Done,
 }
+
+/// A list typed by the user has no end marker (`cmdlist`, `dir`), so it ends after this much silence.
+const PASSIVE_IDLE: Duration = Duration::from_millis(1500);
 
 fn is_name(text: &str) -> bool {
     !text.is_empty()
@@ -66,37 +75,63 @@ impl FetchState {
         *self = Self::Collecting {
             found: Fetched::default(),
             started: Instant::now(),
+            last_line: Instant::now(),
+            visible: false,
         };
         true
     }
 
+    /// Starts reading along when the user types one of the list commands; the reply stays visible.
+    pub(crate) fn user_sent(&mut self, line: &str) {
+        if !matches!(self, Self::Off | Self::Done) || !FETCH_COMMANDS.contains(&line.trim()) {
+            return;
+        }
+
+        *self = Self::Collecting {
+            found: Fetched::default(),
+            started: Instant::now(),
+            last_line: Instant::now(),
+            visible: true,
+        };
+    }
+
     /// Takes the names of the lists out of `line`; every other line stays visible.
     pub(crate) fn feed(&mut self, line: &str) -> Feed {
-        let Self::Collecting { found, .. } = self else {
+        let Self::Collecting {
+            found,
+            visible,
+            last_line,
+            ..
+        } = self
+        else {
             return Feed::Show;
         };
 
+        let hidden = if *visible { Feed::Show } else { Feed::Hide };
         let line = line.trim();
         let mut words = line.split_whitespace();
-        match (words.next(), words.next(), words.next()) {
-            (None, ..) => Feed::Hide,
-            (Some("Directory"), Some("of"), _) => Feed::Hide,
-            (Some(dashes), None, _) if dashes.chars().all(|c| c == '-') => Feed::Hide,
+        let feed = match (words.next(), words.next(), words.next()) {
+            (None, ..) => hidden,
+            (Some("Directory"), Some("of"), _) => hidden,
+            (Some(dashes), None, _) if dashes.chars().all(|c| c == '-') => hidden,
             (Some(file), None, _) if file.strip_suffix(".bsp").is_some_and(is_name) => {
                 found.maps.push(file.trim_end_matches(".bsp").to_string());
-                Feed::Hide
+                hidden
             }
             (Some(count), Some("cvar"), Some("indexes")) if count.parse::<u32>().is_ok() => {
+                let show = *visible;
                 let fetched = core::mem::take(found).sorted();
                 *self = Self::Done;
-                Feed::Done(fetched)
+                return if show {
+                    Feed::ShowAndDone(fetched)
+                } else {
+                    Feed::Done(fetched)
+                };
             }
-            (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => {
-                Feed::Hide
-            }
+            (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => hidden,
             (Some(name), None, _) if is_name(name) => {
                 found.names.push(name.to_string());
-                Feed::Hide
+                hidden
             }
             (Some(name), Some(value), _)
                 if is_name(name)
@@ -105,18 +140,31 @@ impl FetchState {
                     && !value.is_empty() =>
             {
                 found.names.push(name.to_string());
-                Feed::Hide
+                hidden
             }
             _ => Feed::Show,
-        }
+        };
+        *last_line = Instant::now();
+        feed
     }
 
     /// Ends a collection whose end marker did not arrive in time and returns what was found.
     pub(crate) fn expired(&mut self) -> Option<Fetched> {
-        let Self::Collecting { found, started } = self else {
+        let Self::Collecting {
+            found,
+            started,
+            last_line,
+            visible,
+        } = self
+        else {
             return None;
         };
-        if started.elapsed() < FETCH_TIMEOUT {
+        let timed_out = if *visible {
+            last_line.elapsed() >= PASSIVE_IDLE
+        } else {
+            started.elapsed() >= FETCH_TIMEOUT
+        };
+        if !timed_out {
             return None;
         }
 
@@ -230,6 +278,50 @@ mod fetch_tests {
 
         assert_eq!(state.feed("map"), Feed::Show);
         assert!(!state.handshake_succeeded());
+    }
+
+    #[test]
+    fn a_list_typed_by_the_user_is_read_along_and_stays_visible() {
+        let mut state = FetchState::new(false);
+        state.user_sent("cvarlist");
+
+        assert_eq!(state.feed("sv_cheats \"0\""), Feed::Show);
+        assert_eq!(state.feed("12 total cvars"), Feed::Show);
+        assert_eq!(
+            state.feed("12 cvar indexes"),
+            Feed::ShowAndDone(Fetched {
+                names: vec!["sv_cheats".to_string()],
+                maps: Vec::new(),
+            })
+        );
+    }
+
+    #[test]
+    fn other_commands_typed_by_the_user_start_nothing() {
+        let mut state = FetchState::new(false);
+        state.user_sent("status");
+
+        assert_eq!(state.feed("touchFile"), Feed::Show);
+        assert_eq!(state.expired(), None);
+    }
+
+    #[test]
+    fn a_list_without_end_marker_ends_after_the_silence() {
+        let mut state = FetchState::new(false);
+        state.user_sent("cmdlist");
+        state.feed("kick");
+
+        assert_eq!(state.expired(), None);
+        if let FetchState::Collecting { last_line, .. } = &mut state {
+            *last_line -= core::time::Duration::from_secs(2);
+        }
+        assert_eq!(
+            state.expired(),
+            Some(Fetched {
+                names: vec!["kick".to_string()],
+                maps: Vec::new(),
+            })
+        );
     }
 
     #[test]

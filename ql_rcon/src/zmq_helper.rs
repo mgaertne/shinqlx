@@ -231,6 +231,7 @@ pub(crate) async fn run_zmq(
             biased;
 
             Some(line) = zmq_receiver.recv() => {
+                fetch.user_sent(&line);
                 monitored_dealer.send(&line, SendFlags::DONT_WAIT).await;
             },
 
@@ -244,6 +245,10 @@ pub(crate) async fn run_zmq(
                         Feed::Show => display_sender.send(zmq_str)?,
                         Feed::Hide => (),
                         Feed::Done(fetched) => store_fetched_names(&args, &fetched, &display_sender)?,
+                        Feed::ShowAndDone(fetched) => {
+                            display_sender.send(zmq_str)?;
+                            store_fetched_names(&args, &fetched, &display_sender)?;
+                        }
                     }
                 }
 

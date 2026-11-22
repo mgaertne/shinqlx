@@ -20,7 +20,7 @@ use tokio::{
 use crate::{
     CONTINUE_RUNNING, CommandLineOptions,
     fetch::Fetched,
-    guide::{help_for, value_labels},
+    guide::{flags_for, help_for, value_labels},
     learn::Learned,
 };
 
@@ -136,7 +136,12 @@ fn describe(
         .into_iter()
         .map(|item| {
             let text = if describe_names {
-                help_for(&item).map(str::to_string)
+                let note = setting_note(&item, user);
+                match (note, help_for(&item)) {
+                    (Some(note), Some(help)) => Some(format!("{note} {help}")),
+                    (Some(note), None) => Some(note),
+                    (None, help) => help.map(str::to_string),
+                }
             } else {
                 cvar.and_then(|cvar| value_label(cvar, &item, user))
             };
@@ -163,6 +168,33 @@ struct UserLists {
     factories: Vec<String>,
     labels: HashMap<String, Vec<(String, String)>>,
     cvars: HashMap<String, LearnedCvar>,
+    latched: HashSet<String>,
+    read_only: HashSet<String>,
+}
+
+/// What setting the cvar does according to the guide and to what the server said: `latched`, `read-only` and so on.
+fn setting_note(cvar: &str, user: &UserLists) -> Option<String> {
+    let name = cvar.to_lowercase();
+    let mut flags = flags_for(cvar).to_string();
+    if user.latched.contains(&name) {
+        flags.retain(|flag| !matches!(flag, 'R' | 'W'));
+        flags.push('L');
+    } else if user.read_only.contains(&name) {
+        flags.push('R');
+    }
+    let notes: Vec<&str> = ['C', 'I', 'L', 'R', 'W']
+        .into_iter()
+        .filter(|flag| flags.contains(*flag))
+        .map(|flag| match flag {
+            'C' => "cheat",
+            'I' => "init only",
+            'L' => "latched",
+            'R' => "read-only",
+            _ => "write-protected",
+        })
+        .collect();
+
+    (!notes.is_empty()).then(|| format!("[{}]", notes.join(", ")))
 }
 
 /// The default and the range of a cvar, as the server reported them.
@@ -298,6 +330,15 @@ fn write_lines(file: &PathBuf, lines: &[String]) -> io::Result<()> {
     std::fs::write(file, lines.join("\n") + "\n")
 }
 
+/// A list the user typed covers only one kind of names, so it is added to what the file already holds.
+fn merged(file: &PathBuf, found: &[String]) -> Vec<String> {
+    let mut names = load_lines(core::slice::from_ref(file));
+    names.extend_from_slice(found);
+    names.sort_unstable_by_key(|name| name.to_lowercase());
+    names.dedup_by_key(|name| name.to_lowercase());
+    names
+}
+
 /// Keeps what the server reported for the next completion and returns the file with the names.
 pub(crate) fn save_completions(
     args: &CommandLineOptions,
@@ -311,8 +352,8 @@ pub(crate) fn save_completions(
     };
     let names_file = fetched_file(args, "completions").ok_or_else(missing)?;
     let maps_file = fetched_file(args, "completions-maps").ok_or_else(missing)?;
-    write_lines(&names_file, &fetched.names)?;
-    write_lines(&maps_file, &fetched.maps)?;
+    write_lines(&names_file, &merged(&names_file, &fetched.names))?;
+    write_lines(&maps_file, &merged(&maps_file, &fetched.maps))?;
 
     Ok(names_file)
 }
@@ -360,6 +401,15 @@ fn learned_line(learned: &Learned) -> (String, String) {
             "factories\t".to_string(),
             format!("factories\t{}", factories.join("\t")),
         ),
+        Learned::Latched(name) | Learned::ReadOnly(name) => {
+            let kind = if matches!(learned, Learned::Latched(_)) {
+                "latched"
+            } else {
+                "readonly"
+            };
+            let name = name.to_lowercase();
+            (format!("{kind}\t{name}\t"), format!("{kind}\t{name}"))
+        }
         Learned::Cvar {
             name,
             default,
@@ -404,6 +454,12 @@ fn load_learned(args: &CommandLineOptions, user: &mut UserLists) {
         match fields.as_slice() {
             ["factories", factories @ ..] => {
                 user.factories = factories.iter().map(|name| name.to_string()).collect();
+            }
+            ["latched", name] => {
+                user.latched.insert(name.to_string());
+            }
+            ["readonly", name] => {
+                user.read_only.insert(name.to_string());
             }
             ["usage", command, text] => {
                 user.usages.insert(command.to_string(), text.to_string());
@@ -452,6 +508,8 @@ fn load_user_lists(args: &CommandLineOptions) -> UserLists {
         ..UserLists::default()
     };
     load_learned(args, &mut user);
+    let queried: Vec<String> = user.cvars.keys().cloned().collect();
+    user.names.extend(queried);
     user
 }
 
@@ -755,8 +813,8 @@ mod linefeed_helper_tests {
 
     use super::{
         CommandLineOptions, LearnedCvar, UserLists, completions, describe, get_history_file,
-        known_values, parse_labels, parse_user_names, split_ql_colors, terminal_buffer, usage_hint,
-        user_names_files, value_label, write_formatted_ql_colors,
+        known_values, parse_labels, parse_user_names, setting_note, split_ql_colors,
+        terminal_buffer, usage_hint, user_names_files, value_label, write_formatted_ql_colors,
     };
 
     fn rendered(buffer: Buffer) -> String {
@@ -1011,6 +1069,44 @@ mod linefeed_helper_tests {
             completions("callvote map zen ct", "ct", 17, [].into_iter(), &user),
             ["ctf"]
         );
+    }
+
+    #[test]
+    fn the_guide_flags_that_limit_setting_are_noted() {
+        let user = UserLists::default();
+
+        assert_eq!(
+            setting_note("sv_cheats", &user),
+            Some("[read-only]".to_string())
+        );
+        assert_eq!(
+            setting_note("bot_enable", &user),
+            Some("[latched]".to_string())
+        );
+        assert_eq!(setting_note("sv_hostname", &user), None);
+    }
+
+    #[test]
+    fn a_read_only_cvar_reported_by_the_server_is_noted() {
+        let mut user = UserLists::default();
+        user.read_only.insert("sv_hostname".to_string());
+
+        assert_eq!(
+            setting_note("sv_hostname", &user),
+            Some("[read-only]".to_string())
+        );
+    }
+
+    #[test]
+    fn a_latched_cvar_reported_by_the_server_replaces_the_read_only_note() {
+        let mut user = UserLists::default();
+        user.latched.insert("sv_cheats".to_string());
+
+        assert_eq!(
+            setting_note("sv_cheats", &user),
+            Some("[latched]".to_string())
+        );
+        assert_eq!(setting_note("unknown_cvar", &user), None);
     }
 
     #[test]
