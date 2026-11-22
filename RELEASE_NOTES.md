@@ -6,6 +6,9 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **The stats listener sets the ZAP domain only together with a stats password.** Without a password the subscriber
+  no longer announces the domain `stats`; with the draft build of libzmq (`draft-api`, as used by `ql_rcon` and
+  `ql_stats`) no stats arrived otherwise. The same applies to `ql_stats`.
 * **`load_plugin` and `unload_plugin` log no error for a wrong request**, as in minqlx and in 0.7.0: they only raise when
   the plugin is not loaded (`PluginUnloadError`) or does not exist, so a caller that catches the exception no longer
   produces an `ERROR` line for it. Errors of the plugin code (import, constructor, missing class, no `Plugin`
@@ -30,8 +33,17 @@ Changes since 0.8.0.
   polled every 25 ms, one server frame, and received lines are shown at once instead of after up to 250 ms. The input
   is read on its own blocking thread, and the tool runs on a single-threaded Tokio runtime without the `RwLock`s and
   `unsafe impl Send/Sync` around the sockets.
-* **`ql_rcon` completes the first word with the commands and cvars of Quake Live** (164 commands and 1050 cvars,
-  names taken from the console guide at https://www.euere.eu/ql/), after the matching history entries; the case is ignored.
+* **`ql_rcon` reads along when you type `cmdlist`, `cvarlist` or `dir maps .bsp`** and adds the names to the same
+  `completions-<host>.txt` files as `--fetch-completions`, without hiding the output and without the flag.
+* **`ql_rcon` notes in the completion list how a cvar can be set**: `[cheat]`, `[init only]`, `[latched]`,
+  `[read-only]` and `[write-protected]`, taken from the flags that the server lists with `cvarlist`. When the server answers a change
+  with `<cvar> will be changed to <value> upon restarting.`, `ql_rcon` remembers the cvar as latched in
+  `learned-<host>.txt`, which replaces a read-only note (for example for `bot_enable`); the same goes for
+  `<cvar> is read only.` (for example for `sv_cheats`). The name of a cvar
+  that was queried alone is completed too.
+* **`ql_rcon` completes the first word with the commands and cvars of Quake Live** (164 commands from the console
+  guide at https://www.euere.eu/ql/ and the 530 cvars that a vanilla dedicated server lists with `cvarlist`, with their
+  flags), after the matching history entries; the case is ignored.
   Own names go into `commands.txt` (all servers) and `commands-<host>.txt` (for example `commands-10_0_0_1_27961.txt`)
   in the config directory (`~/.config/ql_rcon/` on Linux), one name per line; empty lines and lines starting with `#` are
   skipped. `ql_rcon --fetch-completions` asks the server once for `cmdlist` and `cvarlist` (without showing the output),
