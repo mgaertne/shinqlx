@@ -55,6 +55,11 @@ fn is_name(text: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '+' | '-'))
 }
 
+/// The server sends the flags of a cvar (`S`, `A`, `L` and so on) as lines of one letter in front of its name.
+fn is_flag(text: &str) -> bool {
+    text.len() == 1 && text.starts_with(|c: char| c.is_ascii_uppercase())
+}
+
 fn finished(mut names: Vec<String>) -> Vec<String> {
     names.sort_unstable_by_key(|name| name.to_lowercase());
     names.dedup_by_key(|name| name.to_lowercase());
@@ -129,6 +134,7 @@ impl FetchState {
                 };
             }
             (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => hidden,
+            (Some(flag), None, _) if is_flag(flag) => hidden,
             (Some(name), None, _) if is_name(name) => {
                 found.names.push(name.to_string());
                 hidden
@@ -278,6 +284,29 @@ mod fetch_tests {
 
         assert_eq!(state.feed("map"), Feed::Show);
         assert!(!state.handshake_succeeded());
+    }
+
+    #[test]
+    fn the_flag_lines_in_front_of_a_cvar_are_not_names() {
+        let mut state = collecting();
+
+        for line in [
+            "S",
+            "",
+            "A",
+            "sv_hostname \"A New Server\"",
+            "L",
+            "bot_enable \"0\"",
+        ] {
+            assert_eq!(state.feed(line), Feed::Hide, "{line}");
+        }
+        assert_eq!(
+            state.feed("2 cvar indexes"),
+            Feed::Done(Fetched {
+                names: vec!["bot_enable".to_string(), "sv_hostname".to_string()],
+                maps: Vec::new(),
+            })
+        );
     }
 
     #[test]
