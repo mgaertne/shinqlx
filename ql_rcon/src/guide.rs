@@ -127,6 +127,11 @@ mod guide_tests {
             );
         }
         assert!(super::ENUMS.lines().all(|line| !line.ends_with('"')));
+        assert!(
+            super::HELP
+                .lines()
+                .all(|line| !line.contains("\t\"") && !line.ends_with("More Details"))
+        );
     }
 
     #[test]

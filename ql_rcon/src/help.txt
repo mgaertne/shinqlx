@@ -317,7 +317,7 @@ com_introplayed	Disables the playing of intro movie when loading game.
 com_maxfps	Maximum rendered frames per second.
 com_showtrace	Displays packet traces.
 com_soundMegs	Allocates memory (in mega bytes) to game sounds. A value of 16 is best suited for 128MB of RAM.
-com_speeds	Displays the reporting of game speed data: frame#, time (in ms), ev, work, sv, cl, gm, rf, bk, rm
+com_speeds	Displays the reporting of game speed data: frame#, time (in ms), ev, work, sv, cl, gm, rf, bk, rm SV = server, CL = client, GM = game time, RF = render time, EV = work
 com_zoneMegs	Sets the amount of memory (in mega bytes) reserved for the game. A value of 16 is best suited for 128MB of RAM.
 con_background	Enables the animated console background.
 condump	Write the contents of the console to a file.
@@ -551,7 +551,7 @@ g_startingammo_mg	Sets the amount of machine gun ammo that players spawn with.
 g_startingArmor	Sets the specified amount as armor players receive when spawning.
 g_startingHealth	Sets the specified amount as the health players receive when spawning.
 g_startingHealthBonus	Adds the specified bonus amount of health to players' health when spawning
-g_startingWeapons	g_startingWeapons
+g_startingWeapons	Sets the starting weapon and you can combine it by summing it up. Examples: Gauntlet + Machinegun (default) = 3 All Weapons = 8191 All Weapons minus Grapple = 7679 Standard CA loadout = 255
 g_suddenDeathRespawn	Controls the player respawn delay when CTF matches enter sudden death.
 g_suddenDeathRespawnMax	Sets the maximum amount of time (in seconds) that player respawn delays can reach in CTF sudden death rounds.
 g_suddenDeathRespawnPrint	Enables messages regarding respawn delays in CTF sudden death rounds.
@@ -672,10 +672,10 @@ r_ambientScale	Controls the amount of ambient light cast among players.
 r_aspectRatio	Controls the game's screen aspect ratio setting.
 rate	Controls packets so that your downstream connection bandwidth does not get saturated. (Max bytes per second)
 r_bloomActive	Dictates whether the bloom effect is active.
-r_BloomBrightThreshold	Sets the bloom threshold when r_enableBloom 1 and r_enablePostProcess 1. The lower the threshold, the
-r_BloomIntensity	Sets the bloom intensity when r_enableBloom 1 and r_enablePostProcess 1. The higher the value, the
+r_BloomBrightThreshold	Sets the bloom threshold when r_enableBloom 1 and r_enablePostProcess 1. The lower the threshold, the more bloom drawn. <0-1>
+r_BloomIntensity	Sets the bloom intensity when r_enableBloom 1 and r_enablePostProcess 1. The higher the value, the more intensive and bright the bloom effect will be. <0-10>
 r_BloomPasses	Sets the number of rendering passes for bloom effect.
-r_BloomSaturation	Sets the degree of color saturation applied to the bloom effect when r_enableBloom 1 and r_enablePostProcess 1. The higher the value, the more colorful the
+r_BloomSaturation	Sets the degree of color saturation applied to the bloom effect when r_enableBloom 1 and r_enablePostProcess 1. The higher the value, the more colorful the bloom effect will appear to be. <0-10>
 r_BloomSceneIntensity	Sets the intensity of brightness applied to the non-bloomed world when r_enableBloom 1 and r_enablePostProcess 1. The higher the value, the brighter the non-bloomed world will appear to be. <0-10>
 r_BloomSceneSaturation	Sets the degree of color saturation applied to the non-bloomed world when r_enableBloom 1 and r_enablePostProcess 1. The higher the value, the more colorful the non-bloomed world will appear to be. <0-10>
 r_clear	Enables the clearing of the screen between video frames.
@@ -690,25 +690,25 @@ r_customheight	Sets the custom vertical resolution when r_mode -1.
 r_customwidth	Sets the custom horizontal resolution when r_mode -1.
 r_debugAds	Debugging tool for in-game advertisement entities.
 r_debuglight	Debugging tool: writes ambient light data to console.
-r_debugSort	A debugging tool that only renders those sort
+r_debugSort	A debugging tool that only renders those sort layers that are greater than the value of the variable set.
 r_debugSurface	Debugging tool: shows bounding boxes of patch mesh surfaces that are targeted by the camera view.
-r_debugSurfaceUpdate	When r_debugSurface is 1, this enables
+r_debugSurfaceUpdate	When r_debugSurface is 1, this enables changing the patch mesh surface bounding box according to location.
 r_depthbits	Sets Z-buffer depth.
 r_detailtextures	Enables the usage of detail texturing stages.
 r_directedScale	Sets the lighting intensity applied to world objects.
 r_displayRefresh	Monitor refresh rate (in Hertz), useful for CRT monitors.
-r_drawBuffer	Sets which frame buffer to draw into. Basically you draw into
+r_drawBuffer	Sets which frame buffer to draw into. Basically you draw into a "back" buffer while simultaneously showing a "front" buffer. Next frame you "swap" these. The benefit is that you won't "see" the actual painting of the image take place. However, in Quake Live, probably only gl_back will actually render.
 r_drawentities	Enables the drawing of world entities (weapons, items, player models etc.).
-r_drawskyfloor	Enables a visual fix of the glitchy scrolling sky floors,
-r_drawSun	Controls the way in which lighting of models and
+r_drawskyfloor	Enables a visual fix of the glitchy scrolling sky floors, removing the hall-of-mirrors effect.
+r_drawSun	Controls the way in which lighting of models and objects is handled by simulating effects of sunlight.
 r_drawworld	Enables rendering of the map.
 r_dynamiclight	Dynamic Lights. (eg: rockets emitting light onto nearby scenery)
 readyup	Toggles your ready-up status in warm up rounds. Once the amount of 'ready' players meets or exceeds the server's sv_warmupReadyPercentage, the game will begin.
 reconnect	Reconnects to the last server you connected to.
 record	Start recording a demo.
-r_enableBloom	Enables light bloom effects
+r_enableBloom	Enables light bloom effects when r_enablePostProcess 1.
 r_enableColorCorrect	Enables color correction when r_enablePostProcess 1.
-r_enablePostProcess	Enables post processing, which offers extra graphical
+r_enablePostProcess	Enables post processing, which offers extra graphical features and quality (such as light bloom effects and color correction), but inflicts a performance hit. Recommended only for powerful computers.
 reply	Reply to chat messages you received from an online buddy.
 reset	Resets a CVAR.
 r_ext_compiled_vertex_array	Enables hardware compiled vertex array rendering.
@@ -723,10 +723,10 @@ r_finish	Enables synchronization of rendered frames.
 r_flareFade	Sets fading scale of flares in relation to distance.
 r_flares	Enables projectile flare and lighting effects.
 r_flareSize	Sets size of flares.
-r_floatingPointFBOs	Enables the use of floating point framebuffer objects -
+r_floatingPointFBOs	Enables the use of floating point framebuffer objects - an OpenGL extension for doing off-screen rendering, including rendering to a texture. By capturing images that would normally be drawn to the screen, it can be used to implement a large variety of image filters and post-processing effects. It is currently an experimental CVAR that will only work on modern graphics cards.
 r_fullbright	Renders all textures on the map at full brightness.
 r_fullscreen	Enables full-screen view.
-r_gamma	Amount of image luminance applied to the in-game display.
+r_gamma	Amount of image luminance applied to the in-game display. The higher the number, the stronger luminance present.
 r_glDriver	Sets the OpenGL driver in use.
 r_gl_renderer	Displays your graphics renderer.
 r_gl_vendor	Displays your graphics chip manufacturer.
@@ -739,15 +739,15 @@ r_inGameVideo	Enables in-game videos.
 r_intensity	Intensifies the level of brightness added to textures and model skins.
 r_lastValidRenderer	Last recorded video driver in use.
 r_lightmap	Enables the light data lighting model.
-r_lockpvs	Locks the Potentially Visible Set table, resulting in area
+r_lockpvs	Locks the Potentially Visible Set table, resulting in area visibilities not being rendered.
 r_lodbias	Sets level of geometric detail.
 r_lodCurveError	Level of detail curve error setting.
 r_lodscale	Level of detail scale adjustment.
 r_logFile	Sets the number of frames to emit GL logs.
 r_mapOverBrightBits	Ambient lighting and radiance of the map.
-r_maskMinidriver	Treats the current OpenGL32 driver as an ICD, even
-r_maxpolys	Sets the maximum number of polygons drawn to the screen. Values lower than default appear to have no effect,
-r_maxpolyverts	Maximum number of vertices from polygons drawn to screen. Values lower than default appear to have no effect,
+r_maskMinidriver	Treats the current OpenGL32 driver as an ICD, even if it is in fact a MCD. In other words, allow a different dll name to be treated as if it were opengl32.dll.
+r_maxpolys	Sets the maximum number of polygons drawn to the screen. Values lower than default appear to have no effect, even negative values. Unknown if higher values have an effect.
+r_maxpolyverts	Maximum number of vertices from polygons drawn to screen. Values lower than default appear to have no effect, even negative values. Unknown if higher values have
 r_measureOverdraw	Reports overdraw (if the harware supports a stencil buffer).
 r_mode	Screen resolution setting. Use Modelist for a list of resolution options, also included in appendix.
 r_nobind	Disables binding of textures to triangles.
@@ -757,16 +757,16 @@ r_noFastRestart	When set to 0 QL will attempt to change from fullscreen to windo
 r_noportals	Disables portal cameras.
 r_norefresh	Disables rendering refreshes.
 r_novis	Disables PVS/VIS tables.
-r_offsetfactor	Sets the polygon offset factor for shader stages that have
-r_offsetunits	Sets the polygon offset units for shader stages that
+r_offsetfactor	Sets the polygon offset factor for shader stages that have polygon offset set. Testing resulted in no change after vid_restart at multiple values. May be ineffectual.
+r_offsetunits	Sets the polygon offset units for shader stages that have polygon offset set. Testing resulted in no change after vid_restart at multiple values. May be ineffectual.
 roundlimit	Round limit in Clan Arena.
 roundtimelimit	Time limit for rounds in Clan Arena.
 r_overBrightBits	Ambient lighting applied to in-game entities or objects.
-r_picmip	Texture color average/level of detail.
-r_portalOnly	A debug option to see exactly what is being mirrored when
+r_picmip	Texture color average/level of detail. Lower values will manipulate and blend the colors of the map textures. Textures at the highest value, '16' appear nearly as solid colors. A vid_restart or map load is required before changes will come into affect.
+r_portalOnly	A debug option to see exactly what is being mirrored when drawing portal surfaces - this includes mirrors and portal cameras.
 r_postProcessActive	Dictates whether post processing is active.
 r_primitives	Sets rendering method.
-r_printShaders	A debugging tool that prints out all the shaders that are
+r_printShaders	A debugging tool that prints out all the shaders that are utilised by a level. It is referred to when generating a pak file for a map.
 r_railCoreWidth	Rail trail core effect diameter (in pixels)
 r_railSegmentLength	Rail trail section length (in pixels)
 r_railWidth	Diameter of rail beam and impact effects in pixels.
@@ -781,7 +781,7 @@ r_simpleMipMaps	Enables simple MIP mapping, boosts performance.
 r_singleShader	Forces single shadering to textures with multiple shaders.
 r_skipBackEnd	A debugging tool that skips the rendering of the back end.
 r_smp	Enables symmetric multiprocessing acceleration.
-r_speeds	Shows rendering information display, providing useful
+r_speeds	Shows rendering information display, providing useful information to developers (especially map designers) on rendering speeds.
 r_stencilbits	Sets stencil buffer size.
 r_stereo	Enables stereo separation.
 r_subdivisions	Patch mesh/curve sub divisions. A value of 80 will replace curved surfaces with angled surfaces to give a performance boost.
@@ -821,8 +821,8 @@ server7	Server IP Address slot for favourite servers list.
 server8	Server IP Address slot for favourite servers list.
 server9	Server IP Address slot for favourite servers list.
 serverinfo	Prints out server information list to the console.
-set	Set Variable:
-seta	Set Variable to Archive:
+set	Set Variable: Assigns a value to an existing CVAR or assigns or creates a new VSTR for your current session.
+seta	Set Variable to Archive: Assigns a value to an existing CVAR or assigns or creates a new VSTR for your current session. Also writes the setting to your configuration so that it is applied every time you run the game.
 setviewpos	Sets view at specified point, in relation to map coordinates.
 sex	Player gender.
 shaderlist	Displays a list of currently loaded shaders.
@@ -835,7 +835,7 @@ sizedown	Decreases the size of the in-game display area.
 sizeup	Increases the size of the in-game display area.
 skinlist	Displays a list of skin files that are currently loaded with the corresponding model surfaces.
 s_list	Lists all currently loaded sound files.
-s_mixahead	Sets the time delay before mixing sound samples.
+s_mixahead	Sets the time delay before mixing sound samples. This is for fine-tuning the mixer and will mix ahead the number of seconds specified.
 s_mixPreStep	This is for fine-tuning the mixer.
 s_musicvolume	Sets volume of the background music.
 snd_restart	Restarts the sound system.
@@ -862,14 +862,14 @@ sv_location	Defines the local country, mostly for use for displaying country fla
 sv_mapChecksum	Allows check for client server map to match.
 sv_mapname	Display the name of the map active on the current server.
 sv_maxPing	Sets the maximum allowed ping for clients.
-sv_maxRate	Forces a maximum rate on clients. Keeps low-ping clients
+sv_maxRate	Forces a maximum rate on clients. Keeps low-ping clients from over-utilising server bandwidth and in the process can help prevent high-ping clients from being affected by this.
 sv_minPing	Sets the minimum allowed ping for clients.
 sv_monkeysOnly	Id Software refuse to comment on this J
 s_volume	Sets sound effects volume.
 sv_owner	Server owner - name of player who has spawned the server.
 sv_padPackets	Add NOP bytes to messages.
-sv_pakNames	Pure server control:
-sv_paks	Pure server control:
+sv_pakNames	Pure server control: Holds pk3 file names that the server is using, and sends the info to clients in order for the clients to load the identical files. (Only when sv_pure 1)
+sv_paks	Pure server control: Holds checksums of pk3 files the server is using, and sends the info to clients in order for the clients to load the identical files. (Only when sv_pure 1)
 sv_paused	Allows pausing of server.
 sv_privateClients	Amount of slots reserved for private players.
 sv_privatePassword	Password that allows you to take up a private slot on a server.
@@ -878,16 +878,16 @@ sv_pure	Enables pure server (disallows native DLL loading etc.).
 sv_quitOnEmpty	Ends the server when there are no clients connected.
 sv_quitOnExitLevel	Ends the server when the current level/map is ended.
 sv_reconnectlimit	Sets the number of times a disconnected client can reconnect to the server.
-sv_referencedPakNames	Pure server control:
-sv_referencedPaks	Pure server control:
+sv_referencedPakNames	Pure server control: Holds referenced pk3 file names that the server is using, and sends the info to clients in order for the clients to load the identical files. (Only when sv_pure 1)
+sv_referencedPaks	Pure server control: Holds checksums of all referenced pk3 files the server is using, and sends the info to clients in order for the clients to load the identical files. (Only when sv_pure 1)
 sv_running	Tells the game whether a local server is currently running.
 sv_serverid	Sets server ID.
 sv_showloss	Displays server packet loss.
-sv_skillRating	The ELO skill rating (from 0-100) of the server,
-sv_timeout	Amount of time (in seconds) required to consider an
-sv_warmupReadyPercentage	Sets the minimum percentile of players of ready status
+sv_skillRating	The ELO skill rating (from 0-100) of the server, changes as players enter/leave.
+sv_timeout	Amount of time (in seconds) required to consider an inactive client as disconnected.
+sv_warmupReadyPercentage	Sets the minimum percentile of players of ready status required in a warm up match before the match starts.
 sv_zombietime	The time in which a player can be frozen before getting kicked.
-sys_cpuid	Returns a two digit number that is quake's
+sys_cpuid	Returns a two digit number that is quake's identification code for your CPU. CPU IDs are nothing new and are well documented. How quake arrives at a two digit number for them is another story.
 sys_cpustring	CPU identification.
 systeminfo	Lists the server configuration.
 taskCamp	Voice message your target team mate that you are camping. (Team Arena)
@@ -913,7 +913,7 @@ teamtask	Displays the current task you have been assigned. (Team Arena)
 tell_attacker	Sends a message to your attacker.
 tell_buddy	Sends a message to a specific online buddy.
 tell_target	Sends a message to a targeted player.
-timedemo	Runs a demo as fast as it can and report
+timedemo	Runs a demo as fast as it can and report performance information in frames per second.
 timegraph	Displays the time graph.
 timelimit	Sets the time limit on your server.
 timescale	Higher values set while playing back demo files will result in the demo fast forwarding at a rate times the timescale value. Values under 1 but greaer than 0 will slow down playback.
@@ -1087,11 +1087,11 @@ writeconfig	Writes settings to a configuration file.
 fs_basegame	Sets the directory under the paths where data comes from by default
 fs_basepath	Sets base game root path.
 fs_cdpath	Sets the path to an alternate hierarchy that will be searched if a file is not located in the base path.
-fs_copyfiles	When set to 1, every time a file is sourced from fs_cdpath, it will be copied over to fs_basepath.
+fs_copyfiles	When set to 1, every time a file is sourced from fs_cdpath, it will be copied over to fs_basepath. This is a development aid to help build test releases and to copy working sets over slow network links.
 fs_game	Sets the game directory.
 fs_homepath	Sets the path used for all write access, also the location where custom mods and content can be installed to.
 fs_restrict	File system demo/restricted mode test tool.
-g_advertdelay	Length of the pre-game advert. It is write protected and changes to 0 with the purchase of premium or pro subscription.
+g_advertdelay	length of the pre-game advert. It is write protected and changes to 0 with the purchase of premium or pro subscription.
 g_arenasFile	Points to a file for a server map rotation list.
 g_botsFile	Points to the bot control file for bot configurations (such as scripts/bots.txt).
 g_maxGameClients	Sets maximum amount of players that are allowed to populate a server.

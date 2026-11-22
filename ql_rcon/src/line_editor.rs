@@ -139,7 +139,9 @@ fn describe(
                     (None, help) => help.map(str::to_string),
                 }
             } else {
-                cvar.and_then(|cvar| value_label(cvar, &item, user))
+                cvar.and_then(|cvar| {
+                    value_label(cvar, &item, user).or_else(|| help_for(cvar).map(str::to_string))
+                })
             };
             (item, text)
         })
@@ -908,6 +910,7 @@ mod line_editor_tests {
         split_ql_colors, terminal_buffer, usage_hint, user_names_files, value_label,
         write_formatted_ql_colors,
     };
+    use crate::guide::help_for;
 
     fn rendered(buffer: Buffer) -> String {
         String::from_utf8(buffer.into_inner()).expect("the output is valid UTF-8")
@@ -1268,6 +1271,20 @@ mod line_editor_tests {
             .find(|(value, _)| value == "4")
             .expect("the value 4 is offered");
         assert_eq!(ca.1.as_deref(), Some("Clan Arena"));
+    }
+
+    #[test]
+    fn values_without_a_meaning_show_the_help_of_their_cvar() {
+        let user = UserLists::default();
+
+        let described = describe(vec!["800".to_string()], "g_gravity ", 10, &user);
+
+        assert_eq!(
+            described[0].1.as_deref(),
+            help_for("g_gravity"),
+            "{described:?}"
+        );
+        assert!(described[0].1.is_some());
     }
 
     #[test]
