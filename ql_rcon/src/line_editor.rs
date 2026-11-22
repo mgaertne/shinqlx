@@ -668,10 +668,11 @@ fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
     result
 }
 
-/// The color of `^0` to `^7` with the RGB values of the 8 color palette in the guide at https://www.euere.eu/ql/.
+/// The color of `^1` to `^7` with the RGB values of the 8 color palette in the guide at https://www.euere.eu/ql/.
+/// `^0` stays the black of the terminal theme, so that it remains readable.
 fn ql_color(code: &str) -> Color {
     match code {
-        "^0" => Color::Rgb(0x00, 0x00, 0x00),
+        "^0" => Color::Black,
         "^1" => Color::Rgb(0xFF, 0x00, 0x00),
         "^2" => Color::Rgb(0x00, 0xFF, 0x00),
         "^3" => Color::Rgb(0xFF, 0xFF, 0x00),
