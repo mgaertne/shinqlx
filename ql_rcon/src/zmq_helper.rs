@@ -23,7 +23,7 @@ use crate::{
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
     learn::{Learner, explained},
-    line_editor::{remember, save_completions},
+    line_editor::{SessionFiles, remember, save_completions},
 };
 
 /// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.
@@ -191,11 +191,11 @@ async fn check_monitor(
 }
 
 fn store_fetched_names(
-    args: &CommandLineOptions,
+    session: &SessionFiles,
     fetched: &Fetched,
     sender: &UnboundedSender<String>,
 ) -> Result<()> {
-    let message = match save_completions(args, fetched) {
+    let message = match save_completions(session, fetched) {
         Ok(file) => format!(
             "ZMQ fetched {} names for the completion into {}, they are used for the completion now.",
             fetched.names.len() + fetched.maps.len(),
@@ -220,6 +220,7 @@ pub(crate) async fn run_zmq(
 
     monitored_dealer.connect(&args.host)?;
 
+    let session = SessionFiles::from(&args);
     let mut fetch = FetchState::new(args.fetch_completions);
     let mut learner = Learner::default();
 
@@ -239,7 +240,7 @@ pub(crate) async fn run_zmq(
                 while let Some(zmq_msg) = monitored_dealer.recv_msg().await {
                     let zmq_str = trim_ql_msg(&zmq_msg.to_string());
                     if let Some(learned) = learner.feed(&zmq_str) {
-                        remember(&args, &learned).ok();
+                        remember(&session, &learned).ok();
                     }
                     match fetch.feed(&zmq_str) {
                         Feed::Show => {
@@ -250,16 +251,16 @@ pub(crate) async fn run_zmq(
                             }
                         }
                         Feed::Hide => (),
-                        Feed::Done(fetched) => store_fetched_names(&args, &fetched, &display_sender)?,
+                        Feed::Done(fetched) => store_fetched_names(&session, &fetched, &display_sender)?,
                         Feed::ShowAndDone(fetched) => {
                             display_sender.send(zmq_str)?;
-                            store_fetched_names(&args, &fetched, &display_sender)?;
+                            store_fetched_names(&session, &fetched, &display_sender)?;
                         }
                     }
                 }
 
                 if let Some(fetched) = fetch.expired() {
-                    store_fetched_names(&args, &fetched, &display_sender)?;
+                    store_fetched_names(&session, &fetched, &display_sender)?;
                 }
 
                 check_monitor(&monitored_dealer, &display_sender, &args.host, &mut fetch).await?;

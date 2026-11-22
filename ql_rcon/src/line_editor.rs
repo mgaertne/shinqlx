@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::{HashMap, HashSet},
     io::{self, IsTerminal, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Mutex, mpsc::SyncSender},
 };
 
@@ -316,8 +316,9 @@ fn parse_user_names(text: &str) -> impl Iterator<Item = &str> {
 }
 
 /// The server file of the session, if it was started with one.
-fn profile_file(args: &CommandLineOptions) -> Option<ServerFile> {
-    args.profile
+fn profile_file(session: &SessionFiles) -> Option<ServerFile> {
+    session
+        .profile
         .as_deref()
         .and_then(server_file)
         .map(ServerFile::new)
@@ -325,12 +326,12 @@ fn profile_file(args: &CommandLineOptions) -> Option<ServerFile> {
 
 /// The file that `--fetch-completions` keeps for the connected server: `completions-<host>.txt` for the names and
 /// `completions-maps-<host>.txt` for the maps.
-fn fetched_file(args: &CommandLineOptions, kind: &str) -> Option<PathBuf> {
-    let slug = host_slug(args)?;
+fn fetched_file(session: &SessionFiles, kind: &str) -> Option<PathBuf> {
+    let slug = host_slug(session)?;
     config_dir().map(|dir| dir.join(format!("{kind}-{slug}.txt")))
 }
 
-fn write_lines(file: &PathBuf, lines: &[String]) -> io::Result<()> {
+fn write_lines(file: &Path, lines: &[String]) -> io::Result<()> {
     if let Some(dir) = file.parent() {
         std::fs::create_dir_all(dir)?;
     }
@@ -338,8 +339,8 @@ fn write_lines(file: &PathBuf, lines: &[String]) -> io::Result<()> {
 }
 
 /// A list the user typed covers only one kind of names, so it is added to what the file already holds.
-fn merged(file: &PathBuf, found: &[String]) -> Vec<String> {
-    let mut names = load_lines(core::slice::from_ref(file));
+fn merged(file: &Path, found: &[String]) -> Vec<String> {
+    let mut names = load_lines(&[file.to_path_buf()]);
     names.extend_from_slice(found);
     names.sort_unstable_by_key(|name| name.to_lowercase());
     names.dedup_by_key(|name| name.to_lowercase());
@@ -347,11 +348,8 @@ fn merged(file: &PathBuf, found: &[String]) -> Vec<String> {
 }
 
 /// Keeps what the server reported for the next completion and returns the file with the names.
-pub(crate) fn save_completions(
-    args: &CommandLineOptions,
-    fetched: &Fetched,
-) -> io::Result<PathBuf> {
-    if let Some(file) = profile_file(args) {
+pub(crate) fn save_completions(session: &SessionFiles, fetched: &Fetched) -> io::Result<PathBuf> {
+    if let Some(file) = profile_file(session) {
         file.merge_fetched(fetched)?;
         return Ok(file.path().to_path_buf());
     }
@@ -362,8 +360,8 @@ pub(crate) fn save_completions(
             "no config directory or no tcp host",
         )
     };
-    let names_file = fetched_file(args, "completions").ok_or_else(missing)?;
-    let maps_file = fetched_file(args, "completions-maps").ok_or_else(missing)?;
+    let names_file = fetched_file(session, "completions").ok_or_else(missing)?;
+    let maps_file = fetched_file(session, "completions-maps").ok_or_else(missing)?;
     write_lines(&names_file, &merged(&names_file, &fetched.names))?;
     write_lines(&maps_file, &merged(&maps_file, &fetched.maps))?;
 
@@ -372,22 +370,22 @@ pub(crate) fn save_completions(
 
 /// `<stem>.txt` for all servers, `<stem>-<host>.txt` and the fetched `<fetched>-<host>.txt` for the connected one, all
 /// in the config directory.
-fn list_files(args: &CommandLineOptions, stem: &str, fetched: &str) -> Vec<PathBuf> {
+fn list_files(session: &SessionFiles, stem: &str, fetched: &str) -> Vec<PathBuf> {
     let Some(dir) = config_dir() else {
         return Vec::new();
     };
 
     [Some(format!("{stem}.txt"))]
         .into_iter()
-        .chain([host_slug(args).map(|slug| format!("{stem}-{slug}.txt"))])
+        .chain([host_slug(session).map(|slug| format!("{stem}-{slug}.txt"))])
         .flatten()
         .map(|file_name| dir.join(file_name))
-        .chain(fetched_file(args, fetched))
+        .chain(fetched_file(session, fetched))
         .collect()
 }
 
-fn user_names_files(args: &CommandLineOptions) -> Vec<PathBuf> {
-    list_files(args, "commands", "completions")
+fn user_names_files(session: &SessionFiles) -> Vec<PathBuf> {
+    list_files(session, "commands", "completions")
 }
 
 fn load_lines(files: &[PathBuf]) -> Vec<String> {
@@ -438,12 +436,12 @@ fn learned_line(learned: &Learned) -> (String, String) {
 }
 
 /// Keeps what the server reported in `learned-<host>.txt`; a newer report replaces the older one of the same entry.
-pub(crate) fn remember(args: &CommandLineOptions, learned: &Learned) -> io::Result<()> {
-    if let Some(file) = profile_file(args) {
+pub(crate) fn remember(session: &SessionFiles, learned: &Learned) -> io::Result<()> {
+    if let Some(file) = profile_file(session) {
         return file.remember(learned);
     }
 
-    let Some(file) = fetched_file(args, "learned") else {
+    let Some(file) = fetched_file(session, "learned") else {
         return Ok(());
     };
     let (key, line) = learned_line(learned);
@@ -461,8 +459,8 @@ pub(crate) fn remember(args: &CommandLineOptions, learned: &Learned) -> io::Resu
     write_lines(&file, &lines)
 }
 
-fn load_learned(args: &CommandLineOptions, user: &mut UserLists) {
-    let text = fetched_file(args, "learned")
+fn load_learned(session: &SessionFiles, user: &mut UserLists) {
+    let text = fetched_file(session, "learned")
         .and_then(|file| std::fs::read_to_string(file).ok())
         .unwrap_or_default();
     for line in text.lines() {
@@ -535,19 +533,19 @@ fn parse_labels(lines: &[String]) -> HashMap<String, Vec<(String, String)>> {
     labels
 }
 
-fn load_user_lists(args: &CommandLineOptions) -> UserLists {
+fn load_user_lists(session: &SessionFiles) -> UserLists {
     let mut user = UserLists {
-        names: load_lines(&user_names_files(args)),
-        maps: load_lines(&list_files(args, "maps", "completions-maps")),
+        names: load_lines(&user_names_files(session)),
+        maps: load_lines(&list_files(session, "maps", "completions-maps")),
         labels: parse_labels(&load_lines(&list_files(
-            args,
+            session,
             "values",
             "completions-values",
         ))),
         ..UserLists::default()
     };
-    load_learned(args, &mut user);
-    if let Some(file) = profile_file(args) {
+    load_learned(session, &mut user);
+    if let Some(file) = profile_file(session) {
         load_profile(&file, &mut user);
     }
     let queried: Vec<String> = user.cvars.keys().cloned().collect();
@@ -569,8 +567,24 @@ fn usage_listing(usage: String, word: &str, span: Span) -> Vec<Suggestion> {
 /// The history, newest entry first, shared between the editor loop and the completer.
 type SharedHistory = Arc<Mutex<Vec<String>>>;
 
+/// What names the files of a session: the server it talks to and its server file, if it has one.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SessionFiles {
+    host: String,
+    profile: Option<String>,
+}
+
+impl From<&CommandLineOptions> for SessionFiles {
+    fn from(options: &CommandLineOptions) -> Self {
+        Self {
+            host: options.host.clone(),
+            profile: options.profile.clone(),
+        }
+    }
+}
+
 struct ServerCompleter {
-    args: CommandLineOptions,
+    session: SessionFiles,
     history: SharedHistory,
 }
 
@@ -582,7 +596,7 @@ impl Completer for ServerCompleter {
         let before = typed.get(..start).unwrap_or_default();
         let span = Span::new(start, pos);
 
-        let user = load_user_lists(&self.args);
+        let user = load_user_lists(&self.session);
         let history = self
             .history
             .lock()
@@ -715,16 +729,17 @@ fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
     Ok(())
 }
 
-fn host_slug(args: &CommandLineOptions) -> Option<String> {
-    args.host
+fn host_slug(session: &SessionFiles) -> Option<String> {
+    session
+        .host
         .strip_prefix("tcp://")
         .map(|hostname| hostname.replace(".", "_").replace(":", "_"))
 }
 
-fn get_history_file(args: &CommandLineOptions) -> Option<PathBuf> {
+fn get_history_file(session: &SessionFiles) -> Option<PathBuf> {
     UserDirs::new().map(|user_dirs| {
         let mut home_dir = user_dirs.home_dir().to_path_buf();
-        match host_slug(args) {
+        match host_slug(session) {
             None => home_dir.push(".ql_zmq_rcon.history"),
             Some(slug) => home_dir.push(format!(".ql_zmq_rcon-{slug}.history")),
         }
@@ -761,11 +776,11 @@ fn drop_older_duplicates(history: &mut dyn History, line: &str) {
 }
 
 fn line_editor(
-    args: &CommandLineOptions,
+    session: &SessionFiles,
     printer: ExternalPrinter<String>,
     break_signal: Arc<AtomicBool>,
 ) -> Result<(Reedline, SharedHistory)> {
-    let history: Box<dyn History> = match get_history_file(args) {
+    let history: Box<dyn History> = match get_history_file(session) {
         Some(file) => Box::new(FileBackedHistory::with_file(HISTORY_SIZE, file)?),
         None => Box::new(FileBackedHistory::new(HISTORY_SIZE)?),
     };
@@ -782,7 +797,7 @@ fn line_editor(
     );
 
     let completer = ServerCompleter {
-        args: args.clone(),
+        session: session.clone(),
         history: Arc::clone(&shared_history),
     };
     let menu = ColumnarMenu::default()
@@ -845,7 +860,11 @@ pub(crate) async fn run_terminal(
     let printer = ExternalPrinter::default();
     let break_signal = Arc::new(AtomicBool::new(false));
     let output = printer.sender();
-    let (editor, history) = line_editor(&args, printer, Arc::clone(&break_signal))?;
+    let (editor, history) = line_editor(
+        &SessionFiles::from(&args),
+        printer,
+        Arc::clone(&break_signal),
+    )?;
 
     let reader = task::spawn_blocking(move || read_input(editor, &history, zmq_sender));
 
@@ -905,9 +924,9 @@ mod line_editor_tests {
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, LearnedCvar, ServerCompleter, SharedHistory, UserLists, completions,
-        describe, get_history_file, known_values, parse_labels, parse_user_names, setting_note,
-        split_ql_colors, terminal_buffer, usage_hint, user_names_files, value_label,
+        CommandLineOptions, LearnedCvar, ServerCompleter, SessionFiles, SharedHistory, UserLists,
+        completions, describe, get_history_file, known_values, parse_labels, parse_user_names,
+        setting_note, split_ql_colors, terminal_buffer, usage_hint, user_names_files, value_label,
         write_formatted_ql_colors,
     };
     use crate::guide::help_for;
@@ -1114,7 +1133,7 @@ mod line_editor_tests {
             CommandLineOptions::try_parse_from(["ql_rcon", "--host", "tcp://10.0.0.1:27961"])
                 .expect("the options are valid");
 
-        let files = user_names_files(&args);
+        let files = user_names_files(&SessionFiles::from(&args));
 
         assert!(files.len() <= 3);
         assert!(files.iter().all(|file| file.ends_with("commands.txt")
@@ -1300,9 +1319,8 @@ mod line_editor_tests {
 
     #[test]
     fn the_completer_replaces_the_word_before_the_cursor() {
-        let args = CommandLineOptions::try_parse_from(["ql_rcon"]).expect("the options are valid");
         let mut completer = ServerCompleter {
-            args,
+            session: SessionFiles::default(),
             history: SharedHistory::default(),
         };
 
@@ -1370,8 +1388,10 @@ mod line_editor_tests {
         let ipc = CommandLineOptions::try_parse_from(["ql_rcon", "--host", "ipc:///tmp/ql"])
             .expect("the options are valid");
 
-        let tcp_file = get_history_file(&tcp).expect("a home directory is set");
-        let ipc_file = get_history_file(&ipc).expect("a home directory is set");
+        let tcp_file =
+            get_history_file(&SessionFiles::from(&tcp)).expect("a home directory is set");
+        let ipc_file =
+            get_history_file(&SessionFiles::from(&ipc)).expect("a home directory is set");
 
         assert_eq!(
             tcp_file.file_name().and_then(|name| name.to_str()),
