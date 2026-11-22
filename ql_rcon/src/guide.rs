@@ -30,7 +30,7 @@ pub(crate) fn meaning(cvar: &str, value: &str) -> Option<String> {
         .filter_map(
             |line| match line.split('\t').collect::<Vec<_>>().as_slice() {
                 [name, bit, label, kind] if name.eq_ignore_ascii_case(cvar) => {
-                    Some((bit.parse().ok()?, label.trim_matches('"'), *kind))
+                    Some((bit.parse().ok()?, *label, *kind))
                 }
                 _ => None,
             },
@@ -121,7 +121,12 @@ mod guide_tests {
                     .all(|line| !line.contains("  ") && !line.ends_with(' ')),
                 "a line has two spaces in a row or a trailing space"
             );
+            assert!(
+                !text.contains("&rsquo;") && !text.contains("&lsquo;") && !text.contains("&amp;"),
+                "an html entity is left"
+            );
         }
+        assert!(super::ENUMS.lines().all(|line| !line.ends_with('"')));
     }
 
     #[test]

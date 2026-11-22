@@ -93,9 +93,9 @@ dmflags	16	no falling damage	e
 fraglimit	0	no fraglimit	e
 g_dropCmds	1	flags (dropflag)	b
 g_dropCmds	2	power-ups (droppowerup)	b
-g_dropCmds	4	weapons (dropweapon)"	b
-g_filterBan	0	allows only specified IP&rsquo;s to connect	e
-g_filterBan	1	allows anyone except specified IP&rsquo;s to connect	e
+g_dropCmds	4	weapons (dropweapon)	b
+g_filterBan	0	allows only specified IP's to connect	e
+g_filterBan	1	allows anyone except specified IP's to connect	e
 g_gametype	0	Free for All	e
 g_gametype	1	Tournament	e
 g_gametype	2	Race	e
@@ -141,7 +141,7 @@ g_startingWeapons	512	Grappling Hook	e
 g_startingWeapons	1024	Nailgun	e
 g_startingWeapons	2048	Prox Launcher	e
 g_startingWeapons	4096	Chaingun	e
-g_startingWeapons	8192	Map Defualt Weapons	e
+g_startingWeapons	8192	Map Default Weapons	e
 g_voteFlags	1	map	b
 g_voteFlags	2	map_restart	b
 g_voteFlags	4	nextmap	b
@@ -167,9 +167,9 @@ logfile	3	append	e
 appendlogfile	0	disabled	e
 appendlogfile	1	enabled	e
 armor_tiered	0	disabled	e
-armor_tiered	1	QW-inspired"	e
+armor_tiered	1	QW-inspired	e
 bot_dynamicSkill	0	bot skill set by skill setting	e
-bot_dynamicSkill	1	bot skill set by &lsquo;My Skill&rsquo; setting	e
+bot_dynamicSkill	1	bot skill set by 'My Skill' setting	e
 bot_followMe	0	free roam	e
 bot_followMe	1	follow	e
 bot_gauntlet	1	gauntlet-only	e
