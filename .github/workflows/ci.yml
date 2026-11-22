@@ -297,7 +297,7 @@ jobs:
           cache-on-failure: true
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - run: cargo llvm-cov --lcov --output-path lcov.info
+      - run: cargo llvm-cov --workspace --lcov --output-path lcov.info
       #      - name: Upload to codecov.io
       #        uses: codecov/codecov-action@v7
       #        with:

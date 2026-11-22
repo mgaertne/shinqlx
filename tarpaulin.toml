@@ -1,4 +1,5 @@
 [all]
+workspace = true
 engine = "Llvm"
 line = true
 branch = true
