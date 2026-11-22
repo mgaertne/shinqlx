@@ -13,7 +13,7 @@ bot_aasoptimize	Optimizes the bot intelligence, if possible on the specific map.
 bot_breakPoint	Causes a program break to occur in the bot's intelligence.
 bot_challenge	Makes the bots slightly more challenging.
 bot_debug	Debugging tools for various bot subsystems. Many bot debugging features are disabled if this is not set to 1.
-bot_developer	Enables developer mode for bots
+bot_developer	Enables developer mode for bots.
 bot_dynamicSkill	Controls whether the bot skill changes to your skill or not.
 bot_enable	Enable/disable bots on your server/offline match.
 bot_fastchat	Sets bot chat to be more frequent.
@@ -30,7 +30,7 @@ bot_hud	Print out the bots debug info onto the players HUD. Set to the clientNum
 bot_instaGibAimSkill	The aim skill of bots in instagib rails matches.
 bot_interbreedbots	Sets the number of bots used for goal fuzzy logic interbreeding.
 bot_interbreedchar	Sets the bot character to be used with goal fuzzy logic interbreeding.
-bot_interbreedcycle	Sets the number of matches between interbreeding
+bot_interbreedcycle	Sets the number of matches between interbreeding.
 bot_interbreedwrite	Sets the file to write interbreeded goal fuzzy logic to.
 bot_maxdebugpolys	The maximum number of polygons available for visualizing things when debugging.
 bot_memorydump	Displays bot memory allocation when debugging.
@@ -38,7 +38,7 @@ bot_minplayers	Balances the number of players playing in a server by replacing p
 bot_nochat	Disables bot chat.
 bot_pause	A debug command to pause bots.
 bot_predictobstacles	Enables bot obstacle prediction.
-bot_reachability	Bot reachability calculation
+bot_reachability	Bot reachability calculation.
 bot_reloadcharacters	Bot character file caching.
 bot_report	Debug command to get bots to report on what they are doing.
 bot_rocketjump	Allows bots to rocket jump.
@@ -60,7 +60,7 @@ cg_armorTiered	A read-only client setting that is used for telling the HUD to co
 cg_atmosphericEffects	Enables drawing of atmospheric effects such as snow and rain (only server-forced effects, this does not disable rain/fog featured in maps)
 cg_autoAction	Controls the automation of demo recording and final scoreboard screenshots.
 cg_autoswitch	Enables weapon auto-switch on pickup.
-cg_battlesuitKillCounter	Enables Battle Suit frag counter while using a Battle Suit
+cg_battlesuitKillCounter	Enables Battle Suit frag counter while using a Battle Suit.
 cg_blueTeam	Sets the name of the blue team for in team games, to draw to menu elements (HUD, scoreboard, about box, etc.)
 cg_blueTeamShort	Blue team name acronym.
 cg_bob	Controls view bobbing.
@@ -71,7 +71,7 @@ cg_cameraOrbit	Changes the camera orbit rotation increment.
 cg_cameraOrbitDelay	Delay between increments of camera orbit rotation.
 cg_centertime	Sets display time for center screen messages (0 to disable messages).
 cg_chatbeep	Controls the sound made when in-game chat messages are received.
-cg_chatHistoryLength	sets the amount of chatlines
+cg_chatHistoryLength	sets the amount of chatlines.
 cg_clanOnTeamOverlay	Show clan tags in team overlay box.
 cg_compHud	Enables the stream friendly HUD on private servers.
 cg_compmode	Enables competition mode for private servers.
@@ -84,7 +84,7 @@ cg_crosshairHitTime	Sets the amount of time the crosshair hit effect is displaye
 cg_crosshairPulse	Allows pulsating effect of the crosshair when items are picked up.
 cg_crosshairSize	Size of crosshair, measured in pixels.
 cg_crosshairTeamHealthSize	Allows the setting of the font size of the teammate health/armor read-out on teammate crosshair hovers.
-cg_crosshairX	X-axis distance of crosshair from the center of the field of view
+cg_crosshairX	X-axis distance of crosshair from the center of the field of view.
 cg_crosshairY	Y-axis distance of crosshair from the center of the field of view.
 cg_currentSelectedPlayer	Selected team mate number for team commands.
 cg_currentSelectedPlayerName	This shows the friendly player name that was last highlighted in your crosshair.
@@ -99,9 +99,9 @@ cg_drawAmmoWarning	Displays 'low ammo' and 'out of ammo' warnings.
 cg_drawAttacker	Displays the name and icon of the last player to damage you.
 cg_drawCrosshair	Displays the specified crosshair image.
 cg_drawCrosshairNames	Displays the names of target opponents.
-cg_drawCrosshairNamesOpacity	Sets the opacity of the crosshair names feature when cg_drawCrosshairNames 1 or 2
+cg_drawCrosshairNamesOpacity	Sets the opacity of the crosshair names feature when cg_drawCrosshairNames 1 or 2.
 cg_drawCrosshairTeamHealth	Displays team mate health and armor under their name when targeted.
-cg_drawFoe	enables the little red triangle above opponents' heads, like in the practice match against Crash
+cg_drawFoe	enables the little red triangle above opponents' heads, like in the practice match against Crash.
 cg_drawFPS	Displays the frames-per-second counter.
 cg_drawFragMessages	Displays frag messages on the top of the player view.
 cg_drawFriend	Displays blips above your team mates.
@@ -182,7 +182,7 @@ cg_playTeamVO	Enables team voice chats.
 cg_playvoicechats	Enables voice chats.
 cg_predictItems	Client prediction for picking up items.
 cg_predictLocalRailshots	A value of 0 will feel less responsive in high ping environments but may prevent wrongly predicted rail shots and/or impacts.
-cg_quadKillCounter	Enables Quad Damage frag counter for Quad runs
+cg_quadKillCounter	Enables Quad Damage frag counter for Quad runs.
 cg_railStyle	Controls the railgun trail effect.
 cg_railTrailTime	The time (in milliseconds) that rail trails are displayed for.
 cg_redTeam	Sets the name of the red team for in team games, to draw to menu elements (HUD, scoreboard, about box, etc.)
@@ -190,11 +190,11 @@ cg_redTeamShort	Red team name acronym.
 cg_respawnTimerX	Controls the x-axis position of where spectator respawn timers are drawn.
 cg_respawnTimerY	Controls the y-axis position of where spectator respawn timers are drawn.
 cg_rocketStyle	Controls the rocket trail effect.
-cg_scalePlayerModelsToBB	Scales player models to bounding box size as set by cg_playerBBModelScale
+cg_scalePlayerModelsToBB	Scales player models to bounding box size as set by cg_playerBBModelScale.
 cg_scorePlums	Show floating score plums.
 cg_screenDamage	Colorizes the on-screen damage indicator, use "cg_screenDamage 0" to disable. See hex color code sheet in appendix for common color options.
 cg_screenDamageAlpha	Sets the transparency of the on-screen damage indicators.
-cg_screenDamageAlpha_Team	Sets the transparency of the on-screen team damage indicators
+cg_screenDamageAlpha_Team	Sets the transparency of the on-screen team damage indicators.
 cg_screenDamage_Self	Colorizes the on-screen self-damage indicators, use "cg_screenDamage_Self 0" to disable. See hex color code sheet in appendix for common color options.
 cg_screenDamage_Team	Colorizes the on-screen team-damage indicators, use "cg_screenDamage_Team 0" to disable. See hex color code sheet in appendix for common color options.
 cg_selectedPlayer	Selects a team member (by team mate number) to issue/confirm orders to/from.
@@ -203,7 +203,7 @@ cg_selfOnTeamOverlay	Show yourself on your team overlay. Requires enabling cg_dr
 cg_shadows	Draws a blob type shadow underneath the player.
 cg_showmiss	Displays missed packets and predictions on the HUD.
 cg_showVoiceText	Show corresponding text with VO's.
-cg_simpleItems	Replace 3D world items with 2D icons
+cg_simpleItems	Replace 3D world items with 2D icons.
 cg_simpleItemsRadius	Scales the icon size of items when cg_simpleItems 1.
 cg_smokeRadius_dust	Scales the size of smoke plumes from ground dust.
 cg_smokeRadius_flight	Scales the size of smoke plumes in flight trails.
@@ -237,8 +237,8 @@ cg_tracerwidth	Sets width of tracer bullets.
 cg_trackPlayer	Locks view onto a player.
 cg_trueLightning	Flexibility factor for lightning gun shaft.
 cg_trueShotgun	When enabled, will display the true shotgun collision pattern that the server uses, while a value of 0 will show a more randomised and slightly inaccurate scatter of pellets.
-cg_useItemMessage	Enables drawing of the "No Item to Use" message when lacking a holdable item but attempting to use it
-cg_useItemWarning	Enables playing of the "No Item to Use" sound when any player is lacking a holdable item but is attempting to use it
+cg_useItemMessage	Enables drawing of the "No Item to Use" message when lacking a holdable item but attempting to use it.
+cg_useItemWarning	Enables playing of the "No Item to Use" sound when any player is lacking a holdable item but is attempting to use it.
 cg_version	Displays client game version.
 cg_viewsize	Percentage of screen the game appears on.
 cg_waterWarp	Enables the minor warp effect on underwater views.
@@ -265,9 +265,9 @@ cl_contimestamps	Put time stamps on console entries.
 cl_conXOffset	Sets the offset of the console message display.
 cl_debugMove	Displays a real-time graph on the lower part of the screen illustrating mouse speed.
 cl_demoRecordMessage	Message that appears on HUD when recording a demo.
-cl_downloadCount	Displays the number of files for download. N/A
-cl_downloadName	Holds the name of the file currently downloading. N/A
-cl_downloadSize	Displays the size (in bytes) of the file currently downloading. N/A
+cl_downloadCount	Displays the number of files for download. N/A.
+cl_downloadName	Holds the name of the file currently downloading. N/A.
+cl_downloadSize	Displays the size (in bytes) of the file currently downloading. N/A.
 clear	Clears all entries in the console.
 clearcvar	Clears specified CVAR, if none set, then clears all.
 cl_forceavidemo	Forces all demo recording into a sequence of screenshots in TGA format.
@@ -294,7 +294,7 @@ cl_punkbuster	Enables use of PunkBuster anti-cheat system.
 cl_quitOnDemoCompleted	With this set to 1, if you play a demo, the game will exit when the demo is over.
 cl_run	Enables 'always run'.
 cl_running	Dictates whether or not a client game is running or if client/server mode.
-cl_serverStatusResendTime	Sets the amount of time (in milliseconds) between heartbeats sent to the master server
+cl_serverStatusResendTime	Sets the amount of time (in milliseconds) between heartbeats sent to the master server.
 cl_shownet	Displays information about the network quality.
 cl_showSend	A network debugging tool, showing packets sent.
 cl_showTimeDelta	Displays time delta between server updates.
@@ -317,7 +317,7 @@ com_introplayed	Disables the playing of intro movie when loading game.
 com_maxfps	Maximum rendered frames per second.
 com_showtrace	Displays packet traces.
 com_soundMegs	Allocates memory (in mega bytes) to game sounds. A value of 16 is best suited for 128MB of RAM.
-com_speeds	Displays the reporting of game speed data: frame#, time (in ms), ev, work, sv, cl, gm, rf, bk, rm SV = server, CL = client, GM = game time, RF = render time, EV = work
+com_speeds	Displays the reporting of game speed data: frame#, time (in ms), ev, work, sv, cl, gm, rf, bk, rm SV = server, CL = client, GM = game time, RF = render time, EV = work.
 com_zoneMegs	Sets the amount of memory (in mega bytes) reserved for the game. A value of 16 is best suited for 128MB of RAM.
 con_background	Enables the animated console background.
 condump	Write the contents of the console to a file.
@@ -328,7 +328,7 @@ con_matchlimit	Sets the maximum number of entries to print to the console when u
 connect	Connects to a server by server IP address.
 con_notifytime	Sets the time (in seconds) that messages from other players are displayed on the screen.
 con_opacity	Sets the opacity of the console background.
-con_scale	Console lettertype size
+con_scale	Console lettertype size.
 con_speed	Sets the speed of the opening/closing scroll action of the console window.
 cvarlist	Shows a list of current CVARs starting with specified query string. If none set, displays all CVARs.
 cvar_restart	Restarts CVAR system.
@@ -344,7 +344,7 @@ disconnect	Leave/disconnect from the current server.
 dmflags	Deathmatch flags.
 dropflag	Allows the flag carrier to drop the flag in CTF.
 droppowerup	Drops a power-up item.
-dropweapon	Drops current weapon
+dropweapon	Drops current weapon.
 dumpuser	Displays information about a specific client.
 echo	Prints a client-side message.
 exec	Executes a specific file or command.
@@ -395,7 +395,7 @@ g_damage_sg_outer	Sets the damage done by the shotgun shot in indirect shots (i.
 g_damage_sg_tdm	Sets the damage done by the shotgun shot in team deathmatch, per pellet.
 g_debugAlloc	Server degugging tool: memory allocation.
 g_debugDamage	Server debugging tool: details information on any player damage dealt/received, including health and armor values. Draws information to console.
-g_debugMove	Server debugging tool: client movement
+g_debugMove	Server debugging tool: client movement.
 g_debugThawTime	Displays thaw time information when thawing a team mate in Freeze Tag.
 g_domCapTime	Sets the time duration to score points as set by g_domScoreRate.
 g_domination	Enables Domination mode. (non-functional as of yet)
@@ -417,18 +417,18 @@ g_forcePremium	Allows only premium/pro clients to join the server. Standard user
 g_freeze	Enables Freeze-Tag mode. (non-functional, Freeze-Tag is a game-type, not game-mode. Use g_gametype 9.)
 g_freezeAutoThawTime	Freeze Tag: Sets the amount of time (in milliseconds) for frozen players to auto thaw.
 g_freezeEnvironmentalRespawnDelay	Freeze Tag: Sets time delay (in milliseconds) before respawning after being 'frozen' by lava, slime and other environmental hazards.
-g_freezeRemovePowerupsOnRound	Freeze Tag: Removes power-ups at the start of a round
-g_freezeResetArmorOnRound	Freeze Tag: Resets armor spawns at the start of a round
-g_freezeResetHealthOnRound	Freeze Tag: Resets health spawns at the start of a round
-g_freezeResetWeaponsOnRound	Freeze Tag: Resets weapon spawns at the start of a round
+g_freezeRemovePowerupsOnRound	Freeze Tag: Removes power-ups at the start of a round.
+g_freezeResetArmorOnRound	Freeze Tag: Resets armor spawns at the start of a round.
+g_freezeResetHealthOnRound	Freeze Tag: Resets health spawns at the start of a round.
+g_freezeResetWeaponsOnRound	Freeze Tag: Resets weapon spawns at the start of a round.
 g_freezeRoundDelay	Freeze Tag: Sets the delay (in milliseconds) between rounds.
 g_freezeThawRadius	Freeze Tag: Sets a radius (in map units) around a frozen team member in which team mates need to camp in, for the time specified by g_freezeThawTime, in order to thaw the frozen team mate.
-g_freezeThawThroughSurface	Freeze Tag: Enables thawing through surfaces
-g_freezeThawTick	Freeze Tag: Enables thawing sound
+g_freezeThawThroughSurface	Freeze Tag: Enables thawing through surfaces.
+g_freezeThawTick	Freeze Tag: Enables thawing sound.
 g_freezeThawTime	Freeze Tag: Sets time (in milliseconds) required for a team mate to camp in the g_freezeThawRadius before a frozen team mate is thawed.
-g_freezeThawWinningTeam	Freeze Tag: Thaws any frozen players on the round-winning team
+g_freezeThawWinningTeam	Freeze Tag: Thaws any frozen players on the round-winning team.
 g_friendlyfire	Allow damage to be inflicted between team mates.
-g_friendlyFireDampen	Multiplies all team damage by value
+g_friendlyFireDampen	Multiplies all team damage by value.
 gfxinfo	Lists extensive information about your graphics settings.
 g_gameState	Dictates which stage of play a server is in.
 g_gametype	Sets server game type to be set for next match.
@@ -443,7 +443,7 @@ g_headShotEnable_Shotgun	Enables shotgun shell head shots when g_headShotEnable 
 g_inactivity	Sets the amount of time a player can be inactive for before being kicked from the server.
 g_infiniteAmmo	Enables or disables infinite ammunition for all weapons on the server. 0 = disabled (default), 1 = enabled.
 g_instaGib	Toggles instagib railguns-only mode.
-give	Gives a specific item/weapon to the player
+give	Gives a specific item/weapon to the player.
 g_knockback	Amount of knock back general projectiles exert on players.
 g_knockback_bfg	Amount of knock back BFG projectiles (and splash damage) exert on players.
 g_knockback_cg	Amount of knock back chaingun projectiles exert onto players.
@@ -496,16 +496,16 @@ g_quadDamageFactor	Sets the Quad Damage damage multiplying factor.
 g_quadHog	Enables Quad Hog mode - players score frags only while holding Quad, which randomly respawns at player spawn points around the map.
 g_quadHogIdle	Enables Quad Hog mode - players score frags only while holding Quad, which randomly respawns at player spawn points around the map.
 g_quadHogTime	Quad Hog (g_quadHog 1): Sets the amount of time (in seconds) that a Quad Damage carrier gets of power-up time.
-g_railJump	Enables rail-jumping
+g_railJump	Enables rail-jumping.
 g_range_lg_falloff	Sets lightning shaft falloff distance (in units).
 g_range_sg_falloff	Sets shotgun falloff distance (in units).
 graphheight	Sets height in pixels for graph displays.
 graphscale	Sets scale multiplier of graphs.
 graphshift	Sets offset for graph displays.
-g_regenArmor	Regenerates players' armor
-g_regenArmorRate	Sets time delay (in milliseconds) for armor regeneration when g_regenArmor is set to 1
-g_regenHealth	Regenerates players' health to a maximum of 100
-g_regenHealthRate	Sets time delay (in milliseconds) for health regeneration when g_regenHealth is set to 1
+g_regenArmor	Regenerates players' armor.
+g_regenArmorRate	Sets time delay (in milliseconds) for armor regeneration when g_regenArmor is set to 1.
+g_regenHealth	Regenerates players' health to a maximum of 100.
+g_regenHealthRate	Sets time delay (in milliseconds) for health regeneration when g_regenHealth is set to 1.
 g_removePowerupsOnRound	Freeze Tag: Forces power-ups to be removed from carriers when rounds end.
 g_respawn_delay_max	Sets maximum time (in milliseconds) for respawn delays.
 g_respawn_delay_min	Sets minimum time (in milliseconds) for respawn delays.
@@ -518,7 +518,7 @@ g_shufflePowerRatingThreshold	Sets the power rating threshold applied to team sh
 g_skipTrainingEnable	Enables skipping of training matches.
 g_smoothClients	Enables clients' use of smooth clients on a server.
 g_spAwards	Single Player awards variable.
-g_spawnArmor	Sets the amount of armor issued to players when spawning. N/A for Clan Arena
+g_spawnArmor	Sets the amount of armor issued to players when spawning. N/A for Clan Arena.
 g_spawnItemAmmo	Enables the spawning of ammunition in a game.
 g_spawnItemArmor	Enables the spawning of armor items in a game.
 g_spawnItemHealth	Enables the spawning of health items in a game.
@@ -550,7 +550,7 @@ g_startingAmmo	Seems to be ineffectual.
 g_startingammo_mg	Sets the amount of machine gun ammo that players spawn with.
 g_startingArmor	Sets the specified amount as armor players receive when spawning.
 g_startingHealth	Sets the specified amount as the health players receive when spawning.
-g_startingHealthBonus	Adds the specified bonus amount of health to players' health when spawning
+g_startingHealthBonus	Adds the specified bonus amount of health to players' health when spawning.
 g_startingWeapons	Sets the starting weapon and you can combine it by summing it up. Examples: Gauntlet + Machinegun (default) = 3 All Weapons = 8191 All Weapons minus Grapple = 7679 Standard CA loadout = 255
 g_suddenDeathRespawn	Controls the player respawn delay when CTF matches enter sudden death.
 g_suddenDeathRespawnMax	Sets the maximum amount of time (in seconds) that player respawn delays can reach in CTF sudden death rounds.
@@ -625,7 +625,7 @@ modellist	Displays a list of models currently loaded by the game.
 m_pitch	Vertical view movement sensitivity.
 m_side	Strafe player movement speed in relation to mouse movement.
 music	Loops a specified sound file as background music.
-m_yaw	Horizontal view movement sensitivity
+m_yaw	Horizontal view movement sensitivity.
 name	Your player name. In Quake Live, any changes which alter the alpha-numerical display of your name are immediately reset to your registered name.
 net_ip	Holds the name or IP address of the local machine.
 net_noudp	Enables the use of TCP/IP network protocol.
@@ -639,7 +639,7 @@ net_socksServer	Sets the name or IP address of the socks server.
 net_socksUsername	Sets the username for socks firewall supports. It does not support GSS-API authentication.
 net_strict	Hypothesis is that when enabled, it forces localhost to use port 27960. If this port is in use Quake Live will crash when going to localhost. It is unknown if disabling it would prevent this, untested.
 nextmap	Holds the name of the next map in the server map rotation.
-nextOrder	Team Arena legacy for issuing the 'next team order'. Ineffectual in Quake Live
+nextOrder	Team Arena legacy for issuing the 'next team order'. Ineffectual in Quake Live.
 nextTeamMember	Used in Team Arena to view information on HUD about next team mate in player cycle.
 noclip	Enables no clip mode.
 notarget	Forces artificial intelligence to ignore you.
@@ -667,7 +667,7 @@ protocol	Displays the network protocol number.
 quit	Exit the game.
 ragequit	Quit the game and display '<yourname> ragequits'.
 r_allowExtensions	Global enabling of all OpenGL extensions.
-r_allowSoftwareGL	Enables the use of the default OpenGL
+r_allowSoftwareGL	Enables the use of the default OpenGL.
 r_ambientScale	Controls the amount of ambient light cast among players.
 r_aspectRatio	Controls the game's screen aspect ratio setting.
 rate	Controls packets so that your downstream connection bandwidth does not get saturated. (Max bytes per second)
@@ -747,7 +747,7 @@ r_logFile	Sets the number of frames to emit GL logs.
 r_mapOverBrightBits	Ambient lighting and radiance of the map.
 r_maskMinidriver	Treats the current OpenGL32 driver as an ICD, even if it is in fact a MCD. In other words, allow a different dll name to be treated as if it were opengl32.dll.
 r_maxpolys	Sets the maximum number of polygons drawn to the screen. Values lower than default appear to have no effect, even negative values. Unknown if higher values have an effect.
-r_maxpolyverts	Maximum number of vertices from polygons drawn to screen. Values lower than default appear to have no effect, even negative values. Unknown if higher values have
+r_maxpolyverts	Maximum number of vertices from polygons drawn to screen. Values lower than default appear to have no effect, even negative values. Unknown if higher values have.
 r_measureOverdraw	Reports overdraw (if the harware supports a stencil buffer).
 r_mode	Screen resolution setting. Use Modelist for a list of resolution options, also included in appendix.
 r_nobind	Disables binding of textures to triangles.
@@ -786,7 +786,7 @@ r_stencilbits	Sets stencil buffer size.
 r_stereo	Enables stereo separation.
 r_subdivisions	Patch mesh/curve sub divisions. A value of 80 will replace curved surfaces with angled surfaces to give a performance boost.
 r_swapInterval	Forces vertical synchronization, used in combination with r_displayrefresh. (Only useful with CRT monitors)
-r_teleporterFlash	Added the option of a simpler black frame fill rather than the white flash that occurs when teleporting
+r_teleporterFlash	Added the option of a simpler black frame fill rather than the white flash that occurs when teleporting.
 r_texturebits	Sets texture quality level.
 r_textureMode	Sets texture filter.
 r_uiFullScreen	Sets the UI running fullscreen.
@@ -930,13 +930,13 @@ ui_blueteam2	Blue team player slot for use in the start server menu.
 ui_blueteam3	Blue team player slot for use in the start server menu.
 ui_blueteam4	Blue team player slot for use in the start server menu.
 ui_blueteam5	Blue team player slot for use in the start server menu.
-ui_browserGameType	Set server search by g_gametype in server list. N/A for QL
-ui_browserMaster	Set server search by network. N/A for QL
-ui_browserShowEmpty	Display empty servers in browser server list. N/A for QL
-ui_browserShowFull	Display full servers in browser server list. N/A for QL
-ui_browserSortKey	Sorts the browser server list. N/A for QL
+ui_browserGameType	Set server search by g_gametype in server list. N/A for QL.
+ui_browserMaster	Set server search by network. N/A for QL.
+ui_browserShowEmpty	Display empty servers in browser server list. N/A for QL.
+ui_browserShowFull	Display full servers in browser server list. N/A for QL.
+ui_browserSortKey	Sorts the browser server list. N/A for QL.
 ui_captureLimit	The capture limit variable for use in the start server menu.
-ui_cdkeychecked	Check for CD-Key, changes to 1 when checked. N/A for QL
+ui_cdkeychecked	Check for CD-Key, changes to 1 when checked. N/A for QL.
 ui_ctf_capturelimit	Start server menu capture limit variable.
 ui_ctf_friendly	Start server menu friendly fire variable.
 ui_ctf_timelimit	Single-player menu capture the flag time limit variable.
@@ -1030,10 +1030,10 @@ userinfo	Lists user information.
 username	Your network login ID obtained from the %username% env variable.
 version	Displays current version of the binary code.
 vid_restart	Restarts video system.
-vid_xpos	X position in windowed mode. N/A for QL
-vid_ypos	Y position in windowed mode. N/A for QL
+vid_xpos	X position in windowed mode. N/A for QL.
+vid_ypos	Y position in windowed mode. N/A for QL.
 viewlog	Displays the start-up console over the game screen.
-viewpos	Displays player coordinates in map, in the form of: (X Y Z) : XY-Angle
+viewpos	Displays player coordinates in map, in the form of: (X Y Z) : XY-Angle.
 vosay	General voice communication.
 vosay_team	Team voice communication.
 vote	Sets your vote for the current vote calling.
@@ -1084,7 +1084,7 @@ win_hinstance	Game handle instance address in Windows.
 winkey_disable	Disable the windows key in-game.
 win_wndproc	Outputs a number that is presumably a code that corresponds to quake live's process in windows.
 writeconfig	Writes settings to a configuration file.
-fs_basegame	Sets the directory under the paths where data comes from by default
+fs_basegame	Sets the directory under the paths where data comes from by default.
 fs_basepath	Sets base game root path.
 fs_cdpath	Sets the path to an alternate hierarchy that will be searched if a file is not located in the base path.
 fs_copyfiles	When set to 1, every time a file is sourced from fs_cdpath, it will be copied over to fs_basepath. This is a development aid to help build test releases and to copy working sets over slow network links.
