@@ -117,10 +117,7 @@ fn cvar_of_value<'a>(words: &[&'a str]) -> Option<&'a str> {
     }
 }
 
-/// At most this many names get their description in the list, longer lists stay compact.
-const DESCRIBED_NAMES: usize = 20;
-
-/// The completions with the text for the list: the meaning for values, the description for few names.
+/// The completions with the text for the list: the meaning for values, the description for names.
 fn describe(
     found: Vec<String>,
     before: &str,
@@ -129,7 +126,7 @@ fn describe(
 ) -> Vec<(String, Option<String>)> {
     let words = before.split_whitespace().collect::<Vec<_>>();
     let cvar = cvar_of_value(&words);
-    let describe_names = start == 0 && found.len() <= DESCRIBED_NAMES;
+    let describe_names = start == 0;
 
     found
         .into_iter()
@@ -1249,17 +1246,14 @@ mod line_editor_tests {
     }
 
     #[test]
-    fn few_names_are_listed_with_their_description_many_stay_compact() {
+    fn names_are_listed_with_their_description_however_many_there_are() {
         let user = UserLists::default();
 
-        let few = describe(vec!["timelimit".to_string()], "", 0, &user);
-        let many = describe(vec!["timelimit".to_string(); 21], "", 0, &user);
+        let described = describe(vec!["timelimit".to_string(); 60], "", 0, &user);
 
-        assert_eq!(
-            few[0].1.as_deref(),
-            Some("Sets the time limit on your server.")
-        );
-        assert!(many.iter().all(|(_, description)| description.is_none()));
+        assert!(described.iter().all(|(_, description)| {
+            description.as_deref() == Some("Sets the time limit on your server.")
+        }));
     }
 
     #[test]
