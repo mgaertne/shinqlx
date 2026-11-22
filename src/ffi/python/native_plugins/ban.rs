@@ -23,6 +23,7 @@ use crate::ffi::python::{
     AbstractChannel, GameMethods, NonexistentPlayerError, Player, PlayerMethods, Plugin,
     commands::CommandPriorities,
     defer_delay,
+    events_enum::EventName,
     plugin::{PluginMethods, chat},
 };
 
@@ -589,33 +590,37 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     for (event, handler, priority) in [
         (
-            "player_connect",
+            EventName::PlayerConnect,
             "handle_player_connect",
             CommandPriorities::PRI_HIGH,
         ),
         (
-            "player_loaded",
+            EventName::PlayerLoaded,
             "handle_player_loaded",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "player_disconnect",
+            EventName::PlayerDisconnect,
             "handle_player_disconnect",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "game_countdown",
+            EventName::GameCountdown,
             "handle_game_countdown",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "game_start",
+            EventName::GameStart,
             "handle_game_start",
             CommandPriorities::PRI_NORMAL,
         ),
-        ("game_end", "handle_game_end", CommandPriorities::PRI_NORMAL),
         (
-            "team_switch",
+            EventName::GameEnd,
+            "handle_game_end",
+            CommandPriorities::PRI_NORMAL,
+        ),
+        (
+            EventName::TeamSwitch,
             "handle_team_switch",
             CommandPriorities::PRI_NORMAL,
         ),

@@ -1,12 +1,12 @@
 use pyo3::{
-    intern,
     prelude::*,
     types::{PyDict, PyList, PyTuple},
 };
 
-use super::create_cvar;
+use super::{create_cvar, register_hook};
 use crate::ffi::python::{
     commands::CommandPriorities,
+    events_enum::EventName,
     game::GameMethods,
     plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
 };
@@ -57,10 +57,11 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         py,
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Workshop),
     )?;
-    plugin.as_super().add_hook(
-        "map",
-        &plugin.getattr(intern!(py, "handle_map"))?,
-        CommandPriorities::PRI_NORMAL as i32,
+    register_hook(
+        plugin.as_super(),
+        EventName::Map,
+        "handle_map",
+        CommandPriorities::PRI_NORMAL,
     )?;
     create_cvar(py, "qlx_workshopReferences", "")?;
     add_references(&plugin)?;

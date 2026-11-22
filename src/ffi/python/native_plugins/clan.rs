@@ -8,6 +8,7 @@ use crate::ffi::{
     python::{
         AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
         commands::CommandPriorities,
+        events_enum::EventName,
         get_configstring, parse_variables,
         plugin::{PluginMethods, chat},
         set_configstring,
@@ -133,7 +134,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     register_hook(
         plugin.as_super(),
-        "set_configstring",
+        EventName::SetConfigstring,
         "handle_set_configstring",
         CommandPriorities::PRI_NORMAL,
     )?;

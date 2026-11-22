@@ -9,7 +9,7 @@ use super::{
 };
 use crate::ffi::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
-    commands::CommandPriorities, get_cvar, plugin::PluginMethods,
+    commands::CommandPriorities, events_enum::EventName, get_cvar, plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -173,10 +173,10 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     )?;
 
     for (event, handler) in [
-        ("player_connect", "handle_player_connect"),
-        ("player_loaded", "handle_player_loaded"),
-        ("player_disconnect", "handle_player_disconnect"),
-        ("userinfo", "handle_userinfo"),
+        (EventName::PlayerConnect, "handle_player_connect"),
+        (EventName::PlayerLoaded, "handle_player_loaded"),
+        (EventName::PlayerDisconnect, "handle_player_disconnect"),
+        (EventName::Userinfo, "handle_userinfo"),
     ] {
         register_hook(
             plugin.as_super(),

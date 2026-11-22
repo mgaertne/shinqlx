@@ -3,7 +3,7 @@ use pyo3::{exceptions::PyKeyError, intern, prelude::*, types::PyTuple};
 use super::{create_cvar, register_command, register_hook};
 use crate::ffi::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
-    defer_delay, get_cvar, plugin::PluginMethods,
+    defer_delay, events_enum::EventName, get_cvar, plugin::PluginMethods,
 };
 
 const MOTD_SET_KEY: &str = "minqlx:motd";
@@ -245,7 +245,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     register_hook(
         plugin.as_super(),
-        "player_loaded",
+        EventName::PlayerLoaded,
         "handle_player_loaded",
         CommandPriorities::PRI_LOWEST,
     )?;

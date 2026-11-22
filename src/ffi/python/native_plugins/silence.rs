@@ -13,7 +13,7 @@ use super::{
 };
 use crate::ffi::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
-    defer_next_frame, plugin::PluginMethods,
+    defer_next_frame, events_enum::EventName, plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -271,21 +271,25 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     for (event, handler, priority) in [
         (
-            "player_loaded",
+            EventName::PlayerLoaded,
             "handle_player_loaded",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "player_disconnect",
+            EventName::PlayerDisconnect,
             "handle_player_disconnect",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "client_command",
+            EventName::ClientCommand,
             "handle_client_command",
             CommandPriorities::PRI_HIGH,
         ),
-        ("userinfo", "handle_userinfo", CommandPriorities::PRI_HIGH),
+        (
+            EventName::Userinfo,
+            "handle_userinfo",
+            CommandPriorities::PRI_HIGH,
+        ),
     ] {
         register_hook(plugin.as_super(), event, handler, priority)?;
     }

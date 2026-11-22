@@ -10,7 +10,7 @@ use super::{create_cvar, cvar_int, register_hook};
 use crate::{
     ffi::python::{
         AbstractChannel, AbstractChannelMethods, Player, PlayerMethods, Plugin, clean_text,
-        commands::CommandPriorities, get_cvar,
+        commands::CommandPriorities, events_enum::EventName, get_cvar,
     },
     logging::{RotationDefaults, open_log_file},
 };
@@ -137,10 +137,10 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(ChatLog { chatlog }),
     )?;
     for (event, handler) in [
-        ("player_connect", "handle_player_connect"),
-        ("player_disconnect", "handle_player_disconnect"),
-        ("chat", "handle_chat"),
-        ("command", "handle_command"),
+        (EventName::PlayerConnect, "handle_player_connect"),
+        (EventName::PlayerDisconnect, "handle_player_disconnect"),
+        (EventName::Chat, "handle_chat"),
+        (EventName::Command, "handle_command"),
     ] {
         register_hook(
             plugin.as_super(),

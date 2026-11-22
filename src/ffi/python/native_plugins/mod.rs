@@ -1,3 +1,4 @@
+use crate::ffi::python::events_enum::EventName;
 mod ban;
 mod chat_log;
 mod clan;
@@ -48,11 +49,11 @@ fn without_trailing_color_reset(name: &str) -> &str {
 
 fn register_hook(
     plugin: &Bound<'_, Plugin>,
-    event: &str,
+    event: EventName,
     handler: &str,
     priority: CommandPriorities,
 ) -> PyResult<()> {
-    plugin.add_hook(event, &plugin.getattr(handler)?, priority as i32)
+    plugin.add_hook(event.as_str(), &plugin.getattr(handler)?, priority as i32)
 }
 
 static EXCESSIVE_COLORS: LazyLock<Regex> = LazyLock::new(|| {

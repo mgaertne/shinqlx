@@ -21,7 +21,9 @@ use super::{
 use crate::ffi::python::{
     AbstractChannel, Game, GameMethods, Player, PlayerMethods, Plugin, abort, allready, change_map,
     commands::CommandPriorities,
-    console_command, defer_delay, get_cvar,
+    console_command, defer_delay,
+    events_enum::EventName,
+    get_cvar,
     handlers::{PrintRedirectorMethods, redirect_print},
     is_vote_active, lock, pause,
     plugin::{PluginMethods, chat},
@@ -1079,21 +1081,25 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     for (event, handler, priority) in [
         (
-            "player_connect",
+            EventName::PlayerConnect,
             "handle_player_connect",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "player_disconnect",
+            EventName::PlayerDisconnect,
             "handle_player_disconnect",
             CommandPriorities::PRI_NORMAL,
         ),
         (
-            "vote_called",
+            EventName::VoteCalled,
             "handle_vote_called",
             CommandPriorities::PRI_NORMAL,
         ),
-        ("command", "handle_command", CommandPriorities::PRI_LOW),
+        (
+            EventName::Command,
+            "handle_command",
+            CommandPriorities::PRI_LOW,
+        ),
     ] {
         register_hook(plugin.as_super(), event, handler, priority)?;
     }

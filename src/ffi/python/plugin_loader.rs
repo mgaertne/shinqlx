@@ -13,7 +13,7 @@ use super::{
     COMMANDS, EVENT_DISPATCHERS, MODULES, PluginLoadError, PluginUnloadError, decorators,
     event_dispatcher, log_exception, native_plugins, prelude::*, try_get_plugins_path,
 };
-use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
+use crate::{MAIN_ENGINE, ffi::python::events_enum::EventName, quake_live_engine::FindCVar};
 
 pub(crate) static DEFAULT_PLUGINS: [&str; 10] = [
     "plugin_manager",
@@ -316,7 +316,7 @@ pub(super) fn load_plugin_with(
 pub(super) fn try_unload_plugin(py: Python<'_>, plugin: &str) -> PyResult<()> {
     event_dispatcher(
         py,
-        intern!(py, "unload"),
+        intern!(py, EventName::Unload.as_str()),
         "could not get access to unload dispatcher",
     )
     .and_then(|unload_dispatcher| {

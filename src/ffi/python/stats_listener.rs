@@ -26,7 +26,8 @@ use serde_json::{Value, from_str};
 use tap::TapFallible;
 
 use super::{
-    EVENT_DISPATCHERS, defer_next_frame, event_dispatcher, is_false, log_exception, prelude::*,
+    EVENT_DISPATCHERS, defer_next_frame, event_dispatcher, events_enum::EventName, is_false,
+    log_exception, prelude::*,
 };
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
@@ -48,11 +49,11 @@ where
 }
 
 /// Whether the dispatcher for the event exists and nobody is listening to it.
-fn dispatcher_without_hooks(py: Python<'_>, event: &str) -> bool {
+fn dispatcher_without_hooks(py: Python<'_>, event: EventName) -> bool {
     EVENT_DISPATCHERS
         .load()
         .as_ref()
-        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event).ok())
+        .and_then(|event_dispatchers| event_dispatchers.bind(py).get_item(event.as_str()).ok())
         .and_then(|dispatcher| {
             dispatcher
                 .cast::<EventDispatcher>()
@@ -65,7 +66,7 @@ fn dispatcher_without_hooks(py: Python<'_>, event: &str) -> bool {
 fn dispatch_stats_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     event_dispatcher(
         py,
-        intern!(py, "stats"),
+        intern!(py, EventName::Stats.as_str()),
         "could not get access to stats dispatcher",
     )
     .and_then(|stats_dispatcher| {
@@ -91,7 +92,7 @@ fn dispatch_json_event(
 fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     dispatch_json_event(
         py,
-        intern!(py, "game_start"),
+        intern!(py, EventName::GameStart.as_str()),
         "could not get access to game_start dispatcher",
         stats,
     )
@@ -100,7 +101,7 @@ fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
 fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     dispatch_json_event(
         py,
-        intern!(py, "round_end"),
+        intern!(py, EventName::RoundEnd.as_str()),
         "could not get access to round_end dispatcher",
         stats,
     )
@@ -109,7 +110,7 @@ fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
 fn dispatch_game_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     dispatch_json_event(
         py,
-        intern!(py, "game_end"),
+        intern!(py, EventName::GameEnd.as_str()),
         "could not get access to game_end dispatcher",
         stats,
     )
@@ -179,7 +180,9 @@ fn dispatch_player_death_events(
     opt_killer_name: Option<String>,
     stats: &str,
 ) -> PyResult<()> {
-    if dispatcher_without_hooks(py, "death") && dispatcher_without_hooks(py, "kill") {
+    if dispatcher_without_hooks(py, EventName::Death)
+        && dispatcher_without_hooks(py, EventName::Kill)
+    {
         return Ok(());
     }
 
@@ -198,7 +201,7 @@ fn dispatch_player_death_events(
     let json_data = to_py_json_data(py, stats)?;
     event_dispatcher(
         py,
-        intern!(py, "death"),
+        intern!(py, EventName::Death.as_str()),
         "could not get access to death dispatcher",
     )
     .and_then(|death_dispatcher| {
@@ -215,7 +218,7 @@ fn dispatch_player_death_events(
     if opt_killer.is_some() {
         event_dispatcher(
             py,
-            intern!(py, "kill"),
+            intern!(py, EventName::Kill.as_str()),
             "could not get access to kill dispatcher",
         )
         .and_then(|kill_dispatcher| {
@@ -271,7 +274,7 @@ fn dispatch_team_switch_event(
 
     let team_switch_dispatcher = event_dispatcher(
         py,
-        intern!(py, "team_switch"),
+        intern!(py, EventName::TeamSwitch.as_str()),
         "could not get access to team_switch dispatcher",
     )?
     .unbind();

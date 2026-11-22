@@ -1,3 +1,4 @@
+use crate::ffi::python::events_enum::EventName;
 mod chat_event_dispatcher;
 mod client_command_dispatcher;
 mod command_dispatcher;
@@ -187,16 +188,16 @@ pub(crate) struct EventDispatcher {
     plugins: parking_lot::RwLock<Vec<(String, [Vec<Py<PyAny>>; 5])>>,
 }
 
-const NO_DEBUG: [&str; 9] = [
-    "frame",
-    "set_configstring",
-    "stats",
-    "server_command",
-    "death",
-    "kill",
-    "command",
-    "console_print",
-    "damage",
+const NO_DEBUG: [EventName; 9] = [
+    EventName::Frame,
+    EventName::SetConfigstring,
+    EventName::Stats,
+    EventName::ServerCommand,
+    EventName::Death,
+    EventName::Kill,
+    EventName::Command,
+    EventName::ConsolePrint,
+    EventName::Damage,
 ];
 
 #[cfg(feature = "bench-support")]
@@ -231,7 +232,11 @@ impl EventDispatcher {
         &'static str,
         &'static str,
     ) {
-        NO_DEBUG.iter().cloned().collect_tuple().unwrap_or_default()
+        NO_DEBUG
+            .iter()
+            .map(|event| event.as_str())
+            .collect_tuple()
+            .unwrap_or_default()
     }
 
     #[new]
@@ -387,7 +392,10 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
             cold_path();
             return self.py().None().into_bound(self.py());
         };
-        if !NO_DEBUG.contains(&dispatcher_name) {
+        if NO_DEBUG
+            .iter()
+            .all(|event| event.as_str() != dispatcher_name)
+        {
             let dbgstr = format!("{dispatcher_name}{args}");
             dispatcher_debug_log(&dbgstr);
         }

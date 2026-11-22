@@ -26,7 +26,7 @@ use super::{
 };
 use crate::{
     MAIN_ENGINE,
-    ffi::c::prelude::*,
+    ffi::{c::prelude::*, python::events_enum::EventName},
     quake_live_engine::{FindCVar, GetConfigstring},
 };
 
@@ -270,7 +270,7 @@ fn callvote_parts(command: &str) -> Option<(&str, &str)> {
 fn handle_say(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Py<PyAny>> {
     let result = event_dispatcher(
         py,
-        intern!(py, "chat"),
+        intern!(py, EventName::Chat.as_str()),
         "could not get access to chat dispatcher",
     )
     .and_then(|chat_dispatcher| {
@@ -295,7 +295,7 @@ fn handle_say(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult
 fn handle_say_team(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Py<PyAny>> {
     let result = event_dispatcher(
         py,
-        intern!(py, "chat"),
+        intern!(py, EventName::Chat.as_str()),
         "could not get access to chat dispatcher",
     )
     .and_then(|chat_dispatcher| {
@@ -338,7 +338,7 @@ fn handle_callvote(
     }
     event_dispatcher(
         py,
-        intern!(py, "vote_started"),
+        intern!(py, EventName::VoteStarted.as_str()),
         "could not get access to vote started dispatcher",
     )
     .and_then(|vote_started_dispatcher| {
@@ -347,7 +347,7 @@ fn handle_callvote(
     })?;
     let result = event_dispatcher(
         py,
-        intern!(py, "vote_called"),
+        intern!(py, EventName::VoteCalled.as_str()),
         "could not get access to vote called dispatcher",
     )
     .and_then(|vote_called_dispatcher| {
@@ -374,7 +374,7 @@ fn handle_vote(
     let vote = ["y", "Y", "1"].contains(&arg);
     let result = event_dispatcher(
         py,
-        intern!(py, "vote"),
+        intern!(py, EventName::Vote.as_str()),
         "could not get access to vote dispatcher",
     )
     .and_then(|vote_dispatcher| {
@@ -405,7 +405,7 @@ fn handle_team_switch(
     };
     let result = event_dispatcher(
         py,
-        intern!(py, "team_switch_attempt"),
+        intern!(py, EventName::TeamSwitchAttempt.as_str()),
         "could not get access to team switch attempt dispatcher",
     )
     .and_then(|team_switch_attempt_dispatcher| {
@@ -443,7 +443,7 @@ fn handle_userinfo(
     }
     let result = event_dispatcher(
         py,
-        intern!(py, "userinfo"),
+        intern!(py, EventName::Userinfo.as_str()),
         "could not get access to userinfo dispatcher",
     )
     .and_then(|userinfo_dispatcher| {
@@ -478,7 +478,7 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 
     let return_value = event_dispatcher(
         py,
-        intern!(py, "client_command"),
+        intern!(py, EventName::ClientCommand.as_str()),
         "could not get access to client command dispatcher",
     )
     .and_then(|client_command_dispatcher| {
@@ -3248,7 +3248,7 @@ fn try_handle_server_command<'py>(
         |captures| {
             event_dispatcher(
                 py,
-                intern!(py, "vote_ended"),
+                intern!(py, EventName::VoteEnded.as_str()),
                 "could not get access to vote ended dispatcher",
             )
             .and_then(|vote_ended_dispatcher| {
@@ -3756,7 +3756,7 @@ fn try_run_frame_tasks(py: Python<'_>) -> PyResult<()> {
 fn try_handle_frame(py: Python<'_>) -> PyResult<()> {
     event_dispatcher(
         py,
-        intern!(py, "frame"),
+        intern!(py, EventName::Frame.as_str()),
         "could not get access to frame dispatcher",
     )
     .and_then(|frame_dispatcher| {
@@ -4343,7 +4343,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
         let factory_name = get_cvar("g_factory")?;
         event_dispatcher(
             py,
-            intern!(py, "map"),
+            intern!(py, EventName::Map.as_str()),
             "could not get access to map dispatcher",
         )
         .and_then(|map_dispatcher| {
@@ -4357,7 +4357,7 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
 
     event_dispatcher(
         py,
-        intern!(py, "new_game"),
+        intern!(py, EventName::NewGame.as_str()),
         "could not get access to new game dispatcher",
     )
     .and_then(|new_game_dispatcher| {
@@ -5128,7 +5128,7 @@ fn handle_vote_string(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
         .unwrap_or((configstring_value, ""));
     event_dispatcher(
         py,
-        intern!(py, "vote_started"),
+        intern!(py, EventName::VoteStarted.as_str()),
         "could not get access to vote started dispatcher",
     )
     .and_then(|vote_started_dispatcher| {
@@ -5170,7 +5170,7 @@ fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
         AD_ROUND_NUMBER.store(1, Ordering::Release);
         event_dispatcher(
             py,
-            intern!(py, "game_countdown"),
+            intern!(py, EventName::GameCountdown.as_str()),
             "could not get access to game countdown dispatcher",
         )
         .and_then(|game_countdown_dispatcher| {
@@ -5221,7 +5221,7 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
     if cvars.contains("time") {
         event_dispatcher(
             py,
-            intern!(py, "round_countdown"),
+            intern!(py, EventName::RoundCountdown.as_str()),
             "could not get access to round countdown dispatcher",
         )
         .and_then(|round_dispatcher| {
@@ -5231,7 +5231,7 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
     } else {
         event_dispatcher(
             py,
-            intern!(py, "round_start"),
+            intern!(py, EventName::RoundStart.as_str()),
             "could not get access to round start dispatcher",
         )
         .and_then(|round_dispatcher| {
@@ -5244,7 +5244,7 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
 fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<Py<PyAny>> {
     let result = event_dispatcher(
         py,
-        intern!(py, "set_configstring"),
+        intern!(py, EventName::SetConfigstring.as_str()),
         "could not get access to set configstring dispatcher",
     )
     .and_then(|set_configstring_dispatcher| {
@@ -6537,7 +6537,7 @@ mod handle_set_configstring_tests {
 fn try_handle_player_connect(py: Python<'_>, client_id: i32, _is_bot: bool) -> PyResult<Py<PyAny>> {
     event_dispatcher(
         py,
-        intern!(py, "player_connect"),
+        intern!(py, EventName::PlayerConnect.as_str()),
         "could not get access to player connect dispatcher",
     )
     .and_then(|player_connect_dispatcher| {
@@ -6788,7 +6788,7 @@ mod handle_player_connect_tests {
 fn try_handle_player_loaded(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     event_dispatcher(
         py,
-        intern!(py, "player_loaded"),
+        intern!(py, EventName::PlayerLoaded.as_str()),
         "could not get access to player loaded dispatcher",
     )
     .and_then(|player_loaded_dispatcher| {
@@ -6971,7 +6971,7 @@ fn try_handle_player_disconnect(
 ) -> PyResult<Py<PyAny>> {
     event_dispatcher(
         py,
-        intern!(py, "player_disconnect"),
+        intern!(py, EventName::PlayerDisconnect.as_str()),
         "could not get access to player disconnect dispatcher",
     )
     .and_then(|player_disconnect_dispatcher| {
@@ -7154,7 +7154,7 @@ mod handle_player_disconnect_tests {
 fn try_handle_player_spawn(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     event_dispatcher(
         py,
-        intern!(py, "player_spawn"),
+        intern!(py, EventName::PlayerSpawn.as_str()),
         "could not get access to player spawn dispatcher",
     )
     .and_then(|player_spawn_dispatcher| {
@@ -7333,7 +7333,7 @@ mod handle_player_spawn_tests {
 fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     event_dispatcher(
         py,
-        intern!(py, "kamikaze_use"),
+        intern!(py, EventName::KamikazeUse.as_str()),
         "could not get access to kamikaze use dispatcher",
     )
     .and_then(|kamikaze_use_dispatcher| {
@@ -7837,7 +7837,7 @@ fn try_handle_damage(
 ) -> PyResult<Option<bool>> {
     event_dispatcher(
         py,
-        intern!(py, "damage"),
+        intern!(py, EventName::Damage.as_str()),
         "could not get access to damage dispatcher",
     )
     .and_then(|damage_dispatcher| {
@@ -8267,7 +8267,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
 
     let result = event_dispatcher(
         py,
-        intern!(py, "console_print"),
+        intern!(py, EventName::ConsolePrint.as_str()),
         "could not get access to console print dispatcher",
     )
     .and_then(|console_print_dispatcher| {
