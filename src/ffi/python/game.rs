@@ -123,21 +123,7 @@ impl Game {
     }
 
     fn __getitem__(slf: &Bound<'_, Self>, item: &str) -> PyResult<String> {
-        with_main_engine(|main_engine| {
-            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
-
-            if configstring.is_empty() {
-                cold_path();
-                slf.get().valid.store(false, Ordering::Release);
-                return Err(NonexistentGameError::new_err(
-                    "Invalid game. Is the server loading a new map?",
-                ));
-            }
-
-            parse_variables(&configstring)
-                .get(item)
-                .ok_or_else(|| PyKeyError::new_err(format!("'{item}'")))
-        })
+        slf.cvar(item)
     }
 
     #[getter(cached)]
@@ -490,6 +476,8 @@ pub(crate) trait GameMethods<'py> {
     fn get_cached(&self) -> bool;
     fn get_valid(&self) -> bool;
     fn get_cvars(&self) -> PyResult<Bound<'py, PyDict>>;
+    /// The value that the server info of the running game holds for the cvar.
+    fn cvar(&self, name: &str) -> PyResult<String>;
     fn get_gametype(&self) -> PyResult<String>;
     fn get_gametype_short(&self) -> PyResult<String>;
     fn get_map(&self) -> PyResult<String>;
@@ -555,9 +543,26 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
         .and_then(|parsed_variables| parsed_variables.into_py_dict(self.py()))
     }
 
+    fn cvar(&self, name: &str) -> PyResult<String> {
+        with_main_engine(|main_engine| {
+            let configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
+
+            if configstring.is_empty() {
+                cold_path();
+                self.get().valid.store(false, Ordering::Release);
+                return Err(NonexistentGameError::new_err(
+                    "Invalid game. Is the server loading a new map?",
+                ));
+            }
+
+            parse_variables(&configstring)
+                .get(name)
+                .ok_or_else(|| PyKeyError::new_err(format!("'{name}'")))
+        })
+    }
+
     fn get_gametype(&self) -> PyResult<String> {
-        self.get_item(intern!(self.py(), "g_gametype"))?
-            .extract::<String>()?
+        self.cvar("g_gametype")?
             .parse::<i32>()
             .map_or(Ok(GameTypes::Unknown.type_long().to_string()), |value| {
                 Ok(GameTypes::from(value).type_long().to_string())
@@ -565,8 +570,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_gametype_short(&self) -> PyResult<String> {
-        self.get_item(intern!(self.py(), "g_gametype"))?
-            .extract::<String>()?
+        self.cvar("g_gametype")?
             .parse::<i32>()
             .map_or(Ok(GameTypes::Unknown.type_short().to_string()), |value| {
                 Ok(GameTypes::from(value).type_short().to_string())
@@ -574,8 +578,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_map(&self) -> PyResult<String> {
-        self.get_item(intern!(self.py(), "mapname"))
-            .map(|value| value.to_string())
+        self.cvar("mapname")
     }
 
     fn set_map(&self, value: &str) -> PyResult<()> {
@@ -625,11 +628,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_state(&self) -> PyResult<String> {
-        match self
-            .get_item(intern!(self.py(), "g_gameState"))?
-            .to_string()
-            .as_str()
-        {
+        match self.cvar("g_gameState")?.as_str() {
             "PRE_GAME" => Ok("warmup".to_string()),
             "COUNT_DOWN" => Ok("countdown".to_string()),
             "IN_PROGRESS" => Ok("in_progress".to_string()),
@@ -641,7 +640,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_factory(&self) -> PyResult<String> {
-        self.get_item(intern!(self.py(), "g_factory"))?.extract()
+        self.cvar("g_factory")
     }
 
     fn set_factory(&self, value: &str) -> PyResult<()> {
@@ -653,12 +652,11 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_factory_title(&self) -> PyResult<String> {
-        self.get_item(intern!(self.py(), "g_factoryTitle"))?
-            .extract()
+        self.cvar("g_factoryTitle")
     }
 
     fn get_hostname(&self) -> PyResult<String> {
-        self.get_item(intern!(self.py(), "sv_hostname"))?.extract()
+        self.cvar("sv_hostname")
     }
 
     fn set_hostname(&self, value: &str) -> PyResult<()> {
@@ -666,8 +664,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_instagib(&self) -> PyResult<bool> {
-        self.get_item(intern!(self.py(), "g_instagib"))?
-            .extract::<String>()
+        self.cvar("g_instagib")
             .map(|value| value.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
@@ -677,8 +674,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_loadout(&self) -> PyResult<bool> {
-        self.get_item(intern!(self.py(), "g_loadout"))?
-            .extract::<String>()
+        self.cvar("g_loadout")
             .map(|value| value.parse::<i32>().is_ok_and(|value| value != 0))
     }
 
@@ -688,8 +684,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_maxclients(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "sv_maxclients"))?
-            .extract::<String>()
+        self.cvar("sv_maxclients")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -699,8 +694,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_timelimit(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "timelimit"))?
-            .extract::<String>()
+        self.cvar("timelimit")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -710,8 +704,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_fraglimit(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "fraglimit"))?
-            .extract::<String>()
+        self.cvar("fraglimit")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -721,8 +714,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_roundlimit(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "roundlimit"))?
-            .extract::<String>()
+        self.cvar("roundlimit")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -732,8 +724,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_roundtimelimit(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "roundtimelimit"))?
-            .extract::<String>()
+        self.cvar("roundtimelimit")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -743,8 +734,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_scorelimit(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "scorelimit"))?
-            .extract::<String>()
+        self.cvar("scorelimit")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -754,8 +744,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_capturelimit(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "capturelimit"))?
-            .extract::<String>()
+        self.cvar("capturelimit")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -765,8 +754,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_teamsize(&self) -> PyResult<i32> {
-        self.get_item(intern!(self.py(), "teamsize"))?
-            .extract::<String>()
+        self.cvar("teamsize")
             .map(|value| value.parse::<i32>().unwrap_or_default())
     }
 
@@ -775,8 +763,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_tags(&self) -> PyResult<Vec<String>> {
-        self.get_item(intern!(self.py(), "sv_tags"))?
-            .extract::<String>()
+        self.cvar("sv_tags")
             .map(|value| value.split(',').map(|value| value.into()).collect())
     }
 

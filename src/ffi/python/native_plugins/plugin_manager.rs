@@ -5,14 +5,36 @@ use super::{
     target::{reply, usage},
 };
 use crate::ffi::python::{
-    AbstractChannel, Player, Plugin, defer_next_frame, plugin::PluginMethods,
+    AbstractChannel, Player, Plugin, defer_next_frame,
+    plugin::PluginMethods,
+    plugin_loader::{load_plugin, load_preset_plugins, reload_plugin, unload_plugin},
 };
 
 const MANAGER_PERMISSION: i32 = 5;
 
+/// What the manager does to plugins, so that the commands do not depend on the plugin loader.
+#[derive(Clone, Copy)]
+struct PluginActions {
+    load: fn(Python<'_>, &str) -> PyResult<()>,
+    unload: fn(Python<'_>, &str) -> PyResult<()>,
+    reload: fn(Python<'_>, &str) -> PyResult<()>,
+    load_preset: fn(Python<'_>) -> PyResult<()>,
+}
+
+impl PluginActions {
+    const ENGINE: Self = Self {
+        load: load_plugin,
+        unload: unload_plugin,
+        reload: reload_plugin,
+        load_preset: load_preset_plugins,
+    };
+}
+
 /// Loads, unloads and reloads plugins while the server is running.
 #[pyclass(name = "plugin_manager", module = "shinqlx", extends = Plugin, frozen)]
-pub(super) struct PluginManager {}
+pub(super) struct PluginManager {
+    actions: PluginActions,
+}
 
 fn describe(py: Python<'_>, err: &PyErr) -> String {
     let name = err
@@ -22,20 +44,16 @@ fn describe(py: Python<'_>, err: &PyErr) -> String {
     format!("{name} - {}", err.value(py))
 }
 
-fn shinqlx_function<'py>(py: Python<'py>, name: &str) -> PyResult<Bound<'py, PyAny>> {
-    py.import(intern!(py, "shinqlx"))?.getattr(name)
-}
-
 /// Runs the action for the plugin and tells the channel about the outcome.
 fn report(
     slf: &Bound<'_, PluginManager>,
     channel: &Bound<'_, AbstractChannel>,
     plugin: &str,
     (success, failure): (&str, &str),
-    action: &str,
+    action: fn(Python<'_>, &str) -> PyResult<()>,
 ) -> PyResult<Option<i32>> {
     let py = slf.py();
-    match shinqlx_function(py, action).and_then(|action| action.call1((plugin,))) {
+    match action(py, plugin) {
         Ok(_) => reply(
             channel,
             &format!("Plugin ^6{plugin} ^7has been successfully {success}."),
@@ -73,7 +91,13 @@ impl PluginManager {
         let Some(plugin) = msg.get(1) else {
             return usage();
         };
-        report(slf, channel, plugin, ("loaded", "load"), "load_plugin")
+        report(
+            slf,
+            channel,
+            plugin,
+            ("loaded", "load"),
+            slf.get().actions.load,
+        )
     }
 
     fn cmd_unload(
@@ -90,7 +114,7 @@ impl PluginManager {
             channel,
             plugin,
             ("unloaded", "unload"),
-            "unload_plugin",
+            slf.get().actions.unload,
         )
     }
 
@@ -121,7 +145,7 @@ impl PluginManager {
             channel,
             plugin,
             ("reloaded", "reload"),
-            "reload_plugin",
+            slf.get().actions.reload,
         )
         .map(|_| ())
     }
@@ -145,7 +169,7 @@ impl PluginManager {
         channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<()> {
         let py = slf.py();
-        match shinqlx_function(py, "load_preset_plugins").and_then(|load| load.call0()) {
+        match (slf.get().actions.load_preset)(py) {
             Ok(_) => reply(
                 channel,
                 "Successfully loaded all plugins in ^6qlx_plugins^7.",
@@ -166,9 +190,7 @@ impl PluginManager {
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
         for plugin in other_plugins(slf)? {
-            if let Err(err) =
-                shinqlx_function(py, "unload_plugin").and_then(|unload| unload.call1((&plugin,)))
-            {
+            if let Err(err) = (slf.get().actions.unload)(py, &plugin) {
                 let message = format!(
                     "Plugin ^6{plugin} ^7has failed to unload: {}",
                     describe(py, &err)
@@ -206,9 +228,7 @@ impl PluginManager {
     ) -> PyResult<()> {
         let py = slf.py();
         for plugin in other_plugins(slf)? {
-            if let Err(err) =
-                shinqlx_function(py, "reload_plugin").and_then(|reload| reload.call1((&plugin,)))
-            {
+            if let Err(err) = (slf.get().actions.reload)(py, &plugin) {
                 let message = format!(
                     "Plugin ^6{plugin} ^7has failed to reload: {}",
                     describe(py, &err)
@@ -231,7 +251,9 @@ impl PluginManager {
 pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     let plugin = Bound::new(
         py,
-        PyClassInitializer::from(Plugin::py_new(py)).add_subclass(PluginManager {}),
+        PyClassInitializer::from(Plugin::py_new(py)).add_subclass(PluginManager {
+            actions: PluginActions::ENGINE,
+        }),
     )?;
 
     for (name, handler, usage) in [
@@ -257,16 +279,19 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
 #[cfg(test)]
 mod plugin_manager_tests {
-    use pyo3::{prelude::*, types::PyDict};
+    use std::sync::Mutex;
+
+    use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
     use rstest::rstest;
 
-    use super::{PluginManager, create};
+    use super::{PluginActions, PluginManager, create};
     use crate::{
         ffi::python::{
             AbstractChannel, COMMANDS, EVENT_DISPATCHERS, Plugin, PythonReturnCodes,
             commands::CommandInvoker,
             events::EventDispatcherManager,
             native_plugins::test_support::{fixture_module, real_player},
+            plugin_loader::{load_plugin, reload_plugin},
             pyshinqlx_setup_fixture::pyshinqlx_setup,
             pyshinqlx_test_support::{
                 RestoredAttribute, recorded_replies, recording_channel, run_all_frame_tasks,
@@ -278,19 +303,50 @@ mod plugin_manager_tests {
 
     const USAGE: i32 = PythonReturnCodes::RET_USAGE as i32;
 
+    static CALLS: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
+    static FAILING: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+    fn record(name: &str, plugin: &str) -> PyResult<()> {
+        CALLS
+            .lock()
+            .expect("the calls are not poisoned")
+            .push((name.to_owned(), plugin.to_owned()));
+        if FAILING
+            .lock()
+            .expect("the failing names are not poisoned")
+            .iter()
+            .any(|failing| failing == name)
+        {
+            return Err(PyRuntimeError::new_err("boom"));
+        }
+        Ok(())
+    }
+
+    fn fake_load(_py: Python<'_>, plugin: &str) -> PyResult<()> {
+        record("load_plugin", plugin)
+    }
+
+    fn fake_unload(_py: Python<'_>, plugin: &str) -> PyResult<()> {
+        record("unload_plugin", plugin)
+    }
+
+    fn fake_reload(_py: Python<'_>, plugin: &str) -> PyResult<()> {
+        record("reload_plugin", plugin)
+    }
+
+    fn fake_load_preset(_py: Python<'_>) -> PyResult<()> {
+        record("load_preset_plugins", "")
+    }
+
+    const FAKE_ACTIONS: PluginActions = PluginActions {
+        load: fake_load,
+        unload: fake_unload,
+        reload: fake_reload,
+        load_preset: fake_load_preset,
+    };
+
     const FIXTURES: &core::ffi::CStr = c"
-calls = []
 logged = []
-failing = []
-
-
-def make(name):
-    def function(*args):
-        calls.append((name, *args))
-        if name in failing:
-            raise RuntimeError('boom')
-    return function
-
 
 import logging
 
@@ -320,23 +376,7 @@ def uninstall():
 
     impl Fixtures<'_> {
         fn calls(&self) -> Vec<(String, String)> {
-            let calls = self
-                .module
-                .getattr("calls")
-                .expect("could not get the calls");
-            calls
-                .try_iter()
-                .expect("not iterable")
-                .map(|call| {
-                    let call = call.expect("no call");
-                    let name = call.get_item(0).and_then(|name| name.extract());
-                    let plugin = call
-                        .get_item(1)
-                        .and_then(|plugin| plugin.extract())
-                        .unwrap_or_default();
-                    (name.expect("no name"), plugin)
-                })
-                .collect()
+            CALLS.lock().expect("the calls are not poisoned").clone()
         }
 
         fn replies(&self) -> Vec<String> {
@@ -356,10 +396,10 @@ def uninstall():
         }
 
         fn fail(&self, name: &str) {
-            self.module
-                .getattr("failing")
-                .and_then(|failing| failing.call_method1("append", (name,)))
-                .expect("could not make the function fail");
+            FAILING
+                .lock()
+                .expect("the failing names are not poisoned")
+                .push(name.to_owned());
         }
     }
 
@@ -367,29 +407,21 @@ def uninstall():
     where
         F: FnOnce(Fixtures<'_>),
     {
+        with_actions(loaded, FAKE_ACTIONS, test);
+    }
+
+    fn with_actions<F>(loaded: &[&str], actions: PluginActions, test: F)
+    where
+        F: FnOnce(Fixtures<'_>),
+    {
         Python::attach(|py| {
+            CALLS.lock().expect("the calls are not poisoned").clear();
+            FAILING
+                .lock()
+                .expect("the failing names are not poisoned")
+                .clear();
             let module = fixture_module(py, FIXTURES);
-            let shinqlx = py.import("shinqlx").expect("no shinqlx module");
             let mut restored = vec![];
-            for name in [
-                "load_plugin",
-                "unload_plugin",
-                "reload_plugin",
-                "load_preset_plugins",
-            ] {
-                restored.push(RestoredAttribute::capture(shinqlx.as_any(), name));
-                module
-                    .setattr(
-                        format!("real_{name}"),
-                        shinqlx.getattr(name).expect("no such function"),
-                    )
-                    .expect("could not keep the real function");
-                let fake = module
-                    .getattr("make")
-                    .and_then(|make| make.call1((name,)))
-                    .expect("could not create the fake");
-                shinqlx.setattr(name, fake).expect("could not replace it");
-            }
             module
                 .call_method0("install")
                 .expect("could not install the log collector");
@@ -409,7 +441,8 @@ def uninstall():
 
             let plugin = Bound::new(
                 py,
-                PyClassInitializer::from(Plugin::py_new(py)).add_subclass(PluginManager {}),
+                PyClassInitializer::from(Plugin::py_new(py))
+                    .add_subclass(PluginManager { actions }),
             )
             .expect("could not create the plugin");
             capture::install();
@@ -526,18 +559,8 @@ def uninstall():
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn refused_load_is_replied_and_not_logged(_pyshinqlx_setup: ()) {
-        with_manager(&["ban"], |fixtures| {
+        with_actions(&["ban"], PluginActions::ENGINE, |fixtures| {
             let py = fixtures.plugin.py();
-            let shinqlx = py.import("shinqlx").expect("no shinqlx module");
-            shinqlx
-                .setattr(
-                    "load_plugin",
-                    fixtures
-                        .module
-                        .getattr("real_load_plugin")
-                        .expect("no real function"),
-                )
-                .expect("could not use the real function");
             let caller = real_player(py, 1234, "Ada^7", "");
 
             let result = PluginManager::cmd_load(
@@ -573,14 +596,19 @@ def uninstall():
     #[serial]
     fn reload_logs_its_failure_and_load_only_raises_for_a_missing_plugin(_pyshinqlx_setup: ()) {
         with_manager(&[], |fixtures| {
-            for (name, error, is_logged) in [
-                ("real_load_plugin", "PluginLoadError", false),
-                ("real_reload_plugin", "PluginLoadError", true),
+            let py = fixtures.plugin.py();
+            for (name, function, error, is_logged) in [
+                (
+                    "load_plugin",
+                    load_plugin as fn(Python<'_>, &str) -> PyResult<()>,
+                    "PluginLoadError",
+                    false,
+                ),
+                ("reload_plugin", reload_plugin, "PluginLoadError", true),
             ] {
-                let function = fixtures.module.getattr(name).expect("no real function");
                 let before = fixtures.logged().len();
 
-                assert!(function.call1(("no_such_plugin",)).is_err());
+                assert!(function(py, "no_such_plugin").is_err());
 
                 let logged = fixtures.logged();
                 assert_eq!(

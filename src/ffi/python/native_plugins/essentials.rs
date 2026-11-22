@@ -621,7 +621,7 @@ impl Essentials {
             player,
             &format!(
                 "shinqlx: ^6{}^7 - Plugins: ^6{}",
-                shinqlx.getattr(intern!(py, "__version__"))?,
+                env!("SHINQLX_VERSION"),
                 shinqlx.getattr(intern!(py, "__plugins_version__"))?
             ),
         )?;

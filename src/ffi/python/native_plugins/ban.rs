@@ -7,7 +7,7 @@ use pyo3::{
     gc::PyVisit,
     intern,
     prelude::*,
-    types::{PyDict, PyInt},
+    types::PyDict,
 };
 
 use super::{
@@ -62,10 +62,25 @@ fn ban_notice(banned: &Entry) -> String {
     }
 }
 
+/// A count as the database returns it: an integer, text or the bytes of text.
+fn count_of(value: &Bound<'_, PyAny>) -> PyResult<i64> {
+    if let Ok(count) = value.extract::<i64>() {
+        return Ok(count);
+    }
+    let text = value.extract::<String>().or_else(|_| {
+        value
+            .extract::<Vec<u8>>()
+            .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
+    })?;
+    text.trim()
+        .parse()
+        .map_err(|_| PyValueError::new_err(format!("invalid literal for int(): '{text}'")))
+}
+
 fn stored_count(database: &Bound<'_, PyAny>, key: &str) -> PyResult<Option<i64>> {
     let py = database.py();
     match database.get_item(key) {
-        Ok(value) => py.get_type::<PyInt>().call1((value,))?.extract().map(Some),
+        Ok(value) => count_of(&value).map(Some),
         Err(err) if err.is_instance_of::<PyKeyError>(py) => Ok(None),
         Err(err) => Err(err),
     }
@@ -635,7 +650,9 @@ mod ban_tests {
     };
     use rstest::rstest;
 
-    use super::{Ban, LeaveAction, ban_notice, bans_key, counter_key, leave_action, player_key};
+    use super::{
+        Ban, LeaveAction, ban_notice, bans_key, count_of, counter_key, leave_action, player_key,
+    };
     use crate::{
         ffi::{
             c::prelude::{CS_SERVERINFO, team_t},
@@ -658,6 +675,29 @@ mod ban_tests {
         },
         prelude::*,
     };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_count_converts_from_integers_text_and_bytes(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let counted = |value: Bound<'_, PyAny>| count_of(&value).ok();
+
+            assert_eq!(
+                counted(7_i64.into_pyobject(py).unwrap().into_any()),
+                Some(7)
+            );
+            assert_eq!(
+                counted(" 12 ".into_pyobject(py).unwrap().into_any()),
+                Some(12)
+            );
+            assert_eq!(
+                counted(pyo3::types::PyBytes::new(py, b"31").into_any()),
+                Some(31)
+            );
+            assert_eq!(counted("x".into_pyobject(py).unwrap().into_any()), None);
+        });
+    }
 
     const CALLER_ID: i64 = 1001;
     const TARGET_ID: i64 = 1003;
