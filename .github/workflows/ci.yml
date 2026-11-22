@@ -481,7 +481,7 @@ jobs:
       - name: Extract the release notes of this version
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk -v header="## ${version}" 'index($0, header) == 1 { found = 1; next } found && /^## / { exit } found' RELEASE_NOTES.md > release-notes.md
+          awk -v header="## ${version}" 'index($0, header) == 1 { found = 1; next } found && /^## / { exit } found' CHANGELOG.md > release-notes.md
           test -s release-notes.md
       - name: Create the release
         env:
