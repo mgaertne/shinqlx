@@ -9,6 +9,7 @@ use super::{
     super::{COMMANDS, CommandInvokerMethods, Player, channels::ClientCommandChannel, is_false},
     prelude::*,
 };
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that triggers with any client command. This overlaps with
 /// other events, such as "chat".
@@ -22,7 +23,7 @@ impl ClientCommandDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "client_command";
+    const name: &'static str = EventName::ClientCommand.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

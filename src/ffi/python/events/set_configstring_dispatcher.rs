@@ -3,6 +3,7 @@ use core::hint::cold_path;
 use pyo3::types::{PyBool, PyString};
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that triggers when the server tries to set a configstring. You can
 /// stop this event and use :func:`shinqlx.set_configstring` to modify it, but a
@@ -18,7 +19,7 @@ impl SetConfigstringDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "set_configstring";
+    const name: &'static str = EventName::SetConfigstring.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

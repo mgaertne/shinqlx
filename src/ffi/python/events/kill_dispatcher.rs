@@ -1,7 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that goes off when someone is killed.
 #[pyclass(module = "_events", name = "KillDispatcher", extends = EventDispatcher, frozen)]
@@ -14,7 +14,7 @@ impl KillDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "kill";
+    const name: &'static str = EventName::Kill.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

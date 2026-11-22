@@ -4,47 +4,70 @@ use pyo3::{
     types::{PyDict, PyModule},
 };
 
-/// The names of the events that plugins can hook, as the dispatchers register them.
-pub(crate) const EVENT_NAMES: [&str; 33] = [
-    "chat",
-    "client_command",
-    "command",
-    "console_print",
-    "damage",
-    "death",
-    "frame",
-    "game_countdown",
-    "game_end",
-    "game_start",
-    "kamikaze_explode",
-    "kamikaze_use",
-    "kill",
-    "map",
-    "new_game",
-    "player_connect",
-    "player_disconnect",
-    "player_loaded",
-    "player_spawn",
-    "round_countdown",
-    "round_end",
-    "round_start",
-    "server_command",
-    "set_configstring",
-    "stats",
-    "team_switch",
-    "team_switch_attempt",
-    "unload",
-    "userinfo",
-    "vote",
-    "vote_called",
-    "vote_ended",
-    "vote_started",
-];
+macro_rules! event_names {
+    ($($variant:ident => $name:literal),+ $(,)?) => {
+        /// The events that plugins can hook, as the dispatchers register them.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub(crate) enum EventName {
+            $($variant),+
+        }
+
+        impl EventName {
+            pub(crate) const ALL: &[Self] = &[$(Self::$variant),+];
+
+            /// The name under which the dispatcher of the event is registered.
+            pub(crate) const fn as_str(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $name),+
+                }
+            }
+        }
+    };
+}
+
+event_names! {
+    Chat => "chat",
+    ClientCommand => "client_command",
+    Command => "command",
+    ConsolePrint => "console_print",
+    Damage => "damage",
+    Death => "death",
+    Frame => "frame",
+    GameCountdown => "game_countdown",
+    GameEnd => "game_end",
+    GameStart => "game_start",
+    KamikazeExplode => "kamikaze_explode",
+    KamikazeUse => "kamikaze_use",
+    Kill => "kill",
+    Map => "map",
+    NewGame => "new_game",
+    PlayerConnect => "player_connect",
+    PlayerDisconnect => "player_disconnect",
+    PlayerLoaded => "player_loaded",
+    PlayerSpawn => "player_spawn",
+    RoundCountdown => "round_countdown",
+    RoundEnd => "round_end",
+    RoundStart => "round_start",
+    ServerCommand => "server_command",
+    SetConfigstring => "set_configstring",
+    Stats => "stats",
+    TeamSwitch => "team_switch",
+    TeamSwitchAttempt => "team_switch_attempt",
+    Unload => "unload",
+    Userinfo => "userinfo",
+    Vote => "vote",
+    VoteCalled => "vote_called",
+    VoteEnded => "vote_ended",
+    VoteStarted => "vote_started",
+}
 
 fn events_class_source() -> String {
-    let members = EVENT_NAMES
+    let members = EventName::ALL
         .iter()
-        .map(|name| format!("    {} = \"{name}\"", name.to_uppercase()))
+        .map(|event| {
+            let name = event.as_str();
+            format!("    {} = \"{name}\"", name.to_uppercase())
+        })
         .collect::<Vec<_>>()
         .join("\n");
 
@@ -88,7 +111,7 @@ mod events_enum_tests {
     use pyo3::{intern, prelude::*, types::PyDict};
     use rstest::rstest;
 
-    use super::{EVENT_NAMES, register_events_enum};
+    use super::{EventName, register_events_enum};
     use crate::{ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup, prelude::*};
 
     #[rstest]
@@ -143,7 +166,11 @@ assert Events.CHAT.value == 'chat'
                 .filter_map(|member| member.extract::<String>().ok())
                 .collect::<Vec<_>>();
 
-            assert_eq!(members, EVENT_NAMES);
+            let names = EventName::ALL
+                .iter()
+                .map(|event| event.as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(members, names);
         });
     }
 

@@ -1,7 +1,7 @@
 use pyo3::types::{PyString, PyTuple};
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that triggers whenever a player tries to connect. If the event
 /// is not stopped, it will let the player connect as usual. If it is stopped
@@ -17,7 +17,7 @@ impl PlayerConnectDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "player_connect";
+    const name: &'static str = EventName::PlayerConnect.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

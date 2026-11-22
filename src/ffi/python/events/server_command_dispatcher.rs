@@ -3,6 +3,7 @@ use core::hint::cold_path;
 use pyo3::types::{PyBool, PyString};
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that triggers with any server command sent by the server,
 /// including :func:`shinqlx.send_server_command`. Can be cancelled.
@@ -16,7 +17,7 @@ impl ServerCommandDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "server_command";
+    const name: &'static str = EventName::ServerCommand.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

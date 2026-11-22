@@ -1,7 +1,7 @@
 use pyo3::types::{PyString, PyTuple};
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// For when a player switches teams. If cancelled,
 /// simply put the player back in the old team.
@@ -18,7 +18,7 @@ impl TeamSwitchDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "team_switch";
+    const name: &'static str = EventName::TeamSwitch.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

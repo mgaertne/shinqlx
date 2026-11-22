@@ -1,7 +1,7 @@
 use pyo3::types::{PyString, PyTuple};
 
 use super::prelude::*;
-use crate::ffi::python::{Command, Player};
+use crate::ffi::python::{Command, Player, events_enum::EventName};
 
 /// Event that goes off when a command is executed. This can be used
 /// to for instance keep a log of all the commands admins have used.
@@ -16,7 +16,7 @@ impl CommandDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "command";
+    const name: &'static str = EventName::Command.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

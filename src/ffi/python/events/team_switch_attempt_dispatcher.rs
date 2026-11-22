@@ -1,7 +1,7 @@
 use pyo3::types::{PyString, PyTuple};
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// For when a player attempts to join a team. Prevents the player from doing it when cancelled.
 ///
@@ -18,7 +18,7 @@ impl TeamSwitchAttemptDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "team_switch_attempt";
+    const name: &'static str = EventName::TeamSwitchAttempt.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

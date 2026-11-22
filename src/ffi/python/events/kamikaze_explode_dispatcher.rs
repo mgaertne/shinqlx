@@ -1,7 +1,7 @@
 use pyo3::types::{PyBool, PyTuple};
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that goes off when kamikaze explodes.
 #[pyclass(module = "_events", name = "KamikazeExplodeDispatcher", extends = EventDispatcher, frozen)]
@@ -14,7 +14,7 @@ impl KamikazeExplodeDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "kamikaze_explode";
+    const name: &'static str = EventName::KamikazeExplode.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

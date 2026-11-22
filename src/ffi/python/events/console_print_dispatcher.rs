@@ -3,6 +3,7 @@ use core::hint::cold_path;
 use pyo3::types::{PyBool, PyString};
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off whenever the console prints something, including
 /// those with :func:`shinqlx.console_print`.
@@ -16,7 +17,7 @@ impl ConsolePrintDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "console_print";
+    const name: &'static str = EventName::ConsolePrint.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

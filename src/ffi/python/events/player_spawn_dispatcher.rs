@@ -1,7 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that triggers when a player spawns. Cannot be cancelled.
 #[pyclass(module = "_events", name = "PlayerSpawnDispatcher", extends = EventDispatcher, frozen)]
@@ -14,7 +14,7 @@ impl PlayerSpawnDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "player_spawn";
+    const name: &'static str = EventName::PlayerSpawn.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

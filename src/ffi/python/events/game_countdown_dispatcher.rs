@@ -1,6 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off when the countdown before a game starts.
 #[pyclass(module = "_events", name = "GameCountdownDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +14,7 @@ impl GameCountdownDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "game_countdown";
+    const name: &'static str = EventName::GameCountdown.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

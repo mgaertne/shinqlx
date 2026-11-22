@@ -1,6 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that triggers whenever a plugin is unloaded. Cannot be cancelled.
 #[pyclass(module = "_events", name = "UnloadDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +14,7 @@ impl UnloadDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "unload";
+    const name: &'static str = EventName::Unload.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

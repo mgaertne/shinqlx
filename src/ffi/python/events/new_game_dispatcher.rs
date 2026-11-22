@@ -1,6 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off when the game module is initialized. This happens when new maps are loaded,
 /// a game is aborted, a game ends but stays on the same map, or when the game itself starts.
@@ -14,7 +15,7 @@ impl NewGameDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "new_game";
+    const name: &'static str = EventName::NewGame.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

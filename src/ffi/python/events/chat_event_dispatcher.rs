@@ -9,6 +9,7 @@ use super::{
     super::{COMMANDS, CommandInvokerMethods, Player},
     prelude::*,
 };
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that triggers with the "say" command. If the handler cancels it,
 /// the message will also be cancelled.
@@ -22,7 +23,7 @@ impl ChatEventDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "chat";
+    const name: &'static str = EventName::Chat.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

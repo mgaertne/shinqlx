@@ -3,7 +3,7 @@ use core::hint::cold_path;
 use pyo3::types::{IntoPyDict, PyBool, PyDict};
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event for clients changing their userinfo.
 #[pyclass(module = "_events", name = "UserinfoDispatcher", extends = EventDispatcher, frozen)]
@@ -16,7 +16,7 @@ impl UserinfoDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "userinfo";
+    const name: &'static str = EventName::Userinfo.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

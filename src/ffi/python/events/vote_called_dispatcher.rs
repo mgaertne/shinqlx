@@ -1,7 +1,7 @@
 use pyo3::types::{PyString, PyTuple};
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that goes off whenever a player tries to call a vote. Note that
 /// this goes off even if it's a vote command that is invalid. Use vote_started
@@ -16,7 +16,7 @@ impl VoteCalledDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "vote_called";
+    const name: &'static str = EventName::VoteCalled.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

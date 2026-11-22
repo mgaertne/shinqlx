@@ -1,6 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off when a game ends.
 #[pyclass(module = "_events", name = "GameEndDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +14,7 @@ impl GameEndDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "game_end";
+    const name: &'static str = EventName::GameEnd.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

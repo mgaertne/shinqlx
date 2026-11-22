@@ -1,6 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off when a map is loaded, even if the same map is loaded again.
 #[pyclass(module = "_events", name = "MapDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +14,7 @@ impl MapDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "map";
+    const name: &'static str = EventName::Map.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

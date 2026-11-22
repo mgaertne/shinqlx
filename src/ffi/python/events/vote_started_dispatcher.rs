@@ -5,6 +5,7 @@ use pyo3::{
 };
 
 use super::{EventDispatcher, prelude::*};
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off whenever a vote starts. A vote started with Plugin.callvote()
 /// will have the caller set to None.
@@ -20,7 +21,7 @@ impl VoteStartedDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "vote_started";
+    const name: &'static str = EventName::VoteStarted.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

@@ -1,6 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
+use crate::ffi::python::events_enum::EventName;
 
 /// Event that goes off when a round ends.
 #[pyclass(module = "_events", name = "RoundEndDispatcher", extends = EventDispatcher, frozen)]
@@ -13,7 +14,7 @@ impl RoundEndDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "round_end";
+    const name: &'static str = EventName::RoundEnd.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

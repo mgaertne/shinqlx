@@ -1,7 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that triggers whenever a player connects *and* finishes loading.
 /// This means it'll trigger later than the "X connected" messages in-game,
@@ -16,7 +16,7 @@ impl PlayerLoadedDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "player_loaded";
+    const name: &'static str = EventName::PlayerLoaded.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

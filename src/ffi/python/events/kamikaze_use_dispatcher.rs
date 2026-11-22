@@ -1,7 +1,7 @@
 use pyo3::types::PyTuple;
 
 use super::prelude::*;
-use crate::ffi::python::Player;
+use crate::ffi::python::{Player, events_enum::EventName};
 
 /// Event that goes off when player uses kamikaze item.
 #[pyclass(module = "_events", name = "KamikazeUseDispatcher", extends = EventDispatcher, frozen)]
@@ -14,7 +14,7 @@ impl KamikazeUseDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "kamikaze_use";
+    const name: &'static str = EventName::KamikazeUse.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,

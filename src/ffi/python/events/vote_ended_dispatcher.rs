@@ -8,7 +8,7 @@ use super::prelude::*;
 use crate::{
     ffi::{
         c::prelude::{CS_VOTE_NO, CS_VOTE_STRING, CS_VOTE_YES},
-        python::with_main_engine,
+        python::{events_enum::EventName, with_main_engine},
     },
     quake_live_engine::GetConfigstring,
 };
@@ -29,7 +29,7 @@ impl VoteEndedDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const name: &'static str = "vote_ended";
+    const name: &'static str = EventName::VoteEnded.as_str();
     #[classattr]
     #[allow(
         non_upper_case_globals,
