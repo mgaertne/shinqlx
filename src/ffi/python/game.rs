@@ -8,13 +8,13 @@ use log::*;
 use pyo3::{
     create_exception,
     exceptions::{PyException, PyKeyError, PyValueError},
-    intern,
     types::{IntoPyDict, PyDict, PyType},
 };
 
 use super::{
-    GameTypes, addadmin, addmod, addscore, addteamscore, ban, console_command, demote, lock, mute,
-    opsay, prelude::*, put, set_teamsize, tempban, unban, unlock, unmute,
+    GameTypes, addadmin, addmod, addscore, addteamscore, ban, console_command, demote,
+    engine_api::map_titles, lock, mute, opsay, prelude::*, put, set_teamsize, tempban, unban,
+    unlock, unmute,
 };
 use crate::{
     ffi::{
@@ -589,24 +589,15 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_map_title(&self) -> PyResult<String> {
-        self.py()
-            .import(intern!(self.py(), "shinqlx"))?
-            .getattr(intern!(self.py(), "_map_title"))?
-            .extract()
+        Ok(map_titles().title)
     }
 
     fn get_map_subtitle1(&self) -> PyResult<String> {
-        self.py()
-            .import(intern!(self.py(), "shinqlx"))?
-            .getattr(intern!(self.py(), "_map_subtitle1"))?
-            .extract()
+        Ok(map_titles().subtitle1)
     }
 
     fn get_map_subtitle2(&self) -> PyResult<String> {
-        self.py()
-            .import(intern!(self.py(), "shinqlx"))?
-            .getattr(intern!(self.py(), "_map_subtitle2"))?
-            .extract()
+        Ok(map_titles().subtitle2)
     }
 
     fn get_red_score(&self) -> PyResult<i32> {
@@ -834,7 +825,10 @@ mod pyshinqlx_game_tests {
     use crate::{
         ffi::{
             c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
-            python::prelude::*,
+            python::{
+                engine_api::{MapTitles, store_map_titles},
+                prelude::*,
+            },
         },
         prelude::*,
     };
@@ -1523,15 +1517,10 @@ mod pyshinqlx_game_tests {
     #[serial]
     fn get_map_title_gets_current_map(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            py.run(
-                cr#"
-import shinqlx
-shinqlx._map_title = "eyetoeye"
-            "#,
-                None,
-                None,
-            )
-            .expect("this should not happen");
+            store_map_titles(MapTitles {
+                title: "eyetoeye".to_string(),
+                ..MapTitles::default()
+            });
 
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
@@ -1544,15 +1533,10 @@ shinqlx._map_title = "eyetoeye"
     #[serial]
     fn get_map_subtitle1_gets_current_subtitle1(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            py.run(
-                cr#"
-import shinqlx
-shinqlx._map_subtitle1 = "Clan Arena"
-            "#,
-                None,
-                None,
-            )
-            .expect("this should not happen");
+            store_map_titles(MapTitles {
+                subtitle1: "Clan Arena".to_string(),
+                ..MapTitles::default()
+            });
 
             let game = Bound::new(py, default_game()).expect("this should not happen");
 
@@ -1568,15 +1552,10 @@ shinqlx._map_subtitle1 = "Clan Arena"
     #[serial]
     fn get_map_subtitle2_gets_current_subtitle2(_pyshinqlx_setup: ()) {
         Python::attach(|py| {
-            py.run(
-                cr#"
-import shinqlx
-shinqlx._map_subtitle2 = "Awesome map!"
-            "#,
-                None,
-                None,
-            )
-            .expect("this should not happen");
+            store_map_titles(MapTitles {
+                subtitle2: "Awesome map!".to_string(),
+                ..MapTitles::default()
+            });
 
             let game = Bound::new(py, default_game()).expect("this should not happen");
 

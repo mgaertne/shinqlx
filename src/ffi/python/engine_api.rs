@@ -390,13 +390,41 @@ pub(crate) fn is_vote_active() -> bool {
     get_configstring(CS_VOTE_STRING as u16).is_ok_and(|vote_string| !vote_string.is_empty())
 }
 
+/// The title and the subtitles of the running map as the engine reported them, without the text shinqlx adds.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub(crate) struct MapTitles {
+    pub(crate) title: String,
+    pub(crate) subtitle1: String,
+    pub(crate) subtitle2: String,
+}
+
+static MAP_TITLES: parking_lot::RwLock<MapTitles> = parking_lot::RwLock::new(MapTitles {
+    title: String::new(),
+    subtitle1: String::new(),
+    subtitle2: String::new(),
+});
+
+pub(crate) fn map_titles() -> MapTitles {
+    MAP_TITLES.read().clone()
+}
+
+#[cfg(test)]
+pub(crate) fn store_map_titles(titles: MapTitles) {
+    *MAP_TITLES.write() = titles;
+}
+
+/// Keeps the titles of the running map and, for plugins that read them, the module attributes `_map_title`,
+/// `_map_subtitle1` and `_map_subtitle2`.
 #[pyfunction]
 #[pyo3(pass_module)]
 pub(crate) fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    get_configstring(CS_MESSAGE as u16)
-        .and_then(|map_title| module.setattr(intern!(module.py(), "_map_title"), map_title))?;
+    get_configstring(CS_MESSAGE as u16).and_then(|map_title| {
+        MAP_TITLES.write().title.clone_from(&map_title);
+        module.setattr(intern!(module.py(), "_map_title"), map_title)
+    })?;
 
     get_configstring(CS_AUTHOR as u16).and_then(|mut map_subtitle1| {
+        MAP_TITLES.write().subtitle1.clone_from(&map_subtitle1);
         module.setattr(intern!(module.py(), "_map_subtitle1"), &map_subtitle1)?;
 
         if !map_subtitle1.is_empty() {
@@ -419,6 +447,7 @@ pub(crate) fn set_map_subtitles(module: &Bound<'_, PyModule>) -> PyResult<()> {
     })?;
 
     get_configstring(CS_AUTHOR2 as u16).and_then(|mut map_subtitle2| {
+        MAP_TITLES.write().subtitle2.clone_from(&map_subtitle2);
         module.setattr(intern!(module.py(), "_map_subtitle2"), &map_subtitle2)?;
 
         module.py().detach(|| {
@@ -438,7 +467,7 @@ mod set_map_subtitles_tests {
     use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
-    use super::set_map_subtitles;
+    use super::{MapTitles, map_titles, set_map_subtitles};
     use crate::{
         ffi::{
             c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE},
@@ -495,6 +524,14 @@ mod set_map_subtitles_tests {
                         .expect("this should not happen");
                     let result = set_map_subtitles(&shinqlx_module);
                     assert!(result.is_ok());
+                    assert_eq!(
+                        map_titles(),
+                        MapTitles {
+                            title: "thunderstruck".to_string(),
+                            subtitle1: "Till 'Firestarter' Merker".to_string(),
+                            subtitle2: "Second author would go here".to_string(),
+                        }
+                    );
                     assert!(
                         shinqlx_module
                             .getattr(intern!(py, "_map_title"))
