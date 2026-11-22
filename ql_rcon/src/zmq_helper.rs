@@ -198,9 +198,16 @@ fn handle_reply<S: CompletionStore>(
             }
         }
         Feed::Hide => (),
-        Feed::Replace(line) => sender.send(line)?,
+        Feed::Lines(lines) => {
+            for line in lines {
+                sender.send(line)?;
+            }
+        }
         Feed::Done(fetched) => store_fetched_names(store, &fetched, sender)?,
-        Feed::ShowAndDone(fetched) => {
+        Feed::ShowAndDone(before, fetched) => {
+            for line in before {
+                sender.send(line)?;
+            }
             sender.send(text)?;
             store_fetched_names(store, &fetched, sender)?;
         }
