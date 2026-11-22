@@ -14,4 +14,4 @@ mod log_file;
 pub(crate) use async_appender::AsyncAppender;
 pub(crate) use config::{finish_logging, initialize_logging};
 pub(crate) use dotted_encoder::DottedPatternEncoder;
-pub(crate) use log_file::RotationDefaults;
+pub(crate) use log_file::{RotationDefaults, open_log_file};

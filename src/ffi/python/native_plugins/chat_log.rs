@@ -2,14 +2,17 @@ use core::hint::cold_path;
 use std::{fs::create_dir_all, path::Path};
 
 use chrono::Local;
-use pyo3::{
-    PyTraverseError, exceptions::PyEnvironmentError, gc::PyVisit, intern, prelude::*, types::PyDict,
-};
+use log::{Level, Record};
+use log4rs::append::Append;
+use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 
 use super::{create_cvar, cvar_int, register_hook};
-use crate::ffi::python::{
-    AbstractChannel, AbstractChannelMethods, Player, PlayerMethods, Plugin, clean_text,
-    commands::CommandPriorities, get_cvar,
+use crate::{
+    ffi::python::{
+        AbstractChannel, AbstractChannelMethods, Player, PlayerMethods, Plugin, clean_text,
+        commands::CommandPriorities, get_cvar,
+    },
+    logging::{RotationDefaults, open_log_file},
 };
 
 const CHATLOG_COUNT_CVAR: &str = "qlx_chatlogs";
@@ -19,24 +22,29 @@ const CHATLOG_SIZE_CVAR: &str = "qlx_chatlogsSize";
 /// chat log below the home path of the server.
 #[pyclass(name = "log", module = "shinqlx", extends = Plugin, frozen)]
 pub(super) struct ChatLog {
-    chatlog: Py<PyAny>,
+    chatlog: Box<dyn Append>,
 }
 
 impl ChatLog {
-    fn write(&self, py: Python<'_>, message: &str) -> PyResult<()> {
-        self.chatlog
-            .bind(py)
-            .call_method1(intern!(py, "info"), (message,))
-            .map(|_| ())
+    fn write(&self, message: &str) -> PyResult<()> {
+        append_line(self.chatlog.as_ref(), message)
     }
+}
+
+fn append_line(chatlog: &dyn Append, message: &str) -> PyResult<()> {
+    chatlog
+        .append(
+            &Record::builder()
+                .level(Level::Info)
+                .target("chat")
+                .args(format_args!("{message}"))
+                .build(),
+        )
+        .map_err(|error| PyEnvironmentError::new_err(error.to_string()))
 }
 
 #[pymethods]
 impl ChatLog {
-    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
-        visit.call(&self.chatlog)
-    }
-
     fn handle_player_connect(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
         let message = format!(
             "{}:{}:{} connected.",
@@ -45,7 +53,7 @@ impl ChatLog {
             player.get_ip(),
         );
 
-        slf.get().write(slf.py(), &message)
+        slf.get().write(&message)
     }
 
     fn handle_player_disconnect(
@@ -60,7 +68,7 @@ impl ChatLog {
         };
         let message = format!("{player}:{} {reason_text}", player.get_steam_id());
 
-        slf.get().write(slf.py(), &clean_text(&message))
+        slf.get().write(&clean_text(&message))
     }
 
     fn handle_chat(
@@ -75,7 +83,7 @@ impl ChatLog {
         };
         let message = format!("{channel_name}<{player}:{}> {msg}", player.get_steam_id());
 
-        slf.get().write(slf.py(), &clean_text(&message))
+        slf.get().write(&clean_text(&message))
     }
 
     fn handle_command(
@@ -86,11 +94,13 @@ impl ChatLog {
     ) -> PyResult<()> {
         let message = format!("[CMD] <{caller}:{}> {args}", caller.get_steam_id());
 
-        slf.get().write(slf.py(), &clean_text(&message))
+        slf.get().write(&clean_text(&message))
     }
 }
 
-fn create_chatlog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+const CHATLOG_PATTERN: &str = "[{d(%Y-%m-%d %H:%M:%S)}] {m}{n}";
+
+fn create_chatlog(py: Python<'_>) -> PyResult<Box<dyn Append>> {
     let home_path = get_cvar("fs_homepath")?.ok_or_else(|| {
         cold_path();
         PyEnvironmentError::new_err("cvar fs_homepath is not set")
@@ -99,31 +109,19 @@ fn create_chatlog(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     create_dir_all(&directory)?;
     let file_path = directory.join("chat.log");
 
-    let max_logs = cvar_int(py, CHATLOG_COUNT_CVAR)?;
-    let max_size = cvar_int(py, CHATLOG_SIZE_CVAR)?;
+    let defaults = RotationDefaults {
+        max_size: u64::try_from(cvar_int(py, CHATLOG_SIZE_CVAR)?).unwrap_or(0),
+        count: u32::try_from(cvar_int(py, CHATLOG_COUNT_CVAR)?).unwrap_or(0),
+    };
+    let chatlog = open_log_file(&file_path, CHATLOG_PATTERN, defaults)
+        .map_err(|error| PyEnvironmentError::new_err(format!("{error:#}")))?;
 
-    let logging = py.import(intern!(py, "logging"))?;
-    let formatter = logging
-        .getattr(intern!(py, "Formatter"))?
-        .call1(("[%(asctime)s] %(message)s", "%Y-%m-%d %H:%M:%S"))?;
-    let handler_options = PyDict::new(py);
-    handler_options.set_item(intern!(py, "encoding"), "utf-8")?;
-    handler_options.set_item(intern!(py, "maxBytes"), max_size)?;
-    handler_options.set_item(intern!(py, "backupCount"), max_logs)?;
-    let handler = py
-        .import(intern!(py, "logging.handlers"))?
-        .getattr(intern!(py, "RotatingFileHandler"))?
-        .call((file_path.to_string_lossy(),), Some(&handler_options))?;
-    handler.call_method1(intern!(py, "setFormatter"), (formatter,))?;
-
-    let chatlog = logging.getattr(intern!(py, "Logger"))?.call1(("log",))?;
-    chatlog.call_method1(intern!(py, "addHandler"), (handler,))?;
     let started = Local::now().format("%Y-%m-%d %H:%M:%S%.6f");
-    chatlog.call_method1(
-        intern!(py, "info"),
-        (format!(
+    append_line(
+        chatlog.as_ref(),
+        &format!(
             "============================= Logger started @ {started} ============================="
-        ),),
+        ),
     )?;
 
     Ok(chatlog)
@@ -136,9 +134,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     let plugin = Bound::new(
         py,
-        PyClassInitializer::from(Plugin::py_new(py)).add_subclass(ChatLog {
-            chatlog: chatlog.unbind(),
-        }),
+        PyClassInitializer::from(Plugin::py_new(py)).add_subclass(ChatLog { chatlog }),
     )?;
     for (event, handler) in [
         ("player_connect", "handle_player_connect"),
@@ -159,9 +155,12 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
 #[cfg(test)]
 mod chat_log_tests {
-    use alloc::ffi::CString;
+    use alloc::{ffi::CString, sync::Arc};
     use core::borrow::BorrowMut;
+    use std::sync::Mutex;
 
+    use log::Record;
+    use log4rs::append::Append;
     use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
@@ -183,45 +182,43 @@ mod chat_log_tests {
         prelude::*,
     };
 
+    #[derive(Debug, Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<String>>>);
+
+    impl Append for Recorder {
+        fn append(&self, record: &Record<'_>) -> anyhow::Result<()> {
+            self.0
+                .lock()
+                .expect("the messages are not poisoned")
+                .push(record.args().to_string());
+            Ok(())
+        }
+
+        fn flush(&self) {}
+    }
+
     struct Fixtures<'py> {
         plugin: Bound<'py, ChatLog>,
-        recorder: Bound<'py, PyAny>,
+        recorder: Recorder,
         player: Bound<'py, Player>,
     }
 
     impl Fixtures<'_> {
         fn messages(&self) -> Vec<String> {
             self.recorder
-                .getattr("messages")
-                .and_then(|messages| messages.extract())
-                .expect("could not get the messages")
+                .0
+                .lock()
+                .expect("the messages are not poisoned")
+                .clone()
         }
     }
 
     fn fixtures(py: Python<'_>) -> Fixtures<'_> {
-        let module = PyModule::from_code(
-            py,
-            c"
-class Recorder:
-    def __init__(self):
-        self.messages = []
-
-    def info(self, message):
-        self.messages.append(message)
-
-",
-            c"",
-            c"",
-        )
-        .expect("could not create the fixtures");
-        let recorder = module
-            .getattr("Recorder")
-            .and_then(|recorder| recorder.call0())
-            .expect("could not create the recorder");
+        let recorder = Recorder::default();
         let plugin = Bound::new(
             py,
             PyClassInitializer::from(Plugin::py_new(py)).add_subclass(ChatLog {
-                chatlog: recorder.clone().unbind(),
+                chatlog: Box::new(recorder.clone()),
             }),
         )
         .expect("could not create the plugin");
@@ -401,18 +398,7 @@ class Recorder:
                     let content =
                         std::fs::read_to_string(&log_file).expect("could not read the chat log");
                     assert!(content.contains("Logger started @"));
-                    let log = plugin.cast::<ChatLog>().expect("not a chat log plugin");
-                    let handlers = log
-                        .get()
-                        .chatlog
-                        .bind(py)
-                        .getattr("handlers")
-                        .expect("could not get the handlers");
-                    for handler in handlers.try_iter().expect("handlers are not iterable") {
-                        handler
-                            .and_then(|handler| handler.call_method0("close"))
-                            .expect("could not close the chat log");
-                    }
+                    assert!(content.starts_with('['), "{content}");
                 });
             });
     }

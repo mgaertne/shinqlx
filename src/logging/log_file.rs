@@ -86,6 +86,19 @@ pub(crate) fn attach_log_files(
         .collect()
 }
 
+/// Opens a rolling log file right away, for files whose directory is known when they are created.
+pub(crate) fn open_log_file(
+    path: &Path,
+    pattern: &str,
+    defaults: RotationDefaults,
+) -> anyhow::Result<Box<dyn Append>> {
+    let spec = LogFileSpec {
+        pattern: Some(pattern.to_owned()),
+        ..LogFileSpec::default()
+    };
+    open_rolling_file(path, &spec, defaults)
+}
+
 fn open_rolling_file(
     path: &Path,
     spec: &LogFileSpec,
