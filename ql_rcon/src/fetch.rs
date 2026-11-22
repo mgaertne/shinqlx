@@ -14,10 +14,8 @@ pub(crate) enum Feed {
     Show,
     Hide,
     Done(Fetched),
-    /// Show these lines before the received one, then the lists are complete.
-    ShowAndDone(Vec<String>, Fetched),
-    /// Show these lines in place of the received one.
-    Lines(Vec<String>),
+    ShowAndDone(Fetched),
+    Replace(String),
 }
 
 /// What the server reported: command and cvar names, and map names without the `.bsp`.
@@ -48,29 +46,9 @@ pub(crate) enum FetchState {
         started: Instant,
         last_line: Instant,
         visible: bool,
-        held: Option<HeldCvar>,
+        pending_flags: String,
     },
     Done,
-}
-
-/// The last cvar line of a `cvarlist`; its flags follow in the next lines, so the line waits for them.
-#[derive(Debug)]
-pub(crate) struct HeldCvar {
-    name: String,
-    line: String,
-    flags: String,
-}
-
-impl HeldCvar {
-    /// Keeps the flags with the names and returns the line to show, with the flags in front of it.
-    fn finish(self, found: &mut Fetched, visible: bool) -> Option<String> {
-        let Self { name, line, flags } = self;
-        let shown = visible.then(|| format!("{flags:<FLAG_COLUMN$} {line}"));
-        if !flags.is_empty() {
-            found.flags.push((name, flags));
-        }
-        shown
-    }
 }
 
 /// Width of the column that holds the flags in front of a cvar of a `cvarlist` the user typed.
@@ -86,7 +64,7 @@ fn is_name(text: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '+' | '-'))
 }
 
-/// The server sends the flags of a cvar (`S`, `A`, `L` and so on) as lines of one letter below its line.
+/// The server sends the flags of a cvar (`S`, `A`, `L` and so on) as lines of one letter in front of its name.
 fn is_flag(text: &str) -> bool {
     text.len() == 1 && text.starts_with(|c: char| c.is_ascii_uppercase())
 }
@@ -113,7 +91,7 @@ impl FetchState {
             started: Instant::now(),
             last_line: Instant::now(),
             visible: false,
-            held: None,
+            pending_flags: String::new(),
         };
         true
     }
@@ -129,7 +107,7 @@ impl FetchState {
             started: Instant::now(),
             last_line: Instant::now(),
             visible: true,
-            held: None,
+            pending_flags: String::new(),
         };
     }
 
@@ -139,44 +117,7 @@ impl FetchState {
             found,
             visible,
             last_line,
-            held,
-            ..
-        } = self
-        else {
-            return Feed::Show;
-        };
-
-        let trimmed = line.trim();
-        if trimmed.is_empty() || is_flag(trimmed) {
-            if let Some(held) = held {
-                held.flags.push_str(trimmed);
-            }
-            *last_line = Instant::now();
-            return Feed::Hide;
-        }
-
-        let visible = *visible;
-        let flushed = held.take().and_then(|cvar| cvar.finish(found, visible));
-        let feed = self.classify(line);
-        match (flushed, feed) {
-            (None, feed) => feed,
-            (Some(shown), Feed::Show) => Feed::Lines(vec![shown, line.to_string()]),
-            (Some(shown), Feed::Hide) => Feed::Lines(vec![shown]),
-            (Some(shown), Feed::ShowAndDone(mut before, fetched)) => {
-                before.insert(0, shown);
-                Feed::ShowAndDone(before, fetched)
-            }
-            (Some(shown), Feed::Done(fetched)) => Feed::ShowAndDone(vec![shown], fetched),
-            (Some(_), feed) => feed,
-        }
-    }
-
-    fn classify(&mut self, line: &str) -> Feed {
-        let Self::Collecting {
-            found,
-            visible,
-            last_line,
-            held,
+            pending_flags,
             ..
         } = self
         else {
@@ -199,13 +140,18 @@ impl FetchState {
                 let fetched = core::mem::take(found).sorted();
                 *self = Self::Done;
                 return if show {
-                    Feed::ShowAndDone(Vec::new(), fetched)
+                    Feed::ShowAndDone(fetched)
                 } else {
                     Feed::Done(fetched)
                 };
             }
             (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => hidden,
+            (Some(flag), None, _) if is_flag(flag) => {
+                pending_flags.push_str(flag);
+                Feed::Hide
+            }
             (Some(name), None, _) if is_name(name) => {
+                pending_flags.clear();
                 found.names.push(name.to_string());
                 hidden
             }
@@ -215,13 +161,16 @@ impl FetchState {
                     && line.ends_with('"')
                     && !value.is_empty() =>
             {
+                let flags = core::mem::take(pending_flags);
                 found.names.push(name.to_string());
-                *held = Some(HeldCvar {
-                    name: name.to_string(),
-                    line: line.to_string(),
-                    flags: String::new(),
-                });
-                Feed::Hide
+                if !flags.is_empty() {
+                    found.flags.push((name.to_string(), flags.clone()));
+                }
+                if *visible {
+                    Feed::Replace(format!("{flags:<FLAG_COLUMN$} {line}"))
+                } else {
+                    Feed::Hide
+                }
             }
             _ => Feed::Show,
         };
@@ -236,7 +185,6 @@ impl FetchState {
             started,
             last_line,
             visible,
-            held,
             ..
         } = self
         else {
@@ -251,9 +199,6 @@ impl FetchState {
             return None;
         }
 
-        if let Some(cvar) = held.take() {
-            cvar.finish(found, false);
-        }
         let fetched = core::mem::take(found).sorted();
         *self = Self::Done;
         Some(fetched)
@@ -370,16 +315,16 @@ mod fetch_tests {
     }
 
     #[test]
-    fn the_flag_lines_below_a_cvar_are_not_names() {
+    fn the_flag_lines_in_front_of_a_cvar_are_not_names() {
         let mut state = collecting();
 
         for line in [
-            "sv_hostname \"A New Server\"",
             "S",
             "",
             "A",
-            "bot_enable \"0\"",
+            "sv_hostname \"A New Server\"",
             "L",
+            "bot_enable \"0\"",
         ] {
             assert_eq!(state.feed(line), Feed::Hide, "{line}");
         }
@@ -397,19 +342,19 @@ mod fetch_tests {
     }
 
     #[test]
-    fn flags_do_not_carry_over_to_the_next_cvar() {
+    fn flags_do_not_carry_over_from_a_command_to_the_next_cvar() {
         let mut state = collecting();
 
-        for line in ["g_cubeTimeout \"30\"", "g_complaintLimit \"0\"", "A"] {
+        for line in ["S", "addbot", "bot_enable \"0\""] {
             state.feed(line);
         }
 
         assert_eq!(
-            state.feed("2 cvar indexes"),
+            state.feed("1 cvar indexes"),
             Feed::Done(Fetched {
-                names: vec!["g_complaintLimit".to_string(), "g_cubeTimeout".to_string()],
+                names: vec!["addbot".to_string(), "bot_enable".to_string()],
                 maps: Vec::new(),
-                flags: vec![("g_complaintLimit".to_string(), "A".to_string())],
+                flags: Vec::new(),
             })
         );
     }
@@ -419,44 +364,25 @@ mod fetch_tests {
         let mut state = FetchState::new(false);
         state.user_sent("cvarlist");
 
-        assert_eq!(state.feed("g_cubeTimeout \"30\""), Feed::Hide);
-        assert_eq!(
-            state.feed("g_complaintLimit \"0\""),
-            Feed::Lines(vec!["     g_cubeTimeout \"30\"".to_string()])
-        );
+        assert_eq!(state.feed("S"), Feed::Hide);
         assert_eq!(state.feed("A"), Feed::Hide);
         assert_eq!(
-            state.feed("12 total cvars"),
-            Feed::Lines(vec![
-                "A    g_complaintLimit \"0\"".to_string(),
-                "12 total cvars".to_string()
-            ])
+            state.feed("sv_hostname \"A New Server\""),
+            Feed::Replace("SA   sv_hostname \"A New Server\"".to_string())
         );
         assert_eq!(
-            state.feed("12 cvar indexes"),
-            Feed::ShowAndDone(
-                Vec::new(),
-                Fetched {
-                    names: vec!["g_complaintLimit".to_string(), "g_cubeTimeout".to_string()],
-                    maps: Vec::new(),
-                    flags: vec![("g_complaintLimit".to_string(), "A".to_string())],
-                }
-            )
+            state.feed("sv_cheats \"0\""),
+            Feed::Replace("     sv_cheats \"0\"".to_string())
         );
-    }
-
-    #[test]
-    fn the_last_cvar_is_shown_before_the_end_marker() {
-        let mut state = FetchState::new(false);
-        state.user_sent("cvarlist");
-
-        state.feed("capturelimit \"8\"");
-        state.feed("S");
-
-        assert!(matches!(
-            state.feed("1 cvar indexes"),
-            Feed::ShowAndDone(before, _) if before == ["S    capturelimit \"8\""]
-        ));
+        assert_eq!(state.feed("12 total cvars"), Feed::Show);
+        assert_eq!(
+            state.feed("12 cvar indexes"),
+            Feed::ShowAndDone(Fetched {
+                names: vec!["sv_cheats".to_string(), "sv_hostname".to_string()],
+                maps: Vec::new(),
+                flags: vec![("sv_hostname".to_string(), "SA".to_string())],
+            })
+        );
     }
 
     #[test]
