@@ -23,7 +23,7 @@ use crate::{
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
     learn::Learner,
-    linefeed_helper::{remember, save_completions},
+    line_editor::{remember, save_completions},
 };
 
 /// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.

@@ -1,15 +1,19 @@
-use alloc::sync::Arc;
-use core::{sync::atomic::Ordering, time::Duration};
+use alloc::{borrow::Cow, sync::Arc};
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::{HashMap, HashSet},
     io::{self, IsTerminal, Write},
     path::PathBuf,
+    sync::{Mutex, mpsc::SyncSender},
 };
 
 use anyhow::Result;
 use directories::UserDirs;
-use linefeed::{
-    Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal, Suffix,
+use reedline::{
+    ColumnarMenu, Completer, CompletionResult, DefaultHinter, Emacs, ExternalPrinter,
+    FileBackedHistory, History, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptEditMode,
+    PromptHistorySearch, Reedline, ReedlineEvent, ReedlineMenu, SearchDirection, SearchQuery,
+    Signal, Span, Suggestion, default_emacs_keybindings,
 };
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::{
@@ -113,12 +117,6 @@ fn cvar_of_value<'a>(words: &[&'a str]) -> Option<&'a str> {
     }
 }
 
-/// Fills the text up to more than half of the terminal width, so that the list shows one entry per line.
-fn one_per_line(text: String, columns: usize) -> String {
-    let width = columns / 2 + 1;
-    format!("{text:<width$}")
-}
-
 /// At most this many names get their description in the list, longer lists stay compact.
 const DESCRIBED_NAMES: usize = 20;
 
@@ -128,8 +126,7 @@ fn describe(
     before: &str,
     start: usize,
     user: &UserLists,
-    columns: usize,
-) -> Vec<Completion> {
+) -> Vec<(String, Option<String>)> {
     let words = before.split_whitespace().collect::<Vec<_>>();
     let cvar = cvar_of_value(&words);
     let describe_names = start == 0 && found.len() <= DESCRIBED_NAMES;
@@ -147,10 +144,7 @@ fn describe(
             } else {
                 cvar.and_then(|cvar| value_label(cvar, &item, user))
             };
-            let display = text.map(|text| one_per_line(format!("{item}  {text}"), columns));
-            let mut completion = Completion::simple(item);
-            completion.display = display;
-            completion
+            (item, text)
         })
         .collect()
 }
@@ -554,53 +548,90 @@ fn load_user_lists(args: &CommandLineOptions) -> UserLists {
     user
 }
 
-/// Two entries that insert nothing, because linefeed lists the candidates only when there are several.
-fn usage_listing(usage: String) -> Vec<Completion> {
-    [usage, "(reported by this server)".to_string()]
-        .into_iter()
-        .map(|display| Completion {
-            completion: String::new(),
-            display: Some(display),
-            suffix: Suffix::None,
-        })
-        .collect()
+/// The usage of a command as an entry that leaves the word as it is.
+fn usage_listing(usage: String, word: &str, span: Span) -> Vec<Suggestion> {
+    vec![Suggestion {
+        value: word.to_string(),
+        display_override: Some(usage),
+        description: Some("reported by this server".to_string()),
+        span,
+        ..Suggestion::default()
+    }]
 }
 
-struct HistoryCompleter {
+/// The history, newest entry first, shared between the editor loop and the completer.
+type SharedHistory = Arc<Mutex<Vec<String>>>;
+
+struct ServerCompleter {
     args: CommandLineOptions,
+    history: SharedHistory,
 }
 
-impl Completer<DefaultTerminal> for HistoryCompleter {
-    fn complete(
-        &self,
-        word: &str,
-        prompter: &Prompter<DefaultTerminal>,
-        start: usize,
-        _end: usize,
-    ) -> Option<Vec<Completion>> {
+impl Completer for ServerCompleter {
+    fn complete(&mut self, line: &str, pos: usize) -> CompletionResult {
+        let typed = line.get(..pos).unwrap_or(line);
+        let start = typed.rfind(char::is_whitespace).map_or(0, |at| at + 1);
+        let word = typed.get(start..).unwrap_or_default();
+        let before = typed.get(..start).unwrap_or_default();
+        let span = Span::new(start, pos);
+
         let user = load_user_lists(&self.args);
+        let history = self
+            .history
+            .lock()
+            .map(|history| history.clone())
+            .unwrap_or_default();
         let found = completions(
-            prompter.buffer(),
+            typed,
             word,
             start,
-            prompter.history().rev(),
+            history.iter().map(String::as_str),
             &user,
         );
         if found.is_empty()
             && start > 0
-            && let Some(usage) =
-                usage_hint(prompter.buffer().get(..start).unwrap_or_default(), &user)
+            && let Some(usage) = usage_hint(before, &user)
         {
-            return Some(usage_listing(usage));
+            return CompletionResult::fresh(usage_listing(usage, word, span));
         }
 
-        Some(describe(
-            found,
-            prompter.buffer().get(..start).unwrap_or_default(),
-            start,
-            &user,
-            prompter.screen_size().columns,
-        ))
+        let suggestions: Vec<Suggestion> = describe(found, before, start, &user)
+            .into_iter()
+            .map(|(value, description)| Suggestion {
+                value,
+                description,
+                span,
+                ..Suggestion::default()
+            })
+            .collect();
+        CompletionResult::fresh(suggestions)
+    }
+}
+
+struct EmptyPrompt;
+
+impl Prompt for EmptyPrompt {
+    fn render_prompt_left(&self) -> Cow<'_, str> {
+        Cow::Borrowed("")
+    }
+
+    fn render_prompt_right(&self) -> Cow<'_, str> {
+        Cow::Borrowed("")
+    }
+
+    fn render_prompt_indicator(&self, _prompt_mode: PromptEditMode) -> Cow<'_, str> {
+        Cow::Borrowed("")
+    }
+
+    fn render_prompt_multiline_indicator(&self) -> Cow<'_, str> {
+        Cow::Borrowed("")
+    }
+
+    fn render_prompt_history_search_indicator(
+        &self,
+        _history_search: PromptHistorySearch,
+    ) -> Cow<'_, str> {
+        Cow::Borrowed("")
     }
 }
 
@@ -688,30 +719,76 @@ fn get_history_file(args: &CommandLineOptions) -> Option<PathBuf> {
         home_dir
     })
 }
-fn terminal(args: &CommandLineOptions) -> Result<Interface<DefaultTerminal>> {
-    let editor = Interface::new(env!("CARGO_PKG_NAME"))?;
+/// Entries of the history file that the editor keeps.
+const HISTORY_SIZE: usize = 1000;
 
-    editor.set_prompt("")?;
-    editor
-        .lock_reader()
-        .set_print_completions_horizontally(false);
+/// The history entries, newest first.
+fn history_lines(history: &dyn History) -> Vec<String> {
+    history
+        .search(SearchQuery::everything(SearchDirection::Backward, None))
+        .map(|items| items.into_iter().map(|item| item.command_line).collect())
+        .unwrap_or_default()
+}
 
-    [Signal::Interrupt, Signal::Quit, Signal::Suspend]
-        .into_iter()
-        .for_each(|signal| {
-            editor.set_report_signal(signal, true);
-        });
+/// Deletes the older entries that equal the newest one, so that a command shows up once in the history.
+fn drop_older_duplicates(history: &mut dyn History, line: &str) {
+    let duplicates: Vec<_> = history
+        .search(SearchQuery::everything(SearchDirection::Backward, None))
+        .map(|items| {
+            items
+                .into_iter()
+                .filter(|item| item.command_line == line)
+                .skip(1)
+                .filter_map(|item| item.id)
+                .collect()
+        })
+        .unwrap_or_default();
+    for id in duplicates {
+        let _ = history.delete(id);
+    }
+}
 
-    if let Some(history_file) = get_history_file(args)
-        && history_file.exists()
-    {
-        editor.load_history(&history_file)?;
+fn line_editor(
+    args: &CommandLineOptions,
+    printer: ExternalPrinter<String>,
+    break_signal: Arc<AtomicBool>,
+) -> Result<(Reedline, SharedHistory)> {
+    let history: Box<dyn History> = match get_history_file(args) {
+        Some(file) => Box::new(FileBackedHistory::with_file(HISTORY_SIZE, file)?),
+        None => Box::new(FileBackedHistory::new(HISTORY_SIZE)?),
     };
+    let shared_history: SharedHistory = Arc::new(Mutex::new(history_lines(history.as_ref())));
 
-    let history_completer = HistoryCompleter { args: args.clone() };
-    editor.set_completer(Arc::new(history_completer));
+    let mut keybindings = default_emacs_keybindings();
+    keybindings.add_binding(
+        KeyModifiers::NONE,
+        KeyCode::Tab,
+        ReedlineEvent::UntilFound(vec![
+            ReedlineEvent::Menu("completion_menu".to_string()),
+            ReedlineEvent::MenuNext,
+        ]),
+    );
 
-    Ok(editor)
+    let completer = ServerCompleter {
+        args: args.clone(),
+        history: Arc::clone(&shared_history),
+    };
+    let menu = ColumnarMenu::default()
+        .with_name("completion_menu")
+        .with_columns(1);
+
+    let editor = Reedline::create()
+        .with_history(history)
+        .with_completer(Box::new(completer))
+        .with_menu(ReedlineMenu::EngineCompleter(Box::new(menu)))
+        .with_hinter(Box::new(
+            DefaultHinter::default().with_style(reedline::Color::DarkGray.normal()),
+        ))
+        .with_edit_mode(Box::new(Emacs::new(keybindings)))
+        .with_external_printer(printer)
+        .with_break_signal(break_signal);
+
+    Ok((editor, shared_history))
 }
 
 fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
@@ -730,21 +807,18 @@ fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
 }
 
 async fn display_lines(
-    terminal: &Interface<DefaultTerminal>,
+    printer: &SyncSender<String>,
     color: &ColorChoice,
     mut display_receiver: UnboundedReceiver<String>,
 ) -> Result<()> {
     while let Some(line) = display_receiver.recv().await {
         let mut buffer = terminal_buffer(color);
         write_formatted_ql_colors(&mut buffer, &line)?;
-        terminal.lock_writer_erase().and_then(|mut writer| {
-            writeln!(
-                writer,
-                "{}",
-                String::from_utf8(buffer.into_inner())
-                    .expect("the buffer only receives text that was written as str")
-            )
-        })?;
+        let text = String::from_utf8(buffer.into_inner())
+            .expect("the buffer only receives text that was written as str");
+        if printer.send(text).is_err() {
+            break;
+        }
     }
 
     Ok(())
@@ -756,30 +830,29 @@ pub(crate) async fn run_terminal(
     zmq_sender: UnboundedSender<String>,
     display_receiver: UnboundedReceiver<String>,
 ) -> Result<()> {
-    let terminal = Arc::new(terminal(&args)?);
+    let printer = ExternalPrinter::default();
+    let break_signal = Arc::new(AtomicBool::new(false));
+    let output = printer.sender();
+    let (editor, history) = line_editor(&args, printer, Arc::clone(&break_signal))?;
 
-    let reader = task::spawn_blocking({
-        let terminal = Arc::clone(&terminal);
-        let args = args.clone();
-        move || read_input(&terminal, &args, zmq_sender)
-    });
+    let reader = task::spawn_blocking(move || read_input(editor, &history, zmq_sender));
 
-    let displayed = display_lines(&terminal, &args.color, display_receiver).await;
+    let displayed = display_lines(&output, &args.color, display_receiver).await;
     CONTINUE_RUNNING.store(false, Ordering::Release);
+    break_signal.store(true, Ordering::Release);
 
     reader.await??;
     displayed
 }
 
 fn read_input(
-    terminal: &Interface<DefaultTerminal>,
-    args: &CommandLineOptions,
+    mut editor: Reedline,
+    shared_history: &SharedHistory,
     zmq_sender: UnboundedSender<String>,
 ) -> Result<()> {
     while CONTINUE_RUNNING.load(Ordering::Acquire) {
-        match terminal.read_line_step(Some(Duration::from_millis(250))) {
-            Ok(None) => continue,
-            Ok(Some(ReadResult::Input(line))) => {
+        match editor.read_line(&EmptyPrompt)? {
+            Signal::Success(line) => {
                 if !CONTINUE_RUNNING.load(Ordering::Acquire) {
                     break;
                 }
@@ -788,24 +861,13 @@ fn read_input(
                     continue;
                 }
 
-                if let Ok(indexes) = terminal.lock_writer_append().map(|writer| {
-                    writer
-                        .history()
-                        .enumerate()
-                        .filter_map(|(index, item)| if item != line { None } else { Some(index) })
-                        .collect::<Vec<usize>>()
-                }) {
-                    indexes
-                        .iter()
-                        .rev()
-                        .for_each(|&index| terminal.remove_history(index));
-                };
-                terminal.add_history_unique(line.clone());
-                if let Some(history_file) = get_history_file(args) {
-                    let _ = terminal.save_history(&history_file);
+                drop_older_duplicates(editor.history_mut(), &line);
+                editor.sync_history()?;
+                if let Ok(mut history) = shared_history.lock() {
+                    *history = history_lines(editor.history());
                 }
 
-                if ["exit"].contains(&line.to_lowercase().trim()) {
+                if line.trim().eq_ignore_ascii_case("exit") {
                     break;
                 }
 
@@ -813,32 +875,10 @@ fn read_input(
                     break;
                 }
             }
-            Ok(Some(ReadResult::Eof)) => {
-                writeln!(terminal, "{}", terminal.buffer())?;
-                if terminal.buffer().is_empty() {
-                    break;
-                }
-
-                let _ = terminal.set_buffer("");
-            }
-            Ok(Some(ReadResult::Signal(Signal::Interrupt))) => {
-                writeln!(terminal, "{}^C", terminal.buffer())?;
-                if terminal.buffer().is_empty() {
-                    break;
-                }
-
-                terminal.set_buffer("")?;
-            }
-            Ok(Some(ReadResult::Signal(Signal::Quit))) => {
-                break;
-            }
-            Ok(Some(ReadResult::Signal(signal))) => {
-                writeln!(terminal, "received signal: {signal:?}")?;
-            }
-            Err(err) => {
-                writeln!(terminal, "I/O error: {err:?}")?;
-            }
-        };
+            Signal::CtrlC(typed) if !typed.is_empty() => {}
+            Signal::CtrlC(_) | Signal::CtrlD => break,
+            _ => {}
+        }
     }
 
     drop(zmq_sender);
@@ -848,13 +888,15 @@ fn read_input(
 }
 
 #[cfg(test)]
-mod linefeed_helper_tests {
+mod line_editor_tests {
+    use reedline::Completer;
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, LearnedCvar, UserLists, completions, describe, get_history_file,
-        known_values, parse_labels, parse_user_names, setting_note, split_ql_colors,
-        terminal_buffer, usage_hint, user_names_files, value_label, write_formatted_ql_colors,
+        CommandLineOptions, LearnedCvar, ServerCompleter, SharedHistory, UserLists, completions,
+        describe, get_history_file, known_values, parse_labels, parse_user_names, setting_note,
+        split_ql_colors, terminal_buffer, usage_hint, user_names_files, value_label,
+        write_formatted_ql_colors,
     };
 
     fn rendered(buffer: Buffer) -> String {
@@ -1182,50 +1224,47 @@ mod linefeed_helper_tests {
         let user = UserLists::default();
         let found = completions("g_gametype ", "", 11, [].into_iter(), &user);
 
-        let described = describe(found, "g_gametype ", 11, &user, 80);
+        let described = describe(found, "g_gametype ", 11, &user);
 
         let ca = described
             .iter()
-            .find(|completion| completion.completion == "4")
+            .find(|(value, _)| value == "4")
             .expect("the value 4 is offered");
-        assert_eq!(
-            ca.display.as_deref().map(str::trim_end),
-            Some("4  Clan Arena")
-        );
-    }
-
-    #[test]
-    fn described_entries_fill_more_than_half_of_the_line() {
-        let user = UserLists::default();
-
-        let described = describe(
-            vec!["0".to_string(), "1".to_string()],
-            "g_gametype ",
-            11,
-            &user,
-            80,
-        );
-
-        assert!(described.iter().all(|completion| {
-            completion
-                .display
-                .as_ref()
-                .is_some_and(|text| text.chars().count() > 40)
-        }));
+        assert_eq!(ca.1.as_deref(), Some("Clan Arena"));
     }
 
     #[test]
     fn few_names_are_listed_with_their_description_many_stay_compact() {
         let user = UserLists::default();
 
-        let few = describe(vec!["timelimit".to_string()], "", 0, &user, 80);
-        let many = describe(vec!["timelimit".to_string(); 21], "", 0, &user, 80);
+        let few = describe(vec!["timelimit".to_string()], "", 0, &user);
+        let many = describe(vec!["timelimit".to_string(); 21], "", 0, &user);
 
         assert_eq!(
-            few[0].display.as_deref().map(str::trim_end),
-            Some("timelimit  Sets the time limit on your server.")
+            few[0].1.as_deref(),
+            Some("Sets the time limit on your server.")
         );
-        assert!(many.iter().all(|completion| completion.display.is_none()));
+        assert!(many.iter().all(|(_, description)| description.is_none()));
+    }
+
+    #[test]
+    fn the_completer_replaces_the_word_before_the_cursor() {
+        let args = CommandLineOptions::try_parse_from(["ql_rcon"]).expect("the options are valid");
+        let mut completer = ServerCompleter {
+            args,
+            history: SharedHistory::default(),
+        };
+
+        let result = completer.complete("g_gametype 4", 12);
+        let usage = completer.complete("g_gametype ", 11);
+
+        assert!(result.suggestions().iter().all(|s| s.span.start == 11));
+        assert!(
+            usage
+                .suggestions()
+                .iter()
+                .any(|s| s.value == "4" && s.description.as_deref() == Some("Clan Arena"))
+        );
     }
 
     #[test]

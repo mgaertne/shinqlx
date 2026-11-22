@@ -4,14 +4,14 @@ mod cmd_line;
 mod fetch;
 mod guide;
 mod learn;
-mod linefeed_helper;
+mod line_editor;
 mod profile;
 mod zmq_helper;
 
 use core::sync::atomic::AtomicBool;
 
 use anyhow::Result;
-use linefeed_helper::run_terminal;
+use line_editor::run_terminal;
 use tokio::{sync::mpsc::unbounded_channel, try_join};
 use zmq_helper::run_zmq;
 
