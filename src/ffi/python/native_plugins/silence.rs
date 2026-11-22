@@ -13,7 +13,7 @@ use super::{
 };
 use crate::ffi::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
-    defer_next_frame, events_enum::EventName, plugin::PluginMethods,
+    defer_next_frame, events_enum::EventName, plugin::PluginMethods, pyshinqlx_client_command,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -108,9 +108,7 @@ impl Silence {
         } else {
             slf.get().silenced.lock().remove(&steam_id);
             player.unmute()?;
-            let client_command = py
-                .import(intern!(py, "shinqlx"))?
-                .getattr(intern!(py, "client_command"))?;
+            let client_command = wrap_pyfunction!(pyshinqlx_client_command, py)?;
             defer_next_frame(&client_command, (player.get_id(), cmd))?;
         }
         Ok(Some(STOP_ALL))
@@ -988,9 +986,9 @@ mod silence_tests {
                         .extract::<(Bound<'_, PyAny>, (i32, String), Bound<'_, PyAny>)>()
                         .expect("unexpected task");
                     assert!(
-                        py.import("shinqlx")
-                            .and_then(|shinqlx| shinqlx.getattr("client_command"))
-                            .is_ok_and(|client_command| function.is(&client_command))
+                        function
+                            .getattr("__name__")
+                            .is_ok_and(|name| name.to_string() == "client_command")
                     );
                     assert_eq!(args, (3, "say hello".to_owned()));
                 });
