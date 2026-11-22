@@ -468,15 +468,16 @@ fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
         .receive_timeout(0)
         .receive_highwater_mark(0)
         .send_timeout(0)
-        .send_highwater_mark(0)
-        .zap_domain("stats");
+        .send_highwater_mark(0);
     let socket_builder = if password.is_empty() {
         socket_builder
     } else {
-        socket_builder.security_mechanism(SecurityMechanism::Plain {
-            username: "stats".into(),
-            password: password.into(),
-        })
+        socket_builder
+            .zap_domain("stats")
+            .security_mechanism(SecurityMechanism::Plain {
+                username: "stats".into(),
+                password: password.into(),
+            })
     };
 
     let config = SubscribeBuilder::default()
@@ -757,7 +758,7 @@ mod stats_listener_tests {
             collected.push(
                 received
                     .recv_timeout(Duration::from_secs(5))
-                    .expect("the messages did not arrive"),
+                    .unwrap_or_else(|_| panic!("the messages did not arrive: {collected:?}")),
             );
         }
         collected.retain(|message| message != "warmup");
