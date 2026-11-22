@@ -668,10 +668,22 @@ fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
     result
 }
 
+/// The color of `^0` to `^7` with the RGB values of the 8 color palette in the guide at https://www.euere.eu/ql/.
+fn ql_color(code: &str) -> Color {
+    match code {
+        "^0" => Color::Rgb(0x00, 0x00, 0x00),
+        "^1" => Color::Rgb(0xFF, 0x00, 0x00),
+        "^2" => Color::Rgb(0x00, 0xFF, 0x00),
+        "^3" => Color::Rgb(0xFF, 0xFF, 0x00),
+        "^4" => Color::Rgb(0x00, 0x00, 0xFF),
+        "^5" => Color::Rgb(0x00, 0xFF, 0xFF),
+        "^6" => Color::Rgb(0xFF, 0x00, 0xFF),
+        _ => Color::Rgb(0xFF, 0xFF, 0xFF),
+    }
+}
+
 fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
     let stripped_msg = text.strip_prefix("broadcast: ").unwrap_or(text).trim();
-
-    let is_print_msg = stripped_msg.starts_with("print \"");
 
     let stripped_text = stripped_msg
         .strip_prefix("print \"")
@@ -682,17 +694,9 @@ fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
     let ql_colors = split_ql_colors(stripped_text);
     ql_colors.into_iter().try_for_each(|(color, substr)| {
         let mut color_spec = ColorSpec::new();
-        color_spec.set_intense(is_print_msg);
         match color {
-            "^0" => color_spec.set_fg(Some(Color::Black)),
-            "^1" => color_spec.set_fg(Some(Color::Red)),
-            "^2" => color_spec.set_fg(Some(Color::Green)),
-            "^3" => color_spec.set_fg(Some(Color::Yellow)),
-            "^4" => color_spec.set_fg(Some(Color::Blue)),
-            "^5" => color_spec.set_fg(Some(Color::Cyan)),
-            "^6" => color_spec.set_fg(Some(Color::Magenta)),
             "reset" => color_spec.set_reset(true),
-            _ => color_spec.set_fg(Some(Color::White)),
+            code => color_spec.set_fg(Some(ql_color(code))),
         };
 
         buffer.set_color(&color_spec)?;
@@ -968,6 +972,16 @@ mod line_editor_tests {
             output.contains("\u{1b}[") && output.contains("red"),
             "{output:?}"
         );
+    }
+
+    #[test]
+    fn color_codes_have_the_rgb_values_of_the_guide() {
+        let mut buffer = Buffer::ansi();
+        write_formatted_ql_colors(&mut buffer, "^1red^6pink").expect("writing to a buffer works");
+
+        let output = rendered(buffer);
+        assert!(output.contains("38;2;255;0;0m"), "{output:?}");
+        assert!(output.contains("38;2;255;0;255m"), "{output:?}");
     }
 
     #[test]
