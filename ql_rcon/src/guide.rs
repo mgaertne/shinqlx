@@ -107,6 +107,24 @@ mod guide_tests {
     }
 
     #[test]
+    fn the_data_has_no_placeholders_of_the_guide() {
+        assert!(!super::ENUMS.contains("???"));
+        assert!(!super::HELP.contains("???"));
+        assert!(!include_str!("cvar_values.txt").contains("???"));
+    }
+
+    #[test]
+    fn vote_flags_name_the_disabled_votes() {
+        assert_eq!(
+            meaning("g_voteFlags", "14054").as_deref(),
+            Some(
+                "map_restart + nextmap + timelimit + fraglimit + shuffle + cointoss/random + loadouts + \
+                 ammo (global) + timers (item)"
+            )
+        );
+    }
+
+    #[test]
     fn enumerations_are_named_and_unknown_values_are_not() {
         assert_eq!(meaning("g_gametype", "4").as_deref(), Some("Clan Arena"));
         assert_eq!(meaning("g_gametype", "99"), None);

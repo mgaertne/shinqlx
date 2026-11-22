@@ -147,13 +147,16 @@ g_voteFlags	2	map_restart	b
 g_voteFlags	4	nextmap	b
 g_voteFlags	8	g_gametype	b
 g_voteFlags	16	clientkick/kick	b
-g_voteFlags	32	???	b
-g_voteFlags	64	timelimit	b
-g_voteFlags	128	fraglimit	b
-g_voteFlags	256	shuffle	b
-g_voteFlags	512	teamsize	b
-g_voteFlags	1024	cointoss	b
-g_voteFlags	2048	ruleset	b
+g_voteFlags	32	timelimit	b
+g_voteFlags	64	fraglimit	b
+g_voteFlags	128	shuffle	b
+g_voteFlags	256	teamsize	b
+g_voteFlags	512	cointoss/random	b
+g_voteFlags	1024	loadouts	b
+g_voteFlags	2048	end-game vote	b
+g_voteFlags	4096	ammo (global)	b
+g_voteFlags	8192	timers (item)	b
+g_voteFlags	16384	weapon respawn	b
 in_joystick_inverted	0	normal input	e
 in_joystick_inverted	1	inverted input	e
 in_mouse	1	Direct input	e

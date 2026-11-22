@@ -410,8 +410,6 @@ g_enableDust	Enables the dust affect by players running over 'dusty' floors.
 g_enableMachinegun	Enables players to spawn with a machinegun. This is not applicable when g_instagib 1 and the amount of bullets issued with the weapon is set by g_startingammo_mg.
 g_filterBan	Allows/disallows only specified IP addresses (as per listip) to connect to the server.
 g_flagBounce	When a flag is dropped in CTF, this value multiplies the drop distance of the flag to give it bounces. A value of 1 will cause the flag to continue to bounce the exact height as the initial drop distance while a value higher than 1 will cause the flag to bounce higher after each iteration. A value of 0 will disable bouncing altogether.
-g_flagPhysics	??? <<<
-g_flightRefuelRate	??? <<<
 g_flightThrust	Sets the amount of thrust when using the flight item.
 g_forceDmgThroughSurface	Enables damage through surfaces.
 g_forceNextMap	Automatically loads next map at match end.
@@ -562,11 +560,8 @@ g_suddenDeathRespawnTick	Sets the player respawn delay increment interval in CTF
 g_tackleFlag	Forces flag carriers in CTF and One Flag CTF to drop the flag in the event of a gauntlet attack.
 g_teamAutoJoin	Allows team auto-join on a server.
 g_teamForceBalance	Forces team balancing on a server.
-g_teamLocators	??? <<<
 g_teamSpecFreeCam	Allows free cam spectator mode for fragged players during clan arena rounds.
 g_teamSpecSayEnable	Allows fragged players in clan arena to use team chat.
-g_throwFlagForwardMult	??? <<<
-g_throwFlagVelocity	??? <<<
 g_training	Enables training mode, such as that of the skill placement match with Crash.
 g_velocity_bfg	Sets the projectile velocity (in units/second) for BFG cells.
 g_velocity_gl	Sets the projectile velocity (in units/second) for grenades.

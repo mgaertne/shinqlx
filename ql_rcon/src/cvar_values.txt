@@ -174,7 +174,7 @@ cg_marks	1	0|1
 cg_muzzleFlash	1	0|1
 cg_noplayeranims	0	0|1
 cg_nopredict	0	0|1
-cg_placebo	???	
+cg_placebo		
 cg_plasmaStyle	1	1|2
 cg_playerBBModelScale	1.1	
 cg_playerLean	1	
