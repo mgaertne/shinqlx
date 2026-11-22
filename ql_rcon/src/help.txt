@@ -160,7 +160,7 @@ cg_impactSparksSize	Adjust the size of the impact sparks.
 cg_impactSparksVelocity	Speed in which impactSparks gravitate up or down.
 cg_itemFx	Changes how items are rendered in the world. Sum it up ti combine it.
 cg_kickScale	Screen shakes when hit.
-cg_killbeep	Plays a distinct sound when you score a kill in any mode [SUBSCRIBERS ONLY]
+cg_killbeep	Plays a distinct sound when you score a kill in any mode. [SUBSCRIBERS ONLY]
 cg_lagometer	Displays netgraph that shows your network packet traffic including received, rejected and lost packets.
 cg_lastmsg	Displays last chat message received from the XMPP system.
 cg_levelTimerDirection	The counting direction of the timer.
@@ -317,7 +317,7 @@ com_introplayed	Disables the playing of intro movie when loading game.
 com_maxfps	Maximum rendered frames per second.
 com_showtrace	Displays packet traces.
 com_soundMegs	Allocates memory (in mega bytes) to game sounds. A value of 16 is best suited for 128MB of RAM.
-com_speeds	Displays the reporting of game speed data: frame#, time (in ms), ev, work, sv, cl, gm, rf, bk, rm SV = server, CL = client, GM = game time, RF = render time, EV = work.
+com_speeds	Displays the reporting of game speed data: frame#, time (in ms), ev, work, sv, cl, gm, rf, bk, rm. SV = server, CL = client, GM = game time, RF = render time, EV = work.
 com_zoneMegs	Sets the amount of memory (in mega bytes) reserved for the game. A value of 16 is best suited for 128MB of RAM.
 con_background	Enables the animated console background.
 condump	Write the contents of the console to a file.
@@ -551,7 +551,7 @@ g_startingammo_mg	Sets the amount of machine gun ammo that players spawn with.
 g_startingArmor	Sets the specified amount as armor players receive when spawning.
 g_startingHealth	Sets the specified amount as the health players receive when spawning.
 g_startingHealthBonus	Adds the specified bonus amount of health to players' health when spawning.
-g_startingWeapons	Sets the starting weapon and you can combine it by summing it up. Examples: Gauntlet + Machinegun (default) = 3 All Weapons = 8191 All Weapons minus Grapple = 7679 Standard CA loadout = 255
+g_startingWeapons	Sets the starting weapon and you can combine it by summing it up. Examples: Gauntlet + Machinegun (default) = 3; All Weapons = 8191; All Weapons minus Grapple = 7679; Standard CA loadout = 255
 g_suddenDeathRespawn	Controls the player respawn delay when CTF matches enter sudden death.
 g_suddenDeathRespawnMax	Sets the maximum amount of time (in seconds) that player respawn delays can reach in CTF sudden death rounds.
 g_suddenDeathRespawnPrint	Enables messages regarding respawn delays in CTF sudden death rounds.
