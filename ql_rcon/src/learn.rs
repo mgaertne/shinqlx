@@ -1,5 +1,7 @@
 //! Picks up what the server reports on its own: the usage of a command and the default and range of a cvar.
 
+use crate::guide::meaning;
+
 /// Something worth remembering that was found in a reply of the server.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Learned {
@@ -71,6 +73,24 @@ fn cvar(line: &str) -> Option<Learned> {
     })
 }
 
+/// What the current value in `"name" is:"value" ...` stands for, as far as the guide knows: the bits of a bit field or
+/// the label of an enumeration.
+pub(crate) fn explained(line: &str) -> Option<String> {
+    let parts: Vec<&str> = line.split('"').collect();
+    let name = parts.get(1).copied().filter(|name| is_name(name))?;
+    if parts.first().is_none_or(|before| !before.trim().is_empty()) {
+        return None;
+    }
+
+    let current = parts[2..]
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .find(|pair| pair[0].trim().eq_ignore_ascii_case("is:"))
+        .map(|pair| pair[1])?;
+    meaning(name, current).map(|text| format!("  = {text}"))
+}
+
 /// Parses `<cvar> will be changed to <value> upon restarting.`
 fn latched(line: &str) -> Option<Learned> {
     let (name, rest) = line.split_once(" will be changed to ")?;
@@ -127,7 +147,24 @@ impl Learner {
 
 #[cfg(test)]
 mod learn_tests {
-    use super::{Learned, Learner};
+    use super::{Learned, Learner, explained};
+
+    #[test]
+    fn a_cvar_answer_is_explained_when_the_guide_knows_the_value() {
+        assert_eq!(
+            explained("\"g_startingWeapons\" is:\"4100^7\" default:\"8193^7\"").as_deref(),
+            Some("  = Shotgun + Chaingun")
+        );
+        assert_eq!(
+            explained("\"g_gametype\" is:\"4^7\" default:\"0^7\"").as_deref(),
+            Some("  = Clan Arena")
+        );
+        assert_eq!(
+            explained("\"sv_hostname\" is:\"x^7\" default:\"y^7\""),
+            None
+        );
+        assert_eq!(explained("something else \"g_gametype\" is:\"4\""), None);
+    }
 
     #[test]
     fn usage_lines_are_learned_in_any_case() {

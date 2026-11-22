@@ -22,7 +22,7 @@ use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
-    learn::Learner,
+    learn::{Learner, explained},
     line_editor::{remember, save_completions},
 };
 
@@ -242,7 +242,13 @@ pub(crate) async fn run_zmq(
                         remember(&args, &learned).ok();
                     }
                     match fetch.feed(&zmq_str) {
-                        Feed::Show => display_sender.send(zmq_str)?,
+                        Feed::Show => {
+                            let explanation = explained(&zmq_str);
+                            display_sender.send(zmq_str)?;
+                            if let Some(explanation) = explanation {
+                                display_sender.send(explanation)?;
+                            }
+                        }
                         Feed::Hide => (),
                         Feed::Done(fetched) => store_fetched_names(&args, &fetched, &display_sender)?,
                         Feed::ShowAndDone(fetched) => {

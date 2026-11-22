@@ -117,8 +117,8 @@ g_spSkill	5	Nightmare	e
 g_startingWeapons	1	Gauntlet	b
 g_startingWeapons	2	Machinegun	b
 g_startingWeapons	4	Shotgun	b
-g_startingWeapons	8	Grenade Luncher	b
-g_startingWeapons	16	Rocket Luncher	b
+g_startingWeapons	8	Grenade Launcher	b
+g_startingWeapons	16	Rocket Launcher	b
 g_startingWeapons	32	Lightning Gun	b
 g_startingWeapons	64	Railgun	b
 g_startingWeapons	128	Plasmagun	b
@@ -131,8 +131,8 @@ g_startingWeapons	8192	Map Default Weapons	b
 g_startingWeapons	1	Gauntlet	e
 g_startingWeapons	2	Machinegun	e
 g_startingWeapons	4	Shotgun	e
-g_startingWeapons	8	Grenade Luncher	e
-g_startingWeapons	16	Rocket Luncher	e
+g_startingWeapons	8	Grenade Launcher	e
+g_startingWeapons	16	Rocket Launcher	e
 g_startingWeapons	32	Lightning Gun	e
 g_startingWeapons	64	Railgun	e
 g_startingWeapons	128	Plasmagun	e

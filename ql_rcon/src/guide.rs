@@ -22,6 +22,45 @@ pub(crate) fn value_labels(cvar: &str) -> Vec<(&'static str, &'static str)> {
         .collect()
 }
 
+/// What a value of a cvar stands for: the names of the bits that are set for a bit field, the label for an enumeration.
+pub(crate) fn meaning(cvar: &str, value: &str) -> Option<String> {
+    let value: i64 = value.trim().trim_end_matches("^7").trim().parse().ok()?;
+    let rows: Vec<(i64, &str, &str)> = ENUMS
+        .lines()
+        .filter_map(
+            |line| match line.split('\t').collect::<Vec<_>>().as_slice() {
+                [name, bit, label, kind] if name.eq_ignore_ascii_case(cvar) => {
+                    Some((bit.parse().ok()?, label.trim_matches('"'), *kind))
+                }
+                _ => None,
+            },
+        )
+        .collect();
+
+    let bits: Vec<_> = rows.iter().filter(|(_, _, kind)| *kind == "b").collect();
+    if bits.is_empty() {
+        return rows
+            .iter()
+            .find(|(known, _, _)| *known == value)
+            .map(|(_, label, _)| (*label).to_string());
+    }
+
+    let mut names: Vec<String> = bits
+        .iter()
+        .filter(|(bit, _, _)| *bit != 0 && value & bit == *bit)
+        .map(|(_, label, _)| (*label).to_string())
+        .collect();
+    let known = bits.iter().fold(0, |known, (bit, _, _)| known | bit);
+    if value & !known != 0 {
+        names.push(format!("unknown bits {:#x}", value & !known));
+    }
+    Some(if names.is_empty() {
+        "no bit set".to_string()
+    } else {
+        names.join(" + ")
+    })
+}
+
 /// The flags of a cvar as the guide lists them, for example `AL`.
 pub(crate) fn flags_for(cvar: &str) -> &'static str {
     FLAGS
@@ -45,7 +84,35 @@ pub(crate) fn help_for(name: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod guide_tests {
-    use super::{flags_for, help_for, value_labels};
+    use super::{flags_for, help_for, meaning, value_labels};
+
+    #[test]
+    fn bit_fields_are_broken_down_into_their_bits() {
+        assert_eq!(
+            meaning("g_startingWeapons", "4100").as_deref(),
+            Some("Shotgun + Chaingun")
+        );
+        assert_eq!(
+            meaning("g_startingWeapons", "16384").as_deref(),
+            Some("unknown bits 0x4000")
+        );
+        assert_eq!(
+            meaning("g_startingWeapons", "0").as_deref(),
+            Some("no bit set")
+        );
+        assert_eq!(
+            meaning("G_DROPCMDS", "5^7").as_deref(),
+            Some("flags (dropflag) + weapons (dropweapon)")
+        );
+    }
+
+    #[test]
+    fn enumerations_are_named_and_unknown_values_are_not() {
+        assert_eq!(meaning("g_gametype", "4").as_deref(), Some("Clan Arena"));
+        assert_eq!(meaning("g_gametype", "99"), None);
+        assert_eq!(meaning("g_gametype", "x"), None);
+        assert_eq!(meaning("no_such_cvar", "1"), None);
+    }
 
     #[test]
     fn flags_are_found_in_any_case() {
