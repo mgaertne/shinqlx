@@ -26,6 +26,24 @@ use crate::{
 
 create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
 
+/// The cvar value `"1"` or `"0"` for a `bool`, `1` or `0`; `name` is the attribute in the error message.
+fn flag_cvar_value(value: &Bound<'_, PyAny>, name: &str) -> PyResult<&'static str> {
+    match value
+        .extract::<bool>()
+        .map(i32::from)
+        .or_else(|_| value.extract::<i32>())
+    {
+        Ok(1) => Ok("1"),
+        Ok(0) => Ok("0"),
+        _ => {
+            cold_path();
+            Err(PyValueError::new_err(format!(
+                "{name} needs to be 0, 1, or a bool."
+            )))
+        }
+    }
+}
+
 /// A class representing the game. That is, stuff like what map is being played,
 /// if it's in warmup, and so on. It also has methods to call in timeins, aborts,
 /// pauses, and so on.
@@ -654,20 +672,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_instagib(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<bool>() {
-            Ok(true) => "1",
-            Ok(false) => "0",
-            Err(_) => match value.extract::<i32>() {
-                Ok(1) => "1",
-                Ok(0) => "0",
-                _ => {
-                    cold_path();
-                    return Err(PyValueError::new_err(
-                        "instagib needs to be 0, 1, or a bool.",
-                    ));
-                }
-            },
-        };
+        let string_cvar_value = flag_cvar_value(value, "instagib")?;
         pyshinqlx_set_cvar(self.py(), "g_instagib", string_cvar_value, None).map(|_| ())
     }
 
@@ -678,20 +683,7 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_loadout(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<bool>() {
-            Ok(true) => "1",
-            Ok(false) => "0",
-            Err(_) => match value.extract::<i32>() {
-                Ok(1) => "1",
-                Ok(0) => "0",
-                _ => {
-                    cold_path();
-                    return Err(PyValueError::new_err(
-                        "loadout needs to be 0, 1, or a bool.",
-                    ));
-                }
-            },
-        };
+        let string_cvar_value = flag_cvar_value(value, "loadout")?;
         pyshinqlx_set_cvar(self.py(), "g_loadout", string_cvar_value, None).map(|_| ())
     }
 
@@ -847,11 +839,11 @@ mod pyshinqlx_game_tests {
     use pyo3::{
         exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
         intern,
-        types::{PyBool, PyInt, PyList, PyString},
+        types::{PyBool, PyFloat, PyInt, PyList, PyString},
     };
     use rstest::rstest;
 
-    use super::{Game, GameMethods, NonexistentGameError};
+    use super::{Game, GameMethods, NonexistentGameError, flag_cvar_value};
     use crate::{
         ffi::{
             c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
@@ -859,6 +851,54 @@ mod pyshinqlx_game_tests {
         },
         prelude::*,
     };
+
+    #[rstest]
+    #[case(true, Ok("1"))]
+    #[case(false, Ok("0"))]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flag_cvar_value_accepts_bools(
+        _pyshinqlx_setup: (),
+        #[case] value: bool,
+        #[case] expected: Result<&'static str, ()>,
+    ) {
+        Python::attach(|py| {
+            let result = flag_cvar_value(PyBool::new(py, value).as_any(), "flag");
+
+            assert_eq!(result.map_err(|_| ()), expected);
+        });
+    }
+
+    #[rstest]
+    #[case(1, Ok("1"))]
+    #[case(0, Ok("0"))]
+    #[case(2, Err(()))]
+    #[case(32, Err(()))]
+    #[case(-1, Err(()))]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flag_cvar_value_accepts_only_zero_and_one_as_integers(
+        _pyshinqlx_setup: (),
+        #[case] value: i32,
+        #[case] expected: Result<&'static str, ()>,
+    ) {
+        Python::attach(|py| {
+            let result = flag_cvar_value(PyInt::new(py, value).as_any(), "flag");
+
+            assert_eq!(result.map_err(|_| ()), expected);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flag_cvar_value_rejects_strings_and_floats(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            assert!(flag_cvar_value(PyString::intern(py, "1").as_any(), "flag").is_err());
+            assert!(flag_cvar_value(PyFloat::new(py, 1.0).as_any(), "flag").is_err());
+            assert!(flag_cvar_value(py.None().bind(py), "flag").is_err());
+        });
+    }
 
     fn default_game() -> Game {
         Game {
