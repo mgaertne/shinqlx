@@ -1,0 +1,77 @@
+# ql_rcon
+
+Remote console for the ZMQ rcon interface of Quake Live servers. It sends the lines you type, prints the replies with
+the Quake color codes rendered and completes commands, cvars, map names and values with Tab.
+
+```
+ql_rcon --host tcp://192.0.2.1:27961 --password secret
+ql_rcon crimson-arena
+```
+
+## Options
+
+| Option | Meaning |
+|---|---|
+| `<server>` | Name of a server file, see below. |
+| `--host <uri>` | ZMQ URI, `tcp://127.0.0.1:27961` by default; `host:port` is taken as `tcp://host:port`. |
+| `--password <text>` | The ZMQ rcon password. Without one in the options and the server file, `ql_rcon` asks for it on the terminal; the input is not echoed and an empty answer means no password. |
+| `--identity <text>` | Socket identity, a random UUID by default. |
+| `--color <always\|ansi\|auto\|never>` | Color output, `auto` by default. |
+| `--fetch-completions` | Asks the server for its commands, cvars and maps at the start and keeps them for the completion. |
+| `--save-server <name>` | Saves host, password and identity as the server file `<name>` and connects. |
+
+## Server files
+
+`ql_rcon crimson-arena` reads `servers/crimson-arena.toml` from the config directory (`~/.config/ql_rcon/` on Linux, found by the
+`directories` crate) and connects with what is in it. Options on the command line win over the file, the file wins over
+the defaults. Create it with `--save-server crimson-arena --host … --password …` or by hand:
+
+```toml
+host = "tcp://192.0.2.1:27961"
+password = "secret"
+identity = "my-laptop"
+color = "auto"
+```
+
+Every key is optional. A `password = ""` means that the server has no password and `ql_rcon` does not ask for one.
+
+**The password is stored as plain text, so keep the file private.** `--save-server` creates it readable for the owner
+only (`chmod 600`), and `ql_rcon` warns at the start if a server file with a password can be read by other users. When
+you create or copy the file yourself, restrict it with `chmod 600 ~/.config/ql_rcon/servers/crimson-arena.toml`. Leave the
+password out of the file if the machine is shared; `ql_rcon` then asks for it at every start.
+
+### What the server reports
+
+When a session uses a server file, what the server reports is kept in the same file, in tables that `ql_rcon` updates
+and you may edit; comments and the order of your own keys stay as they are:
+
+```toml
+[completions]
+names = ["addbot", "bot_enable", "sv_maxclients"]   # commands and cvars, from cmdlist and cvarlist
+maps = ["aerowalk", "campgrounds"]                    # from "dir maps .bsp"
+factories = ["ca", "ctf", "ffa"]                      # from the map command
+latched = ["bot_enable"]                              # "<cvar> will be changed to <value> upon restarting."
+read_only = ["sv_cheats"]                             # "<cvar> is read only."
+
+[usages]
+kick = "kick <player name>"
+
+[cvars.sv_maxclients]                                 # from the answer to a cvar query
+default = "8"
+minimum = ""
+maximum = ""
+```
+
+The lists grow when you type `cmdlist`, `cvarlist` or `dir maps .bsp` yourself, or when you start with
+`--fetch-completions`. Without a server file the same data goes into `completions-<host>.txt` and
+`learned-<host>.txt` next to it.
+
+## Own completions
+
+`commands.txt` (all servers) and `commands-<host>.txt` in the config directory hold your own command and cvar names,
+one per line; empty lines and lines starting with `#` are skipped. The same works for `maps.txt` and `values.txt`
+(`cvar<TAB>value<TAB>meaning`).
+
+## History
+
+The input history is kept per server in `~/.ql_zmq_rcon-<host>.history`.

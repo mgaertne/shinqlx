@@ -33,6 +33,12 @@ Changes since 0.8.0.
   polled every 25 ms, one server frame, and received lines are shown at once instead of after up to 250 ms. The input
   is read on its own blocking thread, and the tool runs on a single-threaded Tokio runtime without the `RwLock`s and
   `unsafe impl Send/Sync` around the sockets.
+* **`ql_rcon` keeps a file per server**: `ql_rcon crimson-arena` reads `servers/crimson-arena.toml` from the config directory and
+  connects with its `host`, `password`, `identity` and `color`; options on the command line win. `--save-server <name>`
+  creates the file (readable for the owner only, `ql_rcon` warns about a readable file with a password). Without a
+  password in the options and the file, `ql_rcon` asks for it on the terminal. What the server reports (names, maps,
+  factories, latched and read-only cvars, usages, defaults and ranges) is kept in tables of the same file instead of
+  the `completions-<host>.txt` and `learned-<host>.txt` files; comments in the file stay. See `ql_rcon/README.md`.
 * **`ql_rcon` reads along when you type `cmdlist`, `cvarlist` or `dir maps .bsp`** and adds the names to the same
   `completions-<host>.txt` files as `--fetch-completions`, without hiding the output and without the flag.
 * **`ql_rcon` notes in the completion list how a cvar can be set**: `[cheat]`, `[init only]`, `[latched]`,

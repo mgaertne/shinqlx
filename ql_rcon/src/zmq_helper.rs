@@ -308,6 +308,7 @@ mod zmq_helper_tests {
                 identity: "tester".to_string(),
                 color: ColorChoice::Never,
                 fetch_completions: false,
+                profile: None,
             },
             zmq_receiver,
             display_sender,

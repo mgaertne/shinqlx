@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use directories::{ProjectDirs, UserDirs};
+use directories::UserDirs;
 use linefeed::{
     Completer, Completion, DefaultTerminal, Interface, Prompter, ReadResult, Signal, Suffix,
 };
@@ -18,10 +18,12 @@ use tokio::{
 };
 
 use crate::{
-    CONTINUE_RUNNING, CommandLineOptions,
+    CONTINUE_RUNNING,
+    cmd_line::CommandLineOptions,
     fetch::Fetched,
     guide::{flags_for, help_for, value_labels},
     learn::Learned,
+    profile::{ServerFile, config_dir, server_file},
 };
 
 /// Console commands of Quake Live, one per line.
@@ -312,8 +314,12 @@ fn parse_user_names(text: &str) -> impl Iterator<Item = &str> {
         .filter(|line| !line.is_empty() && !line.starts_with('#'))
 }
 
-fn config_dir() -> Option<PathBuf> {
-    ProjectDirs::from("", "", "ql_rcon").map(|dirs| dirs.config_dir().to_path_buf())
+/// The server file of the session, if it was started with one.
+fn profile_file(args: &CommandLineOptions) -> Option<ServerFile> {
+    args.profile
+        .as_deref()
+        .and_then(server_file)
+        .map(ServerFile::new)
 }
 
 /// The file that `--fetch-completions` keeps for the connected server: `completions-<host>.txt` for the names and
@@ -344,6 +350,11 @@ pub(crate) fn save_completions(
     args: &CommandLineOptions,
     fetched: &Fetched,
 ) -> io::Result<PathBuf> {
+    if let Some(file) = profile_file(args) {
+        file.merge_fetched(fetched)?;
+        return Ok(file.path().to_path_buf());
+    }
+
     let missing = || {
         io::Error::new(
             io::ErrorKind::NotFound,
@@ -427,6 +438,10 @@ fn learned_line(learned: &Learned) -> (String, String) {
 
 /// Keeps what the server reported in `learned-<host>.txt`; a newer report replaces the older one of the same entry.
 pub(crate) fn remember(args: &CommandLineOptions, learned: &Learned) -> io::Result<()> {
+    if let Some(file) = profile_file(args) {
+        return file.remember(learned);
+    }
+
     let Some(file) = fetched_file(args, "learned") else {
         return Ok(());
     };
@@ -479,6 +494,29 @@ fn load_learned(args: &CommandLineOptions, user: &mut UserLists) {
     }
 }
 
+fn load_profile(file: &ServerFile, user: &mut UserLists) {
+    user.names.extend(file.names());
+    user.maps.extend(file.maps());
+    user.factories = file.factories();
+    user.latched.extend(file.latched());
+    user.read_only.extend(file.read_only());
+    user.usages.extend(file.usages());
+    user.cvars.extend(
+        file.cvars()
+            .into_iter()
+            .map(|(name, (default, minimum, maximum))| {
+                (
+                    name,
+                    LearnedCvar {
+                        default,
+                        minimum,
+                        maximum,
+                    },
+                )
+            }),
+    );
+}
+
 /// Lines `cvar<TAB>value<TAB>meaning` of `values.txt` and `values-<host>.txt`.
 fn parse_labels(lines: &[String]) -> HashMap<String, Vec<(String, String)>> {
     let mut labels: HashMap<String, Vec<(String, String)>> = HashMap::new();
@@ -508,6 +546,9 @@ fn load_user_lists(args: &CommandLineOptions) -> UserLists {
         ..UserLists::default()
     };
     load_learned(args, &mut user);
+    if let Some(file) = profile_file(args) {
+        load_profile(&file, &mut user);
+    }
     let queried: Vec<String> = user.cvars.keys().cloned().collect();
     user.names.extend(queried);
     user
@@ -808,7 +849,6 @@ fn read_input(
 
 #[cfg(test)]
 mod linefeed_helper_tests {
-    use clap::Parser;
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
