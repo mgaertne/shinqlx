@@ -120,6 +120,8 @@ parking_lot_012 = { package = "parking_lot", version = "0.12.5", default-feature
 # for benchmark tests
 criterion = { version = ">=0.8", default-features = false, features = ["cargo_bench_support", "rayon"] }
 criterion-macro = { version = ">=0.4", default-features = false }
+# keeps minimal-versions away from is_terminal_polyfill 1.48, which pulls in rustix 0.36 that no longer compiles
+is_terminal_polyfill = { version = ">=1.70", default-features = false }
 
 [features]
 default = ["alloc", "steam-query-limit", "zmq-rcon-fix"]
