@@ -7,6 +7,11 @@
 .tox/
 _docs_out/
 
+# measurement leftovers of tarpaulin
+/cobertura.xml
+/coverage/
+/tarpaulin-report.html
+
 # locally built python extension modules
 python/shinqlx/*.so
 __pycache__/

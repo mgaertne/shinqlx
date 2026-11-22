@@ -27,7 +27,7 @@ docs = [ "sphinx>=7" ]
 Homepage = "https://github.com/mgaertne/shinqlx"
 Documentation = "https://shinqlx.readthedocs.io/"
 Source = "https://github.com/mgaertne/shinqlx"
-Changelog = "https://github.com/mgaertne/shinqlx/blob/main/RELEASE_NOTES.md"
+Changelog = "https://github.com/mgaertne/shinqlx/blob/main/CHANGELOG.md"
 Issues = "https://github.com/mgaertne/shinqlx/issues"
 
 [tool.maturin]
