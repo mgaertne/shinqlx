@@ -198,6 +198,7 @@ fn handle_reply<S: CompletionStore>(
             }
         }
         Feed::Hide => (),
+        Feed::Replace(line) => sender.send(line)?,
         Feed::Done(fetched) => store_fetched_names(store, &fetched, sender)?,
         Feed::ShowAndDone(fetched) => {
             sender.send(text)?;
@@ -360,6 +361,7 @@ mod zmq_helper_tests {
             locked(&self.saved).push(Fetched {
                 names: fetched.names.clone(),
                 maps: fetched.maps.clone(),
+                flags: fetched.flags.clone(),
             });
             Ok(PathBuf::from("completions.txt"))
         }

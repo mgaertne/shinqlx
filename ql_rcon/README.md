@@ -53,6 +53,9 @@ factories = ["ca", "ctf", "ffa"]                      # from the map command
 latched = ["bot_enable"]                              # "<cvar> will be changed to <value> upon restarting."
 read_only = ["sv_cheats"]                             # "<cvar> is read only."
 
+[flags]
+sv_hostname = "SA"                                    # flag letters of cvarlist, noted next to the name in the menu
+
 [usages]
 kick = "kick <player name>"
 
@@ -64,7 +67,10 @@ maximum = ""
 
 The lists grow when you type `cmdlist`, `cvarlist` or `dir maps .bsp` yourself, or when you start with
 `--fetch-completions`. Without a server file the same data goes into `completions-<host>.txt` and
-`learned-<host>.txt` next to it.
+`learned-<host>.txt` next to it (the flags only go into a server file).
+
+When you type `cvarlist` yourself, the one-letter flag lines of the server are joined to the cvar they belong to, so
+each line reads `SA   sv_hostname "A New Server"` with the flags in a column of their own.
 
 ## Own completions
 

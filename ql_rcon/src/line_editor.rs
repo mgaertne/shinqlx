@@ -165,12 +165,16 @@ struct UserLists {
     cvars: HashMap<String, LearnedCvar>,
     latched: HashSet<String>,
     read_only: HashSet<String>,
+    cvar_flags: HashMap<String, String>,
 }
 
 /// What setting the cvar does according to the guide and to what the server said: `latched`, `read-only` and so on.
 fn setting_note(cvar: &str, user: &UserLists) -> Option<String> {
     let name = cvar.to_lowercase();
     let mut flags = flags_for(cvar).to_string();
+    if let Some(reported) = user.cvar_flags.get(&name) {
+        flags.push_str(reported);
+    }
     if user.latched.contains(&name) {
         flags.retain(|flag| !matches!(flag, 'R' | 'W'));
         flags.push('L');
@@ -500,6 +504,7 @@ fn load_profile(file: &ServerFile, user: &mut UserLists) {
     user.latched.extend(file.latched());
     user.read_only.extend(file.read_only());
     user.usages.extend(file.usages());
+    user.cvar_flags.extend(file.cvar_flags());
     user.cvars.extend(
         file.cvars()
             .into_iter()
@@ -1225,6 +1230,18 @@ mod line_editor_tests {
             Some("[latched]".to_string())
         );
         assert_eq!(setting_note("sv_hostname", &user), None);
+    }
+
+    #[test]
+    fn the_flags_of_the_cvarlist_are_noted() {
+        let mut user = UserLists::default();
+        user.cvar_flags
+            .insert("sv_hostname".to_string(), "SAC".to_string());
+
+        assert_eq!(
+            setting_note("sv_hostname", &user),
+            Some("[cheat]".to_string())
+        );
     }
 
     #[test]

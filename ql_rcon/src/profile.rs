@@ -276,7 +276,35 @@ impl ServerFile {
             let completions = table_mut(document.as_table_mut(), "completions");
             merge_list(completions, "names", &fetched.names);
             merge_list(completions, "maps", &fetched.maps);
+            if !fetched.flags.is_empty() {
+                let flags = table_mut(document.as_table_mut(), "flags");
+                for (name, letters) in &fetched.flags {
+                    flags.insert(&name.to_lowercase(), value(letters.as_str()));
+                }
+            }
         })
+    }
+
+    /// The flag letters of the cvars that `cvarlist` reported, for example `("sv_hostname", "SA")`.
+    pub(crate) fn cvar_flags(&self) -> Vec<(String, String)> {
+        let Ok(document) = self.document() else {
+            return Vec::new();
+        };
+
+        document
+            .get("flags")
+            .and_then(Item::as_table)
+            .map(|table| {
+                table
+                    .iter()
+                    .filter_map(|(name, letters)| {
+                        letters
+                            .as_str()
+                            .map(|letters| (name.to_string(), letters.to_string()))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     /// Keeps what the server reported on its own; a newer report replaces the older one of the same entry.
@@ -413,16 +441,35 @@ mod profile_tests {
         file.merge_fetched(&Fetched {
             names: vec!["kick".to_string(), "Map".to_string()],
             maps: vec!["zen".to_string()],
+            flags: Vec::new(),
         })
         .expect("the file is written");
         file.merge_fetched(&Fetched {
             names: vec!["map".to_string(), "addbot".to_string()],
             maps: Vec::new(),
+            flags: Vec::new(),
         })
         .expect("the file is written");
 
         assert_eq!(file.names(), ["addbot", "kick", "Map"]);
         assert_eq!(file.maps(), ["zen"]);
+        cleanup(&file);
+    }
+
+    #[test]
+    fn the_flags_of_the_cvars_are_kept_per_lowercase_name() {
+        let file = ServerFile::new(scratch_file());
+        file.merge_fetched(&Fetched {
+            names: Vec::new(),
+            maps: Vec::new(),
+            flags: vec![("SV_Hostname".to_string(), "SA".to_string())],
+        })
+        .expect("the file is written");
+
+        assert_eq!(
+            file.cvar_flags(),
+            [("sv_hostname".to_string(), "SA".to_string())]
+        );
         cleanup(&file);
     }
 

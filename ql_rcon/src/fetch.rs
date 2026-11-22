@@ -15,6 +15,7 @@ pub(crate) enum Feed {
     Hide,
     Done(Fetched),
     ShowAndDone(Fetched),
+    Replace(String),
 }
 
 /// What the server reported: command and cvar names, and map names without the `.bsp`.
@@ -22,12 +23,16 @@ pub(crate) enum Feed {
 pub(crate) struct Fetched {
     pub(crate) names: Vec<String>,
     pub(crate) maps: Vec<String>,
+    pub(crate) flags: Vec<(String, String)>,
 }
 
 impl Fetched {
     fn sorted(mut self) -> Self {
         self.names = finished(self.names);
         self.maps = finished(self.maps);
+        self.flags
+            .sort_unstable_by_key(|(name, _)| name.to_lowercase());
+        self.flags.dedup_by_key(|(name, _)| name.to_lowercase());
         self
     }
 }
@@ -41,9 +46,13 @@ pub(crate) enum FetchState {
         started: Instant,
         last_line: Instant,
         visible: bool,
+        pending_flags: String,
     },
     Done,
 }
+
+/// Width of the column that holds the flags in front of a cvar of a `cvarlist` the user typed.
+const FLAG_COLUMN: usize = 4;
 
 /// A list typed by the user has no end marker (`cmdlist`, `dir`), so it ends after this much silence.
 const PASSIVE_IDLE: Duration = Duration::from_millis(1500);
@@ -82,6 +91,7 @@ impl FetchState {
             started: Instant::now(),
             last_line: Instant::now(),
             visible: false,
+            pending_flags: String::new(),
         };
         true
     }
@@ -97,6 +107,7 @@ impl FetchState {
             started: Instant::now(),
             last_line: Instant::now(),
             visible: true,
+            pending_flags: String::new(),
         };
     }
 
@@ -106,6 +117,7 @@ impl FetchState {
             found,
             visible,
             last_line,
+            pending_flags,
             ..
         } = self
         else {
@@ -134,8 +146,12 @@ impl FetchState {
                 };
             }
             (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => hidden,
-            (Some(flag), None, _) if is_flag(flag) => hidden,
+            (Some(flag), None, _) if is_flag(flag) => {
+                pending_flags.push_str(flag);
+                Feed::Hide
+            }
             (Some(name), None, _) if is_name(name) => {
+                pending_flags.clear();
                 found.names.push(name.to_string());
                 hidden
             }
@@ -145,8 +161,16 @@ impl FetchState {
                     && line.ends_with('"')
                     && !value.is_empty() =>
             {
+                let flags = core::mem::take(pending_flags);
                 found.names.push(name.to_string());
-                hidden
+                if !flags.is_empty() {
+                    found.flags.push((name.to_string(), flags.clone()));
+                }
+                if *visible {
+                    Feed::Replace(format!("{flags:<FLAG_COLUMN$} {line}"))
+                } else {
+                    Feed::Hide
+                }
             }
             _ => Feed::Show,
         };
@@ -161,6 +185,7 @@ impl FetchState {
             started,
             last_line,
             visible,
+            ..
         } = self
         else {
             return None;
@@ -230,6 +255,7 @@ mod fetch_tests {
                     "touchFile".to_string()
                 ],
                 maps: Vec::new(),
+                flags: Vec::new(),
             })
         );
     }
@@ -248,6 +274,7 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: Vec::new(),
                 maps: vec!["aerowalk".to_string(), "zen".to_string()],
+                flags: Vec::new(),
             })
         );
     }
@@ -273,6 +300,7 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: vec!["kick".to_string(), "map".to_string()],
                 maps: Vec::new(),
+                flags: Vec::new(),
             })
         );
     }
@@ -305,6 +333,28 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: vec!["bot_enable".to_string(), "sv_hostname".to_string()],
                 maps: Vec::new(),
+                flags: vec![
+                    ("bot_enable".to_string(), "L".to_string()),
+                    ("sv_hostname".to_string(), "SA".to_string()),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn flags_do_not_carry_over_from_a_command_to_the_next_cvar() {
+        let mut state = collecting();
+
+        for line in ["S", "addbot", "bot_enable \"0\""] {
+            state.feed(line);
+        }
+
+        assert_eq!(
+            state.feed("1 cvar indexes"),
+            Feed::Done(Fetched {
+                names: vec!["addbot".to_string(), "bot_enable".to_string()],
+                maps: Vec::new(),
+                flags: Vec::new(),
             })
         );
     }
@@ -314,13 +364,23 @@ mod fetch_tests {
         let mut state = FetchState::new(false);
         state.user_sent("cvarlist");
 
-        assert_eq!(state.feed("sv_cheats \"0\""), Feed::Show);
+        assert_eq!(state.feed("S"), Feed::Hide);
+        assert_eq!(state.feed("A"), Feed::Hide);
+        assert_eq!(
+            state.feed("sv_hostname \"A New Server\""),
+            Feed::Replace("SA   sv_hostname \"A New Server\"".to_string())
+        );
+        assert_eq!(
+            state.feed("sv_cheats \"0\""),
+            Feed::Replace("     sv_cheats \"0\"".to_string())
+        );
         assert_eq!(state.feed("12 total cvars"), Feed::Show);
         assert_eq!(
             state.feed("12 cvar indexes"),
             Feed::ShowAndDone(Fetched {
-                names: vec!["sv_cheats".to_string()],
+                names: vec!["sv_cheats".to_string(), "sv_hostname".to_string()],
                 maps: Vec::new(),
+                flags: vec![("sv_hostname".to_string(), "SA".to_string())],
             })
         );
     }
@@ -349,6 +409,7 @@ mod fetch_tests {
             Some(Fetched {
                 names: vec!["kick".to_string()],
                 maps: Vec::new(),
+                flags: Vec::new(),
             })
         );
     }
