@@ -32,7 +32,7 @@ r_colorbits	0	default	e
 r_colorbits	16	16 bit color	e
 r_colorbits	24	24 bit color	e
 r_colorbits	32	32 bit color	e
-r_debugSurfaceUpdate	0	first bounding box that appears will remain and others will not    appear.	e
+r_debugSurfaceUpdate	0	first bounding box that appears will remain and others will not appear.	e
 r_debugSurfaceUpdate	1	changes the bounding box according to location.	e
 r_depthbits	0	Uses the desktop depth bits.	e
 r_depthbits	16	16-bit. Can result in artifacts.	e
@@ -59,7 +59,7 @@ r_norefresh	0	rendering refreshes allowed	e
 r_norefresh	1	no rendering refreshes	e
 r_novis	0	VIS enabled	e
 r_novis	1	no VIS	e
-r_primitives	0	uses glDrawelements if compiled vertex arrays are present, or strips of    glArrayElement if not.	e
+r_primitives	0	uses glDrawelements if compiled vertex arrays are present, or strips of glArrayElement if not.	e
 r_primitives	1	force strips	e
 r_primitives	2	force drawElements	e
 r_stencilbits	16	16-bit	e
@@ -196,11 +196,11 @@ cg_clanOnTeamOverlay	0	hidden	e
 cg_clanOnTeamOverlay	1	shown	e
 cg_crosshairHitStyle	0	Off	e
 cg_crosshairHitStyle	1	Colorize the crosshair based on damage dealt.	e
-cg_crosshairHitStyle	2	Colorize the crosshair to color designated by    cg_crosshairHitColor.	e
+cg_crosshairHitStyle	2	Colorize the crosshair to color designated by cg_crosshairHitColor.	e
 cg_crosshairHitStyle	3	Pulse the crosshair (exaggerated/scaled pulse)	e
 cg_crosshairHitStyle	4	Colorize by damage and Pulse the crosshair.	e
 cg_crosshairHitStyle	5	Colorize by cg_crosshairHitColor and Pulse the crosshair.	e
-cg_crosshairHitStyle	6	Pulse the crosshair with a smaller pulse. (same size as the    cg_crosshairPulse uses when picking items up)	e
+cg_crosshairHitStyle	6	Pulse the crosshair with a smaller pulse. (same size as the cg_crosshairPulse uses when picking items up)	e
 cg_crosshairHitStyle	7	Colorize by damage and pulse with smaller pulse.	e
 cg_crosshairHitStyle	8	Colorize by cg_crosshairHitColor and pulse with smaller pulse.	e
 cg_draw2D	0	No HUD	e
@@ -209,7 +209,7 @@ cg_drawAmmoWarning	1	Normal-Sized Text Warning	e
 cg_drawAmmoWarning	2	Small-Sized Text Warning	e
 cg_drawCrosshairNames	0	disabled	e
 cg_drawCrosshairNames	1	enabled	e
-cg_drawCrosshairNames	2	enabled, also shows team mate health and armor when    cg_drawCrosshairTeamHealth 1	e
+cg_drawCrosshairNames	2	enabled, also shows team mate health and armor when cg_drawCrosshairTeamHealth 1	e
 cg_drawCrosshairTeamHealth	1	setting 1	e
 cg_drawCrosshairTeamHealth	2	setting 2	e
 cg_drawFullWeaponBar	0	Draw only currently held weapons on the weapon bar	e
@@ -255,7 +255,7 @@ cg_lightningStyle	3	Team Arena shaft	e
 cg_lightningStyle	4	Thin shaft	e
 cg_lightningStyle	5	Wide beam (Q3 style)	e
 cg_lowAmmoWarningSound	0	Disabled	e
-cg_lowAmmoWarningSound	1	Low Ammo Clip Reload Sound played for Low Ammo, No Ammo Click Sound    played for No Ammo	e
+cg_lowAmmoWarningSound	1	Low Ammo Clip Reload Sound played for Low Ammo, No Ammo Click Sound played for No Ammo	e
 cg_lowAmmoWarningSound	2	No Ammo Click Sound played for both Low and No Ammo	e
 cg_lowAmmoWeaponBarWarning	1	Draw weapon bar ammo value in red when empty	e
 cg_lowAmmoWeaponBarWarning	2	Draw weapon bar ammo value in yellow when low and red when empty	e

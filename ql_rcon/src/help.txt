@@ -123,9 +123,9 @@ cg_drawTeamOverlayY	Y-axis offset in respect of cg_drawteamoverlay 1 or 2. <-480
 cg_enableBreath	Enables the drawing of 'frosty' breaths on player models to depict cold weather.
 cg_enableRespawnTimer	Draws the respawn timings of certain items (armor, megahealth, powerups) for spectators - on private servers only. This feature is dependent upon server-side shoutcaster privileges being enabled. Items are sorted by height according to their placement in the level for non-CTF games, and are sorted by team according to proximity from flag in CTF.
 cg_enemyColor	Colorize bright enemy models. See appendix for common hex color codes.
-cg_enemyHeadColor	Colorize bright enemy model heads.  Replaces cg_enemyColor. See appendix for common hex color codes.
-cg_enemyLowerColor	Colorize bright enemy model legs.  Replaces cg_enemyColor. See appendix for common hex color codes.
-cg_enemyUpperColor	Colorize bright enemy model torso.  Replaces cg_enemyColor. See appendix for common hex color codes.
+cg_enemyHeadColor	Colorize bright enemy model heads. Replaces cg_enemyColor. See appendix for common hex color codes.
+cg_enemyLowerColor	Colorize bright enemy model legs. Replaces cg_enemyColor. See appendix for common hex color codes.
+cg_enemyUpperColor	Colorize bright enemy model torso. Replaces cg_enemyColor. See appendix for common hex color codes.
 cg_errordecay	Detects prediction errors and helps to smooth these errors out over a few frames to ease jerking.
 cg_filter_angles	Alters how the player's view camera changes in relation to aim position changes. When it is set to a value higher than 0, the view camera lags behind the player's aim position, causing a mouse smoothing effect.
 cg_followKiller	When enabled: In spectator mode, when a player scores a frag, the spectator view automatically switches to that player.
@@ -460,7 +460,7 @@ g_knockback_rl	Amount of knock back rockets (and splash damage) exert on players
 g_knockback_rl_self	Amount of knock back rocket splash damage exert on your own player.
 g_knockback_sg	Amount of knock back shotgun pellets exert on players.
 g_knockback_z	Sets player center of mass higher than the origin by the specified number of units when calculating knockback from enemy splash damage. This allows for more vertical knockback.
-g_lastManStandingMessage	Sets the message to display when a player is the sole survivor in clan arena and when g_lastManStandingWarning 1. 
+g_lastManStandingMessage	Sets the message to display when a player is the sole survivor in clan arena and when g_lastManStandingWarning 1.
 g_lastManStandingWarning	Enables the use of the sole survivor message in clan arena in a server.
 g_log	Enables logging of game data and statistics.
 g_logSync	Enables logging to append to an existing file.
@@ -743,7 +743,7 @@ r_lockpvs	Locks the Potentially Visible Set table, resulting in area
 r_lodbias	Sets level of geometric detail.
 r_lodCurveError	Level of detail curve error setting.
 r_lodscale	Level of detail scale adjustment.
-r_logFile	Sets the number of frames to emit GL logs. 
+r_logFile	Sets the number of frames to emit GL logs.
 r_mapOverBrightBits	Ambient lighting and radiance of the map.
 r_maskMinidriver	Treats the current OpenGL32 driver as an ICD, even
 r_maxpolys	Sets the maximum number of polygons drawn to the screen. Values lower than default appear to have no effect,

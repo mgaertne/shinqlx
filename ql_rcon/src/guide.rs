@@ -114,6 +114,17 @@ mod guide_tests {
     }
 
     #[test]
+    fn the_texts_have_no_runs_of_spaces_from_the_html() {
+        for text in [super::ENUMS, super::HELP] {
+            assert!(
+                text.lines()
+                    .all(|line| !line.contains("  ") && !line.ends_with(' ')),
+                "a line has two spaces in a row or a trailing space"
+            );
+        }
+    }
+
+    #[test]
     fn vote_flags_name_the_disabled_votes() {
         assert_eq!(
             meaning("g_voteFlags", "14054").as_deref(),
