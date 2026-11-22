@@ -145,8 +145,8 @@ g_startingWeapons	8192	Map Default Weapons	e
 g_voteFlags	1	map	b
 g_voteFlags	2	map_restart	b
 g_voteFlags	4	nextmap	b
-g_voteFlags	8	g_gametype	b
-g_voteFlags	16	clientkick/kick	b
+g_voteFlags	8	gametype	b
+g_voteFlags	16	kick	b
 g_voteFlags	32	timelimit	b
 g_voteFlags	64	fraglimit	b
 g_voteFlags	128	shuffle	b
