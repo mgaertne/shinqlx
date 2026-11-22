@@ -105,6 +105,12 @@ Changes since 0.8.0.
   and `futures` are new dependencies.
 * The deferred calls of the native plugins and the stats events are queued directly, without the Python decorators
   `delay` and `next_frame` and without helper modules written in Python.
+* The chat log is written with a rolling `log4rs` file instead of Python's `logging`; the plugin manager calls the plugin
+  loader directly instead of through the `shinqlx` module; a rolled chat log keeps `qlx_chatlogs` files, and
+  `qlx_chatlogs 0` truncates the file at `qlx_chatlogsSize` instead of letting it grow.
+* The built-in event names live in one Rust enum that the dispatchers and `Events` share.
+* The console loop of `ql_rcon` works on a `Transport` and a `CompletionStore` trait instead of the ZMQ socket and the
+  command line options, and its link handling is tested without sockets.
 
 ## 0.8.0 (2026-11-19)
 

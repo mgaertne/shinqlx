@@ -1,7 +1,5 @@
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::{sync::atomic::Ordering, time::Duration};
+use std::{io, path::PathBuf};
 
 use anyhow::Result;
 use arzmq::{
@@ -22,12 +20,61 @@ use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
-    learn::{Learner, explained},
+    learn::{Learned, Learner, explained},
     line_editor::{SessionFiles, remember, save_completions},
 };
 
 /// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+/// What happened to the connection to the server.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum LinkEvent {
+    Connected,
+    HandshakeSucceeded,
+    Failed(String),
+    Lost,
+    Other(String),
+}
+
+impl From<MonitorSocketEvent> for LinkEvent {
+    fn from(event: MonitorSocketEvent) -> Self {
+        match event {
+            MonitorSocketEvent::Connected => Self::Connected,
+            MonitorSocketEvent::HandshakeSucceeded => Self::HandshakeSucceeded,
+            MonitorSocketEvent::HandshakeFailedAuth(_)
+            | MonitorSocketEvent::HandshakeFailedProtocol(_)
+            | MonitorSocketEvent::HandshakeFailedNoDetail(_)
+            | MonitorSocketEvent::MonitorStopped => Self::Failed(format!("{event:?}")),
+            MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed => Self::Lost,
+            event => Self::Other(format!("{event:?}")),
+        }
+    }
+}
+
+/// What the console needs from the connection to the server, so that the loop does not depend on ZMQ.
+trait Transport {
+    async fn send(&self, line: &str);
+    async fn receive(&self) -> Option<String>;
+    async fn next_link_event(&self) -> Option<LinkEvent>;
+    fn connect(&self, endpoint: &str) -> Result<()>;
+}
+
+/// Where what the console learns about the server is kept.
+trait CompletionStore {
+    fn remember(&self, learned: &Learned) -> io::Result<()>;
+    fn save_completions(&self, fetched: &Fetched) -> io::Result<PathBuf>;
+}
+
+impl CompletionStore for SessionFiles {
+    fn remember(&self, learned: &Learned) -> io::Result<()> {
+        remember(self, learned)
+    }
+
+    fn save_completions(&self, fetched: &Fetched) -> io::Result<PathBuf> {
+        save_completions(self, fetched)
+    }
+}
 
 struct MonitoredDealer {
     dealer: DealerSocket,
@@ -89,31 +136,39 @@ impl MonitoredDealer {
         Ok(())
     }
 
-    fn connect(&self, address: &str) -> Result<()> {
-        self.dealer.connect(address)?;
-
-        Ok(())
-    }
-
     fn disconnect(&self) -> Result<()> {
         let last_endpoint = self.dealer.last_endpoint()?;
         self.dealer.disconnect(&last_endpoint)?;
 
         Ok(())
     }
+}
 
-    async fn send<M: Into<Message>, F: Into<SendFlags>>(&self, msg: M, flags: F) -> Option<()> {
-        self.dealer.send_msg_async(msg.into(), flags.into()).await?;
-
-        Some(())
+impl Transport for MonitoredDealer {
+    async fn send(&self, line: &str) {
+        self.dealer
+            .send_msg_async(Message::from(line), SendFlags::DONT_WAIT)
+            .await;
     }
 
-    async fn recv_msg(&self) -> Option<Message> {
-        self.dealer.recv_msg_async().await
+    async fn receive(&self) -> Option<String> {
+        self.dealer
+            .recv_msg_async()
+            .await
+            .map(|message| message.to_string())
     }
 
-    async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
-        self.monitor.recv_monitor_event_async().await
+    async fn next_link_event(&self) -> Option<LinkEvent> {
+        self.monitor
+            .recv_monitor_event_async()
+            .await
+            .map(LinkEvent::from)
+    }
+
+    fn connect(&self, endpoint: &str) -> Result<()> {
+        self.dealer.connect(endpoint)?;
+
+        Ok(())
     }
 }
 
@@ -123,79 +178,74 @@ fn trim_ql_msg(msg: &str) -> String {
         .replace('\u{0019}', "")
 }
 
-static FIRST_TIME: AtomicBool = AtomicBool::new(true);
-
-async fn handle_monitor_event(
-    event: MonitorSocketEvent,
-    monitored_dealer: &MonitoredDealer,
+async fn handle_link_event<T: Transport>(
+    event: LinkEvent,
+    transport: &T,
     sender: &UnboundedSender<String>,
     endpoint: &str,
     fetch: &mut FetchState,
+    first_time: &mut bool,
 ) -> Result<()> {
     match event {
-        MonitorSocketEvent::Connected => {
-            if FIRST_TIME.load(Ordering::Acquire) {
-                FIRST_TIME.store(false, Ordering::Release);
+        LinkEvent::Connected => {
+            if core::mem::take(first_time) {
                 sender.send("ZMQ registering with the server.".to_string())?;
             }
         }
 
-        MonitorSocketEvent::HandshakeSucceeded => {
-            FIRST_TIME.store(true, Ordering::Release);
-            sender.send(format!("ZMQ connected to {}.", endpoint))?;
+        LinkEvent::HandshakeSucceeded => {
+            *first_time = true;
+            sender.send(format!("ZMQ connected to {endpoint}."))?;
             if fetch.handshake_succeeded() {
                 for command in FETCH_COMMANDS {
-                    monitored_dealer.send(command, SendFlags::DONT_WAIT).await;
+                    transport.send(command).await;
                 }
             }
         }
 
-        MonitorSocketEvent::HandshakeFailedAuth(_)
-        | MonitorSocketEvent::HandshakeFailedProtocol(_)
-        | MonitorSocketEvent::HandshakeFailedNoDetail(_)
-        | MonitorSocketEvent::MonitorStopped => {
-            sender.send(format!("ZMQ socket error: {event:?}"))?;
+        LinkEvent::Failed(description) => {
+            sender.send(format!("ZMQ socket error: {description}"))?;
             CONTINUE_RUNNING.store(false, Ordering::Release);
         }
 
-        MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed => {
-            if FIRST_TIME.load(Ordering::Acquire) {
-                FIRST_TIME.store(false, Ordering::Release);
+        LinkEvent::Lost => {
+            if core::mem::take(first_time) {
                 sender.send("Reconnecting ZMQ...".to_string())?;
             }
-            if let Err(e) = monitored_dealer.connect(endpoint) {
+            if let Err(e) = transport.connect(endpoint) {
                 sender.send(format!("error reconnecting: {e:?}."))?;
             }
         }
 
-        event => {
-            sender.send(format!("ZMQ socket error: {event:?}",))?;
+        LinkEvent::Other(description) => {
+            sender.send(format!("ZMQ socket error: {description}"))?;
         }
     };
 
     Ok(())
 }
 
-/// Handles all monitor events that are waiting.
-async fn check_monitor(
-    monitored_dealer: &MonitoredDealer,
+/// Handles all link events that are waiting.
+async fn check_link<T: Transport>(
+    transport: &T,
     sender: &UnboundedSender<String>,
     endpoint: &str,
     fetch: &mut FetchState,
+    first_time: &mut bool,
 ) -> Result<()> {
-    while let Some(event) = monitored_dealer.check_monitor().await {
-        handle_monitor_event(event, monitored_dealer, sender, endpoint, fetch).await?;
+    while let Some(event) = transport.next_link_event().await {
+        handle_link_event(event, transport, sender, endpoint, fetch, first_time).await?;
     }
 
     Ok(())
 }
 
-fn store_fetched_names(
-    session: &SessionFiles,
+fn store_fetched_names<S: CompletionStore>(
+    store: &S,
     fetched: &Fetched,
     sender: &UnboundedSender<String>,
 ) -> Result<()> {
-    let message = match save_completions(session, fetched) {
+    let message = match store.save_completions(fetched) {
         Ok(file) => format!(
             "ZMQ fetched {} names for the completion into {}, they are used for the completion now.",
             fetched.names.len() + fetched.maps.len(),
@@ -204,6 +254,83 @@ fn store_fetched_names(
         Err(err) => format!("could not keep the fetched names: {err}"),
     };
     sender.send(message)?;
+
+    Ok(())
+}
+
+/// Shows a line of the server, keeps what it teaches the console and what the completion lists fetch.
+fn handle_reply<S: CompletionStore>(
+    text: String,
+    learner: &mut Learner,
+    fetch: &mut FetchState,
+    store: &S,
+    sender: &UnboundedSender<String>,
+) -> Result<()> {
+    if let Some(learned) = learner.feed(&text) {
+        store.remember(&learned).ok();
+    }
+    match fetch.feed(&text) {
+        Feed::Show => {
+            let explanation = explained(&text);
+            sender.send(text)?;
+            if let Some(explanation) = explanation {
+                sender.send(explanation)?;
+            }
+        }
+        Feed::Hide => (),
+        Feed::Done(fetched) => store_fetched_names(store, &fetched, sender)?,
+        Feed::ShowAndDone(fetched) => {
+            sender.send(text)?;
+            store_fetched_names(store, &fetched, sender)?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn run_console<T: Transport, S: CompletionStore>(
+    transport: &T,
+    store: &S,
+    endpoint: &str,
+    fetch_completions: bool,
+    zmq_receiver: &mut UnboundedReceiver<String>,
+    display_sender: &UnboundedSender<String>,
+) -> Result<()> {
+    let mut fetch = FetchState::new(fetch_completions);
+    let mut learner = Learner::default();
+    let mut first_time = true;
+
+    let mut poll = interval(POLL_INTERVAL);
+    poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+    while CONTINUE_RUNNING.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
+        select!(
+            biased;
+
+            Some(line) = zmq_receiver.recv() => {
+                fetch.user_sent(&line);
+                transport.send(&line).await;
+            },
+
+            _ = poll.tick() => {
+                while let Some(message) = transport.receive().await {
+                    handle_reply(
+                        trim_ql_msg(&message),
+                        &mut learner,
+                        &mut fetch,
+                        store,
+                        display_sender,
+                    )?;
+                }
+
+                if let Some(fetched) = fetch.expired() {
+                    store_fetched_names(store, &fetched, display_sender)?;
+                }
+
+                check_link(transport, display_sender, endpoint, &mut fetch, &mut first_time).await?;
+            }
+        );
+    }
 
     Ok(())
 }
@@ -217,56 +344,17 @@ pub(crate) async fn run_zmq(
 
     let monitored_dealer = MonitoredDealer::new()?;
     monitored_dealer.configure(&args.password, &args.identity)?;
-
     monitored_dealer.connect(&args.host)?;
 
-    let session = SessionFiles::from(&args);
-    let mut fetch = FetchState::new(args.fetch_completions);
-    let mut learner = Learner::default();
-
-    let mut poll = interval(POLL_INTERVAL);
-    poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
-
-    while CONTINUE_RUNNING.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
-        select!(
-            biased;
-
-            Some(line) = zmq_receiver.recv() => {
-                fetch.user_sent(&line);
-                monitored_dealer.send(&line, SendFlags::DONT_WAIT).await;
-            },
-
-            _ = poll.tick() => {
-                while let Some(zmq_msg) = monitored_dealer.recv_msg().await {
-                    let zmq_str = trim_ql_msg(&zmq_msg.to_string());
-                    if let Some(learned) = learner.feed(&zmq_str) {
-                        remember(&session, &learned).ok();
-                    }
-                    match fetch.feed(&zmq_str) {
-                        Feed::Show => {
-                            let explanation = explained(&zmq_str);
-                            display_sender.send(zmq_str)?;
-                            if let Some(explanation) = explanation {
-                                display_sender.send(explanation)?;
-                            }
-                        }
-                        Feed::Hide => (),
-                        Feed::Done(fetched) => store_fetched_names(&session, &fetched, &display_sender)?,
-                        Feed::ShowAndDone(fetched) => {
-                            display_sender.send(zmq_str)?;
-                            store_fetched_names(&session, &fetched, &display_sender)?;
-                        }
-                    }
-                }
-
-                if let Some(fetched) = fetch.expired() {
-                    store_fetched_names(&session, &fetched, &display_sender)?;
-                }
-
-                check_monitor(&monitored_dealer, &display_sender, &args.host, &mut fetch).await?;
-            }
-        );
-    }
+    let result = run_console(
+        &monitored_dealer,
+        &SessionFiles::from(&args),
+        &args.host,
+        args.fetch_completions,
+        &mut zmq_receiver,
+        &display_sender,
+    )
+    .await;
 
     drop(zmq_receiver);
 
@@ -274,18 +362,92 @@ pub(crate) async fn run_zmq(
 
     drop(display_sender);
 
-    Ok(())
+    result
 }
 
 #[cfg(test)]
 mod zmq_helper_tests {
     use core::{sync::atomic::Ordering, time::Duration};
+    use std::{
+        io,
+        path::PathBuf,
+        sync::{Mutex, MutexGuard},
+    };
 
+    use anyhow::Result;
     use arzmq::prelude::{ContextBuilder, RouterSocket, Socket};
     use termcolor::ColorChoice;
-    use tokio::{sync::mpsc::unbounded_channel, time::timeout};
+    use tokio::{
+        sync::mpsc::{UnboundedReceiver, unbounded_channel},
+        time::timeout,
+    };
 
-    use super::{CONTINUE_RUNNING, CommandLineOptions, run_zmq, trim_ql_msg};
+    use super::{
+        CONTINUE_RUNNING, CommandLineOptions, CompletionStore, FETCH_COMMANDS, FetchState,
+        LinkEvent, Transport, handle_link_event, handle_reply, run_zmq, trim_ql_msg,
+    };
+    use crate::{
+        fetch::Fetched,
+        learn::{Learned, Learner},
+    };
+
+    fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+        mutex.lock().expect("the recorded values are not poisoned")
+    }
+
+    #[derive(Default)]
+    struct FakeTransport {
+        sent: Mutex<Vec<String>>,
+        connected: Mutex<Vec<String>>,
+    }
+
+    impl Transport for FakeTransport {
+        async fn send(&self, line: &str) {
+            locked(&self.sent).push(line.to_string());
+        }
+
+        async fn receive(&self) -> Option<String> {
+            None
+        }
+
+        async fn next_link_event(&self) -> Option<LinkEvent> {
+            None
+        }
+
+        fn connect(&self, endpoint: &str) -> Result<()> {
+            locked(&self.connected).push(endpoint.to_string());
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct FakeStore {
+        remembered: Mutex<Vec<String>>,
+        saved: Mutex<Vec<Fetched>>,
+    }
+
+    impl CompletionStore for FakeStore {
+        fn remember(&self, learned: &Learned) -> io::Result<()> {
+            locked(&self.remembered).push(format!("{learned:?}"));
+            Ok(())
+        }
+
+        fn save_completions(&self, fetched: &Fetched) -> io::Result<PathBuf> {
+            locked(&self.saved).push(Fetched {
+                names: fetched.names.clone(),
+                maps: fetched.maps.clone(),
+            });
+            Ok(PathBuf::from("completions.txt"))
+        }
+    }
+
+    fn drained(receiver: &mut UnboundedReceiver<String>) -> Vec<String> {
+        let mut lines = Vec::new();
+        while let Ok(line) = receiver.try_recv() {
+            lines.push(line);
+        }
+        lines
+    }
 
     #[test]
     fn trim_ql_msg_removes_line_breaks_and_the_quake_marker() {
@@ -293,6 +455,98 @@ mod zmq_helper_tests {
         assert_eq!(trim_ql_msg("a\\nb"), "ab");
         assert_eq!(trim_ql_msg("\u{19}hello"), "hello");
         assert_eq!(trim_ql_msg("unchanged"), "unchanged");
+    }
+
+    #[test]
+    fn a_reply_is_shown_and_what_it_teaches_is_remembered() {
+        let store = FakeStore::default();
+        let (sender, mut receiver) = unbounded_channel();
+
+        handle_reply(
+            "usage: dir <directory> [extension]".to_string(),
+            &mut Learner::default(),
+            &mut FetchState::new(false),
+            &store,
+            &sender,
+        )
+        .expect("the reply can be handled");
+
+        assert_eq!(
+            drained(&mut receiver),
+            ["usage: dir <directory> [extension]"]
+        );
+        assert_eq!(locked(&store.remembered).len(), 1);
+        assert!(locked(&store.saved).is_empty());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn the_first_handshake_requests_the_lists_and_later_ones_do_not() {
+        let transport = FakeTransport::default();
+        let (sender, mut receiver) = unbounded_channel();
+        let mut fetch = FetchState::new(true);
+        let mut first_time = true;
+
+        for _ in 0..2 {
+            handle_link_event(
+                LinkEvent::HandshakeSucceeded,
+                &transport,
+                &sender,
+                "tcp://127.0.0.1:27961",
+                &mut fetch,
+                &mut first_time,
+            )
+            .await
+            .expect("the event can be handled");
+        }
+
+        assert_eq!(locked(&transport.sent).as_slice(), FETCH_COMMANDS);
+        assert_eq!(
+            drained(&mut receiver),
+            ["ZMQ connected to tcp://127.0.0.1:27961."; 2]
+        );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_lost_connection_is_announced_once_and_reconnected_every_time() {
+        let transport = FakeTransport::default();
+        let (sender, mut receiver) = unbounded_channel();
+        let mut fetch = FetchState::new(false);
+        let mut first_time = true;
+
+        for _ in 0..2 {
+            handle_link_event(
+                LinkEvent::Lost,
+                &transport,
+                &sender,
+                "tcp://127.0.0.1:27961",
+                &mut fetch,
+                &mut first_time,
+            )
+            .await
+            .expect("the event can be handled");
+        }
+
+        assert_eq!(drained(&mut receiver), ["Reconnecting ZMQ..."]);
+        assert_eq!(locked(&transport.connected).len(), 2);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn other_events_are_reported_as_socket_errors() {
+        let transport = FakeTransport::default();
+        let (sender, mut receiver) = unbounded_channel();
+
+        handle_link_event(
+            LinkEvent::Other("Listening".to_string()),
+            &transport,
+            &sender,
+            "tcp://127.0.0.1:27961",
+            &mut FetchState::new(false),
+            &mut true,
+        )
+        .await
+        .expect("the event can be handled");
+
+        assert_eq!(drained(&mut receiver), ["ZMQ socket error: Listening"]);
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -328,10 +582,7 @@ mod zmq_helper_tests {
             "run_zmq did not end cleanly: {result:?}"
         );
         assert!(!CONTINUE_RUNNING.load(Ordering::Acquire));
-        let mut lines = Vec::new();
-        while let Ok(line) = display_receiver.try_recv() {
-            lines.push(line);
-        }
+        let lines = drained(&mut display_receiver);
         assert_eq!(
             lines.first(),
             Some(&format!("ZMQ connecting to {endpoint}..."))
