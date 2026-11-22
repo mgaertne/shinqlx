@@ -183,17 +183,17 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("PRI_LOW", Priority::LOW as i32)?;
     m.add("PRI_LOWEST", Priority::LOWEST as i32)?;
 
-    m.add("CVAR_ARCHIVE", CvarFlag::ARCHIVE as i32)?;
-    m.add("CVAR_USERINFO", CvarFlag::USERINFO as i32)?;
-    m.add("CVAR_SERVERINFO", CvarFlag::SERVERINFO as i32)?;
-    m.add("CVAR_SYSTEMINFO", CvarFlag::SYSTEMINFO as i32)?;
-    m.add("CVAR_INIT", CvarFlag::INIT as i32)?;
-    m.add("CVAR_LATCH", CvarFlag::LATCH as i32)?;
-    m.add("CVAR_ROM", CvarFlag::ROM as i32)?;
-    m.add("CVAR_USER_CREATED", CvarFlag::USER_CREATED as i32)?;
-    m.add("CVAR_TEMP", CvarFlag::TEMP as i32)?;
-    m.add("CVAR_CHEAT", CvarFlag::CHEAT as i32)?;
-    m.add("CVAR_NORESTART", CvarFlag::NORESTART as i32)?;
+    m.add("CVAR_ARCHIVE", CvarFlags::ARCHIVE.__index__())?;
+    m.add("CVAR_USERINFO", CvarFlags::USERINFO.__index__())?;
+    m.add("CVAR_SERVERINFO", CvarFlags::SERVERINFO.__index__())?;
+    m.add("CVAR_SYSTEMINFO", CvarFlags::SYSTEMINFO.__index__())?;
+    m.add("CVAR_INIT", CvarFlags::INIT.__index__())?;
+    m.add("CVAR_LATCH", CvarFlags::LATCH.__index__())?;
+    m.add("CVAR_ROM", CvarFlags::ROM.__index__())?;
+    m.add("CVAR_USER_CREATED", CvarFlags::USER_CREATED.__index__())?;
+    m.add("CVAR_TEMP", CvarFlags::TEMP.__index__())?;
+    m.add("CVAR_CHEAT", CvarFlags::CHEAT.__index__())?;
+    m.add("CVAR_NORESTART", CvarFlags::NORESTART.__index__())?;
 
     m.add("PRIV_NONE", Privileges::NONE as i32)?;
     m.add("PRIV_MOD", Privileges::MOD as i32)?;
@@ -253,13 +253,16 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
         MeansOfDeath::RAILGUN_HEADSHOT as i32,
     )?;
 
-    m.add("DAMAGE_RADIUS", DamageFlag::RADIUS as i32)?;
-    m.add("DAMAGE_NO_ARMOR", DamageFlag::NO_ARMOR as i32)?;
-    m.add("DAMAGE_NO_KNOCKBACK", DamageFlag::NO_KNOCKBACK as i32)?;
-    m.add("DAMAGE_NO_PROTECTION", DamageFlag::NO_PROTECTION as i32)?;
+    m.add("DAMAGE_RADIUS", DamageFlags::RADIUS.__index__())?;
+    m.add("DAMAGE_NO_ARMOR", DamageFlags::NO_ARMOR.__index__())?;
+    m.add("DAMAGE_NO_KNOCKBACK", DamageFlags::NO_KNOCKBACK.__index__())?;
+    m.add(
+        "DAMAGE_NO_PROTECTION",
+        DamageFlags::NO_PROTECTION.__index__(),
+    )?;
     m.add(
         "DAMAGE_NO_TEAM_PROTECTION",
-        DamageFlag::NO_TEAM_PROTECTION as i32,
+        DamageFlags::NO_TEAM_PROTECTION.__index__(),
     )?;
 
     m.add_class::<Vector3>()?;
@@ -276,8 +279,8 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     register_events_enum(m)?;
     m.add_class::<GameState>()?;
     m.add_class::<Holdable>()?;
-    m.add_class::<CvarFlag>()?;
-    m.add_class::<DamageFlag>()?;
+    m.add_class::<CvarFlags>()?;
+    m.add_class::<DamageFlags>()?;
     m.add_class::<MeansOfDeath>()?;
     m.add_class::<Powerups>()?;
     m.add_class::<Weapons>()?;

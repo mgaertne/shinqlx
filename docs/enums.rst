@@ -333,13 +333,20 @@ CvarFlags
 
    .. shinqlx-only::
 
-   The flags of a cvar, e.g. for :meth:`Plugin.set_cvar`. Members can be combined with ``|`` and checked with ``&``,
-   the result is a plain :class:`int`. See :ref:`cvar_flags` for the meaning of the flags.
+   The flags of a cvar, e.g. for :meth:`Plugin.set_cvar`. A value is a set of flags, as :class:`enum.IntFlag` of
+   the standard library: members combine with ``|``, ``&``, ``^`` and ``~``, ``flag in flags`` tests one flag,
+   iterating gives the members that are set, and ``int(flags)`` or ``CvarFlags(33)`` converts from and to an integer.
+   Bits that are not members are kept. See :ref:`cvar_flags` for the meaning of the flags.
 
    .. code-block:: python
 
       flags = shinqlx.CvarFlags.ARCHIVE | shinqlx.CvarFlags.LATCH
       shinqlx.Plugin.set_cvar("qlx_myCvar", "1", flags)
+
+      assert flags == shinqlx.CvarFlags(33)
+      assert shinqlx.CvarFlags.LATCH in flags
+      print(flags)  # ARCHIVE | LATCH
+      print(repr(flags))  # CvarFlags.ARCHIVE|CvarFlags.LATCH
 
    Members: ``ARCHIVE`` (1), ``USERINFO`` (2), ``SERVERINFO`` (4), ``SYSTEMINFO`` (8), ``INIT`` (16), ``LATCH`` (32),
    ``ROM`` (64), ``USER_CREATED`` (128), ``TEMP`` (256), ``CHEAT`` (512) and ``NORESTART`` (1024). They are equal
@@ -352,9 +359,9 @@ DamageFlags
 
    .. shinqlx-only::
 
-   The flags of the damage that a player takes, as passed to the ``damage`` event. Members can be combined with
-   ``|`` and checked with ``&``, the result is a plain :class:`int`. See :ref:`damage_flags` for the meaning of
-   the flags.
+   The flags of the damage that a player takes, as passed to the ``damage`` event. A value is a set of flags that
+   works like :class:`CvarFlags`: ``DamageFlags(3)`` is ``DamageFlags.RADIUS | DamageFlags.NO_ARMOR``. See
+   :ref:`damage_flags` for the meaning of the flags.
 
    Members: ``RADIUS`` (1), ``NO_ARMOR`` (2), ``NO_KNOCKBACK`` (4), ``NO_PROTECTION`` (8) and
    ``NO_TEAM_PROTECTION`` (16). They are equal to the constants ``DAMAGE_*``.

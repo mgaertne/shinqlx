@@ -75,6 +75,7 @@ arc-swap = { version = ">=1.9", default-features = false }
 tap = { version = ">=1.0.1", default-features = false }
 rayon = { version = ">=1.12", default-features = false }
 derive_more = { version = ">=2.1", default-features = false, features = ["display", "try_from"]}
+bitflags = { version = ">=2.6", default-features = false }
 derive-new = { version = ">=0.7", default-features = false }
 anyhow = { version = ">=1.0", default-features = false, features = ["std"] }
 log = { version = ">=0.4", default-features = false, features = ["kv"] }

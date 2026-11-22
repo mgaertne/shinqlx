@@ -139,7 +139,7 @@ pub(crate) mod prelude {
         config_string::ConfigString,
         embed::*,
         events::*,
-        flag_enums::{CvarFlag, DamageFlag},
+        flag_enums::{CvarFlags, DamageFlags},
         flight::Flight,
         game_enums::{
             ConnectionState, GameState, Priority, Privileges, ReturnCode, Team, VoteState, Weapon,

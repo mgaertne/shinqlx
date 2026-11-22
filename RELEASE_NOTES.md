@@ -6,6 +6,12 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **`CvarFlags` and `DamageFlags` are real bit flags** (built on the `bitflags` crate). A value is a set of flags like
+  `enum.IntFlag`: `CvarFlags.ARCHIVE | CvarFlags.LATCH` is a `CvarFlags`, `CvarFlags(33)` creates the same value from an
+  integer, `flag in flags` tests a flag, iterating gives the members that are set, `^` and `~` work too, and `print`
+  shows `ARCHIVE | LATCH`. They still convert to `int` (`int(flags)`, `__index__`) and compare equal to their integer, so
+  `set_cvar(..., flags)` and the constants `CVAR_*` and `DAMAGE_*` keep working. **Changed:** the result of `|` and `&`
+  is no longer an `int`, so `isinstance(flags, int)` is `False`.
 * **The stats listener sets the ZAP domain only together with a stats password.** Without a password the subscriber
   no longer announces the domain `stats`; with the draft build of libzmq (`draft-api`, as used by `ql_rcon` and
   `ql_stats`) no stats arrived otherwise. The same applies to `ql_stats`.
@@ -26,6 +32,8 @@ Changes since 0.8.0.
 ### Stubs
 
 * `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`.
+* `CvarFlags` and `DamageFlags` return flags from the operators and have `__init__`, `__xor__`, `__invert__`,
+  `__contains__` and `__iter__`.
 
 ### ql_rcon
 
@@ -42,7 +50,7 @@ Changes since 0.8.0.
 * **`ql_rcon` reads along when you type `cmdlist`, `cvarlist` or `dir maps .bsp`** and adds the names to the same
   `completions-<host>.txt` files as `--fetch-completions`, without hiding the output and without the flag.
 * **`ql_rcon` notes in the completion list how a cvar can be set**: `[cheat]`, `[init only]`, `[latched]`,
-  `[read-only]` and `[write-protected]`, taken from the flags that the server lists with `cvarlist`. When the server answers a change
+  `[read-only]` (and `[write-protected]` where the guide has it), taken from the flags that the server lists with `cvarlist`. When the server answers a change
   with `<cvar> will be changed to <value> upon restarting.`, `ql_rcon` remembers the cvar as latched in
   `learned-<host>.txt`, which replaces a read-only note (for example for `bot_enable`); the same goes for
   `<cvar> is read only.` (for example for `sv_cheats`). The name of a cvar
