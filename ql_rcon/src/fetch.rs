@@ -128,7 +128,7 @@ impl FetchState {
         let line = line.trim();
         let mut words = line.split_whitespace();
         let feed = match (words.next(), words.next(), words.next()) {
-            (None, ..) => hidden,
+            (None, ..) => Feed::Hide,
             (Some("Directory"), Some("of"), _) => hidden,
             (Some(dashes), None, _) if dashes.chars().all(|c| c == '-') => hidden,
             (Some(file), None, _) if file.strip_suffix(".bsp").is_some_and(is_name) => {
@@ -383,6 +383,14 @@ mod fetch_tests {
                 flags: vec![("sv_hostname".to_string(), "SA".to_string())],
             })
         );
+    }
+
+    #[test]
+    fn empty_lines_of_a_list_typed_by_the_user_are_not_shown() {
+        let mut state = FetchState::new(false);
+        state.user_sent("cvarlist");
+
+        assert_eq!(state.feed(""), Feed::Hide);
     }
 
     #[test]
