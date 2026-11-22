@@ -1,16 +1,14 @@
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::sync::atomic::Ordering;
 
 use anyhow::Result;
 use arzmq::{
     prelude::{
-        ContextBuilder, Message, MonitorFlags, MonitorReceiver, MonitorSocket, MonitorSocketEvent,
-        Receiver, Socket, SocketBuilder, SubscribeBuilder, SubscribeSocket,
+        Message, MonitorReceiver, MonitorSocket, Receiver, Socket, SocketBuilder, SubscribeBuilder,
+        SubscribeSocket,
     },
     security::SecurityMechanism,
 };
+use ql_zmq::{LinkEvent, LinkState, POLL_INTERVAL, Reconnect, context, monitor_flags};
 use serde_json::Value;
 use tokio::{
     sync::mpsc::UnboundedSender,
@@ -19,9 +17,6 @@ use tokio::{
 
 use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
 
-/// One poll per server frame at 40 frames per second keeps the output close to real time without a busy loop.
-const POLL_INTERVAL: Duration = Duration::from_millis(25);
-
 struct MonitoredSubscriber {
     subscriber: SubscribeSocket,
     monitor: MonitorSocket,
@@ -29,22 +24,10 @@ struct MonitoredSubscriber {
 
 impl MonitoredSubscriber {
     fn new() -> Result<Self> {
-        let context = ContextBuilder::default()
-            .blocky(false)
-            .max_sockets(10)
-            .io_threads(1)
-            .build()?;
+        let context = context(1)?;
 
         let subscriber = Socket::from_context(&context)?;
-        let monitor = subscriber.monitor(
-            MonitorFlags::HandshakeSucceeded
-                | MonitorFlags::HandshakeFailedAuth
-                | MonitorFlags::HandshakeFailedProtocol
-                | MonitorFlags::HandshakeFailedNoDetail
-                | MonitorFlags::MonitorStopped
-                | MonitorFlags::Disconnected
-                | MonitorFlags::Closed,
-        )?;
+        let monitor = subscriber.monitor(monitor_flags(false))?;
 
         Ok(Self {
             subscriber,
@@ -78,12 +61,6 @@ impl MonitoredSubscriber {
         Ok(())
     }
 
-    fn connect(&self, address: &str) -> Result<()> {
-        self.subscriber.connect(address)?;
-
-        Ok(())
-    }
-
     fn disconnect(&self) -> Result<()> {
         let last_endpoint = self.subscriber.last_endpoint()?;
         self.subscriber.disconnect(&last_endpoint)?;
@@ -95,8 +72,19 @@ impl MonitoredSubscriber {
         self.subscriber.recv_msg_async().await
     }
 
-    async fn check_monitor(&self) -> Option<MonitorSocketEvent> {
-        self.monitor.recv_monitor_event_async().await
+    async fn next_link_event(&self) -> Option<LinkEvent> {
+        self.monitor
+            .recv_monitor_event_async()
+            .await
+            .map(LinkEvent::from)
+    }
+}
+
+impl Reconnect for MonitoredSubscriber {
+    fn connect(&self, endpoint: &str) -> Result<()> {
+        self.subscriber.connect(endpoint)?;
+
+        Ok(())
     }
 }
 
@@ -112,50 +100,6 @@ fn format_ql_json(msg: &str, args: &CommandLineOptions) -> String {
         .unwrap_or(msg.to_string())
 }
 
-static FIRST_TIME: AtomicBool = AtomicBool::new(true);
-
-fn handle_monitor_event(
-    event: MonitorSocketEvent,
-    monitored_subscriber: &MonitoredSubscriber,
-    sender: &UnboundedSender<String>,
-    endpoint: &str,
-) -> Result<()> {
-    match event {
-        MonitorSocketEvent::HandshakeSucceeded => {
-            FIRST_TIME.store(true, Ordering::Release);
-            sender.send(format!("ZMQ connected to {}.", endpoint))?;
-        }
-
-        MonitorSocketEvent::HandshakeFailedAuth(_)
-        | MonitorSocketEvent::HandshakeFailedProtocol(_)
-        | MonitorSocketEvent::HandshakeFailedNoDetail(_)
-        | MonitorSocketEvent::MonitorStopped => {
-            sender.send(format!("ZMQ socket error: {event:?}"))?;
-            CONTINUE_RUNNING.store(false, Ordering::Release);
-        }
-
-        MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed => {
-            if FIRST_TIME.load(Ordering::Acquire) {
-                FIRST_TIME.store(false, Ordering::Release);
-                sender.send("Reconnecting ZMQ...".to_string())?;
-            }
-            if let Err(e) = monitored_subscriber.connect(endpoint) {
-                sender.send(format!("error reconnecting: {e:?}."))?;
-            }
-        }
-
-        MonitorSocketEvent::Connected
-        | MonitorSocketEvent::ConnectDelayed
-        | MonitorSocketEvent::ConnectRetried(_) => (),
-
-        event => {
-            sender.send(format!("ZMQ socket error: {event:?}",))?;
-        }
-    };
-
-    Ok(())
-}
-
 pub(crate) async fn run_zmq(
     args: CommandLineOptions,
     display_sender: UnboundedSender<String>,
@@ -167,6 +111,7 @@ pub(crate) async fn run_zmq(
 
     monitored_subscriber.connect(&args.host)?;
 
+    let mut link = LinkState::default();
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
@@ -178,8 +123,14 @@ pub(crate) async fn run_zmq(
             display_sender.send(format_ql_json(&zmq_str, &args))?;
         }
 
-        while let Some(event) = monitored_subscriber.check_monitor().await {
-            handle_monitor_event(event, &monitored_subscriber, &display_sender, &args.host)?;
+        while let Some(event) = monitored_subscriber.next_link_event().await {
+            link.handle(
+                event,
+                &monitored_subscriber,
+                &display_sender,
+                &args.host,
+                &CONTINUE_RUNNING,
+            )?;
         }
     }
 

@@ -110,7 +110,8 @@ Changes since 0.8.0.
   `qlx_chatlogs 0` truncates the file at `qlx_chatlogsSize` instead of letting it grow.
 * The built-in event names live in one Rust enum that the dispatchers and `Events` share.
 * The console loop of `ql_rcon` works on a `Transport` and a `CompletionStore` trait instead of the ZMQ socket and the
-  command line options, and its link handling is tested without sockets.
+  command line options. The watching of the ZMQ connection (link events, reconnect, messages) is shared with `ql_stats`
+  in the new workspace crate `ql_zmq` and tested without sockets.
 
 ## 0.8.0 (2026-11-19)
 

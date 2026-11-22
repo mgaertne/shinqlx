@@ -1,0 +1,18 @@
+cargo-features = ["profile-rustflags"]
+
+[package]
+name = "ql_zmq"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "What ql_rcon and ql_stats share when they watch their ZMQ connection to a Quake Live server"
+publish = false
+
+[dependencies]
+arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
+tokio = { version = ">=1.53", default-features = false, features = ["sync"] }
+anyhow = { version = ">=1.0", default-features = false }
+
+[lints]
+workspace = true

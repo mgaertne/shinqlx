@@ -1,14 +1,15 @@
-use core::{sync::atomic::Ordering, time::Duration};
+use core::sync::atomic::Ordering;
 use std::{io, path::PathBuf};
 
 use anyhow::Result;
 use arzmq::{
     prelude::{
-        ContextBuilder, DealerBuilder, DealerSocket, Message, MonitorFlags, MonitorReceiver,
-        MonitorSocket, MonitorSocketEvent, Receiver, SendFlags, Sender, Socket, SocketBuilder,
+        DealerBuilder, DealerSocket, Message, MonitorReceiver, MonitorSocket, Receiver, SendFlags,
+        Sender, Socket, SocketBuilder,
     },
     security::SecurityMechanism,
 };
+use ql_zmq::{LinkEvent, LinkState, POLL_INTERVAL, Reconnect, context, monitor_flags};
 use tokio::{
     select,
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
@@ -24,40 +25,11 @@ use crate::{
     line_editor::{SessionFiles, remember, save_completions},
 };
 
-/// One poll per server frame at 40 frames per second keeps the console close to real time without a busy loop.
-const POLL_INTERVAL: Duration = Duration::from_millis(25);
-
-/// What happened to the connection to the server.
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum LinkEvent {
-    Connected,
-    HandshakeSucceeded,
-    Failed(String),
-    Lost,
-    Other(String),
-}
-
-impl From<MonitorSocketEvent> for LinkEvent {
-    fn from(event: MonitorSocketEvent) -> Self {
-        match event {
-            MonitorSocketEvent::Connected => Self::Connected,
-            MonitorSocketEvent::HandshakeSucceeded => Self::HandshakeSucceeded,
-            MonitorSocketEvent::HandshakeFailedAuth(_)
-            | MonitorSocketEvent::HandshakeFailedProtocol(_)
-            | MonitorSocketEvent::HandshakeFailedNoDetail(_)
-            | MonitorSocketEvent::MonitorStopped => Self::Failed(format!("{event:?}")),
-            MonitorSocketEvent::Disconnected | MonitorSocketEvent::Closed => Self::Lost,
-            event => Self::Other(format!("{event:?}")),
-        }
-    }
-}
-
 /// What the console needs from the connection to the server, so that the loop does not depend on ZMQ.
-trait Transport {
+trait Transport: Reconnect {
     async fn send(&self, line: &str);
     async fn receive(&self) -> Option<String>;
     async fn next_link_event(&self) -> Option<LinkEvent>;
-    fn connect(&self, endpoint: &str) -> Result<()>;
 }
 
 /// Where what the console learns about the server is kept.
@@ -83,23 +55,10 @@ struct MonitoredDealer {
 
 impl MonitoredDealer {
     fn new() -> Result<Self> {
-        let context = ContextBuilder::default()
-            .blocky(false)
-            .max_sockets(10)
-            .io_threads(2)
-            .build()?;
+        let context = context(2)?;
 
         let dealer = Socket::from_context(&context)?;
-        let monitor = dealer.monitor(
-            MonitorFlags::Connected
-                | MonitorFlags::HandshakeSucceeded
-                | MonitorFlags::HandshakeFailedAuth
-                | MonitorFlags::HandshakeFailedProtocol
-                | MonitorFlags::HandshakeFailedNoDetail
-                | MonitorFlags::MonitorStopped
-                | MonitorFlags::Disconnected
-                | MonitorFlags::Closed,
-        )?;
+        let monitor = dealer.monitor(monitor_flags(true))?;
 
         Ok(Self { dealer, monitor })
     }
@@ -164,7 +123,9 @@ impl Transport for MonitoredDealer {
             .await
             .map(LinkEvent::from)
     }
+}
 
+impl Reconnect for MonitoredDealer {
     fn connect(&self, endpoint: &str) -> Result<()> {
         self.dealer.connect(endpoint)?;
 
@@ -178,63 +139,22 @@ fn trim_ql_msg(msg: &str) -> String {
         .replace('\u{0019}', "")
 }
 
-async fn handle_link_event<T: Transport>(
-    event: LinkEvent,
-    transport: &T,
-    sender: &UnboundedSender<String>,
-    endpoint: &str,
-    fetch: &mut FetchState,
-    first_time: &mut bool,
-) -> Result<()> {
-    match event {
-        LinkEvent::Connected => {
-            if core::mem::take(first_time) {
-                sender.send("ZMQ registering with the server.".to_string())?;
-            }
-        }
-
-        LinkEvent::HandshakeSucceeded => {
-            *first_time = true;
-            sender.send(format!("ZMQ connected to {endpoint}."))?;
-            if fetch.handshake_succeeded() {
-                for command in FETCH_COMMANDS {
-                    transport.send(command).await;
-                }
-            }
-        }
-
-        LinkEvent::Failed(description) => {
-            sender.send(format!("ZMQ socket error: {description}"))?;
-            CONTINUE_RUNNING.store(false, Ordering::Release);
-        }
-
-        LinkEvent::Lost => {
-            if core::mem::take(first_time) {
-                sender.send("Reconnecting ZMQ...".to_string())?;
-            }
-            if let Err(e) = transport.connect(endpoint) {
-                sender.send(format!("error reconnecting: {e:?}."))?;
-            }
-        }
-
-        LinkEvent::Other(description) => {
-            sender.send(format!("ZMQ socket error: {description}"))?;
-        }
-    };
-
-    Ok(())
-}
-
-/// Handles all link events that are waiting.
+/// Handles all link events that are waiting and asks for the completion lists after a handshake.
 async fn check_link<T: Transport>(
     transport: &T,
     sender: &UnboundedSender<String>,
     endpoint: &str,
     fetch: &mut FetchState,
-    first_time: &mut bool,
+    link: &mut LinkState,
 ) -> Result<()> {
     while let Some(event) = transport.next_link_event().await {
-        handle_link_event(event, transport, sender, endpoint, fetch, first_time).await?;
+        if link.handle(event, transport, sender, endpoint, &CONTINUE_RUNNING)?
+            && fetch.handshake_succeeded()
+        {
+            for command in FETCH_COMMANDS {
+                transport.send(command).await;
+            }
+        }
     }
 
     Ok(())
@@ -298,7 +218,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
 ) -> Result<()> {
     let mut fetch = FetchState::new(fetch_completions);
     let mut learner = Learner::default();
-    let mut first_time = true;
+    let mut link = LinkState::default();
 
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -327,7 +247,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
                     store_fetched_names(store, &fetched, display_sender)?;
                 }
 
-                check_link(transport, display_sender, endpoint, &mut fetch, &mut first_time).await?;
+                check_link(transport, display_sender, endpoint, &mut fetch, &mut link).await?;
             }
         );
     }
@@ -367,6 +287,7 @@ pub(crate) async fn run_zmq(
 
 #[cfg(test)]
 mod zmq_helper_tests {
+    use alloc::collections::VecDeque;
     use core::{sync::atomic::Ordering, time::Duration};
     use std::{
         io,
@@ -384,7 +305,7 @@ mod zmq_helper_tests {
 
     use super::{
         CONTINUE_RUNNING, CommandLineOptions, CompletionStore, FETCH_COMMANDS, FetchState,
-        LinkEvent, Transport, handle_link_event, handle_reply, run_zmq, trim_ql_msg,
+        LinkEvent, LinkState, Reconnect, Transport, check_link, handle_reply, run_zmq, trim_ql_msg,
     };
     use crate::{
         fetch::Fetched,
@@ -399,6 +320,7 @@ mod zmq_helper_tests {
     struct FakeTransport {
         sent: Mutex<Vec<String>>,
         connected: Mutex<Vec<String>>,
+        events: Mutex<VecDeque<LinkEvent>>,
     }
 
     impl Transport for FakeTransport {
@@ -411,9 +333,11 @@ mod zmq_helper_tests {
         }
 
         async fn next_link_event(&self) -> Option<LinkEvent> {
-            None
+            locked(&self.events).pop_front()
         }
+    }
 
+    impl Reconnect for FakeTransport {
         fn connect(&self, endpoint: &str) -> Result<()> {
             locked(&self.connected).push(endpoint.to_string());
             Ok(())
@@ -482,22 +406,19 @@ mod zmq_helper_tests {
     #[tokio::test(flavor = "current_thread")]
     async fn the_first_handshake_requests_the_lists_and_later_ones_do_not() {
         let transport = FakeTransport::default();
+        locked(&transport.events)
+            .extend([LinkEvent::HandshakeSucceeded, LinkEvent::HandshakeSucceeded]);
         let (sender, mut receiver) = unbounded_channel();
-        let mut fetch = FetchState::new(true);
-        let mut first_time = true;
 
-        for _ in 0..2 {
-            handle_link_event(
-                LinkEvent::HandshakeSucceeded,
-                &transport,
-                &sender,
-                "tcp://127.0.0.1:27961",
-                &mut fetch,
-                &mut first_time,
-            )
-            .await
-            .expect("the event can be handled");
-        }
+        check_link(
+            &transport,
+            &sender,
+            "tcp://127.0.0.1:27961",
+            &mut FetchState::new(true),
+            &mut LinkState::default(),
+        )
+        .await
+        .expect("the events can be handled");
 
         assert_eq!(locked(&transport.sent).as_slice(), FETCH_COMMANDS);
         assert_eq!(
@@ -507,46 +428,23 @@ mod zmq_helper_tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn a_lost_connection_is_announced_once_and_reconnected_every_time() {
+    async fn a_lost_connection_is_connected_again() {
         let transport = FakeTransport::default();
-        let (sender, mut receiver) = unbounded_channel();
-        let mut fetch = FetchState::new(false);
-        let mut first_time = true;
-
-        for _ in 0..2 {
-            handle_link_event(
-                LinkEvent::Lost,
-                &transport,
-                &sender,
-                "tcp://127.0.0.1:27961",
-                &mut fetch,
-                &mut first_time,
-            )
-            .await
-            .expect("the event can be handled");
-        }
-
-        assert_eq!(drained(&mut receiver), ["Reconnecting ZMQ..."]);
-        assert_eq!(locked(&transport.connected).len(), 2);
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn other_events_are_reported_as_socket_errors() {
-        let transport = FakeTransport::default();
+        locked(&transport.events).push_back(LinkEvent::Lost);
         let (sender, mut receiver) = unbounded_channel();
 
-        handle_link_event(
-            LinkEvent::Other("Listening".to_string()),
+        check_link(
             &transport,
             &sender,
             "tcp://127.0.0.1:27961",
             &mut FetchState::new(false),
-            &mut true,
+            &mut LinkState::default(),
         )
         .await
-        .expect("the event can be handled");
+        .expect("the events can be handled");
 
-        assert_eq!(drained(&mut receiver), ["ZMQ socket error: Listening"]);
+        assert_eq!(drained(&mut receiver), ["Reconnecting ZMQ..."]);
+        assert_eq!(locked(&transport.connected).len(), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]

@@ -11,6 +11,7 @@ authors.workspace = true
 arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
 tokio = { version = ">=1.53", default-features = false, features = ["default", "macros", "rt", "sync", "time"] }
 anyhow = { version = ">=1.0", default-features = false }
+ql_zmq = { path = "../ql_zmq" }
 clap = { version = ">=4.6", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 uuid = { version = ">=1.24", default-features = false, features = ["v4"] }
 
