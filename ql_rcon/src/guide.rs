@@ -1,4 +1,4 @@
-//! What the console guide at https://www.euere.eu/ql/ says about commands and cvars.
+//! What the console guide at <https://www.euere.eu/ql/> says about commands and cvars.
 
 /// `cvar<TAB>value<TAB>label<TAB>e|b`: one value of an enumeration (`e`) or one bit of a bit field (`b`).
 const ENUMS: &str = include_str!("cvar_enums.txt");
