@@ -921,3 +921,7 @@ web_practice_settings_4	{}
 web_practice_settings_5	{}	
 web_skipLauncher	0	
 winkey_disable	0	0|1
+fs_restrict		0|1
+journal	0	0|1
+sv_premium	0	0|1
+sv_ranked	0	0|1
