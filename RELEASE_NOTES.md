@@ -37,6 +37,8 @@ Changes since 0.8.0.
 
 ### ql_rcon
 
+* Commands and cvars (also after `set`) match anywhere in the name: `gametype` offers `g_gametype`. The names that start
+  with the typed text come first.
 * The Quake color codes `^1` to `^7` use the RGB values of the 8 color palette in the console guide (`^1` is
   `0xFF0000`, `^6` is `0xFF00FF` and so on) instead of the 16 terminal colors, so the terminal theme no longer changes
   them; `^0` stays the black of the terminal theme to remain readable. The brighter shade for `print` lines is gone, because it only existed for the terminal colors. The terminal

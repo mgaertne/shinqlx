@@ -210,6 +210,19 @@ fn is_map_command(command: &str) -> bool {
         .any(|map| command.eq_ignore_ascii_case(map))
 }
 
+/// The names that start with `word` first, then the ones that only contain it, so `gametype` finds `g_gametype`.
+fn matching_names<'a>(names: impl Iterator<Item = &'a str>, word: &str) -> Vec<String> {
+    let word = word.to_lowercase();
+    let (prefixed, containing): (Vec<&str>, Vec<&str>) = names
+        .filter(|name| name.to_lowercase().contains(&word))
+        .partition(|name| name.to_lowercase().starts_with(&word));
+    prefixed
+        .into_iter()
+        .chain(containing)
+        .map(str::to_string)
+        .collect()
+}
+
 /// Cvar names after `set`, the values of a cvar after `set <cvar>` or after the cvar itself, and map names after `map`,
 /// `devmap` and `callvote map`, and the factories after the map.
 fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<String> {
@@ -244,14 +257,10 @@ fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<Strin
                 .cloned()
                 .collect()
         }
-        [command] if is_set_command(command) => user
-            .names
-            .iter()
-            .map(String::as_str)
-            .chain(CVARS.lines())
-            .filter(|name| starts_with_word(name))
-            .map(str::to_string)
-            .collect(),
+        [command] if is_set_command(command) => matching_names(
+            user.names.iter().map(String::as_str).chain(CVARS.lines()),
+            &word,
+        ),
         [command, cvar] if is_set_command(command) => known_values(cvar, user)
             .into_iter()
             .filter(|value| starts_with_word(value))
@@ -279,15 +288,14 @@ fn completions<'a>(
         .collect();
 
     let known = if start == 0 {
-        let word = word.to_lowercase();
-        user.names
-            .iter()
-            .map(String::as_str)
-            .chain(COMMANDS.lines())
-            .chain(CVARS.lines())
-            .filter(|name| name.to_lowercase().starts_with(&word))
-            .map(str::to_string)
-            .collect()
+        matching_names(
+            user.names
+                .iter()
+                .map(String::as_str)
+                .chain(COMMANDS.lines())
+                .chain(CVARS.lines()),
+            word,
+        )
     } else {
         argument_completions(buffer.get(..start).unwrap_or_default(), word, user)
     };
@@ -1010,6 +1018,23 @@ mod line_editor_tests {
         let found = completions("sta", "sta", 0, [].into_iter(), &UserLists::default());
 
         assert!(found.iter().any(|name| name == "status"), "{found:?}");
+    }
+
+    #[test]
+    fn names_match_in_the_middle_after_the_ones_that_start_with_the_word() {
+        let user = UserLists::default();
+
+        let first = completions("gametype", "gametype", 0, [].into_iter(), &user);
+        let set = completions("set gametype", "gametype", 4, [].into_iter(), &user);
+
+        assert!(first.iter().any(|name| name == "g_gametype"), "{first:?}");
+        assert!(set.iter().any(|name| name == "g_gametype"), "{set:?}");
+        let ranked = completions("sv_", "sv_", 0, [].into_iter(), &user);
+        let boundary = ranked.iter().position(|name| !name.starts_with("sv_"));
+        assert!(
+            boundary.is_none_or(|at| ranked[..at].iter().all(|name| name.starts_with("sv_"))),
+            "{ranked:?}"
+        );
     }
 
     #[test]
