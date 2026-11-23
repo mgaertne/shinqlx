@@ -57,6 +57,8 @@ Changes since 0.8.0.
   command as a grey hint, and server output still appears above the input line. The history files keep their names.
   Ctrl-C with text in the line clears it, with an empty line it ends the session. `ql_stats` has no line editor, so
   there is nothing to switch there.
+* **`ql_rcon` shows a `^` that is no color code (such as `^8`) as text** and no longer drops the text up to the next
+  color code. `ql_stats` uses the same decoding.
 * **`ql_rcon` no longer keeps a CPU core busy while idle** (about 100 % before, about 0.1 % now). The ZMQ socket is
   polled every 25 ms, one server frame, and received lines are shown at once instead of after up to 250 ms. The input
   is read on its own blocking thread, and the tool runs on a single-threaded Tokio runtime without the `RwLock`s and

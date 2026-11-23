@@ -19,15 +19,13 @@ pub fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
             continue;
         }
         let text_start = at + 2;
-        let text_end = input[text_start..]
-            .find('^')
-            .map_or(input.len(), |offset| text_start + offset);
+        let text_end = (text_start..bytes.len())
+            .find(|&next| is_color_code(bytes, next))
+            .unwrap_or(bytes.len());
         if text_end > text_start {
             result.push((&input[at..text_start], &input[text_start..text_end]));
-            at = text_end;
-        } else {
-            at += 1;
         }
+        at = text_end.max(text_start);
     }
 
     result.retain(|(_, text)| !text.is_empty());
@@ -82,8 +80,9 @@ mod quake_colors_tests {
     }
 
     #[test]
-    fn split_ql_colors_drops_text_after_an_unknown_color_code() {
-        assert_eq!(split_ql_colors("^1red^8lost"), vec![("^1", "red")]);
+    fn split_ql_colors_keeps_an_unknown_color_code_as_text() {
+        assert_eq!(split_ql_colors("^1red^8kept"), vec![("^1", "red^8kept")]);
+        assert_eq!(split_ql_colors("a^8b^^c"), vec![("reset", "a^8b^^c")]);
     }
 
     #[test]
