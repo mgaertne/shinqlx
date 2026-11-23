@@ -229,6 +229,9 @@ fn matching_names<'a>(names: impl Iterator<Item = &'a str>, word: &str) -> Vec<S
         .collect()
 }
 
+/// What `help` answers by itself, see `guide::local_help`.
+const HELP_TOPICS: [&str; 1] = ["cvarflags"];
+
 /// Cvar names after `set`, the values of a cvar after `set <cvar>` or after the cvar itself, and map names after `map`,
 /// `devmap` and `callvote map`, and the factories after the map.
 fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<String> {
@@ -271,6 +274,11 @@ fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<Strin
             .into_iter()
             .filter(|value| starts_with_word(value))
             .collect(),
+        [help] if help.eq_ignore_ascii_case("help") => HELP_TOPICS
+            .iter()
+            .filter(|topic| starts_with_word(topic))
+            .map(|topic| (*topic).to_string())
+            .collect(),
         [cvar] => known_values(cvar, user)
             .into_iter()
             .filter(|value| starts_with_word(value))
@@ -299,7 +307,8 @@ fn completions<'a>(
                 .iter()
                 .map(String::as_str)
                 .chain(COMMANDS.lines())
-                .chain(CVARS.lines()),
+                .chain(CVARS.lines())
+                .chain(["help"]),
             word,
         )
     } else {
@@ -1144,6 +1153,20 @@ mod line_editor_tests {
         assert!(files.iter().all(|file| file.ends_with("commands.txt")
             || file.ends_with("commands-10_0_0_1_27961.txt")
             || file.ends_with("completions-10_0_0_1_27961.txt")));
+    }
+
+    #[test]
+    fn help_completes_its_topic() {
+        let user = UserLists::default();
+
+        assert_eq!(
+            completions("help cvar", "cvar", 5, [].into_iter(), &user),
+            ["cvarflags"]
+        );
+        assert_eq!(
+            completions("hel", "hel", 0, [].into_iter(), &user),
+            ["help"]
+        );
     }
 
     #[test]
