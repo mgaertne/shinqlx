@@ -28,12 +28,8 @@ Changes since 0.8.0.
   log through the handler of shinqlx, with their traceback. `shinqlx.log_exception(plugin)` writes under the logger of
   the plugin as before. Records carry the Python name of the function in `func`.
 * **The name of a command in the warning for an unknown return value** is written as `["name"]` instead of `['name']`.
-
-### Stubs
-
-* `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`.
-* `CvarFlags` and `DamageFlags` return flags from the operators and have `__init__`, `__xor__`, `__invert__`,
-  `__contains__` and `__iter__`.
+* **Stubs:** `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`. `CvarFlags` and `DamageFlags` return
+  flags from the operators and have `__init__`, `__xor__`, `__invert__`, `__contains__` and `__iter__`.
 
 ### ql_rcon
 
