@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
@@ -54,10 +54,17 @@ fn with_scheme(host: String) -> String {
     }
 }
 
-fn open_server_file(name: &str) -> Result<PathBuf> {
-    let path = server_file(name).ok_or_else(|| {
+fn path_of_server_file(name: &str) -> Result<PathBuf> {
+    server_file(name).ok_or_else(|| {
         anyhow!("'{name}' is not a valid server name or there is no config directory")
-    })?;
+    })
+}
+
+fn open_server_file(name: &str) -> Result<PathBuf> {
+    open_existing(name, path_of_server_file(name)?)
+}
+
+fn open_existing(name: &str, path: PathBuf) -> Result<PathBuf> {
     if !path.exists() {
         bail!(
             "no server file {}; create it with --save-server {name} and the connection options",
@@ -66,6 +73,24 @@ fn open_server_file(name: &str) -> Result<PathBuf> {
     }
 
     Ok(path)
+}
+
+fn save_server(name: &str, options: &CommandLineOptions) -> Result<()> {
+    save_server_at(&path_of_server_file(name)?, options)
+}
+
+fn save_server_at(path: &Path, options: &CommandLineOptions) -> Result<()> {
+    save_stats_endpoint(
+        path,
+        &StatsEndpoint {
+            host: Some(options.host().to_string()),
+            password: Some(options.password().to_string()),
+        },
+    )
+    .with_context(|| format!("could not save {}", path.display()))?;
+    eprintln!("Saved the stats connection in {}.", path.display());
+
+    Ok(())
 }
 
 /// Reads the options and the server file they name.
@@ -88,18 +113,7 @@ pub(crate) fn parse() -> Result<CommandLineOptions> {
     let options = cli.with_server_file(endpoint);
 
     if let Some(name) = save_as {
-        let path = server_file(&name).ok_or_else(|| {
-            anyhow!("'{name}' is not a valid server name or there is no config directory")
-        })?;
-        save_stats_endpoint(
-            &path,
-            &StatsEndpoint {
-                host: Some(options.host().to_string()),
-                password: Some(options.password().to_string()),
-            },
-        )
-        .with_context(|| format!("could not save {}", path.display()))?;
-        eprintln!("Saved the stats connection in {}.", path.display());
+        save_server(&name, &options)?;
     }
 
     Ok(options)
@@ -135,11 +149,28 @@ impl CommandLineOptions {
 
 #[cfg(test)]
 mod cmd_line_tests {
-    use clap::Parser;
-    use ql_zmq::servers::StatsEndpoint;
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
 
-    use super::CommandLineOptions;
+    use clap::Parser;
+    use ql_zmq::servers::{StatsEndpoint, stats_endpoint};
+
+    use super::{CommandLineOptions, open_existing, open_server_file, save_server, save_server_at};
     use crate::format::{ColorChoice, OutputFormat};
+
+    fn server_file_path(test: &str) -> PathBuf {
+        std::env::temp_dir()
+            .join(format!("ql_stats_cmd_line_{test}_{}", std::process::id()))
+            .join("crimson-arena.toml")
+    }
+
+    fn remove_directory_of(path: &Path) {
+        if let Some(dir) = path.parent() {
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
 
     #[test]
     fn defaults_connect_to_the_local_server() {
@@ -232,5 +263,63 @@ mod cmd_line_tests {
             .expect("the options are valid");
 
         assert_eq!(args.effective_format(), OutputFormat::Summary);
+    }
+
+    #[test]
+    fn a_missing_server_file_is_reported_with_the_way_to_create_it() {
+        let path = server_file_path("missing");
+
+        let message = open_existing("crimson-arena", path)
+            .expect_err("the file does not exist")
+            .to_string();
+
+        assert!(message.contains("--save-server crimson-arena"), "{message}");
+    }
+
+    #[test]
+    fn an_existing_server_file_is_opened() {
+        let path = server_file_path("existing");
+        let options = CommandLineOptions::try_parse_from(["ql_stats"]).expect("defaults are valid");
+        save_server_at(&path, &options).expect("could not save the server");
+
+        let opened = open_existing("crimson-arena", path.clone());
+
+        assert_eq!(opened.expect("the file exists"), path);
+        remove_directory_of(&path);
+    }
+
+    #[test]
+    fn a_saved_connection_is_read_back_from_the_server_file() {
+        let path = server_file_path("saved");
+        let options = CommandLineOptions::try_parse_from([
+            "ql_stats",
+            "--host",
+            "192.0.2.1:27962",
+            "--password",
+            "stats",
+        ])
+        .expect("the options are valid")
+        .with_server_file(StatsEndpoint::default());
+
+        save_server_at(&path, &options).expect("could not save the server");
+
+        assert_eq!(
+            stats_endpoint(&path).expect("could not read the server file"),
+            endpoint(Some("tcp://192.0.2.1:27962"), Some("stats"))
+        );
+        remove_directory_of(&path);
+    }
+
+    #[test]
+    fn invalid_server_names_are_rejected_before_the_file_system_is_touched() {
+        let options = CommandLineOptions::try_parse_from(["ql_stats"]).expect("defaults are valid");
+
+        for result in [
+            open_server_file("../crimson-arena").map(|_| ()),
+            save_server("../crimson-arena", &options),
+        ] {
+            let message = result.expect_err("the name is invalid").to_string();
+            assert!(message.contains("not a valid server name"), "{message}");
+        }
     }
 }
