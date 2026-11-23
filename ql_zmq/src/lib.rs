@@ -1,5 +1,7 @@
 //! The watching of the ZMQ connection that `ql_rcon` and `ql_stats` have in common.
 
+pub mod servers;
+
 use core::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,

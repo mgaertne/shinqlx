@@ -6,8 +6,6 @@ mod zmq_helper;
 use core::sync::atomic::AtomicBool;
 
 use anyhow::Result;
-use clap::Parser;
-use cmd_line::CommandLineOptions;
 use tokio::{
     sync::mpsc::{UnboundedReceiver, unbounded_channel},
     try_join,
@@ -20,7 +18,7 @@ pub(crate) static CONTINUE_RUNNING: AtomicBool = AtomicBool::new(true);
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    let args = CommandLineOptions::parse();
+    let args = cmd_line::parse()?;
 
     let (display_sender, display_receiver) = unbounded_channel();
 

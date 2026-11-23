@@ -6,32 +6,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use directories::ProjectDirs;
+#[cfg(test)]
+pub(crate) use ql_zmq::servers::is_server_name;
+pub(crate) use ql_zmq::servers::{config_dir, server_file};
 use toml_edit::{Array, DocumentMut, Item, Table, value};
 
 use crate::{fetch::Fetched, learn::Learned};
-
-/// The config directory of `ql_rcon`, `~/.config/ql_rcon/` on Linux.
-pub(crate) fn config_dir() -> Option<PathBuf> {
-    ProjectDirs::from("", "", "ql_rcon").map(|dirs| dirs.config_dir().to_path_buf())
-}
-
-/// A server name becomes a file name, so it may not contain path separators or start with a dot.
-pub(crate) fn is_server_name(name: &str) -> bool {
-    !name.is_empty()
-        && !name.starts_with('.')
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
-}
-
-/// The file `servers/<name>.toml` in the config directory.
-pub(crate) fn server_file(name: &str) -> Option<PathBuf> {
-    is_server_name(name)
-        .then(config_dir)
-        .flatten()
-        .map(|dir| dir.join("servers").join(format!("{name}.toml")))
-}
 
 /// The settings for the connection; every value that is not in the file stays `None`.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

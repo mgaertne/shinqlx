@@ -100,12 +100,12 @@ pub(crate) async fn run_zmq(
     args: CommandLineOptions,
     display_sender: UnboundedSender<String>,
 ) -> Result<()> {
-    display_sender.send(format!("ZMQ connecting to {}...", args.host))?;
+    display_sender.send(format!("ZMQ connecting to {}...", args.host()))?;
 
     let monitored_subscriber = MonitoredSubscriber::new()?;
-    monitored_subscriber.configure(&args.password)?;
+    monitored_subscriber.configure(args.password())?;
 
-    monitored_subscriber.connect(&args.host)?;
+    monitored_subscriber.connect(args.host())?;
 
     let renderer = Renderer::new(&args, args.color.enabled());
     let mut link = LinkState::default();
@@ -127,7 +127,7 @@ pub(crate) async fn run_zmq(
                 event,
                 &monitored_subscriber,
                 &display_sender,
-                &args.host,
+                args.host(),
                 &CONTINUE_RUNNING,
             )?;
         }

@@ -13,6 +13,8 @@ publish = false
 arzmq = { workspace = true, default-features = false, features = ["builder", "futures", "draft-api"] }
 tokio = { version = ">=1.53", default-features = false, features = ["sync"] }
 anyhow = { version = ">=1.0", default-features = false }
+directories = { version = ">=6.0", default-features = false }
+toml_edit = { version = ">=0.25", default-features = false, features = ["parse", "display"] }
 
 [lints]
 workspace = true

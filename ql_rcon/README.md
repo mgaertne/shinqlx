@@ -35,6 +35,17 @@ color = "auto"
 
 Every key is optional. A `password = ""` means that the server has no password and `ql_rcon` does not ask for one.
 
+The same file serves `ql_stats crimson-arena`, which reads the table `[stats]` because the stats port and password
+usually differ from the rcon ones. `port` alone takes the host of the rcon connection with that port, `host` names the
+whole URI; `ql_rcon` ignores the table. `ql_stats crimson-arena --save-server crimson-arena --host … --password …`
+writes it.
+
+```toml
+[stats]
+port = 27962
+password = "stats-secret"
+```
+
 **The password is stored as plain text, so keep the file private.** `--save-server` creates it readable for the owner
 only (`chmod 600`), and `ql_rcon` warns at the start if a server file with a password can be read by other users. When
 you create or copy the file yourself, restrict it with `chmod 600 ~/.config/ql_rcon/servers/crimson-arena.toml`. Leave the

@@ -104,6 +104,10 @@ Changes since 0.8.0.
   works), `--type A,B` and `--exclude A,B` filter by message type, `--color auto|always|never` colors the output
   (`auto` only on a terminal and without `NO_COLOR`), and `--timestamp` puts the time of receipt before each message.
   The keys of the json output keep the order of the server instead of being sorted.
+* **`ql_stats <name>` reads the server file of `ql_rcon`** (`servers/<name>.toml`). The table `[stats]` holds `port` (the
+  host of the rcon connection with this port), or `host` as a whole URI, and `password`; options on the command line
+  win. `--save-server <name>` writes the table, readable for the owner only, and a warning appears when a server file with
+  a password can be read by other users. Without a password `ql_stats` does not ask, as the stats interface often has none.
 
 ### Internal
 
