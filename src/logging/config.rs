@@ -164,4 +164,78 @@ mod tests {
         clear_pending_files();
         let _ = fs::remove_dir_all(directory);
     }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_valid_configuration_file_is_used_without_a_complaint() {
+        let (config, error) = config_from_file_or_default(Path::new(CONFIG_FILE_NAME));
+
+        assert!(error.is_none());
+        assert_eq!(appender_names(&config), vec!["file", "stdout"]);
+        clear_pending_files();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_missing_configuration_file_falls_back_to_the_default_and_reports_why() {
+        let path = std::env::temp_dir()
+            .join(format!("shinqlx-cfg-missing-{}", std::process::id()))
+            .join(CONFIG_FILE_NAME);
+
+        let (config, error) = config_from_file_or_default(&path);
+
+        assert!(error.is_some());
+        assert_eq!(appender_names(&config), vec!["file", "stdout"]);
+        clear_pending_files();
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn finishing_the_logging_opens_the_pending_log_file_below_the_directory() {
+        let directory =
+            std::env::temp_dir().join(format!("shinqlx-cfg-finish-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        clear_pending_files();
+        let _config = default_config();
+
+        let problems = finish_logging(
+            &directory,
+            RotationDefaults {
+                max_size: 1024,
+                count: 2,
+            },
+        );
+
+        assert_eq!(problems, Vec::<String>::new());
+        assert!(fs::read_dir(&directory).unwrap().next().is_some());
+        let _ = fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_log_file_that_cannot_be_opened_is_reported() {
+        let directory =
+            std::env::temp_dir().join(format!("shinqlx-cfg-blocked-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let blocker = directory.join("not-a-directory");
+        fs::write(&blocker, "").unwrap();
+        clear_pending_files();
+        let _config = default_config();
+
+        let problems = finish_logging(
+            &blocker,
+            RotationDefaults {
+                max_size: 1024,
+                count: 2,
+            },
+        );
+
+        assert_eq!(problems.len(), 1);
+        assert!(problems[0].starts_with("could not write "), "{problems:?}");
+        let _ = fs::remove_dir_all(directory);
+    }
 }
