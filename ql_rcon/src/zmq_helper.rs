@@ -21,6 +21,7 @@ use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, FLAG_LEGEND, Feed, FetchState, Fetched},
+    guide::local_help,
     learn::{Learned, Learner, explained},
     line_editor::{SessionFiles, remember, save_completions},
 };
@@ -210,6 +211,25 @@ fn handle_reply<S: CompletionStore>(
     Ok(())
 }
 
+/// Sends what the user typed to the server, unless the console answers it itself.
+async fn handle_user_line<T: Transport>(
+    line: &str,
+    fetch: &mut FetchState,
+    transport: &T,
+    sender: &UnboundedSender<String>,
+) -> Result<()> {
+    if let Some(help) = local_help(line) {
+        for text in help {
+            sender.send((*text).to_string())?;
+        }
+    } else {
+        fetch.user_sent(line);
+        transport.send(line).await;
+    }
+
+    Ok(())
+}
+
 async fn run_console<T: Transport, S: CompletionStore>(
     transport: &T,
     store: &S,
@@ -230,8 +250,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
             biased;
 
             Some(line) = zmq_receiver.recv() => {
-                fetch.user_sent(&line);
-                transport.send(&line).await;
+                handle_user_line(&line, &mut fetch, transport, display_sender).await?;
             },
 
             _ = poll.tick() => {
@@ -307,7 +326,8 @@ mod zmq_helper_tests {
 
     use super::{
         CONTINUE_RUNNING, CommandLineOptions, CompletionStore, FETCH_COMMANDS, FetchState,
-        LinkEvent, LinkState, Reconnect, Transport, check_link, handle_reply, run_zmq, trim_ql_msg,
+        LinkEvent, LinkState, Reconnect, Transport, check_link, handle_reply, handle_user_line,
+        run_zmq, trim_ql_msg,
     };
     use crate::{
         fetch::Fetched,
@@ -404,6 +424,28 @@ mod zmq_helper_tests {
         );
         assert_eq!(locked(&store.remembered).len(), 1);
         assert!(locked(&store.saved).is_empty());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn help_cvarflags_is_answered_without_the_server() {
+        let transport = FakeTransport::default();
+        let (display_sender, mut display_receiver) = unbounded_channel();
+
+        handle_user_line(
+            "help cvarflags",
+            &mut FetchState::new(false),
+            &transport,
+            &display_sender,
+        )
+        .await
+        .expect("the line can be handled");
+
+        assert!(locked(&transport.sent).is_empty());
+        assert!(
+            drained(&mut display_receiver)
+                .iter()
+                .any(|line| line.contains("R  read-only"))
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]

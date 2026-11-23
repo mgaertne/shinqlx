@@ -8,6 +8,26 @@ const FLAGS: &str = include_str!("cvar_flags.txt");
 /// `name<TAB>first line of the description`.
 const HELP: &str = include_str!("help.txt");
 
+/// The text of `help cvarflags`, which the console answers itself instead of asking the server.
+const CVAR_FLAGS_HELP: [&str; 9] = [
+    "The letters at the end of a cvar in cvarlist, in the order of the server:",
+    "  S  serverinfo  sent in response to front end requests, such as server queries",
+    "  U  userinfo    sent to the server on connect or change",
+    "  R  read-only   display only, cannot be set by the user at all",
+    "  I  init only   cannot be changed from the console, but can be set on the command line",
+    "  A  archived    saved to the config file",
+    "  L  latched     changes only after a map change or restart",
+    "  C  cheat       cannot be changed while cheats are disabled",
+    "  T  temporary   can be set while cheats are disabled, but is not archived",
+];
+
+/// The answer to a line the console knows without the server, `help cvarflags`.
+pub(crate) fn local_help(line: &str) -> Option<&'static [&'static str]> {
+    let words: Vec<String> = line.split_whitespace().map(str::to_lowercase).collect();
+    matches!(words.as_slice(), [help, topic] if help == "help" && matches!(topic.as_str(), "cvarflags" | "flags"))
+        .then_some(CVAR_FLAGS_HELP.as_slice())
+}
+
 /// The values or bits of a cvar with their meaning, in the order of the guide.
 pub(crate) fn value_labels(cvar: &str) -> Vec<(&'static str, &'static str)> {
     ENUMS

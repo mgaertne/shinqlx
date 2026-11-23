@@ -41,7 +41,7 @@ Changes since 0.8.0.
   value stands for: the set bits of a bit field (`= Shotgun + Chaingun`) or the label of an enumeration (`= Clan Arena`),
   as far as the console guide lists them. Bits the guide does not know show up as `unknown bits 0x...`.
 * The output of `cvarlist` is easier to read: the flag letters of the server are put at the end of their cvar line
-  (`sv_hostname "..."  [SA]`), and a line below the list explains the letters. The flags are kept in the `[flags]` table of the server file and add to
+  (`sv_hostname "..."  [SA]`), and a line below the list explains the letters; `help cvarflags` lists them in full. The flags are kept in the `[flags]` table of the server file and add to
   the notes (`[latched]`, `[read-only]`, `[cheat]`) in the completion menu.
 * Commands and cvars (also after `set`) match anywhere in the name: `gametype` offers `g_gametype`. The names that start
   with the typed text come first.

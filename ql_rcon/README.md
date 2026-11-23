@@ -69,8 +69,9 @@ The lists grow when you type `cmdlist`, `cvarlist` or `dir maps .bsp` yourself, 
 `--fetch-completions`. Without a server file the same data goes into `completions-<host>.txt` and
 `learned-<host>.txt` next to it (the flags only go into a server file).
 
-When you type `cvarlist` yourself, the one-letter flag lines of the server are joined to the cvar they belong to, so
-each line ends with its flags, `sv_hostname "A New Server"  [SA]`, and a line below the list explains the letters.
+When you type `cvarlist` yourself, the flag letters of the server are put at the end of their cvar line,
+`sv_hostname "A New Server"  [SA]`, and a line below the list explains them. `help cvarflags` shows the meaning of each
+letter; `ql_rcon` answers it itself and does not send it to the server.
 
 ## Own completions
 

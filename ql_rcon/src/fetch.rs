@@ -52,7 +52,7 @@ pub(crate) enum FetchState {
 }
 
 /// What the flag letters of a `cvarlist` stand for, in the order of the server's flag slots.
-pub(crate) const FLAG_LEGEND: &str = "Flags: S serverinfo, U userinfo, R read-only, I init only, A archived, L latched, C cheat, T temporary";
+pub(crate) const FLAG_LEGEND: &str = "Flags: S serverinfo, U userinfo, R read-only, I init only, A archived, L latched, C cheat, T temporary (help cvarflags)";
 
 /// The cvar line with its flags at the end, `sv_hostname "x"  [SA]`; a cvar without flags stays as it is.
 fn with_flags(line: &str, flags: &str) -> String {
