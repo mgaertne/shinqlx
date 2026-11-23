@@ -132,12 +132,16 @@ fn describe(
         .into_iter()
         .map(|item| {
             let text = if describe_names {
-                let note = setting_note(&item, user);
-                match (note, help_for(&item)) {
-                    (Some(note), Some(help)) => Some(format!("{note} {help}")),
-                    (Some(note), None) => Some(note),
-                    (None, help) => help.map(str::to_string),
-                }
+                let letters = flag_letters(&item, user);
+                let parts: Vec<String> = [
+                    (!letters.is_empty()).then(|| format!("[{letters}]")),
+                    setting_note(&item, user),
+                    help_for(&item).map(str::to_string),
+                ]
+                .into_iter()
+                .flatten()
+                .collect();
+                (!parts.is_empty()).then(|| parts.join(" "))
             } else {
                 cvar.and_then(|cvar| {
                     value_label(cvar, &item, user).or_else(|| help_for(cvar).map(str::to_string))
@@ -168,8 +172,8 @@ struct UserLists {
     cvar_flags: HashMap<String, String>,
 }
 
-/// What setting the cvar does according to the guide and to what the server said: `latched`, `read-only` and so on.
-fn setting_note(cvar: &str, user: &UserLists) -> Option<String> {
+/// The flag letters of the guide and of the server together; a latched cvar is not read-only.
+fn effective_flags(cvar: &str, user: &UserLists) -> String {
     let name = cvar.to_lowercase();
     let mut flags = flags_for(cvar).to_string();
     if let Some(reported) = user.cvar_flags.get(&name) {
@@ -181,6 +185,21 @@ fn setting_note(cvar: &str, user: &UserLists) -> Option<String> {
     } else if user.read_only.contains(&name) {
         flags.push('R');
     }
+    flags
+}
+
+/// The letters once each, in the order of the slots of `cvarlist`, for the list: `SA`.
+fn flag_letters(cvar: &str, user: &UserLists) -> String {
+    let flags = effective_flags(cvar, user);
+    "SURIALCTW"
+        .chars()
+        .filter(|letter| flags.contains(*letter))
+        .collect()
+}
+
+/// What setting the cvar does according to the guide and to what the server said: `latched`, `read-only` and so on.
+fn setting_note(cvar: &str, user: &UserLists) -> Option<String> {
+    let flags = effective_flags(cvar, user);
     let notes: Vec<&str> = ['C', 'I', 'L', 'R', 'W']
         .into_iter()
         .filter(|flag| flags.contains(*flag))
@@ -1350,11 +1369,36 @@ mod line_editor_tests {
     fn names_are_listed_with_their_description_however_many_there_are() {
         let user = UserLists::default();
 
-        let described = describe(vec!["timelimit".to_string(); 60], "", 0, &user);
+        let described = describe(vec!["addbot".to_string(); 60], "", 0, &user);
 
         assert!(described.iter().all(|(_, description)| {
-            description.as_deref() == Some("Sets the time limit on your server.")
+            description.as_deref() == Some("Adds a computer opponent.")
         }));
+    }
+
+    #[test]
+    fn the_flag_letters_of_a_cvar_lead_its_description_in_the_menu() {
+        let mut user = UserLists::default();
+        user.cvar_flags
+            .insert("timelimit".to_string(), "AC".to_string());
+
+        let described = describe(
+            vec!["timelimit".to_string(), "sv_cheats".to_string()],
+            "",
+            0,
+            &user,
+        );
+
+        assert_eq!(
+            described[0].1.as_deref(),
+            Some("[SAC] [cheat] Sets the time limit on your server.")
+        );
+        assert!(
+            described[1]
+                .1
+                .as_deref()
+                .is_some_and(|text| text.starts_with("[R] [read-only]"))
+        );
     }
 
     #[test]
