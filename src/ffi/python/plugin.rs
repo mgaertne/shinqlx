@@ -15,11 +15,11 @@ mod lookup;
 use self::lookup::{TargetLookup, lookup_target, players_matching_name};
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
-    EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, Teams, abort, addadmin,
-    addmod, addscore, addteamscore, allready, ban, change_map, client_id,
-    commands::CommandPriorities, console_command, demote, event_dispatcher, is_vote_active, lock,
-    mute, opsay, pause, prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once,
-    pyshinqlx_set_cvar_once, set_teamsize, shuffle, tempban, unban, unlock, unmute, unpause,
+    EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL, Teams, abort, addadmin, addmod, addscore,
+    addteamscore, allready, ban, change_map, client_id, commands::CommandPriorities,
+    console_command, demote, event_dispatcher, is_vote_active, lock, mute, opsay, pause,
+    prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
+    set_teamsize, shuffle, tempban, unban, unlock, unmute, unpause,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -1290,13 +1290,11 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
         let dispatcher = event_dispatcher(
             self.py(),
             &PyString::new(self.py(), event),
-            "could not get access to event dispatchers",
+            "could not get access to event dispatcher",
         )?;
-        EventDispatcherMethods::remove_hook(
-            dispatcher.cast()?,
-            &self.get_type().name()?.to_string(),
-            handler,
-            priority,
+        dispatcher.call_method1(
+            intern!(self.py(), "remove_hook"),
+            (self.get_type().name()?, handler, priority),
         )?;
 
         self.get()

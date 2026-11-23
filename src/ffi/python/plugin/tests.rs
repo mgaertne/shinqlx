@@ -489,6 +489,78 @@ fn add_hook_adds_hook_to_event_dispatchers(_pyshinqlx_setup: ()) {
 #[rstest]
 #[cfg_attr(miri, ignore)]
 #[serial]
+fn add_and_remove_hook_call_the_overrides_of_the_dispatcher(_pyshinqlx_setup: ()) {
+    Python::attach(|py| {
+        let module = PyModule::from_code(
+            py,
+            c"import shinqlx
+
+class Recording(shinqlx.EventDispatcher):
+    name = 'recording'
+
+    def __init__(self):
+        super().__init__()
+        self.calls = []
+
+    def add_hook(self, plugin, handler, priority=3):
+        self.calls.append(('add', plugin, priority))
+
+    def remove_hook(self, plugin, handler, priority=3):
+        self.calls.append(('remove', plugin, priority))
+",
+            c"recording.py",
+            c"recording",
+        )
+        .expect("could not create the recording dispatcher module");
+        let manager =
+            Bound::new(py, EventDispatcherManager::default()).expect("this should not happen");
+        let recording = module
+            .getattr("Recording")
+            .expect("could not get the recording dispatcher class");
+        manager
+            .add_dispatcher(
+                recording
+                    .cast::<pyo3::types::PyType>()
+                    .expect("the recording dispatcher was no class"),
+            )
+            .expect("could not register the recording dispatcher");
+        EVENT_DISPATCHERS.store(Some(manager.clone().unbind().into()));
+        let dispatcher = manager
+            .as_any()
+            .get_item("recording")
+            .expect("could not get the recording dispatcher");
+        let plugin_instance = test_plugin(py)
+            .call0()
+            .expect("could not create plugin instance");
+        let plugin = plugin_instance
+            .cast::<Plugin>()
+            .expect("could not downcast instance to plugin");
+        let priority = CommandPriorities::PRI_NORMAL as i32;
+
+        plugin
+            .add_hook("recording", py.None().bind(py), priority)
+            .expect("could not add the hook");
+        plugin
+            .remove_hook("recording", py.None().bind(py), priority)
+            .expect("could not remove the hook");
+
+        let calls = dispatcher
+            .getattr("calls")
+            .and_then(|calls| calls.extract::<Vec<(String, String, i32)>>())
+            .expect("could not read the recorded calls");
+        assert_eq!(
+            calls,
+            [
+                ("add".to_string(), "test_plugin".to_string(), priority),
+                ("remove".to_string(), "test_plugin".to_string(), priority),
+            ]
+        );
+    });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
 fn remove_hook_with_no_event_dispatchers(_pyshinqlx_setup: ()) {
     Python::attach(|py| {
         EVENT_DISPATCHERS.store(None);
