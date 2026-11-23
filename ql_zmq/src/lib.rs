@@ -1,5 +1,6 @@
 //! The watching of the ZMQ connection that `ql_rcon` and `ql_stats` have in common.
 
+pub mod quake_colors;
 pub mod servers;
 
 use core::{

@@ -9,6 +9,7 @@ use std::{
 
 use anyhow::Result;
 use directories::UserDirs;
+use ql_zmq::quake_colors::{ql_rgb, split_ql_colors};
 use reedline::{
     ColumnarMenu, Completer, CompletionResult, DefaultHinter, Emacs, ExternalPrinter,
     FileBackedHistory, History, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptEditMode,
@@ -689,52 +690,10 @@ impl Prompt for EmptyPrompt {
     }
 }
 
-fn is_color_code(bytes: &[u8], at: usize) -> bool {
-    bytes.get(at) == Some(&b'^') && matches!(bytes.get(at + 1), Some(b'0'..=b'7'))
-}
-
-fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
-    let bytes = input.as_bytes();
-    let first_code = (0..bytes.len())
-        .find(|&at| is_color_code(bytes, at))
-        .unwrap_or(bytes.len());
-
-    let mut result = vec![("reset", &input[..first_code])];
-    let mut at = first_code;
-    while at < bytes.len() {
-        if !is_color_code(bytes, at) {
-            at += 1;
-            continue;
-        }
-        let text_start = at + 2;
-        let text_end = input[text_start..]
-            .find('^')
-            .map_or(input.len(), |offset| text_start + offset);
-        if text_end > text_start {
-            result.push((&input[at..text_start], &input[text_start..text_end]));
-            at = text_end;
-        } else {
-            at += 1;
-        }
-    }
-
-    result.retain(|(_, text)| !text.is_empty());
-    result
-}
-
-/// The color of `^1` to `^7` with the RGB values of the 8 color palette in the guide at <https://www.euere.eu/ql/>.
-/// `^0` stays the black of the terminal theme, so that it remains readable.
 fn ql_color(code: &str) -> Color {
-    match code {
-        "^0" => Color::Black,
-        "^1" => Color::Rgb(0xFF, 0x00, 0x00),
-        "^2" => Color::Rgb(0x00, 0xFF, 0x00),
-        "^3" => Color::Rgb(0xFF, 0xFF, 0x00),
-        "^4" => Color::Rgb(0x00, 0x00, 0xFF),
-        "^5" => Color::Rgb(0x00, 0xFF, 0xFF),
-        "^6" => Color::Rgb(0xFF, 0x00, 0xFF),
-        _ => Color::Rgb(0xFF, 0xFF, 0xFF),
-    }
+    ql_rgb(code).map_or(Color::Black, |(red, green, blue)| {
+        Color::Rgb(red, green, blue)
+    })
 }
 
 fn write_formatted_ql_colors(buffer: &mut Buffer, text: &str) -> Result<()> {
@@ -959,7 +918,7 @@ mod line_editor_tests {
     use super::{
         CommandLineOptions, LearnedCvar, ServerCompleter, SessionFiles, SharedHistory, UserLists,
         completions, describe, get_history_file, known_values, parse_labels, parse_user_names,
-        setting_note, split_ql_colors, terminal_buffer, usage_hint, user_names_files, value_label,
+        setting_note, terminal_buffer, usage_hint, user_names_files, value_label,
         write_formatted_ql_colors,
     };
     use crate::guide::help_for;
@@ -972,44 +931,6 @@ mod line_editor_tests {
         let mut buffer = Buffer::no_color();
         write_formatted_ql_colors(&mut buffer, text).expect("writing to a buffer works");
         rendered(buffer)
-    }
-
-    #[test]
-    fn split_ql_colors_returns_unformatted_text_as_reset() {
-        assert_eq!(split_ql_colors("hello"), vec![("reset", "hello")]);
-    }
-
-    #[test]
-    fn split_ql_colors_splits_at_every_color_code() {
-        assert_eq!(
-            split_ql_colors("pre^1red^2green"),
-            vec![("reset", "pre"), ("^1", "red"), ("^2", "green")]
-        );
-    }
-
-    #[test]
-    fn split_ql_colors_skips_the_empty_leading_part() {
-        assert_eq!(split_ql_colors("^4blue"), vec![("^4", "blue")]);
-    }
-
-    #[test]
-    fn split_ql_colors_of_empty_text_is_empty() {
-        assert!(split_ql_colors("").is_empty());
-    }
-
-    #[test]
-    fn split_ql_colors_ignores_consecutive_color_codes_without_text() {
-        assert_eq!(split_ql_colors("^1^2green"), vec![("^2", "green")]);
-    }
-
-    #[test]
-    fn split_ql_colors_drops_text_after_an_unknown_color_code() {
-        assert_eq!(split_ql_colors("^1red^8lost"), vec![("^1", "red")]);
-    }
-
-    #[test]
-    fn split_ql_colors_keeps_non_ascii_text() {
-        assert_eq!(split_ql_colors("ä^3ö"), vec![("reset", "ä"), ("^3", "ö")]);
     }
 
     #[test]

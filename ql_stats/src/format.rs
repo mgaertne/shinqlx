@@ -2,6 +2,7 @@
 use std::io::{IsTerminal, stdout};
 
 use clap::ValueEnum;
+use ql_zmq::quake_colors::{ql_rgb, split_ql_colors};
 use serde_json::Value;
 
 use crate::cmd_line::CommandLineOptions;
@@ -111,17 +112,21 @@ impl Renderer {
 
     fn summarize(&self, kind: &str, data: &Value) -> Option<String> {
         let body = match kind {
-            "PLAYER_DEATH" | "PLAYER_KILL" => death_text(data)?,
-            "PLAYER_MEDAL" => format!("{} got {}", name(data, "/NAME")?, text(data, "/MEDAL")?),
+            "PLAYER_DEATH" | "PLAYER_KILL" => death_text(data, self.palette)?,
+            "PLAYER_MEDAL" => format!(
+                "{} got {}",
+                name(data, "/NAME", self.palette)?,
+                text(data, "/MEDAL")?
+            ),
             "PLAYER_SWITCHTEAM" => format!(
                 "{}: {} -> {}",
-                name(data, "/KILLER/NAME")?,
+                name(data, "/KILLER/NAME", self.palette)?,
                 text(data, "/KILLER/OLD_TEAM")?,
                 text(data, "/KILLER/TEAM")?
             ),
             "PLAYER_STATS" => format!(
                 "{} kills {} deaths {} score {}",
-                name(data, "/NAME")?,
+                name(data, "/NAME", self.palette)?,
                 number(data, "/KILLS")?,
                 number(data, "/DEATHS")?,
                 number(data, "/SCORE")?
@@ -180,22 +185,21 @@ fn number(data: &Value, path: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
-/// A player name without the color codes of the game.
-fn name(data: &Value, path: &str) -> Option<String> {
-    let mut plain = String::new();
-    let mut characters = text(data, path)?.chars().peekable();
-    while let Some(character) = characters.next() {
-        if character == '^' && characters.peek().is_some_and(char::is_ascii_digit) {
-            characters.next();
-        } else {
-            plain.push(character);
-        }
-    }
-    Some(plain)
+/// A player name; in the colors of the game when the output is colored, otherwise without the color codes.
+fn name(data: &Value, path: &str, palette: Palette) -> Option<String> {
+    let colored = split_ql_colors(text(data, path)?)
+        .into_iter()
+        .map(|(code, part)| match ql_rgb(code) {
+            _ if !palette.enabled || code == "reset" => part.to_string(),
+            Some((red, green, blue)) => palette.paint(&format!("38;2;{red};{green};{blue}"), part),
+            None => palette.paint("30", part),
+        })
+        .collect();
+    Some(colored)
 }
 
-fn death_text(data: &Value) -> Option<String> {
-    let victim = name(data, "/VICTIM/NAME")?;
+fn death_text(data: &Value, palette: Palette) -> Option<String> {
+    let victim = name(data, "/VICTIM/NAME", palette)?;
     let cause = text(data, "/MOD")?;
     if data.get("SUICIDE").and_then(Value::as_bool) == Some(true) {
         return Some(format!("{victim} suicide ({cause})"));
@@ -207,7 +211,7 @@ fn death_text(data: &Value) -> Option<String> {
     };
     Some(format!(
         "{victim} <- {} ({cause}{teamkill})",
-        name(data, "/KILLER/NAME")?
+        name(data, "/KILLER/NAME", palette)?
     ))
 }
 
@@ -345,6 +349,20 @@ mod format_tests {
             no_deaths
                 .render(r#"{"TYPE":"ROUND_OVER","DATA":{}}"#)
                 .is_some()
+        );
+    }
+
+    #[test]
+    fn colored_summaries_show_the_names_in_the_colors_of_the_game() {
+        let line = renderer(&["--format", "summary"], true).render(
+            r#"{"TYPE":"PLAYER_MEDAL","DATA":{"NAME":"^1Al^4ice^7","MEDAL":"IMPRESSIVE"}}"#,
+        );
+
+        assert_eq!(
+            line.as_deref(),
+            Some(
+                "\x1b[32mPLAYER_MEDAL     \x1b[0m  \x1b[38;2;255;0;0mAl\x1b[0m\x1b[38;2;0;0;255mice\x1b[0m got IMPRESSIVE"
+            )
         );
     }
 
