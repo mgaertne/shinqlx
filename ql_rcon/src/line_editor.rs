@@ -395,10 +395,14 @@ pub(crate) fn save_completions(session: &SessionFiles, fetched: &Fetched) -> io:
     };
     let names_file = fetched_file(session, "completions").ok_or_else(missing)?;
     let maps_file = fetched_file(session, "completions-maps").ok_or_else(missing)?;
-    write_lines(&names_file, &merged(&names_file, &fetched.names))?;
-    write_lines(&maps_file, &merged(&maps_file, &fetched.maps))?;
+    save_lists(&names_file, &maps_file, fetched)?;
 
     Ok(names_file)
+}
+
+fn save_lists(names_file: &Path, maps_file: &Path, fetched: &Fetched) -> io::Result<()> {
+    write_lines(names_file, &merged(names_file, &fetched.names))?;
+    write_lines(maps_file, &merged(maps_file, &fetched.maps))
 }
 
 /// `<stem>.txt` for all servers, `<stem>-<host>.txt` and the fetched `<fetched>-<host>.txt` for the connected one, all
@@ -474,11 +478,15 @@ pub(crate) fn remember(session: &SessionFiles, learned: &Learned) -> io::Result<
         return file.remember(learned);
     }
 
-    let Some(file) = fetched_file(session, "learned") else {
-        return Ok(());
-    };
+    match fetched_file(session, "learned") {
+        Some(file) => remember_in(&file, learned),
+        None => Ok(()),
+    }
+}
+
+fn remember_in(file: &Path, learned: &Learned) -> io::Result<()> {
     let (key, line) = learned_line(learned);
-    let existing = std::fs::read_to_string(&file).unwrap_or_default();
+    let existing = std::fs::read_to_string(file).unwrap_or_default();
     if existing.lines().any(|known| known == line) {
         return Ok(());
     }
@@ -489,13 +497,17 @@ pub(crate) fn remember(session: &SessionFiles, learned: &Learned) -> io::Result<
         .map(str::to_string)
         .collect();
     lines.push(line);
-    write_lines(&file, &lines)
+    write_lines(file, &lines)
 }
 
 fn load_learned(session: &SessionFiles, user: &mut UserLists) {
     let text = fetched_file(session, "learned")
         .and_then(|file| std::fs::read_to_string(file).ok())
         .unwrap_or_default();
+    apply_learned(&text, user);
+}
+
+fn apply_learned(text: &str, user: &mut UserLists) {
     for line in text.lines() {
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
@@ -912,16 +924,22 @@ fn read_input(
 
 #[cfg(test)]
 mod line_editor_tests {
-    use reedline::Completer;
+    use std::{fs, path::PathBuf};
+
+    use reedline::{
+        Completer, FileBackedHistory, History, HistoryItem, Prompt, PromptEditMode,
+        PromptHistorySearch, PromptHistorySearchStatus, Span,
+    };
     use termcolor::{Buffer, ColorChoice, WriteColor};
 
     use super::{
-        CommandLineOptions, LearnedCvar, ServerCompleter, SessionFiles, SharedHistory, UserLists,
-        completions, describe, get_history_file, known_values, parse_labels, parse_user_names,
-        setting_note, terminal_buffer, usage_hint, user_names_files, value_label,
-        write_formatted_ql_colors,
+        CommandLineOptions, EmptyPrompt, LearnedCvar, ServerCompleter, SessionFiles, SharedHistory,
+        UserLists, apply_learned, completions, describe, get_history_file, history_lines,
+        known_values, learned_line, load_profile, merged, parse_labels, parse_user_names,
+        remember_in, save_lists, setting_note, terminal_buffer, usage_hint, usage_listing,
+        user_names_files, value_label, write_formatted_ql_colors, write_lines,
     };
-    use crate::guide::help_for;
+    use crate::{fetch::Fetched, guide::help_for, learn::Learned, profile::ServerFile};
 
     fn rendered(buffer: Buffer) -> String {
         String::from_utf8(buffer.into_inner()).expect("the output is valid UTF-8")
@@ -1406,5 +1424,264 @@ mod line_editor_tests {
             ipc_file.file_name().and_then(|name| name.to_str()),
             Some(".ql_zmq_rcon.history")
         );
+    }
+
+    fn temp_dir(test: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("ql_rcon_line_editor_{test}_{}", std::process::id()))
+    }
+
+    fn strings(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn learned_lines_name_their_entry_and_carry_the_values() {
+        let pair = |key: &str, line: &str| (key.to_string(), line.to_string());
+
+        assert_eq!(
+            learned_line(&Learned::Usage {
+                command: "map".to_string(),
+                text: "map <name>".to_string()
+            }),
+            pair("usage\tmap\t", "usage\tmap\tmap <name>")
+        );
+        assert_eq!(
+            learned_line(&Learned::Factories(strings(&["ca", "ffa"]))),
+            pair("factories\t", "factories\tca\tffa")
+        );
+        assert_eq!(
+            learned_line(&Learned::Latched("G_Gametype".to_string())),
+            pair("latched\tg_gametype\t", "latched\tg_gametype")
+        );
+        assert_eq!(
+            learned_line(&Learned::ReadOnly("Sv_Fps".to_string())),
+            pair("readonly\tsv_fps\t", "readonly\tsv_fps")
+        );
+        assert_eq!(
+            learned_line(&Learned::Cvar {
+                name: "G_Gravity".to_string(),
+                default: "800".to_string(),
+                minimum: "0".to_string(),
+                maximum: "1000".to_string()
+            }),
+            pair("cvar\tg_gravity\t", "cvar\tg_gravity\t800\t0\t1000")
+        );
+    }
+
+    #[test]
+    fn writing_lines_creates_the_directory_and_ends_the_file_with_a_newline() {
+        let dir = temp_dir("write");
+        let file = dir.join("nested").join("names.txt");
+
+        write_lines(&file, &strings(&["a", "b"])).expect("could not write the file");
+
+        assert_eq!(
+            fs::read_to_string(&file).expect("could not read the file"),
+            "a\nb\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn merged_names_are_sorted_and_not_repeated_regardless_of_the_case() {
+        let dir = temp_dir("merged");
+        let file = dir.join("names.txt");
+        write_lines(&file, &strings(&["Zebra", "apple"])).expect("could not write the file");
+
+        let names = merged(&file, &strings(&["APPLE", "mango"]));
+
+        let lowercase: Vec<String> = names.iter().map(|name| name.to_lowercase()).collect();
+        assert_eq!(lowercase, ["apple", "mango", "zebra"]);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_missing_list_file_adds_nothing_when_merged() {
+        let file = temp_dir("merged_missing").join("missing.txt");
+
+        assert_eq!(merged(&file, &strings(&["b", "a"])), ["a", "b"]);
+    }
+
+    #[test]
+    fn saved_lists_are_merged_into_the_names_and_the_maps_file() {
+        let dir = temp_dir("lists");
+        let names_file = dir.join("completions-host.txt");
+        let maps_file = dir.join("completions-maps-host.txt");
+        write_lines(&names_file, &strings(&["railgun"])).expect("could not write the file");
+        let fetched = Fetched {
+            names: strings(&["quad"]),
+            maps: strings(&["campgrounds"]),
+            flags: Vec::new(),
+        };
+
+        save_lists(&names_file, &maps_file, &fetched).expect("could not save the lists");
+
+        assert_eq!(
+            fs::read_to_string(&names_file).expect("could not read the names"),
+            "quad\nrailgun\n"
+        );
+        assert_eq!(
+            fs::read_to_string(&maps_file).expect("could not read the maps"),
+            "campgrounds\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_newer_report_replaces_the_older_one_of_the_same_entry() {
+        let dir = temp_dir("remember");
+        let file = dir.join("learned.txt");
+        let usage = |text: &str| Learned::Usage {
+            command: "map".to_string(),
+            text: text.to_string(),
+        };
+
+        remember_in(&file, &usage("map <old>")).expect("could not remember the usage");
+        remember_in(&file, &Learned::Latched("G_Gametype".to_string()))
+            .expect("could not remember the cvar");
+        remember_in(&file, &usage("map <name>")).expect("could not remember the usage");
+
+        assert_eq!(
+            fs::read_to_string(&file).expect("could not read the file"),
+            "latched\tg_gametype\nusage\tmap\tmap <name>\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_same_report_is_not_written_twice() {
+        let dir = temp_dir("remember_twice");
+        let file = dir.join("learned.txt");
+        let learned = Learned::ReadOnly("sv_fps".to_string());
+
+        remember_in(&file, &learned).expect("could not remember the cvar");
+        remember_in(&file, &learned).expect("could not remember the cvar");
+
+        assert_eq!(
+            fs::read_to_string(&file).expect("could not read the file"),
+            "readonly\tsv_fps\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn learned_lines_fill_the_lists_of_the_user() {
+        let mut user = UserLists::default();
+
+        apply_learned(
+            "factories\tca\tffa\nlatched\tg_gametype\nreadonly\tsv_fps\nusage\tmap\tmap <name>\n\
+             cvar\tg_gravity\t800\t0\t1000\nunknown\tentry\n\nusage\tbroken\n",
+            &mut user,
+        );
+
+        assert_eq!(user.factories, ["ca", "ffa"]);
+        assert!(user.latched.contains("g_gametype"));
+        assert!(user.read_only.contains("sv_fps"));
+        assert_eq!(user.usages.len(), 1);
+        assert_eq!(
+            user.usages.get("map").map(String::as_str),
+            Some("map <name>")
+        );
+        let cvar = user.cvars.get("g_gravity").expect("the cvar was learned");
+        assert_eq!(
+            (
+                cvar.default.as_str(),
+                cvar.minimum.as_str(),
+                cvar.maximum.as_str()
+            ),
+            ("800", "0", "1000")
+        );
+    }
+
+    #[test]
+    fn the_server_file_fills_the_lists_of_the_user() {
+        let dir = temp_dir("profile");
+        let file = ServerFile::new(dir.join("crimson-arena.toml"));
+        file.merge_fetched(&Fetched {
+            names: strings(&["quad"]),
+            maps: strings(&["campgrounds"]),
+            flags: vec![("g_gravity".to_string(), "A".to_string())],
+        })
+        .expect("could not save the fetched lists");
+        for learned in [
+            Learned::Factories(strings(&["ca"])),
+            Learned::Latched("g_gametype".to_string()),
+            Learned::ReadOnly("sv_fps".to_string()),
+            Learned::Usage {
+                command: "map".to_string(),
+                text: "map <name>".to_string(),
+            },
+            Learned::Cvar {
+                name: "g_gravity".to_string(),
+                default: "800".to_string(),
+                minimum: "0".to_string(),
+                maximum: "1000".to_string(),
+            },
+        ] {
+            file.remember(&learned)
+                .expect("could not save the learned entry");
+        }
+        let mut user = UserLists::default();
+
+        load_profile(&file, &mut user);
+
+        assert_eq!(user.names, ["quad"]);
+        assert_eq!(user.maps, ["campgrounds"]);
+        assert_eq!(user.factories, ["ca"]);
+        assert!(user.latched.contains("g_gametype"));
+        assert!(user.read_only.contains("sv_fps"));
+        assert_eq!(
+            user.usages.get("map").map(String::as_str),
+            Some("map <name>")
+        );
+        assert_eq!(
+            user.cvar_flags.get("g_gravity").map(String::as_str),
+            Some("A")
+        );
+        assert!(user.cvars.contains_key("g_gravity"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_usage_listing_leaves_the_word_as_it_is() {
+        let listing = usage_listing("map <name>".to_string(), "ca", Span::new(4, 6));
+
+        assert_eq!(listing.len(), 1);
+        assert_eq!(listing[0].value, "ca");
+        assert_eq!(listing[0].display_override.as_deref(), Some("map <name>"));
+        assert_eq!(
+            listing[0].description.as_deref(),
+            Some("reported by this server")
+        );
+        assert_eq!(listing[0].span, Span::new(4, 6));
+    }
+
+    #[test]
+    fn the_prompt_shows_nothing() {
+        let prompt = EmptyPrompt;
+
+        assert_eq!(prompt.render_prompt_left(), "");
+        assert_eq!(prompt.render_prompt_right(), "");
+        assert_eq!(prompt.render_prompt_indicator(PromptEditMode::Default), "");
+        assert_eq!(prompt.render_prompt_multiline_indicator(), "");
+        assert_eq!(
+            prompt.render_prompt_history_search_indicator(PromptHistorySearch::new(
+                PromptHistorySearchStatus::Passing,
+                String::new()
+            )),
+            ""
+        );
+    }
+
+    #[test]
+    fn the_history_lines_come_newest_first() {
+        let mut history = FileBackedHistory::new(10).expect("could not create the history");
+        for line in ["first", "second", "third"] {
+            history
+                .save(HistoryItem::from_command_line(line))
+                .expect("could not save the entry");
+        }
+
+        assert_eq!(history_lines(&history), ["third", "second", "first"]);
     }
 }

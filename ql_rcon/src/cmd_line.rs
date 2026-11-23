@@ -1,5 +1,5 @@
 use core::str::FromStr;
-use std::io::IsTerminal;
+use std::{io::IsTerminal, path::PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
@@ -92,10 +92,17 @@ impl Cli {
     }
 }
 
-fn open_server_file(name: &str) -> Result<ServerFile> {
-    let path = server_file(name).ok_or_else(|| {
+fn path_of_server_file(name: &str) -> Result<PathBuf> {
+    server_file(name).ok_or_else(|| {
         anyhow!("'{name}' is not a valid server name or there is no config directory")
-    })?;
+    })
+}
+
+fn open_server_file(name: &str) -> Result<ServerFile> {
+    open_existing(name, path_of_server_file(name)?)
+}
+
+fn open_existing(name: &str, path: PathBuf) -> Result<ServerFile> {
     if !path.exists() {
         bail!(
             "no server file {}; create it with --save-server {name} and the connection options",
@@ -107,9 +114,10 @@ fn open_server_file(name: &str) -> Result<ServerFile> {
 }
 
 fn save_server(name: &str, options: &CommandLineOptions) -> Result<()> {
-    let path = server_file(name).ok_or_else(|| {
-        anyhow!("'{name}' is not a valid server name or there is no config directory")
-    })?;
+    save_server_at(path_of_server_file(name)?, options)
+}
+
+fn save_server_at(path: PathBuf, options: &CommandLineOptions) -> Result<()> {
     let file = ServerFile::new(path);
     file.save_connection(&Connection {
         host: Some(options.host.clone()),
@@ -180,11 +188,18 @@ impl CommandLineOptions {
 
 #[cfg(test)]
 mod cmd_line_tests {
+    use std::{
+        fs,
+        path::{Path, PathBuf},
+    };
+
     use clap::Parser;
     use termcolor::ColorChoice;
 
-    use super::{Cli, CommandLineOptions};
-    use crate::profile::Connection;
+    use super::{
+        Cli, CommandLineOptions, open_existing, open_server_file, save_server, save_server_at,
+    };
+    use crate::profile::{Connection, ServerFile};
 
     fn resolved(args: &[&str], server: Connection) -> CommandLineOptions {
         Cli::try_parse_from(args)
@@ -305,5 +320,96 @@ mod cmd_line_tests {
             });
 
         assert!(result.is_err());
+    }
+
+    fn options(identity: &str) -> CommandLineOptions {
+        CommandLineOptions {
+            host: "tcp://192.0.2.1:27961".to_string(),
+            password: "secret".to_string(),
+            identity: identity.to_string(),
+            color: ColorChoice::Never,
+            fetch_completions: false,
+            profile: None,
+        }
+    }
+
+    fn server_file_path(test: &str) -> PathBuf {
+        std::env::temp_dir()
+            .join(format!("ql_rcon_cmd_line_{test}_{}", std::process::id()))
+            .join("crimson-arena.toml")
+    }
+
+    fn remove_directory_of(path: &Path) {
+        if let Some(dir) = path.parent() {
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
+
+    #[test]
+    fn a_missing_server_file_is_reported_with_the_way_to_create_it() {
+        let path = server_file_path("missing");
+
+        let result = open_existing("crimson-arena", path);
+
+        let message = result.err().expect("the file does not exist").to_string();
+        assert!(message.contains("--save-server crimson-arena"), "{message}");
+    }
+
+    #[test]
+    fn an_existing_server_file_is_opened() {
+        let path = server_file_path("existing");
+        save_server_at(path.clone(), &options("")).expect("could not save the server");
+
+        let result = open_existing("crimson-arena", path.clone());
+
+        assert_eq!(result.expect("the file exists").path(), path.as_path());
+        remove_directory_of(&path);
+    }
+
+    #[test]
+    fn saving_a_server_keeps_host_password_and_identity_but_not_the_color() {
+        let path = server_file_path("saved");
+
+        save_server_at(path.clone(), &options("crimson-arena")).expect("could not save the server");
+
+        assert_eq!(
+            ServerFile::new(path.clone())
+                .connection()
+                .expect("could not read the server file"),
+            Connection {
+                host: Some("tcp://192.0.2.1:27961".to_string()),
+                password: Some("secret".to_string()),
+                identity: Some("crimson-arena".to_string()),
+                color: None,
+            }
+        );
+        remove_directory_of(&path);
+    }
+
+    #[test]
+    fn an_empty_identity_is_not_saved() {
+        let path = server_file_path("no_identity");
+
+        save_server_at(path.clone(), &options("")).expect("could not save the server");
+
+        assert_eq!(
+            ServerFile::new(path.clone())
+                .connection()
+                .expect("could not read the server file")
+                .identity,
+            None
+        );
+        remove_directory_of(&path);
+    }
+
+    #[test]
+    fn invalid_server_names_are_rejected_before_the_file_system_is_touched() {
+        let opened = open_server_file("../crimson-arena");
+        let saved = save_server("../crimson-arena", &options(""));
+
+        for result in [opened.map(|_| ()), saved] {
+            let message = result.expect_err("the name is invalid").to_string();
+            assert!(message.contains("not a valid server name"), "{message}");
+        }
     }
 }
