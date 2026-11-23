@@ -124,6 +124,8 @@ impl Renderer {
                 text(data, "/KILLER/OLD_TEAM")?,
                 text(data, "/KILLER/TEAM")?
             ),
+            "PLAYER_CONNECT" => format!("{} connected", name(data, "/NAME", self.palette)?),
+            "PLAYER_DISCONNECT" => format!("{} disconnected", name(data, "/NAME", self.palette)?),
             "PLAYER_STATS" => format!(
                 "{} kills {} deaths {} score {}",
                 name(data, "/NAME", self.palette)?,
@@ -393,6 +395,39 @@ mod format_tests {
                 .render(r#"{"TYPE":"PLAYER_DEATH","DATA":{"VICTIM":{"NAME":"Bob"},"MOD":"LAVA","SUICIDE":true}}"#)
                 .as_deref(),
             Some("PLAYER_DEATH       Bob suicide (LAVA)")
+        );
+    }
+
+    #[test]
+    fn the_summary_of_players_that_connect_and_disconnect() {
+        let summary = renderer(&["--format", "summary"], false);
+
+        assert_eq!(
+            summary
+                .render(
+                    r#"{"DATA":{"MATCH_GUID":"b85b","NAME":"λ Prod1gy λ","STEAM_ID":"76561199159014708","TIME":701,"WARMUP":false},"TYPE":"PLAYER_CONNECT"}"#
+                )
+                .as_deref(),
+            Some("PLAYER_CONNECT     λ Prod1gy λ connected")
+        );
+        assert_eq!(
+            summary
+                .render(
+                    r#"{"DATA":{"MATCH_GUID":"b85b","NAME":"^7^7Gelenk^2b^3u^2s^7fahrer","STEAM_ID":"76561198255512950","TIME":788,"WARMUP":true},"TYPE":"PLAYER_DISCONNECT"}"#
+                )
+                .as_deref(),
+            Some("PLAYER_DISCONNECT  Gelenkbusfahrer disconnected [warmup]")
+        );
+    }
+
+    #[test]
+    fn a_connect_without_a_name_falls_back_to_json() {
+        let line = renderer(&["--format", "summary"], false)
+            .render(r#"{"TYPE":"PLAYER_CONNECT","DATA":{"TIME":701}}"#);
+
+        assert_eq!(
+            line.as_deref(),
+            Some(r#"{"TYPE":"PLAYER_CONNECT","DATA":{"TIME":701}}"#)
         );
     }
 
