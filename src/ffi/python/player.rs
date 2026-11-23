@@ -13,7 +13,7 @@ use pyo3::{
     create_exception,
     exceptions::{PyException, PyKeyError, PyNotImplementedError, PyValueError},
     intern,
-    types::{IntoPyDict, PyBool, PyDict, PyInt, PyNotImplemented, PyString, PyType},
+    types::{IntoPyDict, PyBool, PyDict, PyNotImplemented, PyString, PyType},
 };
 use tap::{TapOptional, TryConv};
 
@@ -450,7 +450,7 @@ impl Player {
         slf: &Bound<'py, Self>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Vector3>> {
         slf.position(reset, kwargs)
     }
 
@@ -459,7 +459,7 @@ impl Player {
         slf: &Bound<'py, Self>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Vector3>> {
         slf.velocity(reset, kwargs)
     }
 
@@ -468,7 +468,7 @@ impl Player {
         slf: &Bound<'py, Self>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Weapons>> {
         slf.weapons(reset, kwargs)
     }
 
@@ -476,7 +476,7 @@ impl Player {
     fn weapon<'py>(
         slf: &Bound<'py, Self>,
         new_weapon: Option<Bound<'py, PyAny>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<i32>> {
         slf.weapon(new_weapon)
     }
 
@@ -485,7 +485,7 @@ impl Player {
         slf: &Bound<'py, Self>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Weapons>> {
         slf.ammo(reset, kwargs)
     }
 
@@ -494,7 +494,7 @@ impl Player {
         slf: &Bound<'py, Self>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Powerups>> {
         slf.powerups(reset, kwargs)
     }
 
@@ -518,7 +518,7 @@ impl Player {
         slf: &Bound<'py, Self>,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Flight>> {
         slf.flight(reset, kwargs)
     }
 
@@ -671,6 +671,46 @@ impl Player {
     }
 }
 
+/// What a player state accessor gives back: the current value, or whether an update took effect.
+#[derive(Debug, PartialEq)]
+pub(crate) enum StateReading<T> {
+    Current(T),
+    Written(bool),
+}
+
+#[cfg(test)]
+impl<T> StateReading<T> {
+    pub(crate) fn current(self) -> Option<T> {
+        match self {
+            Self::Current(value) => Some(value),
+            Self::Written(_) => None,
+        }
+    }
+
+    pub(crate) fn written(self) -> Option<bool> {
+        match self {
+            Self::Current(_) => None,
+            Self::Written(written) => Some(written),
+        }
+    }
+}
+
+impl<'py, T> IntoPyObject<'py> for StateReading<T>
+where
+    T: IntoPyObject<'py>,
+{
+    type Error = PyErr;
+    type Output = Bound<'py, PyAny>;
+    type Target = PyAny;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        match self {
+            Self::Current(value) => value.into_bound_py_any(py),
+            Self::Written(written) => written.into_bound_py_any(py),
+        }
+    }
+}
+
 fn set_userinfo_int(
     player: &Bound<'_, Player>,
     key: &str,
@@ -784,25 +824,28 @@ pub(crate) trait PlayerMethods<'py> {
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
+    ) -> PyResult<StateReading<Vector3>>;
     fn velocity(
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
+    ) -> PyResult<StateReading<Vector3>>;
     fn weapons(
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
-    fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<Bound<'py, PyAny>>;
-    fn ammo(&self, reset: bool, kwargs: Option<&Bound<'py, PyDict>>)
-    -> PyResult<Bound<'py, PyAny>>;
+    ) -> PyResult<StateReading<Weapons>>;
+    fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<StateReading<i32>>;
+    fn ammo(
+        &self,
+        reset: bool,
+        kwargs: Option<&Bound<'py, PyDict>>,
+    ) -> PyResult<StateReading<Weapons>>;
     fn powerups(
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
+    ) -> PyResult<StateReading<Powerups>>;
     fn get_holdable(&self) -> PyResult<Option<String>>;
     fn set_holdable(&self, holdable: Option<&str>) -> PyResult<()>;
     fn drop_holdable(&self) -> PyResult<()>;
@@ -810,7 +853,7 @@ pub(crate) trait PlayerMethods<'py> {
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>>;
+    ) -> PyResult<StateReading<Flight>>;
     fn get_noclip(&self) -> PyResult<bool>;
     fn set_noclip(&self, value: &Bound<'py, PyAny>) -> PyResult<()>;
     fn get_health(&self) -> PyResult<i32>;
@@ -1203,7 +1246,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Vector3>> {
         let pos = if reset {
             Vector3(0, 0, 0)
         } else {
@@ -1211,23 +1254,23 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 .map_or(Vector3(0, 0, 0), |state| state.position)
         };
 
-        kwargs.map_or(pos.clone().into_bound_py_any(self.py()), |py_kwargs| {
-            let vector = Vector3(
-                kwarg_or(py_kwargs, "x", pos.0)?,
-                kwarg_or(py_kwargs, "y", pos.1)?,
-                kwarg_or(py_kwargs, "z", pos.2)?,
-            );
+        let Some(py_kwargs) = kwargs else {
+            return Ok(StateReading::Current(pos));
+        };
+        let vector = Vector3(
+            kwarg_or(py_kwargs, "x", pos.0)?,
+            kwarg_or(py_kwargs, "y", pos.1)?,
+            kwarg_or(py_kwargs, "z", pos.2)?,
+        );
 
-            pyshinqlx_set_position(self.py(), self.get().id, &vector)
-                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-        })
+        pyshinqlx_set_position(self.py(), self.get().id, &vector).map(StateReading::Written)
     }
 
     fn velocity(
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Vector3>> {
         let vel = if reset {
             Vector3(0, 0, 0)
         } else {
@@ -1235,23 +1278,23 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 .map_or(Vector3(0, 0, 0), |state| state.velocity)
         };
 
-        kwargs.map_or(Ok(vel.clone().into_bound_py_any(self.py())?), |py_kwargs| {
-            let vector = Vector3(
-                kwarg_or(py_kwargs, "x", vel.0)?,
-                kwarg_or(py_kwargs, "y", vel.1)?,
-                kwarg_or(py_kwargs, "z", vel.2)?,
-            );
+        let Some(py_kwargs) = kwargs else {
+            return Ok(StateReading::Current(vel));
+        };
+        let vector = Vector3(
+            kwarg_or(py_kwargs, "x", vel.0)?,
+            kwarg_or(py_kwargs, "y", vel.1)?,
+            kwarg_or(py_kwargs, "z", vel.2)?,
+        );
 
-            pyshinqlx_set_velocity(self.py(), self.get().id, &vector)
-                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-        })
+        pyshinqlx_set_velocity(self.py(), self.get().id, &vector).map(StateReading::Written)
     }
 
     fn weapons(
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Weapons>> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
@@ -1261,18 +1304,15 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             )
         };
 
-        kwargs.map_or(
-            Ok(weaps.clone().into_bound_py_any(self.py())?),
-            |py_kwargs| {
-                let weapons = weapons_from_kwargs(py_kwargs, &weaps)?;
+        let Some(py_kwargs) = kwargs else {
+            return Ok(StateReading::Current(weaps));
+        };
+        let weapons = weapons_from_kwargs(py_kwargs, &weaps)?;
 
-                pyshinqlx_set_weapons(self.py(), self.get().id, &weapons)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            },
-        )
+        pyshinqlx_set_weapons(self.py(), self.get().id, &weapons).map(StateReading::Written)
     }
 
-    fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<Bound<'py, PyAny>> {
+    fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<StateReading<i32>> {
         new_weapon
             .map(|weapon| {
                 weapon
@@ -1294,7 +1334,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                         },
                         |converted_weapon| {
                             pyshinqlx_set_weapon(self.py(), self.get().id, converted_weapon as i32)
-                                .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
+                                .map(StateReading::Written)
                         },
                     )
             })
@@ -1302,7 +1342,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 let weapon = pyshinqlx_player_state(self.py(), self.get().id)?
                     .map_or(weapon_t::WP_HANDS as i32, |state| state.weapon);
 
-                Ok(PyInt::new(self.py(), weapon).into_any())
+                Ok(StateReading::Current(weapon))
             })
     }
 
@@ -1310,7 +1350,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Weapons>> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
@@ -1320,22 +1360,19 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             )
         };
 
-        kwargs.map_or(
-            Ok(ammos.clone().into_bound_py_any(self.py())?),
-            |py_kwargs| {
-                let weapons = weapons_from_kwargs(py_kwargs, &ammos)?;
+        let Some(py_kwargs) = kwargs else {
+            return Ok(StateReading::Current(ammos));
+        };
+        let weapons = weapons_from_kwargs(py_kwargs, &ammos)?;
 
-                pyshinqlx_set_ammo(self.py(), self.get().id, &weapons)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            },
-        )
+        pyshinqlx_set_ammo(self.py(), self.get().id, &weapons).map(StateReading::Written)
     }
 
     fn powerups(
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Powerups>> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
         } else {
@@ -1343,15 +1380,12 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
                 .map_or(Powerups(0, 0, 0, 0, 0, 0), |state| state.powerups)
         };
 
-        kwargs.map_or(
-            Ok(powerups.clone().into_bound_py_any(self.py())?),
-            |py_kwargs| {
-                let powerups = powerups_from_kwargs(py_kwargs, &powerups)?;
+        let Some(py_kwargs) = kwargs else {
+            return Ok(StateReading::Current(powerups));
+        };
+        let new_powerups = powerups_from_kwargs(py_kwargs, &powerups)?;
 
-                pyshinqlx_set_powerups(self.py(), self.get().id, &powerups)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            },
-        )
+        pyshinqlx_set_powerups(self.py(), self.get().id, &new_powerups).map(StateReading::Written)
     }
 
     fn get_holdable(&self) -> PyResult<Option<String>> {
@@ -1385,7 +1419,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         &self,
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    ) -> PyResult<StateReading<Flight>> {
         let opt_state = pyshinqlx_player_state(self.py(), self.get().id)?;
         let init_flight = if !opt_state
             .as_ref()
@@ -1403,20 +1437,17 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             opt_state.map_or(Flight(16_000, 16_000, 1_200, 0), |state| state.flight)
         };
 
-        kwargs.map_or(
-            Ok(flight.clone().into_bound_py_any(self.py())?),
-            |py_kwargs| {
-                let flight = Flight(
-                    kwarg_or(py_kwargs, "fuel", flight.0)?,
-                    kwarg_or(py_kwargs, "max_fuel", flight.1)?,
-                    kwarg_or(py_kwargs, "thrust", flight.2)?,
-                    kwarg_or(py_kwargs, "refuel", flight.3)?,
-                );
+        let Some(py_kwargs) = kwargs else {
+            return Ok(StateReading::Current(flight));
+        };
+        let new_flight = Flight(
+            kwarg_or(py_kwargs, "fuel", flight.0)?,
+            kwarg_or(py_kwargs, "max_fuel", flight.1)?,
+            kwarg_or(py_kwargs, "thrust", flight.2)?,
+            kwarg_or(py_kwargs, "refuel", flight.3)?,
+        );
 
-                pyshinqlx_set_flight(self.py(), self.get().id, &flight)
-                    .map(|value| PyBool::new(self.py(), value).into_any().to_owned())
-            },
-        )
+        pyshinqlx_set_flight(self.py(), self.get().id, &new_flight).map(StateReading::Written)
     }
 
     fn get_noclip(&self) -> PyResult<bool> {

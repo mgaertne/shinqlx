@@ -2670,10 +2670,7 @@ fn position_gathers_players_position_with_no_kwargs(_pyshinqlx_setup: ()) {
 
                     let result = player.position(false, None);
                     assert!(result.is_ok_and(|value| {
-                        value
-                            .extract::<Vector3>()
-                            .expect("result was not a Vector3")
-                            == Vector3(1, 2, 3)
+                        value.current().expect("result was not a Vector3") == Vector3(1, 2, 3)
                     }));
                 });
             });
@@ -2753,7 +2750,7 @@ fn position_sets_players_position_when_provided(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -2794,7 +2791,7 @@ fn position_resets_players_position_with_single_value(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -2831,7 +2828,7 @@ fn position_sets_players_position_with_no_game_client(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 false
             );
@@ -2877,10 +2874,7 @@ fn velocity_gathers_players_velocity_with_no_kwargs(_pyshinqlx_setup: ()) {
 
                     let result = player.velocity(false, None);
                     assert!(result.is_ok_and(|value| {
-                        value
-                            .extract::<Vector3>()
-                            .expect("result was not a Vector3")
-                            == Vector3(1, 2, 3)
+                        value.current().expect("result was not a Vector3") == Vector3(1, 2, 3)
                     }));
                 });
             });
@@ -2960,7 +2954,7 @@ fn velocity_sets_players_velocity_when_provided(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -3001,7 +2995,7 @@ fn velocity_resets_players_veloity_with_single_value(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -3038,7 +3032,7 @@ fn velocity_sets_players_velocity_with_no_game_client(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 false
             );
@@ -3084,7 +3078,7 @@ fn weapons_gathers_players_weapons_with_no_kwargs(_pyshinqlx_setup: ()) {
 
                     let result = player.weapons(false, None);
                     assert!(result.is_ok_and(|value| {
-                        value.extract::<Weapons>().expect("result was not Weapons")
+                        value.current().expect("result was not Weapons")
                             == Weapons(1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
                     }));
                 });
@@ -3181,7 +3175,7 @@ fn weapons_sets_players_weapons_when_provided(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -3234,7 +3228,7 @@ fn weapons_resets_players_weapons_with_single_value(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -3287,7 +3281,7 @@ fn weapons_sets_players_weapons_with_no_game_client(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 false
             );
@@ -3348,7 +3342,7 @@ fn weapon_gets_currently_held_weapon(_pyshinqlx_setup: (), #[case] weapon: weapo
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<i32>()
+                            .current()
                             .expect("result was not an integer"),
                         weapon as i32
                     )
@@ -3373,7 +3367,7 @@ fn weapon_gets_currently_held_weapon_with_no_game_client(_pyshinqlx_setup: ()) {
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<i32>()
+                            .current()
                             .expect("result was not an integer"),
                         weapon_t::WP_HANDS as i32
                     )
@@ -3424,7 +3418,7 @@ fn weapon_sets_players_weapon_from_str(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -3487,7 +3481,7 @@ fn weapon_sets_players_weapon_from_int(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -3546,7 +3540,7 @@ fn ammo_gathers_players_ammo_with_no_kwargs(_pyshinqlx_setup: ()) {
 
                     let result = player.ammo(false, None);
                     assert!(result.is_ok_and(|value| {
-                        value.extract::<Weapons>().expect("result was not Weapons")
+                        value.current().expect("result was not Weapons")
                             == Weapons(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
                     }));
                 });
@@ -3643,7 +3637,7 @@ fn ammo_sets_players_ammo_when_provided(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -3696,7 +3690,7 @@ fn ammo_resets_players_ammos_with_single_value(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -3749,7 +3743,7 @@ fn ammo_sets_players_ammo_with_no_game_client(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 false
             );
@@ -3795,9 +3789,7 @@ fn powerups_gathers_players_powerups_with_no_kwargs(_pyshinqlx_setup: ()) {
 
                     let result = player.powerups(false, None);
                     assert!(result.is_ok_and(|value| {
-                        value
-                            .extract::<Powerups>()
-                            .expect("result was not a Powerups")
+                        value.current().expect("result was not a Powerups")
                             == Powerups(1000, 2000, 3000, 4000, 5000, 6000)
                     }));
                 });
@@ -3885,7 +3877,7 @@ fn powerups_sets_players_powerups_when_provided(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -3929,7 +3921,7 @@ fn powerups_resets_players_powerups_with_single_value(
                     assert_eq!(
                         result
                             .expect("result was not Ok")
-                            .extract::<bool>()
+                            .written()
                             .expect("result was not a bool value"),
                         true
                     );
@@ -3973,7 +3965,7 @@ fn powerups_sets_players_powerups_with_no_game_client(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 false
             );
@@ -4256,8 +4248,7 @@ fn flight_gathers_players_flight_parameters_with_no_kwargs(_pyshinqlx_setup: ())
 
                     let result = player.flight(false, None);
                     assert!(result.is_ok_and(|value| {
-                        value.extract::<Flight>().expect("result was not a Flight")
-                            == Flight(1, 2, 3, 4)
+                        value.current().expect("result was not a Flight") == Flight(1, 2, 3, 4)
                     }));
                 });
             });
@@ -4337,7 +4328,7 @@ fn flight_sets_players_flight_when_provided(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -4433,7 +4424,7 @@ fn flight_resets_players_flight_with_single_value(
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 true
             );
@@ -4469,7 +4460,7 @@ fn flight_sets_players_flight_with_no_game_client(_pyshinqlx_setup: ()) {
             assert_eq!(
                 result
                     .expect("result was not Ok")
-                    .extract::<bool>()
+                    .written()
                     .expect("result was not a bool value"),
                 false
             );
