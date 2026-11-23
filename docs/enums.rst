@@ -202,6 +202,53 @@ GameStates
       if self.game.state == shinqlx.GameStates.IN_PROGRESS:
           ...
 
+RoundStates
+-----------
+
+.. class:: RoundStates
+
+   .. shinqlx-only::
+
+   The round state of the engine, as :attr:`Game.round_state` returns it. It is read from the game module on every
+   access, so it needs neither ``zmq_stats_enable`` nor an event. A member compares equal to its string and has the hash
+   of it, like the members of :class:`GameStates`. Only round-based game types (Clan Arena, Attack & Defend, Freeze
+   Tag, Red Rover) move through the states; every other game type stays in ``PREGAME``.
+
+   .. attribute:: PREGAME
+      :value: "pregame"
+
+      No round is running: warmup, the time between maps and every game type without rounds.
+
+   .. attribute:: ROUND_WARMUP
+      :value: "round_warmup"
+
+      The countdown before a round, the time of :class:`Events` ``round_countdown``.
+
+   .. attribute:: ROUND_SHUFFLE
+      :value: "round_shuffle"
+
+      Engine state between the countdown and the begin of a round. It has not been seen on a live server yet.
+
+   .. attribute:: ROUND_BEGUN
+      :value: "round_begun"
+
+      A round is being played, the time of :class:`Events` ``round_start``.
+
+   .. attribute:: ROUND_OVER
+      :value: "round_over"
+
+      The round has ended and the next one has not begun yet, the time of :class:`Events` ``round_end``.
+
+   .. attribute:: POSTGAME
+      :value: "postgame"
+
+      The last round has ended and the game is about to end.
+
+   .. code-block:: python
+
+      if self.game.round_state == shinqlx.RoundStates.ROUND_BEGUN:
+          ...
+
 Weapon
 ------
 

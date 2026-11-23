@@ -2605,6 +2605,8 @@ pub struct level_locals_t {
     #[builder(default)]
     pub timeOvertime: c_int,
     #[builder(default)]
+    pub timeInitialKeySpawn: c_int,
+    #[builder(default)]
     pub timeInitialPowerupSpawn: c_int,
     #[builder(default)]
     pub bodyQueIndex: c_int,
@@ -2764,4 +2766,19 @@ pub enum healthPickup_t {
     H_MEDIUM = 3,
     H_SMALL = 4,
     H_NUM_HEALTHS = 5,
+}
+
+#[cfg(test)]
+mod level_layout_tests {
+    use super::level_locals_t;
+
+    #[test]
+    fn the_back_half_of_the_level_matches_the_game_module() {
+        assert_eq!(core::mem::offset_of!(level_locals_t, bodyQue), 7664);
+        assert_eq!(
+            core::mem::offset_of!(level_locals_t, mapIsTrainingMap),
+            7736
+        );
+        assert_eq!(core::mem::offset_of!(level_locals_t, roundState), 10632);
+    }
 }

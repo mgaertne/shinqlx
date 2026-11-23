@@ -84,6 +84,14 @@ Game
       * ``"countdown"`` -- Players recently readied up, and it's counting down until the game starts.
       * ``"in_progress"`` -- The game is in progress.
 
+   .. property:: round_state
+      :type: str
+
+      .. shinqlx-only::
+
+      A string with the round state of the engine, equal to the member of :class:`RoundStates`: ``"pregame"``,
+      ``"round_warmup"``, ``"round_shuffle"``, ``"round_begun"``, ``"round_over"`` or ``"postgame"``. **Read-only**.
+
    .. property:: factory
       :type: str
 

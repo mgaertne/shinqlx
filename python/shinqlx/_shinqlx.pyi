@@ -359,6 +359,18 @@ class GameStates:
     def __ne__(self, other: object, /) -> bool: ...
 
 @final
+class RoundStates:
+    PREGAME: ClassVar[RoundStates]
+    ROUND_WARMUP: ClassVar[RoundStates]
+    ROUND_SHUFFLE: ClassVar[RoundStates]
+    ROUND_BEGUN: ClassVar[RoundStates]
+    ROUND_OVER: ClassVar[RoundStates]
+    POSTGAME: ClassVar[RoundStates]
+    def __hash__(self) -> int: ...
+    def __eq__(self, other: object, /) -> bool: ...
+    def __ne__(self, other: object, /) -> bool: ...
+
+@final
 class CvarFlags:
     ARCHIVE: ClassVar[CvarFlags]
     USERINFO: ClassVar[CvarFlags]

@@ -28,6 +28,12 @@ Changes since 0.8.0.
   log through the handler of shinqlx, with their traceback. `shinqlx.log_exception(plugin)` writes under the logger of
   the plugin as before. Records carry the Python name of the function in `func`.
 * **The name of a command in the warning for an unknown return value** is written as `["name"]` instead of `['name']`.
+* **`Game.round_state` and the enumeration `RoundStates`** give the round state of the engine: `pregame`,
+  `round_warmup`, `round_shuffle`, `round_begun`, `round_over` and `postgame`. The property is read-only and, like
+  `Game.state`, equal to its member. It is read from the game module on every access, so it needs neither
+  `zmq_stats_enable` nor an event; game types without rounds stay in `pregame`. Only in the `shinqlx` namespace.
+* **The level structure of the game module** lacked the field `timeInitialKeySpawn`, so every field behind it was read
+  eight bytes too early. This affected `mapIsTrainingMap`, which `allow_single_player` writes.
 * **Stubs:** `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`. `CvarFlags` and `DamageFlags` return
   flags from the operators and have `__init__`, `__xor__`, `__invert__`, `__contains__` and `__iter__`.
 

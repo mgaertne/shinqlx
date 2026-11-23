@@ -417,6 +417,66 @@ impl GameState {
     }
 }
 
+/// The round state of the engine, as :attr:`shinqlx.Game.round_state` returns it.
+///
+/// The string of a member is the value of :attr:`shinqlx.Game.round_state`. Members compare equal to
+/// that string and have its hash, like the members of :class:`GameStates`.
+#[pyclass(module = "_shinqlx", name = "RoundStates", frozen, str)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Copy, Display)]
+#[repr(u32)]
+pub(crate) enum RoundState {
+    #[display("pregame")]
+    PREGAME = roundStateState_t::PREGAME as u32,
+    #[display("round_warmup")]
+    ROUND_WARMUP = roundStateState_t::ROUND_WARMUP as u32,
+    #[display("round_shuffle")]
+    ROUND_SHUFFLE = roundStateState_t::ROUND_SHUFFLE as u32,
+    #[display("round_begun")]
+    ROUND_BEGUN = roundStateState_t::ROUND_BEGUN as u32,
+    #[display("round_over")]
+    ROUND_OVER = roundStateState_t::ROUND_OVER as u32,
+    #[display("postgame")]
+    POSTGAME = roundStateState_t::POSTGAME as u32,
+}
+
+impl From<roundStateState_t> for RoundState {
+    fn from(state: roundStateState_t) -> Self {
+        match state {
+            roundStateState_t::PREGAME => Self::PREGAME,
+            roundStateState_t::ROUND_WARMUP => Self::ROUND_WARMUP,
+            roundStateState_t::ROUND_SHUFFLE => Self::ROUND_SHUFFLE,
+            roundStateState_t::ROUND_BEGUN => Self::ROUND_BEGUN,
+            roundStateState_t::ROUND_OVER => Self::ROUND_OVER,
+            roundStateState_t::POSTGAME => Self::POSTGAME,
+        }
+    }
+}
+
+#[pymethods]
+impl RoundState {
+    fn __hash__(&self, py: Python<'_>) -> PyResult<isize> {
+        PyString::new(py, &self.to_string()).hash()
+    }
+
+    fn __richcmp__(
+        slf: &Bound<'_, Self>,
+        other: &Bound<'_, PyAny>,
+        op: CompareOp,
+    ) -> PyResult<Py<PyAny>> {
+        let this = slf.get();
+        let equal = other.cast::<Self>().map_or_else(
+            |_| {
+                other
+                    .cast::<PyString>()
+                    .ok()
+                    .map(|name| name.to_str().is_ok_and(|name| displays_as(this, name)))
+            },
+            |same| Some(same.get() == this),
+        );
+        richcmp_result(slf.py(), equal, op)
+    }
+}
+
 /// The states of a vote on the server.
 #[pyclass(module = "_shinqlx", name = "VoteStates", frozen)]
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Copy)]
@@ -643,6 +703,12 @@ assert shinqlx.GameStates.WARMUP != shinqlx.GameStates.COUNTDOWN
 assert str(shinqlx.GameStates.IN_PROGRESS) == "in_progress"
 assert {"warmup": 5}[shinqlx.GameStates.WARMUP] == 5
 assert {shinqlx.GameStates.COUNTDOWN: 7}["countdown"] == 7
+assert shinqlx.RoundStates.ROUND_WARMUP == "round_warmup"
+assert "postgame" == shinqlx.RoundStates.POSTGAME
+assert shinqlx.RoundStates.PREGAME != shinqlx.RoundStates.ROUND_OVER
+assert shinqlx.RoundStates.ROUND_OVER != 4
+assert str(shinqlx.RoundStates.ROUND_BEGUN) == "round_begun"
+assert {shinqlx.RoundStates.ROUND_SHUFFLE: 1}["round_shuffle"] == 1
 assert shinqlx.Holdable.TELEPORTER == "teleporter"
 assert shinqlx.Holdable.NONE == "none"
 assert shinqlx.Holdable.KAMIKAZE == 37

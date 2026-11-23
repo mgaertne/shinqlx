@@ -7,7 +7,7 @@ use itertools::Itertools;
 use log::*;
 use pyo3::{
     create_exception,
-    exceptions::{PyException, PyKeyError, PyValueError},
+    exceptions::{PyEnvironmentError, PyException, PyKeyError, PyValueError},
     types::{IntoPyDict, PyDict, PyType},
 };
 
@@ -18,8 +18,8 @@ use super::{
 };
 use crate::{
     ffi::{
-        c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
-        python::with_main_engine,
+        c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS, CurrentLevel},
+        python::{game_enums::RoundState, with_main_engine},
     },
     quake_live_engine::{GetConfigstring, SetConfigstring},
 };
@@ -200,6 +200,11 @@ impl Game {
     #[getter(state)]
     fn get_state(slf: &Bound<'_, Self>) -> PyResult<String> {
         slf.get_state()
+    }
+
+    #[getter(round_state)]
+    fn get_round_state(slf: &Bound<'_, Self>) -> PyResult<String> {
+        slf.get_round_state()
     }
 
     #[getter(factory)]
@@ -488,6 +493,7 @@ pub(crate) trait GameMethods<'py> {
     fn get_red_score(&self) -> PyResult<i32>;
     fn get_blue_score(&self) -> PyResult<i32>;
     fn get_state(&self) -> PyResult<String>;
+    fn get_round_state(&self) -> PyResult<String>;
     fn get_factory(&self) -> PyResult<String>;
     fn set_factory(&self, value: &str) -> PyResult<()>;
     fn get_factory_title(&self) -> PyResult<String>;
@@ -628,6 +634,12 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
                 Ok(game_state.to_string())
             }
         }
+    }
+
+    fn get_round_state(&self) -> PyResult<String> {
+        CurrentLevel::try_get()
+            .map(|current_level| RoundState::from(current_level.get_round_state()).to_string())
+            .map_err(|_| PyEnvironmentError::new_err("could not access the current level"))
     }
 
     fn get_factory(&self) -> PyResult<String> {
@@ -824,7 +836,10 @@ mod pyshinqlx_game_tests {
     use super::{Game, GameMethods, NonexistentGameError, flag_cvar_value};
     use crate::{
         ffi::{
-            c::prelude::{CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS},
+            c::prelude::{
+                CS_SCORES1, CS_SCORES2, CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS, MockCurrentLevel,
+                roundStateState_t,
+            },
             python::{
                 engine_api::{MapTitles, store_map_titles},
                 prelude::*,
@@ -1693,6 +1708,65 @@ mod pyshinqlx_game_tests {
                     assert_eq!(result.expect("result was not OK"), expected_return);
                 });
             });
+    }
+
+    #[rstest]
+    #[case(roundStateState_t::PREGAME, "pregame")]
+    #[case(roundStateState_t::ROUND_WARMUP, "round_warmup")]
+    #[case(roundStateState_t::ROUND_SHUFFLE, "round_shuffle")]
+    #[case(roundStateState_t::ROUND_BEGUN, "round_begun")]
+    #[case(roundStateState_t::ROUND_OVER, "round_over")]
+    #[case(roundStateState_t::POSTGAME, "postgame")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_round_state_names_the_state_of_the_level(
+        _pyshinqlx_setup: (),
+        #[case] state: roundStateState_t,
+        #[case] expected_return: &str,
+    ) {
+        let current_level_try_get_ctx = MockCurrentLevel::try_get_context();
+        current_level_try_get_ctx.expect().returning(move || {
+            let mut mock_level = MockCurrentLevel::new();
+            mock_level.expect_get_round_state().return_const(state);
+            Ok(mock_level)
+        });
+
+        Python::attach(|py| {
+            let game = Bound::new(py, default_game()).expect("this should not happen");
+
+            assert_eq!(
+                game.get_round_state().expect("result was not OK"),
+                expected_return
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_round_state_without_a_level(_pyshinqlx_setup: ()) {
+        let current_level_try_get_ctx = MockCurrentLevel::try_get_context();
+        current_level_try_get_ctx
+            .expect()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+
+        Python::attach(|py| {
+            let game = Bound::new(py, default_game()).expect("this should not happen");
+
+            let result = game.get_round_state();
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn round_state_is_a_property_that_cannot_be_set(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let game = Bound::new(py, default_game()).expect("this should not happen");
+
+            assert!(game.setattr("round_state", "postgame").is_err());
+        });
     }
 
     #[rstest]

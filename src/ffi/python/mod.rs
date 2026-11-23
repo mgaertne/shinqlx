@@ -32,6 +32,7 @@ mod player_stats;
 mod plugin;
 mod plugin_loader;
 mod powerups;
+
 mod stats_listener;
 mod text;
 mod vector3;
@@ -142,8 +143,8 @@ pub(crate) mod prelude {
         flag_enums::{CvarFlags, DamageFlags},
         flight::Flight,
         game_enums::{
-            ConnectionState, GameState, Priority, Privileges, ReturnCode, Team, VoteState, Weapon,
-            name_of,
+            ConnectionState, GameState, Priority, Privileges, ReturnCode, RoundState, Team,
+            VoteState, Weapon, name_of,
         },
         holdable::Holdable,
         means_of_death::MeansOfDeath,

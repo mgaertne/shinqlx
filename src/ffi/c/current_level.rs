@@ -68,6 +68,10 @@ impl CurrentLevel<'_> {
         self.level.time
     }
 
+    pub(crate) fn get_round_state(&self) -> roundStateState_t {
+        self.level.roundState.eCurrent
+    }
+
     pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>) {
         MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
             let actual_vote_time = vote_time.unwrap_or(30);
@@ -105,6 +109,7 @@ mockall::mock! {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
         pub(crate) fn get_vote_time(&self) -> Option<i32>;
         pub(crate) fn get_leveltime(&self) -> i32;
+        pub(crate) fn get_round_state(&self) -> roundStateState_t;
         pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>);
         pub(crate) fn set_training_map(&mut self, is_training_map: bool);
     }
@@ -204,6 +209,24 @@ mod current_level_tests {
         let current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
             .expect("this should not happen");
         assert_eq!(current_level.get_leveltime(), 1234);
+    }
+
+    #[test]
+    fn current_level_get_round_state() {
+        let round_state = RoundStateBuilder::default()
+            .eCurrent(roundStateState_t::ROUND_BEGUN)
+            .build()
+            .expect("this should not happen");
+        let mut level = LevelLocalsBuilder::default()
+            .roundState(round_state)
+            .build()
+            .expect("this should not happen");
+        let current_level = CurrentLevel::try_from(level.borrow_mut() as *mut level_locals_t)
+            .expect("this should not happen");
+        assert_eq!(
+            current_level.get_round_state(),
+            roundStateState_t::ROUND_BEGUN
+        );
     }
 
     #[test]

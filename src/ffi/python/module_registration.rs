@@ -278,6 +278,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Permission>()?;
     register_events_enum(m)?;
     m.add_class::<GameState>()?;
+    m.add_class::<RoundState>()?;
     m.add_class::<Holdable>()?;
     m.add_class::<CvarFlags>()?;
     m.add_class::<DamageFlags>()?;
