@@ -20,7 +20,7 @@ use futures::{
 use pyo3::{
     exceptions::{PyEnvironmentError, PyIOError},
     intern,
-    types::{PyCFunction, PyDict, PyString, PyTuple},
+    types::{PyBool, PyCFunction, PyDict, PyList, PyString, PyTuple},
 };
 use serde_json::{Value, from_str};
 use tap::TapFallible;
@@ -34,6 +34,39 @@ use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import(intern!(py, "json"))
         .and_then(|json_module| json_module.call_method1(intern!(py, "loads"), (json_str,)))
+}
+
+/// The Python objects of parsed JSON data, as `json.loads` makes them.
+fn json_to_py<'py>(py: Python<'py>, value: &Value) -> PyResult<Bound<'py, PyAny>> {
+    Ok(match value {
+        Value::Null => py.None().into_bound(py),
+        Value::Bool(flag) => PyBool::new(py, *flag).to_owned().into_any(),
+        Value::Number(number) => match (number.as_i64(), number.as_u64()) {
+            (Some(int), _) => int.into_pyobject(py)?.into_any(),
+            (None, Some(int)) => int.into_pyobject(py)?.into_any(),
+            _ => number
+                .as_f64()
+                .unwrap_or_default()
+                .into_pyobject(py)?
+                .into_any(),
+        },
+        Value::String(text) => PyString::new(py, text).into_any(),
+        Value::Array(items) => PyList::new(
+            py,
+            items
+                .iter()
+                .map(|item| json_to_py(py, item))
+                .collect::<PyResult<Vec<_>>>()?,
+        )?
+        .into_any(),
+        Value::Object(members) => {
+            let dict = PyDict::new(py);
+            for (key, member) in members {
+                dict.set_item(key, json_to_py(py, member)?)?;
+            }
+            dict.into_any()
+        }
+    })
 }
 
 /// Dispatches the event in the next frame, because the stats are received in another thread.
@@ -82,14 +115,14 @@ fn dispatch_json_event(
     py: Python<'_>,
     event: &Bound<'_, PyString>,
     error_msg: &'static str,
-    stats: &str,
+    stats: &Value,
 ) -> PyResult<()> {
-    let json_data = to_py_json_data(py, stats)?;
+    let json_data = json_to_py(py, stats)?;
     event_dispatcher(py, event, error_msg)
         .and_then(|dispatcher| dispatch_next_frame(&dispatcher, (json_data,)))
 }
 
-fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
+fn dispatch_game_start_event(py: Python<'_>, stats: &Value) -> PyResult<()> {
     dispatch_json_event(
         py,
         intern!(py, EventName::GameStart.as_str()),
@@ -98,7 +131,7 @@ fn dispatch_game_start_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     )
 }
 
-fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
+fn dispatch_round_end_event(py: Python<'_>, stats: &Value) -> PyResult<()> {
     dispatch_json_event(
         py,
         intern!(py, EventName::RoundEnd.as_str()),
@@ -107,7 +140,7 @@ fn dispatch_round_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
     )
 }
 
-fn dispatch_game_end_event(py: Python<'_>, stats: &str) -> PyResult<()> {
+fn dispatch_game_end_event(py: Python<'_>, stats: &Value) -> PyResult<()> {
     dispatch_json_event(
         py,
         intern!(py, EventName::GameEnd.as_str()),
@@ -145,7 +178,7 @@ fn handle_player_death_event(py: Python<'_>, stats: Value) -> PyResult<()> {
         victim_name,
         opt_killer_steam_id,
         opt_killer_name,
-        &stats["DATA"].to_string(),
+        &stats["DATA"],
     )?;
 
     Ok(())
@@ -178,7 +211,7 @@ fn dispatch_player_death_events(
     victim_name: &str,
     opt_killer_steam_id: Option<i64>,
     opt_killer_name: Option<String>,
-    stats: &str,
+    stats: &Value,
 ) -> PyResult<()> {
     if dispatcher_without_hooks(py, EventName::Death)
         && dispatcher_without_hooks(py, EventName::Kill)
@@ -198,7 +231,7 @@ fn dispatch_player_death_events(
         None => opt_killer_name.and_then(|killer_name| player_by_name(py, &killer_name)),
     };
 
-    let json_data = to_py_json_data(py, stats)?;
+    let json_data = json_to_py(py, stats)?;
     event_dispatcher(
         py,
         intern!(py, EventName::Death.as_str()),
@@ -804,12 +837,12 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
     match stats["TYPE"].as_str() {
         Some("MATCH_STARTED") => {
             IN_PROGRESS.store(true, Ordering::Release);
-            dispatch_game_start_event(py, &stats["DATA"].to_string())
+            dispatch_game_start_event(py, &stats["DATA"])
         }
-        Some("ROUND_OVER") => dispatch_round_end_event(py, &stats["DATA"].to_string()),
+        Some("ROUND_OVER") => dispatch_round_end_event(py, &stats["DATA"]),
         Some("MATCH_REPORT") => {
             if IN_PROGRESS.load(Ordering::Acquire) {
-                dispatch_game_end_event(py, &stats["DATA"].to_string())?;
+                dispatch_game_end_event(py, &stats["DATA"])?;
             }
             IN_PROGRESS.store(false, Ordering::Release);
             Ok(())

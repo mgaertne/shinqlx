@@ -9,8 +9,8 @@ use pyo3::{exceptions::PyEnvironmentError, prelude::*};
 use super::{create_cvar, cvar_int, register_hook};
 use crate::{
     ffi::python::{
-        AbstractChannel, AbstractChannelMethods, Player, PlayerMethods, Plugin, clean_text,
-        commands::CommandPriorities, events_enum::EventName, get_cvar,
+        AbstractChannel, AbstractChannelMethods, Command, Player, PlayerMethods, Plugin,
+        clean_text, commands::CommandPriorities, events_enum::EventName, get_cvar,
     },
     logging::{RotationDefaults, open_log_file},
 };
@@ -89,7 +89,7 @@ impl ChatLog {
     fn handle_command(
         slf: &Bound<'_, Self>,
         caller: &Bound<'_, Player>,
-        _command: &Bound<'_, PyAny>,
+        _command: &Bound<'_, Command>,
         args: &str,
     ) -> PyResult<()> {
         let message = format!("[CMD] <{caller}:{}> {args}", caller.get_steam_id());
@@ -100,7 +100,7 @@ impl ChatLog {
 
 const CHATLOG_PATTERN: &str = "[{d(%Y-%m-%d %H:%M:%S)}] {m}{n}";
 
-fn create_chatlog(py: Python<'_>) -> PyResult<Box<dyn Append>> {
+fn create_chatlog() -> PyResult<Box<dyn Append>> {
     let home_path = get_cvar("fs_homepath")?.ok_or_else(|| {
         cold_path();
         PyEnvironmentError::new_err("cvar fs_homepath is not set")
@@ -110,8 +110,8 @@ fn create_chatlog(py: Python<'_>) -> PyResult<Box<dyn Append>> {
     let file_path = directory.join("chat.log");
 
     let defaults = RotationDefaults {
-        max_size: u64::try_from(cvar_int(py, CHATLOG_SIZE_CVAR)?).unwrap_or(0),
-        count: u32::try_from(cvar_int(py, CHATLOG_COUNT_CVAR)?).unwrap_or(0),
+        max_size: u64::try_from(cvar_int(CHATLOG_SIZE_CVAR)?).unwrap_or(0),
+        count: u32::try_from(cvar_int(CHATLOG_COUNT_CVAR)?).unwrap_or(0),
     };
     let chatlog = open_log_file(&file_path, CHATLOG_PATTERN, defaults)
         .map_err(|error| PyEnvironmentError::new_err(format!("{error:#}")))?;
@@ -127,10 +127,10 @@ fn create_chatlog(py: Python<'_>) -> PyResult<Box<dyn Append>> {
     Ok(chatlog)
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     create_cvar(py, CHATLOG_COUNT_CVAR, "3")?;
     create_cvar(py, CHATLOG_SIZE_CVAR, &(3 * 10_u32.pow(6)).to_string())?;
-    let chatlog = create_chatlog(py)?;
+    let chatlog = create_chatlog()?;
 
     let plugin = Bound::new(
         py,
@@ -150,7 +150,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         )?;
     }
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]
@@ -161,7 +161,7 @@ mod chat_log_tests {
 
     use log::Record;
     use log4rs::append::Append;
-    use pyo3::{intern, prelude::*};
+    use pyo3::{intern, prelude::*, types::PyString};
     use rstest::rstest;
 
     use super::{ChatLog, create};
@@ -169,7 +169,7 @@ mod chat_log_tests {
         ffi::{
             c::prelude::{CVar, CVarBuilder, cvar_t},
             python::{
-                EVENT_DISPATCHERS, Player, Plugin,
+                Command, EVENT_DISPATCHERS, Player, Plugin,
                 events::{
                     ChatEventDispatcher, CommandDispatcher, EventDispatcherManager,
                     EventDispatcherManagerMethods, PlayerConnectDispatcher,
@@ -310,16 +310,27 @@ mod chat_log_tests {
         Python::attach(|py| {
             let fixtures = fixtures(py);
 
-            ChatLog::handle_command(
-                &fixtures.plugin,
-                &fixtures.player,
-                &"slap"
-                    .into_pyobject(py)
-                    .expect("this should not happen")
-                    .into_any(),
-                "^3Bob 10",
+            let handler = py
+                .import("builtins")
+                .and_then(|builtins| builtins.getattr("print"))
+                .expect("could not get a callable");
+            let command = Command::py_new(
+                fixtures.plugin.as_any(),
+                PyString::new(py, "slap").as_any(),
+                &handler,
+                0,
+                py.None().bind(py),
+                py.None().bind(py),
+                false,
+                0,
+                false,
+                "",
             )
-            .expect("could not handle the command");
+            .and_then(|command| Bound::new(py, command))
+            .expect("could not create the command");
+
+            ChatLog::handle_command(&fixtures.plugin, &fixtures.player, &command, "^3Bob 10")
+                .expect("could not handle the command");
 
             assert_eq!(fixtures.messages(), ["[CMD] <Ada:1234> Bob 10"]);
         });

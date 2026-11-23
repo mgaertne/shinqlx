@@ -231,7 +231,7 @@ impl Motd {
     }
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     let home = get_cvar("fs_homepath")?.ok_or_else(|| {
         pyo3::exceptions::PyEnvironmentError::new_err("cvar fs_homepath is not set")
     })?;
@@ -288,7 +288,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         "^6======= ^7Message of the Day ^6=======^7",
     )?;
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]

@@ -5,34 +5,13 @@ use pyo3::types::{PyBool, PyString};
 
 use super::prelude::*;
 
-/// The text that Python returned if it is a string and differs from the original, otherwise the original.
-fn replacement_or<'a>(original: &'a str, result: &Bound<'_, PyAny>) -> Cow<'a, str> {
-    result
-        .cast::<PyString>()
-        .map_or(Cow::Borrowed(original), |py_string| {
-            let returned = py_string.to_string_lossy();
-            if returned == original {
-                Cow::Borrowed(original)
-            } else {
-                Cow::Owned(returned.into_owned())
-            }
-        })
-}
-
 pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Cow<'_, str>> {
     if !pyshinqlx_is_initialized() {
         cold_path();
         return Some(Cow::Borrowed(cmd));
     }
 
-    Python::attach(|py| {
-        let result = handle_client_command(py, client_id, cmd);
-
-        match result.bind(py).cast::<PyBool>() {
-            Ok(bool_value) if !bool_value.is_true() => None,
-            _ => Some(replacement_or(cmd, result.bind(py))),
-        }
-    })
+    Python::attach(|py| handle_client_command_outcome(py, client_id, cmd).into_text(cmd))
 }
 
 pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Option<Cow<'_, str>> {
@@ -42,12 +21,7 @@ pub(crate) fn server_command_dispatcher(client_id: Option<i32>, cmd: &str) -> Op
     }
 
     Python::attach(|py| {
-        let result = handle_server_command(py, client_id.unwrap_or(-1), cmd).into_bound(py);
-
-        match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => None,
-            _ => Some(replacement_or(cmd, &result)),
-        }
+        handle_server_command_outcome(py, client_id.unwrap_or(-1), cmd).into_text(cmd)
     })
 }
 
@@ -148,14 +122,7 @@ where
         return Some(Cow::Borrowed(value));
     }
 
-    Python::attach(|py| {
-        let result = handle_set_configstring(py, index.into(), value).into_bound(py);
-
-        match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => None,
-            _ => Some(replacement_or(value, &result)),
-        }
-    })
+    Python::attach(|py| handle_set_configstring_outcome(py, index.into(), value).into_text(value))
 }
 
 pub(crate) fn rcon_dispatcher<T>(cmd: T)
@@ -176,14 +143,7 @@ pub(crate) fn console_print_dispatcher(text: &str) -> Option<Cow<'_, str>> {
         return Some(Cow::Borrowed(text));
     }
 
-    Python::attach(|py| {
-        let result = handle_console_print(py, text).into_bound(py);
-
-        match result.cast::<PyBool>() {
-            Ok(py_bool) if !py_bool.is_true() => None,
-            _ => Some(replacement_or(text, &result)),
-        }
-    })
+    Python::attach(|py| handle_console_print_outcome(py, text).into_text(text))
 }
 
 pub(crate) fn client_spawn_dispatcher(client_id: i32) {
@@ -267,7 +227,7 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
-        let handle_client_command_ctx = handle_client_command_context();
+        let handle_client_command_ctx = handle_client_command_outcome_context();
         handle_client_command_ctx.expect().times(0);
 
         let result = client_command_dispatcher(123, "asdf");
@@ -281,10 +241,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_client_command_ctx = handle_client_command_context();
+        let handle_client_command_ctx = handle_client_command_outcome_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, cmd| PyString::intern(py, cmd).into_any().unbind());
+            .returning(|_, _, _| Outcome::Unchanged);
 
         let result = client_command_dispatcher(123, "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -297,10 +257,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_client_command_ctx = handle_client_command_context();
+        let handle_client_command_ctx = handle_client_command_outcome_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
+            .returning(|_, _, _| Outcome::Replaced("qwertz".to_owned()));
 
         let result = client_command_dispatcher(123, "asdf");
         assert!(matches!(result, Some(Cow::Owned(ref text)) if text == "qwertz"));
@@ -313,10 +273,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_client_command_ctx = handle_client_command_context();
+        let handle_client_command_ctx = handle_client_command_outcome_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
+            .returning(|_, _, _| Outcome::Accepted);
 
         let result = client_command_dispatcher(123, "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -329,10 +289,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_client_command_ctx = handle_client_command_context();
+        let handle_client_command_ctx = handle_client_command_outcome_context();
         handle_client_command_ctx
             .expect()
-            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
+            .returning(|_, _, _| Outcome::Blocked);
 
         let result = client_command_dispatcher(123, "asdf");
         assert_eq!(result, None);
@@ -345,13 +305,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_client_command_ctx = handle_client_command_context();
-        handle_client_command_ctx.expect().returning(|py, _, _| {
-            PyTuple::new(py, [1, 2, 3])
-                .expect("this should not happen")
-                .into_any()
-                .unbind()
-        });
+        let handle_client_command_ctx = handle_client_command_outcome_context();
+        handle_client_command_ctx
+            .expect()
+            .returning(|_, _, _| Outcome::Ignored);
 
         let result = client_command_dispatcher(123, "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -363,7 +320,7 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
-        let handle_server_command_ctx = handle_server_command_context();
+        let handle_server_command_ctx = handle_server_command_outcome_context();
         handle_server_command_ctx.expect().times(0);
 
         let result = server_command_dispatcher(Some(123), "asdf");
@@ -377,10 +334,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_server_command_ctx = handle_server_command_context();
+        let handle_server_command_ctx = handle_server_command_outcome_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, cmd| PyString::intern(py, cmd).into_any().unbind());
+            .returning(|_, _, _| Outcome::Unchanged);
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -393,10 +350,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_server_command_ctx = handle_server_command_context();
+        let handle_server_command_ctx = handle_server_command_outcome_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
+            .returning(|_, _, _| Outcome::Replaced("qwertz".to_owned()));
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert!(matches!(result, Some(Cow::Owned(ref text)) if text == "qwertz"));
@@ -409,10 +366,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_server_command_ctx = handle_server_command_context();
+        let handle_server_command_ctx = handle_server_command_outcome_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
+            .returning(|_, _, _| Outcome::Accepted);
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -425,10 +382,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_server_command_ctx = handle_server_command_context();
+        let handle_server_command_ctx = handle_server_command_outcome_context();
         handle_server_command_ctx
             .expect()
-            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
+            .returning(|_, _, _| Outcome::Blocked);
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert_eq!(result, None);
@@ -441,13 +398,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_server_command_ctx = handle_server_command_context();
-        handle_server_command_ctx.expect().returning(|py, _, _| {
-            PyTuple::new(py, [1, 2, 3])
-                .expect("this should not happen")
-                .into_any()
-                .unbind()
-        });
+        let handle_server_command_ctx = handle_server_command_outcome_context();
+        handle_server_command_ctx
+            .expect()
+            .returning(|_, _, _| Outcome::Ignored);
 
         let result = server_command_dispatcher(Some(123), "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -695,7 +649,7 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
-        let handle_set_configstring_ctx = handle_set_configstring_context();
+        let handle_set_configstring_ctx = handle_set_configstring_outcome_context();
         handle_set_configstring_ctx.expect().times(0);
 
         let result = set_configstring_dispatcher(666u32, "asdf");
@@ -709,10 +663,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_set_configstring_ctx = handle_set_configstring_context();
+        let handle_set_configstring_ctx = handle_set_configstring_outcome_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, value| PyString::intern(py, value).into_any().unbind());
+            .returning(|_, _, _| Outcome::Unchanged);
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -725,10 +679,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_set_configstring_ctx = handle_set_configstring_context();
+        let handle_set_configstring_ctx = handle_set_configstring_outcome_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| PyString::intern(py, "qwertz").into_any().unbind());
+            .returning(|_, _, _| Outcome::Replaced("qwertz".to_owned()));
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert!(matches!(result, Some(Cow::Owned(ref text)) if text == "qwertz"));
@@ -741,10 +695,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_set_configstring_ctx = handle_set_configstring_context();
+        let handle_set_configstring_ctx = handle_set_configstring_outcome_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| PyBool::new(py, true).to_owned().into_any().unbind());
+            .returning(|_, _, _| Outcome::Accepted);
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -757,10 +711,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_set_configstring_ctx = handle_set_configstring_context();
+        let handle_set_configstring_ctx = handle_set_configstring_outcome_context();
         handle_set_configstring_ctx
             .expect()
-            .returning(|py, _, _| PyBool::new(py, false).to_owned().into_any().unbind());
+            .returning(|_, _, _| Outcome::Blocked);
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert_eq!(result, None);
@@ -773,13 +727,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_set_configstring_ctx = handle_set_configstring_context();
-        handle_set_configstring_ctx.expect().returning(|py, _, _| {
-            PyTuple::new(py, [1, 2, 3])
-                .expect("this should not happen")
-                .into_any()
-                .unbind()
-        });
+        let handle_set_configstring_ctx = handle_set_configstring_outcome_context();
+        handle_set_configstring_ctx
+            .expect()
+            .returning(|_, _, _| Outcome::Ignored);
 
         let result = set_configstring_dispatcher(123u32, "asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -816,7 +767,7 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| false);
 
-        let handle_console_print_ctx = handle_console_print_context();
+        let handle_console_print_ctx = handle_console_print_outcome_context();
         handle_console_print_ctx.expect().times(0);
 
         let result = console_print_dispatcher("asdf");
@@ -830,10 +781,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_console_print_ctx = handle_console_print_context();
+        let handle_console_print_ctx = handle_console_print_outcome_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, text| PyString::intern(py, text).into_any().unbind());
+            .returning(|_, _| Outcome::Unchanged);
 
         let result = console_print_dispatcher("asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -846,10 +797,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_console_print_ctx = handle_console_print_context();
+        let handle_console_print_ctx = handle_console_print_outcome_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| PyString::intern(py, "qwertz").into_any().unbind());
+            .returning(|_, _| Outcome::Replaced("qwertz".to_owned()));
 
         let result = console_print_dispatcher("asdf");
         assert!(matches!(result, Some(Cow::Owned(ref text)) if text == "qwertz"));
@@ -862,10 +813,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_console_print_ctx = handle_console_print_context();
+        let handle_console_print_ctx = handle_console_print_outcome_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| PyBool::new(py, true).to_owned().into_any().unbind());
+            .returning(|_, _| Outcome::Accepted);
 
         let result = console_print_dispatcher("asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));
@@ -878,10 +829,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_console_print_ctx = handle_console_print_context();
+        let handle_console_print_ctx = handle_console_print_outcome_context();
         handle_console_print_ctx
             .expect()
-            .returning(|py, _| PyBool::new(py, false).to_owned().into_any().unbind());
+            .returning(|_, _| Outcome::Blocked);
 
         let result = console_print_dispatcher("asdf");
         assert_eq!(result, None);
@@ -894,13 +845,10 @@ mod pyshinqlx_dispatcher_tests {
         let is_initialized_context = pyshinqlx_is_initialized_context();
         is_initialized_context.expect().returning(|| true);
 
-        let handle_console_print_ctx = handle_console_print_context();
-        handle_console_print_ctx.expect().returning(|py, _| {
-            PyTuple::new(py, [1, 2, 3])
-                .expect("this should not happen")
-                .into_any()
-                .unbind()
-        });
+        let handle_console_print_ctx = handle_console_print_outcome_context();
+        handle_console_print_ctx
+            .expect()
+            .returning(|_, _| Outcome::Ignored);
 
         let result = console_print_dispatcher("asdf");
         assert!(matches!(result, Some(Cow::Borrowed("asdf"))));

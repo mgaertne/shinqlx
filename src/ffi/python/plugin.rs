@@ -2,8 +2,8 @@ use core::hint::cold_path;
 
 use itertools::Itertools;
 use pyo3::{
-    BoundObject, PyTraverseError,
-    exceptions::{PyEnvironmentError, PyRuntimeError, PyValueError},
+    PyTraverseError,
+    exceptions::{PyEnvironmentError, PyRuntimeError, PyTypeError, PyValueError},
     gc::PyVisit,
     intern,
     prelude::*,
@@ -17,9 +17,9 @@ use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
     EVENT_DISPATCHERS, EventDispatcherMethods, RED_TEAM_CHAT_CHANNEL, Teams, abort, addadmin,
     addmod, addscore, addteamscore, allready, ban, change_map, client_id,
-    commands::CommandPriorities, console_command, demote, is_vote_active, lock, mute, opsay, pause,
-    prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
-    set_teamsize, shuffle, tempban, unban, unlock, unmute, unpause,
+    commands::CommandPriorities, console_command, demote, event_dispatcher, is_vote_active, lock,
+    mute, opsay, pause, prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once,
+    pyshinqlx_set_cvar_once, set_teamsize, shuffle, tempban, unban, unlock, unmute, unpause,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -42,6 +42,23 @@ pub(crate) fn chat(py: Python<'_>, msg: &str, limit: i32, delimiter: &str) -> Py
                 .as_super()
                 .reply(msg, limit, delimiter)
         })
+}
+
+/// The `limit` and `delimiter` keyword arguments of the methods that reply to a channel.
+fn reply_options(py: Python<'_>, kwargs: Option<&Bound<'_, PyDict>>) -> (i32, String) {
+    fn option<'py>(
+        kwargs: Option<&Bound<'py, PyDict>>,
+        key: &Bound<'py, PyString>,
+    ) -> Option<Bound<'py, PyAny>> {
+        kwargs.and_then(|pydict| pydict.get_item(key).ok().flatten())
+    }
+    let limit = option(kwargs, intern!(py, "limit"))
+        .and_then(|value| value.extract::<i32>().ok())
+        .unwrap_or(100);
+    let delimiter = option(kwargs, intern!(py, "delimiter"))
+        .and_then(|value| value.extract::<String>().ok())
+        .unwrap_or_else(|| " ".to_owned());
+    (limit, delimiter)
 }
 
 fn tell_caller(player: &Bound<'_, PyAny>, message: &str) -> PyResult<()> {
@@ -122,67 +139,93 @@ fn comma_separated_items(value: Option<&str>) -> Vec<&str> {
         .map_or_else(Vec::new, |value| value.split(',').map(str::trim).collect())
 }
 
+fn cvar_string(name: &str) -> Option<String> {
+    MAIN_ENGINE
+        .load()
+        .as_ref()
+        .and_then(|engine| engine.find_cvar(name))
+        .map(|value| value.get_string())
+}
+
+fn int_of(value: &str) -> PyResult<i64> {
+    value.parse::<i64>().map_err(|_| {
+        cold_path();
+        PyValueError::new_err(format!("invalid literal for int() with base 10: '{value}'"))
+    })
+}
+
+/// The error Python raises for the missing value of a cvar when converting it to `target`.
+fn not_set(target: &str, accepted: &str) -> PyErr {
+    cold_path();
+    PyTypeError::new_err(format!(
+        "{target}() argument must be {accepted}, not 'NoneType'"
+    ))
+}
+
+/// The value of the cvar `name` as integer, or `None` if there is no such cvar.
+fn cvar_as_int(name: &str) -> PyResult<Option<i64>> {
+    cvar_string(name).map(|value| int_of(&value)).transpose()
+}
+
+/// The value of the cvar `name` as float, or `None` if there is no such cvar.
+fn cvar_as_float(name: &str) -> PyResult<Option<f64>> {
+    cvar_string(name)
+        .map(|value| {
+            value.parse::<f64>().map_err(|_| {
+                cold_path();
+                PyValueError::new_err(format!("could not convert string to float: '{value}'"))
+            })
+        })
+        .transpose()
+}
+
+/// Whether the cvar `name` is set to a nonzero integer. A missing cvar is `false`.
+pub(super) fn cvar_flag(name: &str) -> PyResult<bool> {
+    cvar_as_int(name).map(|value| value.is_some_and(|int| int != 0))
+}
+
+/// The value of the cvar `name` as integer, an error if there is no such cvar.
+pub(super) fn cvar_int(name: &str) -> PyResult<i64> {
+    cvar_as_int(name)?
+        .ok_or_else(|| not_set("int", "a string, a bytes-like object or a real number"))
+}
+
+/// The value of the cvar `name` as float, an error if there is no such cvar.
+pub(super) fn cvar_float(name: &str) -> PyResult<f64> {
+    cvar_as_float(name)?.ok_or_else(|| not_set("float", "a string or a real number"))
+}
+
+/// The items of the comma separated cvar `name`, empty if there is no such cvar.
+pub(super) fn cvar_items(name: &str) -> Vec<String> {
+    comma_separated_items(cvar_string(name).as_deref())
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
+}
+
 /// Reads the current value of the cvar `name` and converts it to `cvar_type`.
 pub(super) fn read_cvar_as<'py>(
     py: Python<'py>,
     name: &str,
     cvar_type: CvarType,
 ) -> PyResult<Bound<'py, PyAny>> {
-    let cvar_string = MAIN_ENGINE
-        .load()
-        .as_ref()
-        .and_then(|engine| engine.find_cvar(name))
-        .map(|value| value.get_string());
-
     match cvar_type {
-        CvarType::Str => match cvar_string {
-            None => Ok(py.None().into_bound(py)),
-            Some(value) => Ok(PyString::intern(py, &value).into_any()),
-        },
-        CvarType::Int => match cvar_string {
-            None => Ok(py.None().into_bound(py)),
-            Some(value) => value.parse::<i64>().map_or_else(
-                |_| {
-                    cold_path();
-                    let error_description =
-                        format!("invalid literal for int() with base 10: '{value}'");
-                    Err(PyValueError::new_err(error_description))
-                },
-                |int| Ok(PyInt::new(py, int).into_any()),
-            ),
-        },
-        CvarType::Float => match cvar_string {
-            None => Ok(py.None().into_bound(py)),
-            Some(value) => value.parse::<f64>().map_or_else(
-                |_| {
-                    cold_path();
-                    let error_description = format!("could not convert string to float: '{value}'");
-                    Err(PyValueError::new_err(error_description))
-                },
-                |float| Ok(PyFloat::new(py, float).into_any()),
-            ),
-        },
-        CvarType::Bool => match cvar_string {
-            None => Ok(PyBool::new(py, false).into_any().to_owned()),
-            Some(value) => value.parse::<i64>().map_or_else(
-                |_| {
-                    cold_path();
-                    let error_description =
-                        format!("invalid literal for int() with base 10: '{value}'");
-                    Err(PyValueError::new_err(error_description))
-                },
-                |int| Ok(PyBool::new(py, int != 0).into_any().to_owned()),
-            ),
-        },
-        CvarType::List => {
-            Ok(PyList::new(py, comma_separated_items(cvar_string.as_deref()))?.into_any())
-        }
-        CvarType::Set => {
-            Ok(PySet::new(py, comma_separated_items(cvar_string.as_deref()))?.into_any())
-        }
-        CvarType::Tuple => {
-            Ok(PyTuple::new(py, comma_separated_items(cvar_string.as_deref()))?.into_any())
-        }
+        CvarType::Str => Ok(cvar_string(name).map_or_else(
+            || py.None().into_bound(py),
+            |value| PyString::intern(py, &value).into_any(),
+        )),
+        CvarType::Int => Ok(cvar_as_int(name)?.map_or_else(
+            || py.None().into_bound(py),
+            |int| PyInt::new(py, int).into_any(),
+        )),
+        CvarType::Float => Ok(cvar_as_float(name)?.map_or_else(
+            || py.None().into_bound(py),
+            |float| PyFloat::new(py, float).into_any(),
+        )),
+        CvarType::Bool => Ok(PyBool::new(py, cvar_flag(name)?).to_owned().into_any()),
+        CvarType::List => Ok(PyList::new(py, cvar_items(name))?.into_any()),
+        CvarType::Set => Ok(PySet::new(py, cvar_items(name))?.into_any()),
+        CvarType::Tuple => Ok(PyTuple::new(py, cvar_items(name))?.into_any()),
     }
 }
 
@@ -542,25 +585,7 @@ impl Plugin {
         chat_channel: Option<Bound<'_, PyAny>>,
         kwargs: Option<&Bound<'_, PyDict>>,
     ) -> PyResult<()> {
-        let limit = kwargs.map_or(100i32, |pydict| {
-            pydict
-                .get_item(intern!(cls.py(), "limit"))
-                .ok()
-                .flatten()
-                .and_then(|value| value.extract::<i32>().ok())
-                .unwrap_or(100i32)
-        });
-        let delimiter = kwargs.map_or_else(
-            || " ".to_owned(),
-            |pydict| {
-                pydict
-                    .get_item(intern!(cls.py(), "delimiter"))
-                    .ok()
-                    .flatten()
-                    .and_then(|value| value.extract::<String>().ok())
-                    .unwrap_or_else(|| " ".to_owned())
-            },
-        );
+        let (limit, delimiter) = reply_options(cls.py(), kwargs);
 
         match chat_channel {
             None => return chat(cls.py(), msg, limit, &delimiter),
@@ -805,9 +830,8 @@ impl Plugin {
             ),
         )?;
 
-        tell_channel
-            .call_method(intern!(cls.py(), "reply"), (msg,), kwargs)
-            .map(|_| ())
+        let (limit, delimiter) = reply_options(cls.py(), kwargs);
+        tell_channel.reply(msg, limit, &delimiter)
     }
 
     #[classmethod]
@@ -1245,27 +1269,15 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
     }
 
     fn add_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
-            .map_or_else(
-                || {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to event dispatcher",
-                    ))
-                },
-                |event_dispatcher| {
-                    let plugin_type = self.get_type();
-                    let plugin_name = plugin_type.name()?;
-                    event_dispatcher.call_method1(
-                        intern!(self.py(), "add_hook"),
-                        (plugin_name, &handler, priority),
-                    )?;
-                    Ok(())
-                },
-            )?;
+        let dispatcher = event_dispatcher(
+            self.py(),
+            &PyString::new(self.py(), event),
+            "could not get access to event dispatcher",
+        )?;
+        dispatcher.call_method1(
+            intern!(self.py(), "add_hook"),
+            (self.get_type().name()?, handler, priority),
+        )?;
 
         self.get()
             .hooks
@@ -1275,29 +1287,17 @@ impl<'py> PluginMethods<'py> for Bound<'py, Plugin> {
     }
 
     fn remove_hook(&self, event: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
-        EVENT_DISPATCHERS
-            .load()
-            .as_ref()
-            .and_then(|event_dispatchers| event_dispatchers.bind(self.py()).get_item(event).ok())
-            .map_or_else(
-                || {
-                    cold_path();
-                    Err(PyEnvironmentError::new_err(
-                        "could not get access to event dispatchers",
-                    ))
-                },
-                |event_dispatcher| {
-                    let plugin_type = self.get_type();
-                    let plugin_name = plugin_type.name()?;
-                    EventDispatcherMethods::remove_hook(
-                        event_dispatcher.cast()?,
-                        &plugin_name.to_string(),
-                        handler,
-                        priority,
-                    )?;
-                    Ok(())
-                },
-            )?;
+        let dispatcher = event_dispatcher(
+            self.py(),
+            &PyString::new(self.py(), event),
+            "could not get access to event dispatchers",
+        )?;
+        EventDispatcherMethods::remove_hook(
+            dispatcher.cast()?,
+            &self.get_type().name()?.to_string(),
+            handler,
+            priority,
+        )?;
 
         self.get()
             .hooks

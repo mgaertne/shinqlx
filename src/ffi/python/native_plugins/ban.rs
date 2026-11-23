@@ -120,8 +120,7 @@ fn leave_status(
     database: &Bound<'_, PyAny>,
     steam_id: i64,
 ) -> PyResult<Option<(Option<LeaveAction>, f64)>> {
-    let py = database.py();
-    if !cvar_flag(py, LEAVER_BAN_CVAR)? {
+    if !cvar_flag(LEAVER_BAN_CVAR)? {
         return Ok(None);
     }
 
@@ -135,9 +134,9 @@ fn leave_status(
     Ok(leave_action(
         completed,
         left,
-        cvar_int(py, "qlx_leaverBanMinimumGames")?,
-        cvar_float(py, "qlx_leaverBanWarnThreshold")?,
-        cvar_float(py, "qlx_leaverBanThreshold")?,
+        cvar_int("qlx_leaverBanMinimumGames")?,
+        cvar_float("qlx_leaverBanWarnThreshold")?,
+        cvar_float("qlx_leaverBanThreshold")?,
     ))
 }
 
@@ -268,7 +267,7 @@ impl Ban {
 
     fn handle_game_countdown(slf: &Bound<'_, Self>) -> PyResult<()> {
         let py = slf.py();
-        if cvar_flag(py, LEAVER_BAN_CVAR)? {
+        if cvar_flag(LEAVER_BAN_CVAR)? {
             chat(
                 py,
                 "Leavers are being kept track of. Repeat offenders ^6will^7 be banned.",
@@ -279,7 +278,7 @@ impl Ban {
         Ok(())
     }
 
-    fn handle_game_start(slf: &Bound<'_, Self>, _game: &Bound<'_, PyAny>) -> PyResult<()> {
+    fn handle_game_start(slf: &Bound<'_, Self>, _data: &Bound<'_, PyDict>) -> PyResult<()> {
         let py = slf.py();
         defer_delay(&slf.getattr(intern!(py, "remember_players"))?, 1.0, ())
     }
@@ -570,7 +569,7 @@ impl Ban {
     }
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     let plugin = Bound::new(
         py,
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Ban {
@@ -641,7 +640,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         register_command(plugin.as_super(), &[name], handler, permission, usage, None)?;
     }
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]
@@ -1604,7 +1603,7 @@ mod ban_tests {
             let py = fixtures.plugin.py();
             let before = scheduled_tasks(py);
 
-            let result = Ban::handle_game_start(&fixtures.plugin, py.None().bind(py));
+            let result = Ban::handle_game_start(&fixtures.plugin, &PyDict::new(py));
 
             assert!(result.is_ok());
             assert!(fixtures.start_ids().is_empty());

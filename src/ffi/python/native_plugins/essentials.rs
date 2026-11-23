@@ -225,14 +225,14 @@ impl Essentials {
             let Ok(size) = args.trim().parse::<i64>() else {
                 return Ok(None);
             };
-            if size > cvar_int(py, "qlx_teamsizeMaximum")? {
+            if size > cvar_int("qlx_teamsizeMaximum")? {
                 tell(
                     caller,
                     "The team size is larger than what the server allows.",
                 )?;
                 return stop_all();
             }
-            if size < cvar_int(py, "qlx_teamsizeMinimum")? {
+            if size < cvar_int("qlx_teamsizeMinimum")? {
                 tell(
                     caller,
                     "The team size is smaller than what the server allows.",
@@ -243,7 +243,7 @@ impl Essentials {
 
         if let Some(mappool) = &slf.get().mappool
             && vote == "map"
-            && cvar_flag(py, "qlx_enforceMappool")?
+            && cvar_flag("qlx_enforceMappool")?
         {
             let mut split_args = args.split_whitespace();
             let Some(map_name) = split_args.next() else {
@@ -266,10 +266,10 @@ impl Essentials {
             }
         }
 
-        if cvar_flag(py, "qlx_votepass")? {
+        if cvar_flag("qlx_votepass")? {
             let vote_id = slf.get().vote_count.fetch_add(1, Ordering::SeqCst);
             slf.get().last_vote.store(vote_id, Ordering::SeqCst);
-            let threshold = cvar_float(py, "qlx_votepassThreshold")?;
+            let threshold = cvar_float("qlx_votepassThreshold")?;
             defer_delay(
                 &slf.getattr(intern!(py, "force"))?,
                 VOTE_RESOLUTION_DELAY,
@@ -1047,9 +1047,8 @@ impl Essentials {
         _msg: Vec<String>,
         _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
-        let py = slf.py();
         match &slf.get().mappool {
-            Some(mappool) if cvar_flag(py, "qlx_enforceMappool")? => {
+            Some(mappool) if cvar_flag("qlx_enforceMappool")? => {
                 tell(player, &mappool_listing(mappool, 0))?;
             }
             _ => tell(
@@ -1061,7 +1060,7 @@ impl Essentials {
     }
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     create_cvar(py, "qlx_votepass", "1")?;
     create_cvar_limit(py, "qlx_votepassThreshold", "0.33", "0", "1")?;
     create_cvar(py, "qlx_teamsizeMinimum", "1")?;
@@ -1160,7 +1159,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         "",
     )?;
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]

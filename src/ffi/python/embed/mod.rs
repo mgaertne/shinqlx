@@ -80,7 +80,7 @@ pub(crate) use set_configstring::pyshinqlx_set_configstring;
 pub(crate) use set_cvar::pyshinqlx_set_cvar;
 pub(crate) use set_cvar_limit::pyshinqlx_set_cvar_limit;
 pub(crate) use set_cvar_limit_once::pyshinqlx_set_cvar_limit_once;
-pub(crate) use set_cvar_once::pyshinqlx_set_cvar_once;
+pub(crate) use set_cvar_once::{pyshinqlx_set_cvar_once, set_cvar_once};
 pub(crate) use set_flight::pyshinqlx_set_flight;
 pub(crate) use set_health::pyshinqlx_set_health;
 pub(crate) use set_holdable::pyshinqlx_set_holdable;

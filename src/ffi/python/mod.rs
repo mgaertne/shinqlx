@@ -77,16 +77,21 @@ pub(crate) mod prelude {
         reason = "re-exported for the prelude, not every build uses every item"
     )]
     pub(crate) use super::game::{Game, GameMethods, NonexistentGameError};
+    #[allow(
+        unused_imports,
+        reason = "re-exported for the prelude, not every build uses every item"
+    )]
+    pub(crate) use super::handlers::Outcome;
     #[cfg(test)]
     #[allow(
         unused_imports,
         reason = "re-exported for the prelude, not every build uses every item"
     )]
     pub(crate) use super::handlers::mock_handlers::{
-        handle_client_command, handle_console_print, handle_damage, handle_frame,
+        handle_client_command_outcome, handle_console_print_outcome, handle_damage, handle_frame,
         handle_kamikaze_explode, handle_kamikaze_use, handle_new_game, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
-        handle_server_command, handle_set_configstring, register_handlers,
+        handle_server_command_outcome, handle_set_configstring_outcome, register_handlers,
     };
     #[cfg(test)]
     #[allow(
@@ -94,18 +99,19 @@ pub(crate) mod prelude {
         reason = "re-exported for the prelude, not every build uses every item"
     )]
     pub(crate) use super::handlers::mock_handlers::{
-        handle_client_command_context, handle_console_print_context, handle_damage_context,
-        handle_frame_context, handle_kamikaze_explode_context, handle_kamikaze_use_context,
-        handle_new_game_context, handle_player_connect_context, handle_player_disconnect_context,
-        handle_player_loaded_context, handle_player_spawn_context, handle_rcon_context,
-        handle_server_command_context, handle_set_configstring_context, register_handlers_context,
+        handle_client_command_outcome_context, handle_console_print_outcome_context,
+        handle_damage_context, handle_frame_context, handle_kamikaze_explode_context,
+        handle_kamikaze_use_context, handle_new_game_context, handle_player_connect_context,
+        handle_player_disconnect_context, handle_player_loaded_context,
+        handle_player_spawn_context, handle_rcon_context, handle_server_command_outcome_context,
+        handle_set_configstring_outcome_context, register_handlers_context,
     };
     #[cfg(not(test))]
     pub(crate) use super::handlers::{
-        handle_client_command, handle_console_print, handle_damage, handle_frame,
+        handle_client_command_outcome, handle_console_print_outcome, handle_damage, handle_frame,
         handle_kamikaze_explode, handle_kamikaze_use, handle_new_game, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
-        handle_server_command, handle_set_configstring, register_handlers,
+        handle_server_command_outcome, handle_set_configstring_outcome, register_handlers,
     };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
@@ -1498,38 +1504,15 @@ def differences(stub_directory):
 
 #[pyfunction(name = "initialize_cvars")]
 fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
-    pyshinqlx_set_cvar_once(py, "qlx_owner", PyString::intern(py, "-1").as_any(), 0)?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_plugins",
-        PyString::intern(py, &DEFAULT_PLUGINS.join(", ")).as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_pluginsPath",
-        PyString::intern(py, "shinqlx-plugins").as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_database",
-        PyString::intern(py, "Redis").as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_commandPrefix",
-        PyString::intern(py, "!").as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(py, "qlx_logs", PyString::intern(py, "2").as_any(), 0)?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_logsSize",
-        PyString::intern(py, "3000000").as_any(),
-        0,
-    )?;
+    let create = |name: &str, value: &str| set_cvar_once(py, name, value, 0).map(|_| ());
+
+    create("qlx_owner", "-1")?;
+    create("qlx_plugins", &DEFAULT_PLUGINS.join(", "))?;
+    create("qlx_pluginsPath", "shinqlx-plugins")?;
+    create("qlx_database", "Redis")?;
+    create("qlx_commandPrefix", "!")?;
+    create("qlx_logs", "2")?;
+    create("qlx_logsSize", "3000000")?;
 
     #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
     {
@@ -1545,46 +1528,15 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
             ("qlx_steamQueryRulesBurst", rules_defaults.burst),
             ("qlx_steamQueryRulesGlobalRate", rules_defaults.global_rate),
         ] {
-            pyshinqlx_set_cvar_once(
-                py,
-                name,
-                PyString::intern(py, &value.to_string()).as_any(),
-                0,
-            )?;
+            create(name, &value.to_string())?;
         }
-        pyshinqlx_set_cvar_once(
-            py,
-            "qlx_steamQueryDropRules",
-            PyString::intern(py, "0").as_any(),
-            0,
-        )?;
+        create("qlx_steamQueryDropRules", "0")?;
     }
 
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_redisAddress",
-        PyString::intern(py, "127.0.0.1").as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_redisDatabase",
-        PyString::intern(py, "0").as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_redisUnixSocket",
-        PyString::intern(py, "0").as_any(),
-        0,
-    )?;
-    pyshinqlx_set_cvar_once(
-        py,
-        "qlx_redisPassword",
-        PyString::intern(py, "").as_any(),
-        0,
-    )
-    .map(|_| ())
+    create("qlx_redisAddress", "127.0.0.1")?;
+    create("qlx_redisDatabase", "0")?;
+    create("qlx_redisUnixSocket", "0")?;
+    create("qlx_redisPassword", "")
 }
 
 #[cfg(test)]

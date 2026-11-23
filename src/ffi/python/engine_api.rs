@@ -3,6 +3,7 @@ use core::hint::cold_path;
 use pyo3::{
     exceptions::{PyEnvironmentError, PyValueError},
     intern,
+    types::PyString,
 };
 use tap::Conv;
 
@@ -42,7 +43,17 @@ pub(crate) fn client_id(
         return None;
     }
 
-    match name.to_string().parse::<i32>() {
+    let py_string = name.cast::<PyString>().ok();
+    let text = py_string.map_or_else(
+        || {
+            name.str()
+                .map(|text| text.to_string_lossy().into_owned())
+                .unwrap_or_default()
+        },
+        |text| text.to_string_lossy().into_owned(),
+    );
+
+    match text.parse::<i32>() {
         Ok(value) if (0..64).contains(&value) => Some(value),
         _ => match name.cast::<Player>() {
             Ok(player) => Some(player.get().id),
@@ -51,24 +62,22 @@ pub(crate) fn client_id(
                     Player::all_players(&py.get_type::<Player>()).unwrap_or_default()
                 });
 
-                match name.to_string().parse::<i64>() {
+                match text.parse::<i64>() {
                     Ok(steam_id) => all_players
                         .iter()
                         .find(|&player| player.steam_id == steam_id)
                         .map(|player| player.id),
-                    _ => match name.extract::<String>() {
-                        Ok(player_name) => {
-                            let clean_name = clean_text(&player_name).to_lowercase();
-                            all_players
-                                .iter()
-                                .find(|&player| {
-                                    let player_name = &*player.name.read();
-                                    clean_text(player_name).to_lowercase() == clean_name
-                                })
-                                .map(|player| player.id)
-                        }
-                        _ => None,
-                    },
+                    _ if py_string.is_some() => {
+                        let clean_name = clean_text(&text).to_lowercase();
+                        all_players
+                            .iter()
+                            .find(|&player| {
+                                let player_name = &*player.name.read();
+                                clean_text(player_name).to_lowercase() == clean_name
+                            })
+                            .map(|player| player.id)
+                    }
+                    _ => None,
                 }
             }
         },

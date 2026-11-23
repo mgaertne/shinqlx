@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use alloc::{borrow::Cow, sync::Arc};
 use core::{
     hint::cold_path,
     sync::atomic::{AtomicBool, AtomicI32, Ordering},
@@ -9,7 +9,7 @@ use arc_swap::ArcSwapOption;
 use itertools::Itertools;
 use log::warn;
 use pyo3::{
-    BoundObject, IntoPyObjectExt, PyTraverseError, PyVisit,
+    IntoPyObjectExt, PyTraverseError, PyVisit,
     exceptions::{PyEnvironmentError, PyKeyError, PyValueError},
     intern,
     prelude::*,
@@ -236,20 +236,132 @@ fn chat_message(command_regex: &Regex, command: &str) -> Option<String> {
     })
 }
 
-fn blocked(py: Python<'_>) -> Py<PyAny> {
-    PyBool::new(py, false).into_any().unbind()
+/// What the handlers of an engine event decided for the text of the event.
+pub(crate) enum Outcome {
+    /// A handler stopped the event.
+    Blocked,
+    /// The event goes on with the text the handler was given.
+    Unchanged,
+    /// The event goes on with another text.
+    Replaced(String),
+    /// Reported to Python as `True`: the event goes on with its text.
+    Accepted,
+    /// Reported to Python as `None`: the event goes on with its text.
+    Ignored,
 }
 
-fn passed_on(py: Python<'_>, cmd: &str) -> Py<PyAny> {
-    PyString::new(py, cmd).into_any().unbind()
+impl Outcome {
+    /// The text the engine goes on with, or `None` if the event is stopped.
+    pub(crate) fn into_text(self, original: &str) -> Option<Cow<'_, str>> {
+        match self {
+            Self::Blocked => None,
+            Self::Replaced(text) => Some(Cow::Owned(text)),
+            Self::Unchanged | Self::Accepted | Self::Ignored => Some(Cow::Borrowed(original)),
+        }
+    }
+
+    /// The value Python receives from the handler, where `original` is the text of the event.
+    fn into_py<'py>(self, py: Python<'py>, original: &str) -> Bound<'py, PyAny> {
+        match self {
+            Self::Blocked => PyBool::new(py, false).to_owned().into_any(),
+            Self::Unchanged => PyString::new(py, original).into_any(),
+            Self::Replaced(text) => PyString::new(py, &text).into_any(),
+            Self::Accepted => PyBool::new(py, true).to_owned().into_any(),
+            Self::Ignored => py.None().into_bound(py),
+        }
+    }
+
+    /// Relates an outcome that is relative to the text the handlers received to the original
+    /// text of the event, where `updated` is the text if the hooks changed it.
+    fn relative_to(self, updated: Option<String>, original: &str) -> Self {
+        match (self, updated) {
+            (Self::Unchanged, Some(text)) => Self::Replaced(text),
+            (Self::Replaced(text), _) if text == original => Self::Unchanged,
+            (outcome, _) => outcome,
+        }
+    }
+
+    /// Stops the event if a handler of the dispatcher returned `False`, otherwise `outcome`.
+    fn blocked_or(result: &Bound<'_, PyAny>, outcome: Self) -> Self {
+        if is_false(result) {
+            Self::Blocked
+        } else {
+            outcome
+        }
+    }
 }
 
-/// Passes `cmd` on unless a handler of the dispatcher blocked it by returning `False`.
-fn blocked_or_passed_on(py: Python<'_>, result: &Bound<'_, PyAny>, cmd: &str) -> Py<PyAny> {
-    if is_false(result) {
-        blocked(py)
-    } else {
-        passed_on(py, cmd)
+#[cfg(test)]
+mod outcome_tests {
+    use alloc::borrow::Cow;
+
+    use pyo3::{prelude::*, types::PyBool};
+    use rstest::*;
+
+    use super::Outcome;
+    use crate::{ffi::python::prelude::*, prelude::*};
+
+    #[rstest]
+    #[case(Outcome::Blocked, None)]
+    #[case(Outcome::Unchanged, Some(Cow::Borrowed("asdf")))]
+    #[case(Outcome::Accepted, Some(Cow::Borrowed("asdf")))]
+    #[case(Outcome::Ignored, Some(Cow::Borrowed("asdf")))]
+    #[case(Outcome::Replaced("qwertz".to_owned()), Some(Cow::Owned("qwertz".to_owned())))]
+    fn into_text_gives_the_text_the_engine_goes_on_with(
+        #[case] outcome: Outcome,
+        #[case] expected: Option<Cow<'static, str>>,
+    ) {
+        assert_eq!(outcome.into_text("asdf"), expected);
+    }
+
+    #[rstest]
+    #[case(Outcome::Unchanged, Some("qwertz".to_owned()), "asdf", Some("qwertz"))]
+    #[case(Outcome::Unchanged, None, "asdf", None)]
+    #[case(Outcome::Replaced("asdf".to_owned()), None, "asdf", None)]
+    #[case(Outcome::Replaced("other".to_owned()), None, "asdf", Some("other"))]
+    #[case(Outcome::Ignored, Some("qwertz".to_owned()), "asdf", None)]
+    fn relative_to_relates_the_outcome_to_the_original_text(
+        #[case] outcome: Outcome,
+        #[case] updated: Option<String>,
+        #[case] original: &str,
+        #[case] expected_text: Option<&str>,
+    ) {
+        let result = outcome.relative_to(updated, original);
+
+        match (result, expected_text) {
+            (Outcome::Replaced(text), Some(expected)) => assert_eq!(text, expected),
+            (Outcome::Unchanged | Outcome::Ignored, None) => (),
+            _ => panic!("unexpected outcome"),
+        }
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn into_py_gives_the_values_python_handlers_return(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let is_bool = |outcome: Outcome, value: bool| {
+                outcome
+                    .into_py(py, "asdf")
+                    .cast::<PyBool>()
+                    .is_ok_and(|result| result.is_true() == value)
+            };
+            assert!(is_bool(Outcome::Blocked, false));
+            assert!(is_bool(Outcome::Accepted, true));
+            assert!(Outcome::Ignored.into_py(py, "asdf").is_none());
+            assert!(
+                Outcome::Unchanged
+                    .into_py(py, "asdf")
+                    .extract::<String>()
+                    .is_ok_and(|text| text == "asdf")
+            );
+            assert!(
+                Outcome::Replaced("qwertz".to_owned())
+                    .into_py(py, "asdf")
+                    .extract::<String>()
+                    .is_ok_and(|text| text == "qwertz")
+            );
+        });
     }
 }
 
@@ -267,7 +379,7 @@ fn callvote_parts(command: &str) -> Option<(&str, &str)> {
     Some((vote, args))
 }
 
-fn handle_say(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Py<PyAny>> {
+fn handle_say(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Outcome> {
     let result = event_dispatcher(
         py,
         intern!(py, EventName::Chat.as_str()),
@@ -289,10 +401,13 @@ fn handle_say(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult
         )
     })?;
 
-    Ok(blocked_or_passed_on(py, &result, &format!("say \"{msg}\"")))
+    Ok(Outcome::blocked_or(
+        &result,
+        Outcome::Replaced(format!("say \"{msg}\"")),
+    ))
 }
 
-fn handle_say_team(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Py<PyAny>> {
+fn handle_say_team(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyResult<Outcome> {
     let result = event_dispatcher(
         py,
         intern!(py, EventName::Chat.as_str()),
@@ -319,22 +434,20 @@ fn handle_say_team(py: Python<'_>, player: &Bound<'_, Player>, msg: &str) -> PyR
         )
     })?;
 
-    Ok(blocked_or_passed_on(
-        py,
+    Ok(Outcome::blocked_or(
         &result,
-        &format!("say_team \"{msg}\""),
+        Outcome::Replaced(format!("say_team \"{msg}\"")),
     ))
 }
 
 fn handle_callvote(
     py: Python<'_>,
     player: &Bound<'_, Player>,
-    cmd: &str,
     vote: &str,
     args: &str,
-) -> PyResult<Py<PyAny>> {
+) -> PyResult<Outcome> {
     if is_vote_active() {
-        return Ok(passed_on(py, cmd));
+        return Ok(Outcome::Unchanged);
     }
     event_dispatcher(
         py,
@@ -359,17 +472,12 @@ fn handle_callvote(
         )
     })?;
 
-    Ok(blocked_or_passed_on(py, &result, cmd))
+    Ok(Outcome::blocked_or(&result, Outcome::Unchanged))
 }
 
-fn handle_vote(
-    py: Python<'_>,
-    player: &Bound<'_, Player>,
-    cmd: &str,
-    arg: &str,
-) -> PyResult<Py<PyAny>> {
+fn handle_vote(py: Python<'_>, player: &Bound<'_, Player>, arg: &str) -> PyResult<Outcome> {
     if !is_vote_active() || !["y", "Y", "1", "n", "N", "2"].contains(&arg) {
-        return Ok(passed_on(py, cmd));
+        return Ok(Outcome::Unchanged);
     }
     let vote = ["y", "Y", "1"].contains(&arg);
     let result = event_dispatcher(
@@ -381,19 +489,14 @@ fn handle_vote(
         VoteDispatcherMethods::dispatch(vote_dispatcher.cast()?, player, vote)
     })?;
 
-    Ok(blocked_or_passed_on(py, &result, cmd))
+    Ok(Outcome::blocked_or(&result, Outcome::Unchanged))
 }
 
-fn handle_team_switch(
-    py: Python<'_>,
-    player: &Bound<'_, Player>,
-    cmd: &str,
-    arg: &str,
-) -> PyResult<Py<PyAny>> {
+fn handle_team_switch(py: Python<'_>, player: &Bound<'_, Player>, arg: &str) -> PyResult<Outcome> {
     let current_team = player.get().get_team(py)?;
     let arg = arg.to_ascii_lowercase();
     if !["f", "r", "b", "s", "a"].contains(&arg.as_str()) || current_team.starts_with(&arg) {
-        return Ok(passed_on(py, cmd));
+        return Ok(Outcome::Unchanged);
     }
 
     let target_team = match arg.as_str() {
@@ -417,15 +520,10 @@ fn handle_team_switch(
         )
     })?;
 
-    Ok(blocked_or_passed_on(py, &result, cmd))
+    Ok(Outcome::blocked_or(&result, Outcome::Unchanged))
 }
 
-fn handle_userinfo(
-    py: Python<'_>,
-    player: &Bound<'_, Player>,
-    cmd: &str,
-    vars: &str,
-) -> PyResult<Py<PyAny>> {
+fn handle_userinfo(py: Python<'_>, player: &Bound<'_, Player>, vars: &str) -> PyResult<Outcome> {
     let new_info = parse_variables(vars);
     let old_info = parse_variables(&player.get().user_info);
 
@@ -439,7 +537,7 @@ fn handle_userinfo(
         .collect::<Vec<_>>();
 
     if changed.is_empty() {
-        return Ok(passed_on(py, cmd));
+        return Ok(Outcome::Unchanged);
     }
     let result = event_dispatcher(
         py,
@@ -455,10 +553,10 @@ fn handle_userinfo(
     })?;
 
     if is_false(&result) {
-        return Ok(blocked(py));
+        return Ok(Outcome::Blocked);
     }
     let Ok(changed_values) = result.cast::<PyDict>() else {
-        return Ok(passed_on(py, cmd));
+        return Ok(Outcome::Unchanged);
     };
 
     let updated_info = new_info.into_py_dict(py)?;
@@ -467,13 +565,39 @@ fn handle_userinfo(
         .iter()
         .map(|(key, value)| format!(r"\{key}\{value}"))
         .join("");
-    Ok(passed_on(
-        py,
-        &format!(r#"userinfo "{formatted_key_values}""#),
-    ))
+    Ok(Outcome::Replaced(format!(
+        r#"userinfo "{formatted_key_values}""#
+    )))
 }
 
-fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
+fn route_client_command(
+    py: Python<'_>,
+    player: &Bound<'_, Player>,
+    cmd: &str,
+) -> PyResult<Outcome> {
+    if let Some(msg) = chat_message(&RE_SAY, cmd) {
+        return handle_say(py, player, &msg);
+    }
+    if let Some(msg) = chat_message(&RE_SAY_TEAM, cmd) {
+        return handle_say_team(py, player, &msg);
+    }
+    if let Some((vote, args)) = callvote_parts(cmd) {
+        return handle_callvote(py, player, vote, args);
+    }
+    if let Some(arg) = captured(&RE_VOTE, "arg", cmd) {
+        return handle_vote(py, player, arg);
+    }
+    if let Some(arg) = captured(&RE_TEAM, "arg", cmd) {
+        return handle_team_switch(py, player, arg);
+    }
+    if let Some(vars) = captured(&RE_USERINFO, "vars", cmd) {
+        return handle_userinfo(py, player, vars);
+    }
+
+    Ok(Outcome::Unchanged)
+}
+
+fn client_command_outcome(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Outcome> {
     let player = Bound::new(py, Player::from_client_id(client_id, None))?;
 
     let return_value = event_dispatcher(
@@ -485,31 +609,29 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
         ClientCommandDispatcherMethods::dispatch(client_command_dispatcher.cast()?, &player, cmd)
     })?;
     if is_false(&return_value) {
-        return Ok(blocked(py));
+        return Ok(Outcome::Blocked);
     };
 
-    let updated_cmd = return_value.extract::<&str>().unwrap_or(cmd);
+    let updated = return_value
+        .extract::<&str>()
+        .ok()
+        .filter(|text| *text != cmd)
+        .map(str::to_owned);
+    let outcome = route_client_command(py, &player, updated.as_deref().unwrap_or(cmd))?;
+    Ok(outcome.relative_to(updated, cmd))
+}
 
-    if let Some(msg) = chat_message(&RE_SAY, updated_cmd) {
-        return handle_say(py, &player, &msg);
-    }
-    if let Some(msg) = chat_message(&RE_SAY_TEAM, updated_cmd) {
-        return handle_say_team(py, &player, &msg);
-    }
-    if let Some((vote, args)) = callvote_parts(updated_cmd) {
-        return handle_callvote(py, &player, updated_cmd, vote, args);
-    }
-    if let Some(arg) = captured(&RE_VOTE, "arg", updated_cmd) {
-        return handle_vote(py, &player, updated_cmd, arg);
-    }
-    if let Some(arg) = captured(&RE_TEAM, "arg", updated_cmd) {
-        return handle_team_switch(py, &player, updated_cmd, arg);
-    }
-    if let Some(vars) = captured(&RE_USERINFO, "vars", updated_cmd) {
-        return handle_userinfo(py, &player, updated_cmd, vars);
-    }
+#[cfg(test)]
+fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Py<PyAny>> {
+    client_command_outcome(py, client_id, cmd).map(|outcome| outcome.into_py(py, cmd).unbind())
+}
 
-    Ok(passed_on(py, updated_cmd))
+/// Parses a client command and passes it on to the event dispatcher, for the dispatcher of the engine.
+pub(crate) fn handle_client_command_outcome(py: Python<'_>, client_id: i32, cmd: &str) -> Outcome {
+    client_command_outcome(py, client_id, cmd).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        Outcome::Accepted
+    })
 }
 
 /// Client commands are commands such as "say", "say_team", "scores",
@@ -517,10 +639,9 @@ fn try_handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> PyRes
 /// on to the event dispatcher.
 #[pyfunction]
 pub(crate) fn handle_client_command(py: Python<'_>, client_id: i32, cmd: &str) -> Py<PyAny> {
-    try_handle_client_command(py, client_id, cmd).unwrap_or_else(|e| {
-        log_exception(py, &e);
-        PyBool::new(py, true).to_owned().into_any().unbind()
-    })
+    handle_client_command_outcome(py, client_id, cmd)
+        .into_py(py, cmd)
+        .unbind()
 }
 
 #[cfg(test)]
@@ -3190,11 +3311,7 @@ static RE_VOTE_ENDED: LazyLock<Regex> = LazyLock::new(|| {
         .expect("the pattern of RE_VOTE_ENDED is a valid regex")
 });
 
-fn try_handle_server_command<'py>(
-    py: Python<'py>,
-    client_id: i32,
-    cmd: &str,
-) -> PyResult<Bound<'py, PyAny>> {
+fn server_command_outcome(py: Python<'_>, client_id: i32, cmd: &str) -> PyResult<Outcome> {
     let server_command_dispatcher = EVENT_DISPATCHERS
         .load()
         .as_ref()
@@ -3220,7 +3337,7 @@ fn try_handle_server_command<'py>(
             })
         else {
             cold_path();
-            return Ok(PyBool::new(py, true).to_owned().into_any());
+            return Ok(Outcome::Accepted);
         };
 
         Some(ServerCommandDispatcherMethods::dispatch(
@@ -3235,17 +3352,17 @@ fn try_handle_server_command<'py>(
         .as_ref()
         .is_some_and(|return_value| is_false(return_value))
     {
-        return Ok(PyBool::new(py, false).to_owned().into_any());
+        return Ok(Outcome::Blocked);
     };
 
-    let updated_cmd = return_value
+    let updated = return_value
         .as_ref()
         .and_then(|return_value| return_value.extract::<&str>().ok())
-        .unwrap_or(cmd);
-
-    RE_VOTE_ENDED.captures(updated_cmd).map_or(
-        Ok(PyString::new(py, updated_cmd).into_any()),
-        |captures| {
+        .filter(|text| *text != cmd)
+        .map(str::to_owned);
+    let outcome = match RE_VOTE_ENDED.captures(updated.as_deref().unwrap_or(cmd)) {
+        None => Outcome::Unchanged,
+        Some(captures) => {
             event_dispatcher(
                 py,
                 intern!(py, EventName::VoteEnded.as_str()),
@@ -3257,18 +3374,33 @@ fn try_handle_server_command<'py>(
                     .is_some_and(|value| value.as_str() == "passed");
                 VoteEndedDispatcherMethods::dispatch(vote_ended_dispatcher.cast()?, vote_passed)
             })?;
-            Ok(PyString::new(py, updated_cmd).into_any())
-        },
-    )
+            Outcome::Unchanged
+        }
+    };
+    Ok(outcome.relative_to(updated, cmd))
+}
+
+#[cfg(test)]
+fn try_handle_server_command<'py>(
+    py: Python<'py>,
+    client_id: i32,
+    cmd: &str,
+) -> PyResult<Bound<'py, PyAny>> {
+    server_command_outcome(py, client_id, cmd).map(|outcome| outcome.into_py(py, cmd))
+}
+
+/// Passes a server command on to the event dispatcher, for the dispatcher of the engine.
+pub(crate) fn handle_server_command_outcome(py: Python<'_>, client_id: i32, cmd: &str) -> Outcome {
+    server_command_outcome(py, client_id, cmd).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        Outcome::Accepted
+    })
 }
 
 #[pyfunction]
-pub(crate) fn handle_server_command<'py>(py: Python<'py>, client_id: i32, cmd: &str) -> Py<PyAny> {
-    try_handle_server_command(py, client_id, cmd)
-        .unwrap_or_else(|e| {
-            log_exception(py, &e);
-            PyBool::new(py, true).to_owned().into_any()
-        })
+pub(crate) fn handle_server_command(py: Python<'_>, client_id: i32, cmd: &str) -> Py<PyAny> {
+    handle_server_command_outcome(py, client_id, cmd)
+        .into_py(py, cmd)
         .unbind()
 }
 
@@ -5122,7 +5254,7 @@ fn log_unknown_game_states(old_state: &str, new_state: &str) {
     );
 }
 
-fn handle_vote_string(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
+fn handle_vote_string(py: Python<'_>, configstring_value: &str) -> PyResult<Outcome> {
     let (vote, args) = configstring_value
         .split_once(' ')
         .unwrap_or((configstring_value, ""));
@@ -5138,18 +5270,18 @@ fn handle_vote_string(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
             PyString::new(py, args).as_any(),
         )?;
 
-        Ok(py.None())
+        Ok(Outcome::Ignored)
     })
 }
 
-fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
+fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Outcome> {
     let Some(ref main_engine) = *MAIN_ENGINE.load() else {
         cold_path();
-        return Ok(py.None());
+        return Ok(Outcome::Ignored);
     };
     let old_configstring = main_engine.get_configstring(CS_SERVERINFO as u16);
     if old_configstring.is_empty() {
-        return Ok(py.None());
+        return Ok(Outcome::Ignored);
     }
     let old_cvars = parse_variables(&old_configstring);
     let opt_old_state = old_cvars.get("g_gameState");
@@ -5164,7 +5296,7 @@ fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
         .ok_or_else(|| PyKeyError::new_err("'g_gameState'"))?;
 
     if old_state == new_state {
-        return Ok(passed_on(py, configstring_value));
+        return Ok(Outcome::Unchanged);
     }
     if (old_state, new_state) == ("PRE_GAME", "COUNT_DOWN") {
         AD_ROUND_NUMBER.store(1, Ordering::Release);
@@ -5188,18 +5320,18 @@ fn handle_server_info(py: Python<'_>, configstring_value: &str) -> PyResult<Py<P
     {
         log_unknown_game_states(old_state, new_state);
     }
-    Ok(passed_on(py, configstring_value))
+    Ok(Outcome::Unchanged)
 }
 
-fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<PyAny>> {
+fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Outcome> {
     let cvars = parse_variables(configstring_value);
     if cvars.is_empty() {
-        return Ok(passed_on(py, configstring_value));
+        return Ok(Outcome::Unchanged);
     }
 
     let round_number = if cvars.contains("turn") {
         if int_variable(&cvars, "state")? == 0 {
-            return Ok(py.None());
+            return Ok(Outcome::Ignored);
         }
 
         if cvars.contains("round") {
@@ -5215,7 +5347,7 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
     };
 
     if round_number == 0 {
-        return Ok(passed_on(py, configstring_value));
+        return Ok(Outcome::Unchanged);
     }
 
     if cvars.contains("time") {
@@ -5226,7 +5358,7 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
         )
         .and_then(|round_dispatcher| {
             RoundCountdownDispatcherMethods::dispatch(round_dispatcher.cast()?, round_number)
-                .map(|_| py.None())
+                .map(|_| Outcome::Ignored)
         })
     } else {
         event_dispatcher(
@@ -5236,12 +5368,12 @@ fn handle_round_status(py: Python<'_>, configstring_value: &str) -> PyResult<Py<
         )
         .and_then(|round_dispatcher| {
             RoundStartDispatcherMethods::dispatch(round_dispatcher.cast()?, round_number)
-                .map(|_| py.None())
+                .map(|_| Outcome::Ignored)
         })
     }
 }
 
-fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<Py<PyAny>> {
+fn set_configstring_outcome(py: Python<'_>, index: u32, value: &str) -> PyResult<Outcome> {
     let result = event_dispatcher(
         py,
         intern!(py, EventName::SetConfigstring.as_str()),
@@ -5267,30 +5399,44 @@ fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyRes
         .as_ref()
         .is_some_and(|result_value| is_false(result_value))
     {
-        return Ok(blocked(py));
+        return Ok(Outcome::Blocked);
     }
 
-    let configstring_value = result
+    let updated = result
         .and_then(|result_value| result_value.extract::<String>().ok())
-        .unwrap_or_else(|| value.to_string());
-    match index {
+        .filter(|text| text != value);
+    let configstring_value = updated.as_deref().unwrap_or(value);
+    let outcome = match index {
         CS_VOTE_STRING if !configstring_value.is_empty() => {
-            handle_vote_string(py, &configstring_value)
+            handle_vote_string(py, configstring_value)
         }
-        CS_SERVERINFO => handle_server_info(py, &configstring_value),
-        CS_ROUND_STATUS => handle_round_status(py, &configstring_value),
-        _ => Ok(passed_on(py, &configstring_value)),
-    }
+        CS_SERVERINFO => handle_server_info(py, configstring_value),
+        CS_ROUND_STATUS => handle_round_status(py, configstring_value),
+        _ => Ok(Outcome::Unchanged),
+    }?;
+    Ok(outcome.relative_to(updated, value))
+}
+
+#[cfg(test)]
+fn try_handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> PyResult<Py<PyAny>> {
+    set_configstring_outcome(py, index, value).map(|outcome| outcome.into_py(py, value).unbind())
+}
+
+/// Passes a configstring on to the event dispatcher, for the dispatcher of the engine.
+pub(crate) fn handle_set_configstring_outcome(py: Python<'_>, index: u32, value: &str) -> Outcome {
+    set_configstring_outcome(py, index, value).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        Outcome::Accepted
+    })
 }
 
 /// Called whenever the server tries to set a configstring. Can return
 /// False to stop the event.
 #[pyfunction]
 pub(crate) fn handle_set_configstring(py: Python<'_>, index: u32, value: &str) -> Py<PyAny> {
-    try_handle_set_configstring(py, index, value).unwrap_or_else(|e| {
-        log_exception(py, &e);
-        PyBool::new(py, true).to_owned().into_any().unbind()
-    })
+    handle_set_configstring_outcome(py, index, value)
+        .into_py(py, value)
+        .unbind()
 }
 
 #[cfg(test)]
@@ -8262,7 +8408,7 @@ mod handle_damage_tests {
 static PRINT_REDIRECTION: LazyLock<ArcSwapOption<Py<PrintRedirector>>> =
     LazyLock::new(ArcSwapOption::empty);
 
-fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
+fn console_print_outcome(py: Python<'_>, text: &str) -> PyResult<Outcome> {
     log_debug("handle_console_print", text.trim_end_matches('\n'));
 
     let result = event_dispatcher(
@@ -8281,7 +8427,7 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
         ConsolePrintDispatcherMethods::dispatch(console_print_dispatcher.cast()?, text).map(Some)
     })?;
     if result.as_ref().is_some_and(|result| is_false(result)) {
-        return Ok(PyBool::new(py, false).to_owned().into_any().unbind());
+        return Ok(Outcome::Blocked);
     }
 
     PRINT_REDIRECTION
@@ -8291,23 +8437,35 @@ fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
             print_redirector.bind(py).append(text);
         });
 
-    let returned = result
+    Ok(result
         .and_then(|result| result.extract::<String>().ok())
-        .unwrap_or_else(|| text.to_string());
-    Ok(PyString::new(py, &returned).into_any().unbind())
+        .filter(|returned| returned != text)
+        .map_or(Outcome::Unchanged, Outcome::Replaced))
+}
+
+#[cfg(test)]
+fn try_handle_console_print(py: Python<'_>, text: &str) -> PyResult<Py<PyAny>> {
+    console_print_outcome(py, text).map(|outcome| outcome.into_py(py, text).unbind())
+}
+
+/// Passes console output on to the event dispatcher, for the dispatcher of the engine.
+pub(crate) fn handle_console_print_outcome(py: Python<'_>, text: &str) -> Outcome {
+    if text.is_empty() {
+        return Outcome::Ignored;
+    }
+
+    console_print_outcome(py, text).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        Outcome::Accepted
+    })
 }
 
 /// Called whenever the server prints something to the console and when rcon is used.
 #[pyfunction]
 pub(crate) fn handle_console_print(py: Python<'_>, text: &str) -> Py<PyAny> {
-    if text.is_empty() {
-        return py.None();
-    }
-
-    try_handle_console_print(py, text).unwrap_or_else(|e| {
-        log_exception(py, &e);
-        PyBool::new(py, true).to_owned().into_any().unbind()
-    })
+    handle_console_print_outcome(py, text)
+        .into_py(py, text)
+        .unbind()
 }
 
 #[cfg(test)]
@@ -8863,6 +9021,8 @@ mod register_handlers_tests {
 pub(crate) mod handlers {
     use pyo3::prelude::*;
 
+    use super::Outcome;
+
     #[allow(
         clippy::needless_lifetimes,
         clippy::extra_unused_lifetimes,
@@ -8879,12 +9039,12 @@ pub(crate) mod handlers {
         reason = "the mock repeats the lifetimes of the real handler signature"
     )]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_client_command<'a>(
-        py: Python<'a>,
+    pub(crate) fn handle_client_command_outcome<'a>(
+        _py: Python<'a>,
         _client_id: i32,
         _cmd: &str,
-    ) -> Py<PyAny> {
-        py.None()
+    ) -> Outcome {
+        Outcome::Ignored
     }
 
     #[allow(
@@ -8893,12 +9053,12 @@ pub(crate) mod handlers {
         reason = "the mock repeats the lifetimes of the real handler signature"
     )]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_server_command<'a>(
-        py: Python<'a>,
+    pub(crate) fn handle_server_command_outcome<'a>(
+        _py: Python<'a>,
         _client_id: i32,
         _cmd: &str,
-    ) -> Py<PyAny> {
-        py.None()
+    ) -> Outcome {
+        Outcome::Ignored
     }
 
     #[allow(
@@ -8927,12 +9087,12 @@ pub(crate) mod handlers {
         reason = "the mock repeats the lifetimes of the real handler signature"
     )]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_set_configstring<'a>(
-        py: Python<'a>,
+    pub(crate) fn handle_set_configstring_outcome<'a>(
+        _py: Python<'a>,
         _index: u32,
         _value: &str,
-    ) -> Py<PyAny> {
-        py.None()
+    ) -> Outcome {
+        Outcome::Ignored
     }
 
     #[allow(
@@ -9030,8 +9190,8 @@ pub(crate) mod handlers {
         reason = "the mock repeats the lifetimes of the real handler signature"
     )]
     #[cfg(not(tarpaulin_include))]
-    pub(crate) fn handle_console_print<'a>(py: Python<'a>, _text: &str) -> Py<PyAny> {
-        py.None()
+    pub(crate) fn handle_console_print_outcome<'a>(_py: Python<'a>, _text: &str) -> Outcome {
+        Outcome::Ignored
     }
 
     #[cfg(not(tarpaulin_include))]

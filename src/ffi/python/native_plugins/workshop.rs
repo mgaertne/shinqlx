@@ -8,7 +8,7 @@ use crate::ffi::python::{
     commands::CommandPriorities,
     events_enum::EventName,
     game::GameMethods,
-    plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
+    plugin::{Plugin, PluginMethods, cvar_items},
 };
 
 /// Adds the workshop items of the cvar `qlx_workshopReferences` to every map, and to the running one when it is loaded.
@@ -34,25 +34,23 @@ fn add_references(plugin: &Bound<'_, Workshop>) -> PyResult<()> {
     };
     let game = Bound::new(py, game)?;
 
-    let references = read_cvar_as(py, "qlx_workshopReferences", CvarType::List)?;
     let present = game.get_workshop_items()?;
-    let workshop_items = PyList::new(py, &present)?;
-    for reference in references.try_iter()? {
-        let reference = reference?;
-        let already_present = reference
-            .str()?
-            .to_string()
-            .trim()
-            .parse::<u64>()
-            .is_ok_and(|id| present.contains(&id));
-        if !already_present {
-            workshop_items.append(reference)?;
-        }
-    }
-    game.set_workshop_items(&workshop_items)
+    let missing_references = cvar_items("qlx_workshopReferences")
+        .into_iter()
+        .filter(|reference| {
+            !reference
+                .parse::<u64>()
+                .is_ok_and(|id| present.contains(&id))
+        });
+    let workshop_items = present
+        .iter()
+        .map(u64::to_string)
+        .chain(missing_references)
+        .collect::<Vec<_>>();
+    game.set_workshop_items(&PyList::new(py, workshop_items)?.into_any())
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     let plugin = Bound::new(
         py,
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Workshop),
@@ -66,7 +64,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     create_cvar(py, "qlx_workshopReferences", "")?;
     add_references(&plugin)?;
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]

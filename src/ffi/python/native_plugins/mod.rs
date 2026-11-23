@@ -22,11 +22,11 @@ use regex_lite::Regex;
 use super::{
     Player, PlayerMethods,
     commands::CommandPriorities,
-    plugin::{CvarType, Plugin, PluginMethods, read_cvar_as},
-    pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
+    plugin::{Plugin, PluginMethods, cvar_flag, cvar_float, cvar_int},
+    pyshinqlx_set_cvar_limit_once, set_cvar_once,
 };
 
-type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, PyAny>>;
+type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, Plugin>>;
 
 static NATIVE_PLUGINS: [(&str, Constructor); 10] = [
     ("ban", ban::create),
@@ -69,21 +69,9 @@ fn tell(player: &Bound<'_, Player>, message: &str) -> PyResult<()> {
     player.tell(message, None)
 }
 
-fn cvar_flag(py: Python<'_>, name: &str) -> PyResult<bool> {
-    read_cvar_as(py, name, CvarType::Bool)?.is_truthy()
-}
-
-fn cvar_int(py: Python<'_>, name: &str) -> PyResult<i64> {
-    read_cvar_as(py, name, CvarType::Int)?.extract()
-}
-
-fn cvar_float(py: Python<'_>, name: &str) -> PyResult<f64> {
-    read_cvar_as(py, name, CvarType::Float)?.extract()
-}
-
 /// Creates the cvar with the value unless it exists already.
 fn create_cvar(py: Python<'_>, name: &str, value: &str) -> PyResult<()> {
-    pyshinqlx_set_cvar_once(py, name, PyString::new(py, value).as_any(), 0).map(|_| ())
+    set_cvar_once(py, name, value, 0).map(|_| ())
 }
 
 /// Creates the cvar with the value and the limits unless it exists already.
@@ -153,7 +141,7 @@ pub(super) fn has_native_plugin(name: &str) -> bool {
 pub(super) fn create_native_plugin<'py>(
     py: Python<'py>,
     name: &str,
-) -> Option<PyResult<Bound<'py, PyAny>>> {
+) -> Option<PyResult<Bound<'py, Plugin>>> {
     NATIVE_PLUGINS
         .iter()
         .find(|(plugin, _)| *plugin == name)

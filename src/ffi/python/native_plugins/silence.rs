@@ -259,7 +259,7 @@ impl Silence {
     }
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     let plugin = Bound::new(
         py,
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Silence {
@@ -304,7 +304,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         register_command(plugin.as_super(), &[name], handler, permission, usage, None)?;
     }
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]

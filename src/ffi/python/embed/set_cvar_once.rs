@@ -13,14 +13,18 @@ pub(crate) fn pyshinqlx_set_cvar_once(
     value: &Bound<'_, PyAny>,
     flags: i32,
 ) -> PyResult<bool> {
-    let value_string = value.to_string();
+    set_cvar_once(py, name, &value.to_string(), flags)
+}
+
+/// Creates the cvar with the value unless it exists already.
+pub(crate) fn set_cvar_once(py: Python<'_>, name: &str, value: &str, flags: i32) -> PyResult<bool> {
     py.detach(|| {
         with_main_engine(|main_engine| {
             if main_engine.find_cvar(name).is_some() {
                 return Ok(false);
             }
 
-            main_engine.get_cvar(name, &value_string, Some(flags));
+            main_engine.get_cvar(name, value, Some(flags));
             Ok(true)
         })
     })

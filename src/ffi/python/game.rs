@@ -3,12 +3,11 @@ use core::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-use itertools::Itertools;
 use log::*;
 use pyo3::{
     create_exception,
     exceptions::{PyEnvironmentError, PyException, PyKeyError, PyValueError},
-    types::{IntoPyDict, PyDict, PyType},
+    types::{IntoPyDict, PyDict, PySequence, PyString, PyType},
 };
 
 use super::{
@@ -27,6 +26,22 @@ use crate::{
 create_exception!(pyshinqlx_module, NonexistentGameError, PyException);
 
 /// The cvar value `"1"` or `"0"` for a `bool`, `1` or `0`; `name` is the attribute in the error message.
+/// The items of a sequence as text, joined with the separator. A string is not a sequence of items.
+fn joined_items(value: &Bound<'_, PyAny>, separator: &str) -> Option<String> {
+    if value.is_instance_of::<PyString>() {
+        return None;
+    }
+    value
+        .cast::<PySequence>()
+        .ok()?
+        .try_iter()
+        .ok()?
+        .map(|item| item.map(|item| item.to_string()))
+        .collect::<PyResult<Vec<_>>>()
+        .ok()
+        .map(|items| items.join(separator))
+}
+
 fn flag_cvar_value(value: &Bound<'_, PyAny>, name: &str) -> PyResult<&'static str> {
     match value
         .extract::<bool>()
@@ -771,20 +786,15 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_tags(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let string_cvar_value = match value.extract::<String>() {
-            Ok(new_tags) => new_tags,
-            Err(_) => match value.extract::<Vec<Py<PyAny>>>() {
-                Ok(new_tags_list) => new_tags_list
-                    .iter()
-                    .map(|value| value.to_string())
-                    .join(","),
-                Err(_e) => {
-                    cold_path();
-                    return Err(PyValueError::new_err(
-                        "tags need to be a string or an iterable returning strings.",
-                    ));
-                }
-            },
+        let Some(string_cvar_value) = value
+            .extract::<String>()
+            .ok()
+            .or_else(|| joined_items(value, ","))
+        else {
+            cold_path();
+            return Err(PyValueError::new_err(
+                "tags need to be a string or an iterable returning strings.",
+            ));
         };
         pyshinqlx_set_cvar(self.py(), "sv_tags", &string_cvar_value, None).map(|_| ())
     }
@@ -802,15 +812,9 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn set_workshop_items(&self, value: &Bound<'_, PyAny>) -> PyResult<()> {
-        let workshop_items_str = match value.extract::<Vec<Py<PyAny>>>() {
-            Ok(new_workshop_items) => new_workshop_items
-                .iter()
-                .map(|value| value.to_string())
-                .join(" "),
-            Err(_) => {
-                cold_path();
-                return Err(PyValueError::new_err("The value needs to be an iterable."));
-            }
+        let Some(workshop_items_str) = joined_items(value, " ") else {
+            cold_path();
+            return Err(PyValueError::new_err("The value needs to be an iterable."));
         };
 
         self.py().detach(|| {

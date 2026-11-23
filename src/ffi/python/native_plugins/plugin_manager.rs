@@ -248,7 +248,7 @@ impl PluginManager {
     }
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     let plugin = Bound::new(
         py,
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(PluginManager {
@@ -274,7 +274,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
         )?;
     }
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]

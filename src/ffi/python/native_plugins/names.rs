@@ -51,7 +51,6 @@ impl Names {
     }
 
     fn handle_player_loaded(slf: &Bound<'_, Self>, player: &Bound<'_, Player>) -> PyResult<()> {
-        let py = slf.py();
         let database = slf.as_super().get_db()?;
         let key = name_key(player.get_steam_id());
         if !database.contains(&key)? {
@@ -59,8 +58,7 @@ impl Names {
         }
 
         let registered_name = database.get_item(&key)?.extract::<String>()?;
-        if !cvar_flag(py, ENFORCE_STEAM_NAME_CVAR)? || matches_steam_name(&registered_name, player)
-        {
+        if !cvar_flag(ENFORCE_STEAM_NAME_CVAR)? || matches_steam_name(&registered_name, player) {
             slf.get().name_set.store(true, Ordering::Release);
             player.set_name(&registered_name)?;
         }
@@ -121,7 +119,6 @@ impl Names {
         msg: Vec<String>,
         _channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<Option<i32>> {
-        let py = slf.py();
         let database = slf.as_super().get_db()?;
         let key = name_key(player.get_steam_id());
 
@@ -137,7 +134,7 @@ impl Names {
         let name = without_excessive_colors(&msg[1..].join(" "));
         let rejection = if name.len() > MAX_NAME_BYTES {
             Some("The name is too long. Consider using fewer colors or a shorter name.")
-        } else if !matches_steam_name(&name, player) && cvar_flag(py, ENFORCE_STEAM_NAME_CVAR)? {
+        } else if !matches_steam_name(&name, player) && cvar_flag(ENFORCE_STEAM_NAME_CVAR)? {
             Some("The new name must match your current Steam name.")
         } else if name.contains('\\') {
             Some("The character '^6\\^7' cannot be used. Sorry for the inconvenience.")
@@ -166,7 +163,7 @@ impl Names {
     }
 }
 
-pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
     let plugin = Bound::new(
         py,
         PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Names::new()),
@@ -194,7 +191,7 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
 
     create_cvar(py, ENFORCE_STEAM_NAME_CVAR, "1")?;
 
-    Ok(plugin.into_any())
+    Ok(plugin.into_super())
 }
 
 #[cfg(test)]

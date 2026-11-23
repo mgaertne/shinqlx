@@ -43,6 +43,7 @@ mod prelude {
 }
 
 use core::hint::cold_path;
+use std::sync::OnceLock;
 
 pub(crate) use chat_event_dispatcher::{ChatEventDispatcher, ChatEventDispatcherMethods};
 pub(crate) use client_command_dispatcher::{
@@ -134,7 +135,7 @@ pub(crate) use vote_dispatcher::{VoteDispatcher, VoteDispatcherMethods};
 pub(crate) use vote_ended_dispatcher::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
 
-use super::{commands::CommandPriorities, get_cvar, log_debug};
+use super::{commands::CommandPriorities, defer_next_frame, get_cvar, log_debug};
 
 pub(crate) fn dispatcher_debug_log(debug_str: &str) {
     if debug_str.len() > 100 {
@@ -186,6 +187,8 @@ pub(crate) struct EventDispatcher {
         reason = "keeps the handlers per priority next to the plugin name"
     )]
     plugins: parking_lot::RwLock<Vec<(String, [Vec<Py<PyAny>>; 5])>>,
+    /// The `name` of the dispatcher class and whether its events are logged, read on first dispatch.
+    identity: OnceLock<(String, bool)>,
 }
 
 const NO_DEBUG: [EventName; 9] = [
@@ -215,6 +218,7 @@ impl Default for EventDispatcher {
     fn default() -> Self {
         Self {
             plugins: parking_lot::RwLock::new(Vec::new()),
+            identity: OnceLock::new(),
         }
     }
 }
@@ -346,6 +350,24 @@ pub(crate) trait EventDispatcherMethods<'py> {
     -> PyResult<()>;
 }
 
+impl EventDispatcher {
+    /// The name of the dispatcher class and whether its events are logged, or `None` if the class
+    /// has no usable `name`.
+    fn identity<'a>(slf: &'a Bound<'_, Self>) -> Option<&'a (String, bool)> {
+        let identity = &slf.get().identity;
+        if identity.get().is_none() {
+            let name = slf
+                .get_type()
+                .getattr(intern!(slf.py(), "name"))
+                .and_then(|name| name.extract::<String>())
+                .ok()?;
+            let is_logged = NO_DEBUG.iter().all(|event| event.as_str() != name);
+            let _ = identity.set((name, is_logged));
+        }
+        identity.get()
+    }
+}
+
 impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
     fn get_plugins(&self) -> Bound<'py, PyDict> {
         self.get()
@@ -384,18 +406,11 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
     }
 
     fn dispatch(&self, args: &Bound<'py, PyTuple>) -> Bound<'py, PyAny> {
-        let Ok(py_dispatcher_name) = self.get_type().getattr(intern!(self.py(), "name")) else {
+        let Some((dispatcher_name, is_logged)) = EventDispatcher::identity(self) else {
             cold_path();
             return self.py().None().into_bound(self.py());
         };
-        let Ok(dispatcher_name) = py_dispatcher_name.extract::<&str>() else {
-            cold_path();
-            return self.py().None().into_bound(self.py());
-        };
-        if NO_DEBUG
-            .iter()
-            .all(|event| event.as_str() != dispatcher_name)
-        {
+        if *is_logged && log_enabled!(target: "shinqlx", Level::Debug) {
             let dbgstr = format!("{dispatcher_name}{args}");
             dispatcher_debug_log(&dbgstr);
         }
@@ -500,22 +515,10 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
         match self.get().plugins.try_write() {
             None => {
                 cold_path();
-                let add_hook_func = PyModule::from_code(
-                    self.py(),
-                    cr#"
-import shinqlx
-
-
-@shinqlx.next_frame
-def add_hook(event, plugin, handler, priority):
-    shinqlx.EVENT_DISPATCHERS[event].add_hook(plugin, handler, priority)
-        "#,
-                    c"",
-                    c"",
-                )?
-                .getattr(intern!(self.py(), "add_hook"))?;
-
-                add_hook_func.call1((&dispatcher_name, plugin, handler, priority))?;
+                defer_next_frame(
+                    &self.getattr(intern!(self.py(), "add_hook"))?,
+                    (plugin, handler, priority),
+                )?;
             }
             Some(mut plugins) => {
                 let Some(plugin_hooks) = plugins
@@ -551,8 +554,7 @@ def add_hook(event, plugin, handler, priority):
     }
 
     fn remove_hook(&self, plugin: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
-        let dispatcher_name = self
-            .get_type()
+        self.get_type()
             .getattr(intern!(self.py(), "name"))
             .and_then(|value| value.extract::<String>())
             .map_err(|_| {
@@ -563,21 +565,10 @@ def add_hook(event, plugin, handler, priority):
         match self.get().plugins.try_write() {
             None => {
                 cold_path();
-                let remove_hook_func = PyModule::from_code(
-                    self.py(),
-                    cr#"
-import shinqlx
-
-
-@shinqlx.next_frame
-def remove_hook(event, plugin, handler, priority):
-    shinqlx.EVENT_DISPATCHERS[event].remove_hook(plugin, handler, priority)
-        "#,
-                    c"",
-                    c"",
-                )?
-                .getattr(intern!(self.py(), "remove_hook"))?;
-                remove_hook_func.call1((dispatcher_name, plugin, handler, priority))?;
+                defer_next_frame(
+                    &self.getattr(intern!(self.py(), "remove_hook"))?,
+                    (plugin, handler, priority),
+                )?;
             }
             Some(mut plugins) => {
                 let Some(plugin_hooks) = plugins
@@ -1693,22 +1684,10 @@ impl<'py> EventDispatcherManagerMethods<'py> for Bound<'py, EventDispatcherManag
         match self.get().dispatchers.try_write() {
             None => {
                 cold_path();
-                let remove_dispatcher_by_name_func = PyModule::from_code(
-                    self.py(),
-                    cr#"
-import shinqlx
-
-
-@shinqlx.next_frame
-def remove_dispatcher_by_name(dispatcher_name):
-    shinqlx.EVENT_DISPATCHERS.remove_dispatcher_by_name(dispatcher_name)
-        "#,
-                    c"",
-                    c"",
-                )?
-                .getattr(intern!(self.py(), "remove_dispatcher_by_name"))?;
-
-                remove_dispatcher_by_name_func.call1((dispatcher_name,))?;
+                defer_next_frame(
+                    &self.getattr(intern!(self.py(), "remove_dispatcher_by_name"))?,
+                    (dispatcher_name,),
+                )?;
             }
             Some(mut dispatchers) => {
                 dispatchers.retain(|(name, _)| name != dispatcher_name);
