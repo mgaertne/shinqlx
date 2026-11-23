@@ -34,6 +34,11 @@ Changes since 0.8.0.
   `zmq_stats_enable` nor an event; game types without rounds stay in `pregame`. Only in the `shinqlx` namespace.
 * **The level structure of the game module** lacked the field `timeInitialKeySpawn`, so every field behind it was read
   eight bytes too early. This affected `mapIsTrainingMap`, which `allow_single_player` writes.
+* **`Plugin.tell` calls `TellChannel.reply` directly**, so a Python override of `TellChannel.reply` no longer sees
+  these tells. `Plugin.add_hook` and `Plugin.remove_hook` both
+  call the method of the event dispatcher, so a subclass of `EventDispatcher` can override either of them.
+* **A dispatched event is only described in the debug log if debug logging is enabled.** Before, `str()` of every
+  argument ran for each event that is not on the list of silent events, also with debug logging off.
 * **Stubs:** `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`. `CvarFlags` and `DamageFlags` return
   flags from the operators and have `__init__`, `__xor__`, `__invert__`, `__contains__` and `__iter__`.
 
@@ -130,6 +135,23 @@ Changes since 0.8.0.
 * The console loop of `ql_rcon` works on a `Transport` and a `CompletionStore` trait instead of the ZMQ socket and the
   command line options. The watching of the ZMQ connection (link events, reconnect, messages) is shared with `ql_stats`
   in the new workspace crate `ql_zmq` and tested without sockets.
+* The engine dispatchers for `client_command`, `server_command`, `set_configstring` and `console_print` get an `Outcome`
+  from the handlers instead of a Python `bool` or `str` that they decoded again; the functions `handle_*` that Python
+  sees return what they returned before. A dispatch with one handler takes about a third less time (213 → 141 ns in
+  the `dispatch/` benchmark).
+* Cvars of the native plugins are read as Rust values and created with `set_cvar_once` on a `&str`; a missing cvar
+  raises the `TypeError` of `int(None)` or `float(None)` as before.
+* The next-frame fallback of the event dispatchers queues the bound method instead of compiling Python code on every
+  call. `EventDispatcher` reads its name and the list of silent events once.
+* `Plugin.tell` and `Plugin.msg` share the parsing of `limit` and `delimiter`; `engine_api.client_id` calls `str()` at
+  most once; the stats events pass JSON data to Python objects directly (`json_to_py`, tested against `json.loads`)
+  instead of through a string; `set_tags` and `set_workshop_items` join the items without copying them.
+* The accessors `Player.position`, `velocity`, `weapons`, `weapon`, `ammo`, `powerups` and `flight` return a
+  `StateReading` (the current value or whether the update took effect) that converts to the same Python objects.
+  `set_handicap`, `set_autohop`, `set_autoaction` and `set_predictitems` share one function, and the keyword arguments
+  of the accessors are read by helpers instead of repeated blocks.
+* The `create()` functions of the native plugins return `Bound<Plugin>`, and their handlers take `Command` and `dict`
+  arguments instead of `PyAny`.
 
 ## 0.8.0 (2026-11-19)
 
