@@ -51,8 +51,17 @@ pub(crate) enum FetchState {
     Done,
 }
 
-/// Width of the column that holds the flags in front of a cvar of a `cvarlist` the user typed.
-const FLAG_COLUMN: usize = 4;
+/// What the flag letters of a `cvarlist` stand for, in the order of the server's flag slots.
+pub(crate) const FLAG_LEGEND: &str = "Flags: S serverinfo, U userinfo, R read-only, I init only, A archived, L latched, C cheat, T temporary";
+
+/// The cvar line with its flags at the end, `sv_hostname "x"  [SA]`; a cvar without flags stays as it is.
+fn with_flags(line: &str, flags: &str) -> String {
+    if flags.is_empty() {
+        line.to_string()
+    } else {
+        format!("{line}  [{flags}]")
+    }
+}
 
 /// A list typed by the user has no end marker (`cmdlist`, `dir`), so it ends after this much silence.
 const PASSIVE_IDLE: Duration = Duration::from_millis(1500);
@@ -167,7 +176,7 @@ impl FetchState {
                     found.flags.push((name.to_string(), flags.clone()));
                 }
                 if *visible {
-                    Feed::Replace(format!("{flags:<FLAG_COLUMN$} {line}"))
+                    Feed::Replace(with_flags(line, &flags))
                 } else {
                     Feed::Hide
                 }
@@ -368,11 +377,11 @@ mod fetch_tests {
         assert_eq!(state.feed("A"), Feed::Hide);
         assert_eq!(
             state.feed("sv_hostname \"A New Server\""),
-            Feed::Replace("SA   sv_hostname \"A New Server\"".to_string())
+            Feed::Replace("sv_hostname \"A New Server\"  [SA]".to_string())
         );
         assert_eq!(
             state.feed("sv_cheats \"0\""),
-            Feed::Replace("     sv_cheats \"0\"".to_string())
+            Feed::Replace("sv_cheats \"0\"".to_string())
         );
         assert_eq!(state.feed("12 total cvars"), Feed::Show);
         assert_eq!(
@@ -413,9 +422,9 @@ mod fetch_tests {
         assert_eq!(
             shown,
             [
-                "R    net_port \"27970\"",
-                "SA   sv_hostname \"leaktest-A\"",
-                "     sv_cheats \"0\"",
+                "net_port \"27970\"  [R]",
+                "sv_hostname \"leaktest-A\"  [SA]",
+                "sv_cheats \"0\"",
             ]
         );
     }

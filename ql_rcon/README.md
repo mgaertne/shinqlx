@@ -70,7 +70,7 @@ The lists grow when you type `cmdlist`, `cvarlist` or `dir maps .bsp` yourself, 
 `learned-<host>.txt` next to it (the flags only go into a server file).
 
 When you type `cvarlist` yourself, the one-letter flag lines of the server are joined to the cvar they belong to, so
-each line reads `SA   sv_hostname "A New Server"` with the flags in a column of their own.
+each line ends with its flags, `sv_hostname "A New Server"  [SA]`, and a line below the list explains the letters.
 
 ## Own completions
 

@@ -20,7 +20,7 @@ use uuid::Uuid;
 use crate::{
     CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
-    fetch::{FETCH_COMMANDS, Feed, FetchState, Fetched},
+    fetch::{FETCH_COMMANDS, FLAG_LEGEND, Feed, FetchState, Fetched},
     learn::{Learned, Learner, explained},
     line_editor::{SessionFiles, remember, save_completions},
 };
@@ -202,6 +202,7 @@ fn handle_reply<S: CompletionStore>(
         Feed::Done(fetched) => store_fetched_names(store, &fetched, sender)?,
         Feed::ShowAndDone(fetched) => {
             sender.send(text)?;
+            sender.send(FLAG_LEGEND.to_string())?;
             store_fetched_names(store, &fetched, sender)?;
         }
     }
