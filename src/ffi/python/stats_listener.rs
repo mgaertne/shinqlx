@@ -69,6 +69,139 @@ fn json_to_py<'py>(py: Python<'py>, value: &Value) -> PyResult<Bound<'py, PyAny>
     })
 }
 
+#[cfg(test)]
+mod json_to_py_tests {
+    use pyo3::{prelude::*, types::PyDict};
+    use rstest::*;
+    use serde_json::{Value, from_str};
+
+    use super::{json_to_py, to_py_json_data};
+    use crate::{ffi::python::pyshinqlx_setup_fixture::*, prelude::*};
+
+    fn dumped(py: Python<'_>, object: &Bound<'_, PyAny>) -> String {
+        let options = PyDict::new(py);
+        options
+            .set_item("sort_keys", true)
+            .expect("could not set the option");
+        py.import("json")
+            .and_then(|json| json.call_method("dumps", (object,), Some(&options)))
+            .and_then(|text| text.extract::<String>())
+            .expect("could not dump the object")
+    }
+
+    #[rstest]
+    #[case::null("null")]
+    #[case::true_flag("true")]
+    #[case::false_flag("false")]
+    #[case::zero("0")]
+    #[case::positive_integer("42")]
+    #[case::negative_integer("-42")]
+    #[case::largest_i64("9223372036854775807")]
+    #[case::smallest_i64("-9223372036854775808")]
+    #[case::largest_u64("18446744073709551615")]
+    #[case::float("0.1")]
+    #[case::negative_float("-2.5")]
+    #[case::exponent_is_a_float("1e3")]
+    #[case::integral_float_stays_a_float("2.0")]
+    #[case::empty_string("\"\"")]
+    #[case::text("\"gg wp\"")]
+    #[case::escapes("\"tab\\t quote\\\" slash\\\\ line\\n\"")]
+    #[case::unicode("\"\u{fc}ber \\u00e9 \u{1f600}\"")]
+    #[case::empty_array("[]")]
+    #[case::mixed_array("[1, 1.0, true, null, \"1\", [], {}]")]
+    #[case::empty_object("{}")]
+    #[case::object("{\"NAME\": \"Ada\", \"KILLS\": 3, \"ACCURACY\": 0.5, \"ALIVE\": true}")]
+    #[case::nested(
+        "{\"DATA\": {\"KILLER\": null, \"VICTIM\": {\"STEAM_ID\": \"1\", \"POS\": [1, -2, 3.5]}}}"
+    )]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn json_data_converts_like_json_loads(_pyshinqlx_setup: (), #[case] text: &str) {
+        Python::attach(|py| {
+            let value = from_str::<Value>(text).expect("the test data was no json");
+
+            let converted = json_to_py(py, &value).expect("could not convert the json data");
+
+            let loaded = to_py_json_data(py, text).expect("json.loads failed");
+            assert_eq!(dumped(py, &converted), dumped(py, &loaded));
+        });
+    }
+
+    #[rstest]
+    #[case::boolean("true", "bool")]
+    #[case::integer("7", "int")]
+    #[case::largest_u64("18446744073709551615", "int")]
+    #[case::float("7.0", "float")]
+    #[case::text("\"7\"", "str")]
+    #[case::null("null", "NoneType")]
+    #[case::array("[7]", "list")]
+    #[case::object("{\"a\": 7}", "dict")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn json_data_converts_to_the_python_type(
+        _pyshinqlx_setup: (),
+        #[case] text: &str,
+        #[case] type_name: &str,
+    ) {
+        Python::attach(|py| {
+            let value = from_str::<Value>(text).expect("the test data was no json");
+
+            let converted = json_to_py(py, &value).expect("could not convert the json data");
+
+            let name = converted
+                .get_type()
+                .name()
+                .and_then(|name| name.extract::<String>())
+                .expect("could not get the type name");
+            assert_eq!(name, type_name);
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_big_integer_keeps_its_value(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let value =
+                from_str::<Value>("18446744073709551615").expect("the test data was no json");
+
+            let converted = json_to_py(py, &value).expect("could not convert the json data");
+
+            assert_eq!(
+                converted
+                    .extract::<u64>()
+                    .expect("the result was not an integer"),
+                u64::MAX
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn an_object_keeps_its_members_as_a_dict(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let value =
+                from_str::<Value>("{\"a\": 1, \"b\": [2]}").expect("the test data was no json");
+
+            let converted = json_to_py(py, &value).expect("could not convert the json data");
+
+            let dict = converted
+                .cast::<PyDict>()
+                .expect("the result was not a dict");
+            assert_eq!(dict.len(), 2);
+            assert_eq!(
+                dict.get_item("a")
+                    .expect("could not read the member")
+                    .expect("the member was missing")
+                    .extract::<i64>()
+                    .expect("the member was not an integer"),
+                1
+            );
+        });
+    }
+}
+
 /// Dispatches the event in the next frame, because the stats are received in another thread.
 fn dispatch_next_frame<'py, A>(dispatcher: &Bound<'py, PyAny>, args: A) -> PyResult<()>
 where
