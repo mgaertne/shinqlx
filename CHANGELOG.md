@@ -99,6 +99,11 @@ Changes since 0.8.0.
 * **`ql_stats` no longer keeps a CPU core busy while idle** (about 100 % before, about 0.1 % now). The ZMQ socket is
   polled every 25 ms, one server frame, the output waits for the next line instead of looking every 100 ms, and the
   tool runs on a single-threaded Tokio runtime without the `RwLock`s and `unsafe impl Send/Sync` around the sockets.
+* **Output options for `ql_stats`:** `--format json|pretty|summary` (`summary` prints one readable line for the common
+  event types such as `PLAYER_DEATH`, `ROUND_OVER` and `MATCH_REPORT`, other types stay json; `--pretty-print` still
+  works), `--type A,B` and `--exclude A,B` filter by message type, `--color auto|always|never` colors the output
+  (`auto` only on a terminal and without `NO_COLOR`), and `--timestamp` puts the time of receipt before each message.
+  The keys of the json output keep the order of the server instead of being sorted.
 
 ### Internal
 

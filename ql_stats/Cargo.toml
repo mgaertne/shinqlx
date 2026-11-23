@@ -14,7 +14,8 @@ anyhow = { version = ">=1.0", default-features = false }
 ql_zmq = { path = "../ql_zmq" }
 clap = { version = ">=4.6", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
 
-serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+serde_json = { workspace = true, default-features = false, features = ["alloc", "preserve_order"] }
+chrono = { version = ">=0.4.41", default-features = false, features = ["now", "clock"] }
 
 [lints]
 workspace = true

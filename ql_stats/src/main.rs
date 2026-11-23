@@ -1,5 +1,6 @@
 //! Prints the game statistics that a Quake Live server publishes over its ZMQ stats interface.
 mod cmd_line;
+mod format;
 mod zmq_helper;
 
 use core::sync::atomic::AtomicBool;

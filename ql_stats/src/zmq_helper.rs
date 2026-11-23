@@ -8,14 +8,14 @@ use arzmq::{
     },
     security::SecurityMechanism,
 };
+use chrono::Local;
 use ql_zmq::{LinkEvent, LinkState, POLL_INTERVAL, Reconnect, context, monitor_flags};
-use serde_json::Value;
 use tokio::{
     sync::mpsc::UnboundedSender,
     time::{MissedTickBehavior, interval},
 };
 
-use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions};
+use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions, format::Renderer};
 
 struct MonitoredSubscriber {
     subscriber: SubscribeSocket,
@@ -88,16 +88,12 @@ impl Reconnect for MonitoredSubscriber {
     }
 }
 
-fn format_ql_json(msg: &str, args: &CommandLineOptions) -> String {
-    serde_json::from_str::<Value>(msg)
-        .and_then(|parsed_json| {
-            if args.pretty_print {
-                serde_json::to_string_pretty(&parsed_json)
-            } else {
-                serde_json::to_string(&parsed_json)
-            }
-        })
-        .unwrap_or(msg.to_string())
+fn with_timestamp(line: String, timestamp: bool) -> String {
+    if timestamp {
+        format!("{} {line}", Local::now().format("%H:%M:%S"))
+    } else {
+        line
+    }
 }
 
 pub(crate) async fn run_zmq(
@@ -111,6 +107,7 @@ pub(crate) async fn run_zmq(
 
     monitored_subscriber.connect(&args.host)?;
 
+    let renderer = Renderer::new(&args, args.color.enabled());
     let mut link = LinkState::default();
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -120,7 +117,9 @@ pub(crate) async fn run_zmq(
 
         while let Some(zmq_msg) = monitored_subscriber.recv_msg().await {
             let zmq_str = zmq_msg.to_string();
-            display_sender.send(format_ql_json(&zmq_str, &args))?;
+            if let Some(line) = renderer.render(&zmq_str) {
+                display_sender.send(with_timestamp(line, args.timestamp))?;
+            }
         }
 
         while let Some(event) = monitored_subscriber.next_link_event().await {
@@ -146,38 +145,18 @@ mod zmq_helper_tests {
     use core::{sync::atomic::Ordering, time::Duration};
 
     use arzmq::prelude::{ContextBuilder, PublishSocket, Socket};
+    use clap::Parser;
     use tokio::{sync::mpsc::unbounded_channel, time::timeout};
 
-    use super::{CONTINUE_RUNNING, CommandLineOptions, format_ql_json, run_zmq};
-
-    fn options(pretty_print: bool) -> CommandLineOptions {
-        CommandLineOptions {
-            host: String::new(),
-            password: String::new(),
-            pretty_print,
-        }
-    }
+    use super::{CONTINUE_RUNNING, CommandLineOptions, run_zmq, with_timestamp};
 
     #[test]
-    fn format_ql_json_compacts_valid_json() {
-        let formatted = format_ql_json(
-            "{ \"TYPE\" : \"PLAYER_KILL\",\n \"DATA\": {} }",
-            &options(false),
-        );
+    fn with_timestamp_puts_the_time_before_the_line() {
+        let stamped = with_timestamp("line".to_string(), true);
 
-        assert_eq!(formatted, "{\"DATA\":{},\"TYPE\":\"PLAYER_KILL\"}");
-    }
-
-    #[test]
-    fn format_ql_json_pretty_prints_on_request() {
-        let formatted = format_ql_json("{\"a\":1}", &options(true));
-
-        assert_eq!(formatted, "{\n  \"a\": 1\n}");
-    }
-
-    #[test]
-    fn format_ql_json_passes_other_text_through() {
-        assert_eq!(format_ql_json("no json", &options(true)), "no json");
+        assert!(stamped.ends_with(" line"));
+        assert_eq!(stamped.len(), "00:00:00 line".len());
+        assert_eq!(with_timestamp("line".to_string(), false), "line");
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -193,14 +172,15 @@ mod zmq_helper_tests {
         let endpoint = publisher.last_endpoint().expect("the endpoint is known");
 
         let (sender, mut receiver) = unbounded_channel();
-        let task = run_zmq(
-            CommandLineOptions {
-                host: endpoint.clone(),
-                password: "secret".to_string(),
-                pretty_print: false,
-            },
-            sender,
-        );
+        let options = CommandLineOptions::try_parse_from([
+            "ql_stats",
+            "--host",
+            &endpoint,
+            "--password",
+            "secret",
+        ])
+        .expect("the options are valid");
+        let task = run_zmq(options, sender);
 
         let result = timeout(Duration::from_secs(10), task).await;
 
