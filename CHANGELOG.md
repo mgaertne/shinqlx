@@ -39,6 +39,10 @@ Changes since 0.8.0.
   call the method of the event dispatcher, so a subclass of `EventDispatcher` can override either of them.
 * **A dispatched event is only described in the debug log if debug logging is enabled.** Before, `str()` of every
   argument ran for each event that is not on the list of silent events, also with debug logging off.
+* **A crashed server that hangs in the cleanup of the engine now ends** after 10 seconds with the signal and a core
+  dump, so that `supervisor` or `systemd` can restart it. The old handler for `SIGSEGV` never ran, because the engine
+  replaces it at start; the new one is put in front of the handler of the engine before the first map is spawned and
+  calls that handler after it has armed the timer.
 * **Stubs:** `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`. `CvarFlags` and `DamageFlags` return
   flags from the operators and have `__init__`, `__xor__`, `__invert__`, `__contains__` and `__iter__`.
 

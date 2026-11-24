@@ -149,6 +149,9 @@ supervisor daemon to proper restart your server. Until I can come up with a prop
 an event listener configuration to your supervisor configuration to automatically check whether your server port is
 still reachable, and restart the server automatically if it's not.
 
+A crash with `SIGSEGV` ends the server by itself: the handler of the engine runs first, and if it hangs, the process
+is ended with the signal (and a core dump) after 10 seconds. The check below remains useful for other kinds of hangs.
+
 The [`supervisor_checks` package](https://github.com/vovanec/supervisor_checks) provides the main means for this.
 However, you will have to install the package to your OS pip environment, like so:
 

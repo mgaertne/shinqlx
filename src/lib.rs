@@ -63,6 +63,8 @@ cfg_if::cfg_if! {
 }
 
 mod commands;
+#[cfg(unix)]
+mod crash_guard;
 mod ffi;
 mod fixes;
 mod hooks;
@@ -101,7 +103,6 @@ use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
 #[cfg(not(test))]
 use ctor::ctor;
-use signal_hook::consts::SIGSEGV;
 use tap::TapFallible;
 
 use crate::prelude::*;
@@ -137,18 +138,6 @@ fn initialize() {
         cold_path();
         return;
     }
-
-    // SAFETY: the handler only calls exit, which is safe in a signal handler.
-    let _ = unsafe {
-        signal_hook_registry::register_signal_unchecked(SIGSEGV, move || {
-            signal_hook::low_level::exit(1);
-        })
-    }
-    .tap_err(|err| {
-        error!(target: "shinqlx", func = "initialize"; "{err:?}");
-        error!(target: "shinqlx", func = "initialize"; "Could not register exit handler");
-        panic!("Could not register exit handler");
-    });
 
     logging::initialize_logging();
     let main_engine = QuakeLiveEngine::new();

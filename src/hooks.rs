@@ -53,6 +53,17 @@ fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
         .map_or_else(|_| String::from_utf8_lossy(buffer), CStr::to_string_lossy)
 }
 
+/// The engine sets its crash handler while it starts, so the guard is put in front of it once the hooks run after that.
+#[cfg(all(unix, not(test)))]
+fn guard_against_hanging_crash(func: &str) {
+    let _ = crate::crash_guard::install().tap_err(|err| {
+        error!(target: "shinqlx", func = func; "Could not guard against a hanging crash: {err:?}");
+    });
+}
+
+#[cfg(any(not(unix), test))]
+fn guard_against_hanging_crash(_func: &str) {}
+
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if !main_engine.is_common_initialized() {
@@ -65,7 +76,7 @@ pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe
         }
 
         // SAFETY: the engine passes a valid, NUL-terminated C string.
-        let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
+        let command =unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
         if !command.is_empty() {
             main_engine.add_command(&command, func);
         }
@@ -76,6 +87,8 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
     module_name: *mut c_char,
     offset: unsafe extern "C" fn(),
 ) {
+    guard_against_hanging_crash("shinqlx_sys_setmoduleoffset");
+
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         // SAFETY: the engine passes a valid, NUL-terminated C string.
         let converted_module_name = unsafe { CStr::from_ptr(module_name) }.to_string_lossy();
@@ -98,6 +111,8 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
 
 pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        guard_against_hanging_crash("shinqlx_g_initgame");
+
         main_engine.init_game(level_time, random_seed, restart);
 
         main_engine.set_tag();
@@ -663,6 +678,8 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
     if server_str.is_empty() {
         return;
     }
+
+    guard_against_hanging_crash("shinqlx_sv_spawnserver");
 
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.spawn_server(server_str.as_ref(), kill_bots.conv::<bool>());

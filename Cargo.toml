@@ -97,6 +97,9 @@ region = { version = ">=4.0", default-features = false, optional = true }
 [target."cfg(target_os = \"linux\")".dependencies]
 procfs = { version = ">=0.18", default-features = false }
 
+[target."cfg(unix)".dependencies]
+libc = { version = ">=0.2", default-features = false }
+
 [target."cfg(not(windows))".dependencies]
 tikv-jemallocator = { version = ">=0.7", default-features = false, features = ["background_threads_runtime_support"], optional = true }
 
