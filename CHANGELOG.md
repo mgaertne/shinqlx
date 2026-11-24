@@ -9,6 +9,12 @@ Changes since 0.8.0.
 * **New cvar `qlx_noDebugEvents`** lists the events that do not write a `debug` line to `shinqlx.log`. It replaces the
   built-in list (`frame`, `set_configstring`, `stats`, `server_command`, `death`, `kill`, `command`, `console_print`,
   `damage`, plus the new `cvar_changed`, `item_touch` and `weapon_fired`); an empty value logs all events.
+* **Installed maps and factories, after minqlxtended:** `installed_maps()`, `map_info(mapname)`, `factories()`,
+  `map_supports(mapname, gametype)` and `Game.map_info` read the maps, their `.arena` declarations (long name and
+  gametypes) and the factories from the `pk3` files of `fs_basepath`, the workshop directory and `fs_homepath`. The new
+  cvar `qlx_workshopPath` names the workshop directory, it defaults to `../../workshop/content/282440` relative to
+  `fs_basepath`. The result is reused for 30 seconds, and only changed `pk3` files are read again. New dependency: `zip`
+  (without compression other than deflate).
 * **Frequent events only run when somebody listens:** `damage`, `weapon_fired`, `item_touch`, `cvar_changed`,
   `objective`, `kamikaze_use` and `kamikaze_explode` are no longer handed to Python while no plugin hooks them and
   the debug log has no line for them (see `qlx_noDebugEvents`). Hooking them later takes effect immediately.

@@ -21,6 +21,7 @@ mod handlers;
 mod holdable;
 mod int_tuple;
 mod logging;
+mod map_functions;
 mod means_of_death;
 mod module_registration;
 mod native_plugins;
@@ -164,6 +165,9 @@ pub(crate) mod prelude {
             VoteState, Weapon, name_of,
         },
         holdable::Holdable,
+        map_functions::{
+            MapInfo, WORKSHOP_PATH_CVAR, factories, installed_maps, map_info, map_supports,
+        },
         means_of_death::MeansOfDeath,
         parse_variables,
         permissions::Permission,
@@ -1525,6 +1529,7 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     create("qlx_logs", "2")?;
     create("qlx_logsSize", "3000000")?;
     create(NO_DEBUG_EVENTS_CVAR, &default_no_debug_events())?;
+    create(WORKSHOP_PATH_CVAR, "")?;
 
     #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
     {

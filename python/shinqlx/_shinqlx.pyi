@@ -484,6 +484,14 @@ class Flight(tuple):
     refuel: int
 
 @final
+class MapInfo:
+    name: str
+    longname: str | None
+    gametypes: list[str] | None
+    sources: list[str]
+    workshop_ids: list[int]
+
+@final
 class Powerups(tuple):
     def __new__(cls, values: tuple[int, int, int, int, int, int]) -> Self: ...
     quad: int

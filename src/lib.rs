@@ -69,6 +69,7 @@ mod ffi;
 mod fixes;
 mod hooks;
 mod logging;
+mod map_catalog;
 #[cfg(feature = "bench-support")]
 #[doc(hidden)]
 pub use ffi::python::bench_support;

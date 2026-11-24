@@ -4,7 +4,7 @@ from typing import final
 from shinqlx import Player
 from typing_extensions import Self
 
-from ._shinqlx import Teams
+from ._shinqlx import MapInfo, Teams
 
 class NonexistentGameError(Exception): ...
 
@@ -33,6 +33,8 @@ class Game:
     def map(self, value: str) -> None: ...
     @property
     def map_title(self) -> str | None: ...
+    @property
+    def map_info(self) -> MapInfo | None: ...
     @property
     def map_subtitle1(self) -> str | None: ...
     @property

@@ -280,6 +280,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<Vector3>()?;
     m.add_class::<Flight>()?;
+    m.add_class::<MapInfo>()?;
     m.add_class::<ConfigString>()?;
     m.add_class::<Team>()?;
     m.add_class::<Privileges>()?;
@@ -454,6 +455,10 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_exception, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_threading_exception, m)?)?;
     m.add_function(wrap_pyfunction!(uptime, m)?)?;
+    m.add_function(wrap_pyfunction!(installed_maps, m)?)?;
+    m.add_function(wrap_pyfunction!(map_info, m)?)?;
+    m.add_function(wrap_pyfunction!(factories, m)?)?;
+    m.add_function(wrap_pyfunction!(map_supports, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_owner, m)?)?;
     m.add_function(wrap_pyfunction!(get_stats_listener, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
