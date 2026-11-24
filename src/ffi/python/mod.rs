@@ -55,7 +55,8 @@ pub(crate) mod prelude {
         reason = "re-exported for the prelude, not every build uses every item"
     )]
     pub(crate) use super::commands::{
-        Command, CommandInvoker, CommandInvokerMethods, CommandMethods,
+        Command, CommandInvoker, CommandInvokerMethods, CommandMethods, PluginCommandEntry,
+        plugin_command_entries,
     };
     #[allow(
         unused_imports,

@@ -154,6 +154,10 @@ impl ServerFile {
         self.completions("maps")
     }
 
+    pub(crate) fn plugin_commands(&self) -> Vec<String> {
+        self.completions("plugin_commands")
+    }
+
     pub(crate) fn factories(&self) -> Vec<String> {
         self.completions("factories")
     }
@@ -221,6 +225,7 @@ impl ServerFile {
             let completions = table_mut(document.as_table_mut(), "completions");
             merge_list(completions, "names", &fetched.names);
             merge_list(completions, "maps", &fetched.maps);
+            merge_list(completions, "plugin_commands", &fetched.plugin_commands);
             if !fetched.flags.is_empty() {
                 let flags = table_mut(document.as_table_mut(), "flags");
                 for (name, letters) in &fetched.flags {
@@ -389,12 +394,14 @@ mod profile_tests {
         file.merge_fetched(&Fetched {
             names: vec!["kick".to_string(), "Map".to_string()],
             maps: vec!["zen".to_string()],
+            plugin_commands: Vec::new(),
             flags: Vec::new(),
         })
         .expect("the file is written");
         file.merge_fetched(&Fetched {
             names: vec!["map".to_string(), "addbot".to_string()],
             maps: Vec::new(),
+            plugin_commands: Vec::new(),
             flags: Vec::new(),
         })
         .expect("the file is written");
@@ -410,6 +417,7 @@ mod profile_tests {
         file.merge_fetched(&Fetched {
             names: Vec::new(),
             maps: Vec::new(),
+            plugin_commands: Vec::new(),
             flags: vec![("SV_Hostname".to_string(), "SA".to_string())],
         })
         .expect("the file is written");

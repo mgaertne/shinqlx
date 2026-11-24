@@ -11,7 +11,9 @@ use crate::{
     },
     hooks::{guard_settings, trim_settings},
     prelude::*,
-    quake_live_engine::{CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand},
+    quake_live_engine::{
+        CmdArgc, CmdArgs, CmdArgv, ComPrintf, FindCVar, GameAddEvent, SendServerCommand,
+    },
     reliable_guard::RELIABLE_GUARD,
     scoreboard_trim::{TRIM_COUNTERS, tier_names},
 };
@@ -363,6 +365,115 @@ pub extern "C" fn cmd_scoreboard_trim() {
             settings.min_per_team,
         ));
     });
+}
+
+/// One line per command, `name (plugin Plugin, permission 0)  usage`, sorted by plugin and name, then the count.
+///
+/// `plugin` limits the list to the commands of one plugin, ignoring the case.
+fn plugin_commands_listing(
+    entries: &[PluginCommandEntry],
+    command_prefix: &str,
+    plugin: Option<&str>,
+) -> String {
+    let mut shown: Vec<&PluginCommandEntry> = entries
+        .iter()
+        .filter(|entry| plugin.is_none_or(|wanted| entry.plugin.eq_ignore_ascii_case(wanted)))
+        .collect();
+    shown.sort_by_key(|entry| (entry.plugin.to_lowercase(), entry.name.to_lowercase()));
+
+    let lines = shown
+        .iter()
+        .map(|entry| {
+            let usage = if entry.usage.is_empty() {
+                String::new()
+            } else {
+                format!("  {}", entry.usage)
+            };
+            let prefix = if entry.prefix { command_prefix } else { "" };
+            format!(
+                "{prefix}{} (plugin {}, permission {}){usage}\n",
+                entry.name, entry.plugin, entry.permission
+            )
+        })
+        .collect::<String>();
+    format!("{lines}{} plugin commands\n", shown.len())
+}
+
+/// Lists the commands of the loaded plugins, or only those of the plugin that is given as the argument.
+///
+/// The commands run with `qlx <command>`; the list ends with the count, so `ql_rcon` knows where it stops.
+#[unsafe(no_mangle)]
+pub extern "C" fn cmd_plugin_commands() {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        let argument = main_engine.cmd_args();
+        let plugin = argument
+            .as_deref()
+            .map(str::trim)
+            .filter(|name| !name.is_empty());
+        let command_prefix = main_engine
+            .find_cvar("qlx_commandPrefix")
+            .map_or_else(|| "!".to_string(), |cvar| cvar.get_string().to_string());
+        main_engine.com_printf(&plugin_commands_listing(
+            &plugin_command_entries(),
+            &command_prefix,
+            plugin,
+        ));
+    });
+}
+
+#[cfg(test)]
+mod plugin_commands_listing_tests {
+    use super::plugin_commands_listing;
+    use crate::ffi::python::prelude::PluginCommandEntry;
+
+    fn entry(name: &str, plugin: &str, permission: i32, usage: &str) -> PluginCommandEntry {
+        PluginCommandEntry {
+            name: name.to_string(),
+            plugin: plugin.to_string(),
+            permission,
+            usage: usage.to_string(),
+            prefix: true,
+        }
+    }
+
+    #[test]
+    fn the_listing_is_sorted_by_plugin_and_name_and_ends_with_the_count() {
+        let entries = [
+            entry("slap", "fun", 3, "<id> [damage]"),
+            entry("ban", "ban", 5, ""),
+            entry("unban", "ban", 5, "<id>"),
+        ];
+
+        assert_eq!(
+            plugin_commands_listing(&entries, "!", None),
+            "!ban (plugin ban, permission 5)\n!unban (plugin ban, permission 5)  <id>\n!slap (plugin fun, permission 3)  <id> [damage]\n3 plugin commands\n"
+        );
+    }
+
+    #[test]
+    fn commands_without_the_prefix_are_listed_as_they_are_typed() {
+        let mut command = entry("version", "plugin", 0, "");
+        command.prefix = false;
+
+        assert_eq!(
+            plugin_commands_listing(&[command], "!", None),
+            "version (plugin plugin, permission 0)\n1 plugin commands\n"
+        );
+    }
+
+    #[test]
+    fn the_listing_can_be_limited_to_one_plugin_ignoring_the_case() {
+        let entries = [entry("slap", "Fun", 3, ""), entry("ban", "ban", 5, "")];
+
+        assert_eq!(
+            plugin_commands_listing(&entries, "!", Some("fun")),
+            "!slap (plugin Fun, permission 3)\n1 plugin commands\n"
+        );
+        assert_eq!(
+            plugin_commands_listing(&entries, "!", Some("nothing")),
+            "0 plugin commands\n"
+        );
+    }
 }
 
 #[cfg(test)]

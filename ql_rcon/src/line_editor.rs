@@ -168,6 +168,7 @@ fn is_set_command(command: &str) -> bool {
 struct UserLists {
     names: Vec<String>,
     maps: Vec<String>,
+    plugin_commands: Vec<String>,
     usages: HashMap<String, String>,
     factories: Vec<String>,
     labels: HashMap<String, Vec<(String, String)>>,
@@ -298,6 +299,15 @@ fn argument_completions(before: &str, word: &str, user: &UserLists) -> Vec<Strin
             .into_iter()
             .filter(|value| starts_with_word(value))
             .collect(),
+        [qlx] if qlx.eq_ignore_ascii_case("qlx") => user
+            .plugin_commands
+            .iter()
+            .filter(|name| {
+                let bare = name.trim_start_matches(|c: char| !c.is_alphanumeric());
+                starts_with_word(name) || starts_with_word(bare)
+            })
+            .cloned()
+            .collect(),
         [help] if help.eq_ignore_ascii_case("help") => HELP_TOPICS
             .iter()
             .filter(|topic| starts_with_word(topic))
@@ -398,14 +408,27 @@ pub(crate) fn save_completions(session: &SessionFiles, fetched: &Fetched) -> io:
     };
     let names_file = fetched_file(session, "completions").ok_or_else(missing)?;
     let maps_file = fetched_file(session, "completions-maps").ok_or_else(missing)?;
-    save_lists(&names_file, &maps_file, fetched)?;
+    let plugins_file = fetched_file(session, "completions-plugins").ok_or_else(missing)?;
+    save_lists(&names_file, &maps_file, &plugins_file, fetched)?;
 
     Ok(names_file)
 }
 
-fn save_lists(names_file: &Path, maps_file: &Path, fetched: &Fetched) -> io::Result<()> {
+fn save_lists(
+    names_file: &Path,
+    maps_file: &Path,
+    plugins_file: &Path,
+    fetched: &Fetched,
+) -> io::Result<()> {
     write_lines(names_file, &merged(names_file, &fetched.names))?;
-    write_lines(maps_file, &merged(maps_file, &fetched.maps))
+    write_lines(maps_file, &merged(maps_file, &fetched.maps))?;
+    if !fetched.plugin_commands.is_empty() {
+        write_lines(
+            plugins_file,
+            &merged(plugins_file, &fetched.plugin_commands),
+        )?;
+    }
+    Ok(())
 }
 
 /// `<stem>.txt` for all servers, `<stem>-<host>.txt` and the fetched `<fetched>-<host>.txt` for the connected one, all
@@ -544,6 +567,7 @@ fn apply_learned(text: &str, user: &mut UserLists) {
 fn load_profile(file: &ServerFile, user: &mut UserLists) {
     user.names.extend(file.names());
     user.maps.extend(file.maps());
+    user.plugin_commands.extend(file.plugin_commands());
     user.factories = file.factories();
     user.latched.extend(file.latched());
     user.read_only.extend(file.read_only());
@@ -586,6 +610,11 @@ fn load_user_lists(session: &SessionFiles) -> UserLists {
     let mut user = UserLists {
         names: load_lines(&user_names_files(session)),
         maps: load_lines(&list_files(session, "maps", "completions-maps")),
+        plugin_commands: load_lines(&list_files(
+            session,
+            "plugin-commands",
+            "completions-plugins",
+        )),
         labels: parse_labels(&load_lines(&list_files(
             session,
             "values",
@@ -1248,6 +1277,32 @@ mod line_editor_tests {
     }
 
     #[test]
+    fn qlx_completes_the_commands_of_the_plugins() {
+        let user = UserLists {
+            plugin_commands: vec![
+                "!ban".to_string(),
+                "!unban".to_string(),
+                "version".to_string(),
+            ],
+            ..UserLists::default()
+        };
+
+        assert_eq!(
+            completions("qlx ", "", 4, [].into_iter(), &user),
+            ["!ban", "!unban", "version"]
+        );
+        assert_eq!(
+            completions("qlx un", "un", 4, [].into_iter(), &user),
+            ["!unban"]
+        );
+        assert_eq!(
+            completions("qlx !b", "!b", 4, [].into_iter(), &user),
+            ["!ban"]
+        );
+        assert!(completions("kick ", "", 5, [].into_iter(), &user).is_empty());
+    }
+
+    #[test]
     fn the_guide_flags_that_limit_setting_are_noted() {
         let user = UserLists::default();
 
@@ -1593,10 +1648,17 @@ mod line_editor_tests {
         let fetched = Fetched {
             names: strings(&["quad"]),
             maps: strings(&["campgrounds"]),
+            plugin_commands: Vec::new(),
             flags: Vec::new(),
         };
 
-        save_lists(&names_file, &maps_file, &fetched).expect("could not save the lists");
+        save_lists(
+            &names_file,
+            &maps_file,
+            &dir.join("completions-plugins-host.txt"),
+            &fetched,
+        )
+        .expect("could not save the lists");
 
         assert_eq!(
             fs::read_to_string(&names_file).expect("could not read the names"),
@@ -1682,6 +1744,7 @@ mod line_editor_tests {
         file.merge_fetched(&Fetched {
             names: strings(&["quad"]),
             maps: strings(&["campgrounds"]),
+            plugin_commands: Vec::new(),
             flags: vec![("g_gravity".to_string(), "A".to_string())],
         })
         .expect("could not save the fetched lists");
@@ -1828,6 +1891,7 @@ mod line_editor_tests {
         Fetched {
             names: strings(names),
             maps: strings(maps),
+            plugin_commands: Vec::new(),
             flags: Vec::new(),
         }
     }

@@ -5,7 +5,7 @@ use std::time::Instant;
 use ql_zmq::quake_colors::{TERMINAL_DEFAULT, split_ql_colors};
 
 /// The rcon commands that make the server list its maps, commands and cvars, in the order the lists arrive.
-pub(crate) const FETCH_COMMANDS: [&str; 3] = ["dir maps .bsp", "cmdlist", "cvarlist"];
+pub(crate) const FETCH_COMMANDS: [&str; 4] = ["dir maps .bsp", "cmdlist", "plugincmds", "cvarlist"];
 
 /// A server that never sends the end marker of `cvarlist` must not swallow lines forever.
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
@@ -25,6 +25,7 @@ pub(crate) enum Feed {
 pub(crate) struct Fetched {
     pub(crate) names: Vec<String>,
     pub(crate) maps: Vec<String>,
+    pub(crate) plugin_commands: Vec<String>,
     pub(crate) flags: Vec<(String, String)>,
 }
 
@@ -32,6 +33,7 @@ impl Fetched {
     fn sorted(mut self) -> Self {
         self.names = finished(self.names);
         self.maps = finished(self.maps);
+        self.plugin_commands = finished(self.plugin_commands);
         self.flags
             .sort_unstable_by_key(|(name, _)| name.to_lowercase());
         self.flags.dedup_by_key(|(name, _)| name.to_lowercase());
@@ -115,7 +117,10 @@ impl FetchState {
 
     /// Starts reading along when the user types one of the list commands; the reply stays visible.
     pub(crate) fn user_sent(&mut self, line: &str) {
-        if !matches!(self, Self::Off | Self::Done) || !FETCH_COMMANDS.contains(&line.trim()) {
+        let line = line.trim();
+        let is_list_command =
+            FETCH_COMMANDS.contains(&line) || line.split_whitespace().next() == Some("plugincmds");
+        if !matches!(self, Self::Off | Self::Done) || !is_list_command {
             return;
         }
 
@@ -163,6 +168,14 @@ impl FetchState {
                 };
             }
             (Some(count), Some("total"), Some("cvars")) if count.parse::<u32>().is_ok() => hidden,
+            (Some(count), Some("plugin"), Some("commands")) if count.parse::<u32>().is_ok() => {
+                hidden
+            }
+            (Some("Unknown"), ..) if line.contains("plugincmds") => hidden,
+            (Some(name), Some(plugin), _) if plugin.starts_with("(plugin") => {
+                found.plugin_commands.push(name.to_string());
+                hidden
+            }
             (Some(flag), None, _) if is_flag(flag) => {
                 pending_flags.push_str(flag);
                 Feed::Hide
@@ -272,6 +285,7 @@ mod fetch_tests {
                     "touchFile".to_string()
                 ],
                 maps: Vec::new(),
+                plugin_commands: Vec::new(),
                 flags: Vec::new(),
             })
         );
@@ -291,6 +305,7 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: Vec::new(),
                 maps: vec!["aerowalk".to_string(), "zen".to_string()],
+                plugin_commands: Vec::new(),
                 flags: Vec::new(),
             })
         );
@@ -317,6 +332,7 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: vec!["kick".to_string(), "map".to_string()],
                 maps: Vec::new(),
+                plugin_commands: Vec::new(),
                 flags: Vec::new(),
             })
         );
@@ -350,6 +366,7 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: vec!["bot_enable".to_string(), "sv_hostname".to_string()],
                 maps: Vec::new(),
+                plugin_commands: Vec::new(),
                 flags: vec![
                     ("bot_enable".to_string(), "L".to_string()),
                     ("sv_hostname".to_string(), "SA".to_string()),
@@ -371,6 +388,7 @@ mod fetch_tests {
             Feed::Done(Fetched {
                 names: vec!["addbot".to_string(), "bot_enable".to_string()],
                 maps: Vec::new(),
+                plugin_commands: Vec::new(),
                 flags: Vec::new(),
             })
         );
@@ -409,9 +427,50 @@ mod fetch_tests {
             Feed::ShowAndDone(Fetched {
                 names: vec!["sv_cheats".to_string(), "sv_hostname".to_string()],
                 maps: Vec::new(),
+                plugin_commands: Vec::new(),
                 flags: vec![("sv_hostname".to_string(), "SA".to_string())],
             })
         );
+    }
+
+    #[test]
+    fn the_plugin_commands_are_collected_with_their_prefix_and_hidden() {
+        let mut state = collecting();
+
+        assert_eq!(
+            state.feed("!ban (plugin ban, permission 5)  <id> <length>"),
+            Feed::Hide
+        );
+        assert_eq!(
+            state.feed("version (plugin plugin, permission 0)"),
+            Feed::Hide
+        );
+        assert_eq!(state.feed("2 plugin commands"), Feed::Hide);
+        assert_eq!(
+            state.feed("1 cvar indexes"),
+            Feed::Done(Fetched {
+                names: Vec::new(),
+                maps: Vec::new(),
+                plugin_commands: vec!["!ban".to_string(), "version".to_string()],
+                flags: Vec::new(),
+            })
+        );
+    }
+
+    #[test]
+    fn a_server_without_plugincmds_does_not_show_the_error() {
+        let mut state = collecting();
+
+        assert_eq!(state.feed("Unknown command \"plugincmds\""), Feed::Hide);
+    }
+
+    #[test]
+    fn a_plugincmds_list_typed_by_the_user_is_read_along() {
+        let mut state = FetchState::new(false);
+        state.user_sent("plugincmds ban");
+
+        assert_eq!(state.feed("!ban (plugin ban, permission 5)"), Feed::Show);
+        assert_eq!(state.feed("1 plugin commands"), Feed::Show);
     }
 
     #[test]
@@ -481,6 +540,7 @@ mod fetch_tests {
             Some(Fetched {
                 names: vec!["kick".to_string()],
                 maps: Vec::new(),
+                plugin_commands: Vec::new(),
                 flags: Vec::new(),
             })
         );

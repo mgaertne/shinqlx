@@ -108,3 +108,26 @@ Commands
    :type: CommandInvoker
 
    The command invoker used through-out the server holding all registered commands.
+
+
+Running and listing plugin commands from the console
+====================================================
+
+A plugin command is not a command of the engine, so it is not in ``cmdlist``. It runs from the server console, from
+``rcon`` and from ``ql_rcon`` with ``qlx``: the input is handled as if the owner typed it in the console channel.
+A command that needs the prefix (``prefix=True``, the default) is typed with it, for example ``qlx !version``; a
+command without the prefix is typed as it is.
+
+The console command ``plugincmds`` lists the commands of the loaded plugins, one line per name and alias, sorted by
+plugin and name:
+
+.. code-block:: text
+
+    !ban (plugin ban, permission 5)  <id> <length> [reason]
+    !unban (plugin ban, permission 5)  <id>
+    version (plugin plugin, permission 0)
+    3 plugin commands
+
+The names are written as they are typed after ``qlx``, with the value of ``qlx_commandPrefix`` where the command needs
+it. ``plugincmds <plugin>`` lists only the commands of that plugin, ignoring the case of its name. The last line is the
+count, which ``ql_rcon`` uses to know where the list ends.

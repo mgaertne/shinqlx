@@ -393,6 +393,7 @@ mod zmq_helper_tests {
             locked(&self.saved).push(Fetched {
                 names: fetched.names.clone(),
                 maps: fetched.maps.clone(),
+                plugin_commands: fetched.plugin_commands.clone(),
                 flags: fetched.flags.clone(),
             });
             Ok(PathBuf::from("completions.txt"))
@@ -541,6 +542,7 @@ mod zmq_helper_tests {
         let fetched = Fetched {
             names: vec!["quad".to_string()],
             maps: Vec::new(),
+            plugin_commands: Vec::new(),
             flags: Vec::new(),
         };
 

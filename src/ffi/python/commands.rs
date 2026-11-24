@@ -10,7 +10,9 @@ use pyo3::{
 };
 use tap::TapOptional;
 
-use super::{EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, is_false, owner, prelude::*};
+use super::{
+    COMMANDS, EVENT_DISPATCHERS, PythonReturnCodes, get_cvar, is_false, owner, prelude::*,
+};
 use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
 /// A class representing an input-triggered command.
@@ -350,6 +352,50 @@ impl<'py> CommandMethods<'py> for Bound<'py, Command> {
             .and_then(|player_perm_result| player_perm_result.extract::<i32>().ok())
             .is_some_and(|player_perm| player_perm >= perm)
     }
+}
+
+/// A command of a loaded plugin as the console command `plugincmds` lists it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PluginCommandEntry {
+    pub(crate) name: String,
+    pub(crate) plugin: String,
+    pub(crate) permission: i32,
+    pub(crate) usage: String,
+    pub(crate) prefix: bool,
+}
+
+/// The commands of all loaded plugins, one entry per name and alias, in the order they are tried.
+pub(crate) fn plugin_command_entries() -> Vec<PluginCommandEntry> {
+    let Some(invoker) = COMMANDS.load_full() else {
+        return Vec::new();
+    };
+
+    Python::attach(|py| {
+        invoker
+            .bind(py)
+            .get_commands()
+            .into_iter()
+            .flat_map(|command| {
+                let plugin = command
+                    .plugin
+                    .bind(py)
+                    .get_type()
+                    .name()
+                    .map(|name| name.to_string())
+                    .unwrap_or_default();
+                command
+                    .name
+                    .into_iter()
+                    .map(move |name| PluginCommandEntry {
+                        name,
+                        plugin: plugin.clone(),
+                        permission: command.permission,
+                        usage: command.usage.clone(),
+                        prefix: command.prefix,
+                    })
+            })
+            .collect()
+    })
 }
 
 #[cfg(test)]
