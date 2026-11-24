@@ -21,9 +21,9 @@ use tokio::{
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
     task,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
-    CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::Fetched,
     guide::{flags_for, help_for, value_labels},
@@ -877,6 +877,7 @@ pub(crate) async fn run_terminal(
     args: CommandLineOptions,
     zmq_sender: UnboundedSender<String>,
     display_receiver: UnboundedReceiver<String>,
+    running: &CancellationToken,
 ) -> Result<()> {
     let printer = ExternalPrinter::default();
     let break_signal = Arc::new(AtomicBool::new(false));
@@ -887,10 +888,12 @@ pub(crate) async fn run_terminal(
         Arc::clone(&break_signal),
     )?;
 
-    let reader = task::spawn_blocking(move || read_input(editor, &history, zmq_sender));
+    let reader_running = running.clone();
+    let reader =
+        task::spawn_blocking(move || read_input(editor, &history, zmq_sender, &reader_running));
 
     let displayed = display_lines(&output, &args.color, display_receiver).await;
-    CONTINUE_RUNNING.store(false, Ordering::Release);
+    running.cancel();
     break_signal.store(true, Ordering::Release);
 
     reader.await??;
@@ -935,10 +938,11 @@ fn read_input(
     mut editor: Reedline,
     shared_history: &SharedHistory,
     zmq_sender: UnboundedSender<String>,
+    running: &CancellationToken,
 ) -> Result<()> {
-    while CONTINUE_RUNNING.load(Ordering::Acquire) {
+    while !running.is_cancelled() {
         let signal = editor.read_line(&EmptyPrompt)?;
-        if !CONTINUE_RUNNING.load(Ordering::Acquire) {
+        if running.is_cancelled() {
             break;
         }
 
@@ -955,7 +959,7 @@ fn read_input(
     }
 
     drop(zmq_sender);
-    CONTINUE_RUNNING.store(false, Ordering::Release);
+    running.cancel();
 
     Ok(())
 }

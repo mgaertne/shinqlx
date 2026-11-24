@@ -3,10 +3,7 @@
 pub mod quake_colors;
 pub mod servers;
 
-use core::{
-    sync::atomic::{AtomicBool, Ordering},
-    time::Duration,
-};
+use core::time::Duration;
 
 use anyhow::Result;
 use arzmq::{
@@ -14,6 +11,7 @@ use arzmq::{
     prelude::{ContextBuilder, MonitorFlags, MonitorSocketEvent},
 };
 use tokio::sync::mpsc::UnboundedSender;
+use tokio_util::sync::CancellationToken;
 
 /// One poll per server frame at 40 frames per second keeps the output close to real time without a busy loop.
 pub const POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -99,7 +97,7 @@ impl Default for LinkState {
 }
 
 impl LinkState {
-    /// Reports the event to `sender`, reconnects a lost connection and stops `running` when it failed.
+    /// Reports the event to `sender`, reconnects a lost connection and cancels `running` when it failed.
     ///
     /// Returns whether the event was a successful handshake, which the caller may answer with its own requests.
     pub fn handle<L: Reconnect>(
@@ -108,7 +106,7 @@ impl LinkState {
         link: &L,
         sender: &UnboundedSender<String>,
         endpoint: &str,
-        running: &AtomicBool,
+        running: &CancellationToken,
     ) -> Result<bool> {
         match event {
             LinkEvent::Connected => {
@@ -125,7 +123,7 @@ impl LinkState {
 
             LinkEvent::Failed(description) => {
                 sender.send(format!("ZMQ socket error: {description}"))?;
-                running.store(false, Ordering::Release);
+                running.cancel();
             }
 
             LinkEvent::Lost => {
@@ -150,11 +148,11 @@ impl LinkState {
 
 #[cfg(test)]
 mod tests {
-    use core::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
 
     use anyhow::{Result, anyhow};
     use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
+    use tokio_util::sync::CancellationToken;
 
     use super::{LinkEvent, LinkState, Reconnect};
 
@@ -188,7 +186,7 @@ mod tests {
     fn handle_all(
         events: impl IntoIterator<Item = LinkEvent>,
         link: &FakeLink,
-        running: &AtomicBool,
+        running: &CancellationToken,
     ) -> (Vec<String>, Vec<bool>) {
         let (sender, mut receiver) = unbounded_channel();
         let mut state = LinkState::default();
@@ -206,7 +204,7 @@ mod tests {
 
     #[test]
     fn a_handshake_is_reported_to_the_caller() {
-        let running = AtomicBool::new(true);
+        let running = CancellationToken::new();
 
         let (lines, handshakes) = handle_all(
             [LinkEvent::HandshakeSucceeded, LinkEvent::Ignored],
@@ -216,7 +214,7 @@ mod tests {
 
         assert_eq!(lines, ["ZMQ connected to tcp://127.0.0.1:27961."]);
         assert_eq!(handshakes, [true, false]);
-        assert!(running.load(Ordering::Acquire));
+        assert!(!running.is_cancelled());
     }
 
     #[test]
@@ -233,7 +231,7 @@ mod tests {
                 LinkEvent::Lost,
             ],
             &link,
-            &AtomicBool::new(true),
+            &CancellationToken::new(),
         );
 
         assert_eq!(
@@ -260,7 +258,7 @@ mod tests {
             ..FakeLink::default()
         };
 
-        let (lines, _) = handle_all([LinkEvent::Lost], &link, &AtomicBool::new(true));
+        let (lines, _) = handle_all([LinkEvent::Lost], &link, &CancellationToken::new());
 
         assert_eq!(
             lines,
@@ -270,7 +268,7 @@ mod tests {
 
     #[test]
     fn a_failed_handshake_stops_the_run() {
-        let running = AtomicBool::new(true);
+        let running = CancellationToken::new();
 
         let (lines, _) = handle_all(
             [LinkEvent::Failed("MonitorStopped".to_string())],
@@ -279,12 +277,12 @@ mod tests {
         );
 
         assert_eq!(lines, ["ZMQ socket error: MonitorStopped"]);
-        assert!(!running.load(Ordering::Acquire));
+        assert!(running.is_cancelled());
     }
 
     #[test]
     fn other_events_are_reported_without_stopping() {
-        let running = AtomicBool::new(true);
+        let running = CancellationToken::new();
 
         let (lines, _) = handle_all(
             [LinkEvent::Other("Listening".to_string())],
@@ -293,6 +291,6 @@ mod tests {
         );
 
         assert_eq!(lines, ["ZMQ socket error: Listening"]);
-        assert!(running.load(Ordering::Acquire));
+        assert!(!running.is_cancelled());
     }
 }

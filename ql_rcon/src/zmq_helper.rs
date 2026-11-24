@@ -1,4 +1,3 @@
-use core::sync::atomic::{AtomicBool, Ordering};
 use std::{io, path::PathBuf};
 
 use anyhow::Result;
@@ -15,10 +14,10 @@ use tokio::{
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
     time::{MissedTickBehavior, interval},
 };
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
-    CONTINUE_RUNNING,
     cmd_line::CommandLineOptions,
     fetch::{FETCH_COMMANDS, FLAG_LEGEND, Feed, FetchState, Fetched},
     guide::local_help,
@@ -152,7 +151,7 @@ async fn check_link<T: Transport>(
     endpoint: &str,
     fetch: &mut FetchState,
     link: &mut LinkState,
-    running: &AtomicBool,
+    running: &CancellationToken,
 ) -> Result<()> {
     while let Some(event) = transport.next_link_event().await {
         if link.handle(event, transport, sender, endpoint, running)? && fetch.handshake_succeeded()
@@ -242,7 +241,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
     fetch_completions: bool,
     zmq_receiver: &mut UnboundedReceiver<String>,
     display_sender: &UnboundedSender<String>,
-    running: &AtomicBool,
+    running: &CancellationToken,
 ) -> Result<()> {
     let mut fetch = FetchState::new(fetch_completions);
     let mut learner = Learner::default();
@@ -251,9 +250,11 @@ async fn run_console<T: Transport, S: CompletionStore>(
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-    while running.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
+    while !running.is_cancelled() && !zmq_receiver.is_closed() {
         select!(
             biased;
+
+            () = running.cancelled() => break,
 
             Some(line) = zmq_receiver.recv() => {
                 handle_user_line(&line, &mut fetch, transport, display_sender).await?;
@@ -286,6 +287,7 @@ pub(crate) async fn run_zmq(
     args: CommandLineOptions,
     mut zmq_receiver: UnboundedReceiver<String>,
     display_sender: UnboundedSender<String>,
+    running: &CancellationToken,
 ) -> Result<()> {
     display_sender.send(format!("ZMQ connecting to {}...", args.host))?;
 
@@ -300,7 +302,7 @@ pub(crate) async fn run_zmq(
         args.fetch_completions,
         &mut zmq_receiver,
         &display_sender,
-        &CONTINUE_RUNNING,
+        running,
     )
     .await;
 
@@ -316,10 +318,7 @@ pub(crate) async fn run_zmq(
 #[cfg(test)]
 mod zmq_helper_tests {
     use alloc::collections::VecDeque;
-    use core::{
-        sync::atomic::{AtomicBool, Ordering},
-        time::Duration,
-    };
+    use core::time::Duration;
     use std::{
         io,
         path::PathBuf,
@@ -333,12 +332,12 @@ mod zmq_helper_tests {
         sync::mpsc::{UnboundedReceiver, unbounded_channel},
         time::{sleep, timeout},
     };
+    use tokio_util::sync::CancellationToken;
 
     use super::{
-        CONTINUE_RUNNING, CommandLineOptions, CompletionStore, FETCH_COMMANDS, FLAG_LEGEND,
-        FetchState, LinkEvent, LinkState, MonitoredDealer, Reconnect, SessionFiles, Transport,
-        check_link, handle_reply, handle_user_line, run_console, run_zmq, store_fetched_names,
-        trim_ql_msg,
+        CommandLineOptions, CompletionStore, FETCH_COMMANDS, FLAG_LEGEND, FetchState, LinkEvent,
+        LinkState, MonitoredDealer, Reconnect, SessionFiles, Transport, check_link, handle_reply,
+        handle_user_line, run_console, run_zmq, store_fetched_names, trim_ql_msg,
     };
     use crate::{
         fetch::Fetched,
@@ -485,7 +484,7 @@ mod zmq_helper_tests {
             "tcp://127.0.0.1:27961",
             &mut FetchState::new(true),
             &mut LinkState::default(),
-            &AtomicBool::new(true),
+            &CancellationToken::new(),
         )
         .await
         .expect("the events can be handled");
@@ -509,7 +508,7 @@ mod zmq_helper_tests {
             "tcp://127.0.0.1:27961",
             &mut FetchState::new(false),
             &mut LinkState::default(),
-            &AtomicBool::new(true),
+            &CancellationToken::new(),
         )
         .await
         .expect("the events can be handled");
@@ -635,7 +634,7 @@ mod zmq_helper_tests {
         locked(&transport.replies)
             .push_back("\u{19}usage: dir <directory> [extension]\n".to_string());
         let store = FakeStore::default();
-        let running = AtomicBool::new(true);
+        let running = CancellationToken::new();
         let (zmq_sender, mut zmq_receiver) = unbounded_channel();
         let (display_sender, mut display_receiver) = unbounded_channel();
         zmq_sender
@@ -654,7 +653,7 @@ mod zmq_helper_tests {
             ),
             async {
                 sleep(Duration::from_millis(150)).await;
-                running.store(false, Ordering::Release);
+                running.cancel();
             }
         );
 
@@ -695,6 +694,7 @@ mod zmq_helper_tests {
 
         let (_zmq_sender, zmq_receiver) = unbounded_channel();
         let (display_sender, mut display_receiver) = unbounded_channel();
+        let running = CancellationToken::new();
         let task = run_zmq(
             CommandLineOptions {
                 host: endpoint.clone(),
@@ -706,6 +706,7 @@ mod zmq_helper_tests {
             },
             zmq_receiver,
             display_sender,
+            &running,
         );
 
         let result = timeout(Duration::from_secs(10), task).await;
@@ -714,7 +715,7 @@ mod zmq_helper_tests {
             matches!(result, Ok(Ok(()))),
             "run_zmq did not end cleanly: {result:?}"
         );
-        assert!(!CONTINUE_RUNNING.load(Ordering::Acquire));
+        assert!(running.is_cancelled());
         let lines = drained(&mut display_receiver);
         assert_eq!(
             lines.first(),

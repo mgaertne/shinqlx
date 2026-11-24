@@ -1,5 +1,3 @@
-use core::sync::atomic::Ordering;
-
 use anyhow::Result;
 use arzmq::{
     prelude::{
@@ -11,11 +9,13 @@ use arzmq::{
 use chrono::Local;
 use ql_zmq::{LinkEvent, LinkState, POLL_INTERVAL, Reconnect, context, monitor_flags};
 use tokio::{
+    select,
     sync::mpsc::UnboundedSender,
     time::{MissedTickBehavior, interval},
 };
+use tokio_util::sync::CancellationToken;
 
-use crate::{CONTINUE_RUNNING, cmd_line::CommandLineOptions, format::Renderer};
+use crate::{cmd_line::CommandLineOptions, format::Renderer};
 
 struct MonitoredSubscriber {
     subscriber: SubscribeSocket,
@@ -99,6 +99,7 @@ fn with_timestamp(line: String, timestamp: bool) -> String {
 pub(crate) async fn run_zmq(
     args: CommandLineOptions,
     display_sender: UnboundedSender<String>,
+    running: &CancellationToken,
 ) -> Result<()> {
     display_sender.send(format!("ZMQ connecting to {}...", args.host()))?;
 
@@ -112,8 +113,12 @@ pub(crate) async fn run_zmq(
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-    while CONTINUE_RUNNING.load(Ordering::Acquire) {
-        poll.tick().await;
+    loop {
+        select! {
+            biased;
+            () = running.cancelled() => break,
+            _ = poll.tick() => {}
+        }
 
         while let Some(zmq_msg) = monitored_subscriber.recv_msg().await {
             let zmq_str = zmq_msg.to_string();
@@ -128,7 +133,7 @@ pub(crate) async fn run_zmq(
                 &monitored_subscriber,
                 &display_sender,
                 args.host(),
-                &CONTINUE_RUNNING,
+                running,
             )?;
         }
     }
@@ -142,13 +147,68 @@ pub(crate) async fn run_zmq(
 
 #[cfg(test)]
 mod zmq_helper_tests {
-    use core::{sync::atomic::Ordering, time::Duration};
+    use core::time::Duration;
 
-    use arzmq::prelude::{ContextBuilder, PublishSocket, Socket};
+    use arzmq::prelude::{ContextBuilder, Message, PublishSocket, SendFlags, Sender, Socket};
     use clap::Parser;
-    use tokio::{sync::mpsc::unbounded_channel, time::timeout};
+    use tokio::{
+        sync::mpsc::unbounded_channel,
+        time::{sleep, timeout},
+    };
+    use tokio_util::sync::CancellationToken;
 
-    use super::{CONTINUE_RUNNING, CommandLineOptions, run_zmq, with_timestamp};
+    use super::{CommandLineOptions, MonitoredSubscriber, run_zmq, with_timestamp};
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn run_zmq_prints_the_messages_of_a_server_without_password() {
+        let context = ContextBuilder::default()
+            .build()
+            .expect("a context can be created");
+        let publisher: PublishSocket =
+            Socket::from_context(&context).expect("a publisher can be created");
+        publisher
+            .bind("tcp://127.0.0.1:*")
+            .expect("a free port can be bound");
+        let endpoint = publisher.last_endpoint().expect("the endpoint is known");
+        let (sender, mut receiver) = unbounded_channel();
+        let options = CommandLineOptions::try_parse_from([
+            "ql_stats", "--host", &endpoint, "--format", "summary", "--color", "never",
+        ])
+        .expect("the options are valid");
+        let running = CancellationToken::new();
+        let message = r#"{"TYPE":"PLAYER_CONNECT","DATA":{"NAME":"Alice"}}"#;
+
+        let drive = async {
+            let mut lines = Vec::new();
+            while lines
+                .iter()
+                .all(|line: &String| !line.ends_with("Alice connected"))
+            {
+                publisher
+                    .send_msg(Message::from(message), SendFlags::DONT_WAIT)
+                    .expect("the message can be published");
+                sleep(Duration::from_millis(50)).await;
+                while let Ok(line) = receiver.try_recv() {
+                    lines.push(line);
+                }
+            }
+            running.cancel();
+            lines
+        };
+        let (result, lines) = timeout(Duration::from_secs(10), async {
+            tokio::join!(run_zmq(options, sender, &running), drive)
+        })
+        .await
+        .expect("the run ends in time");
+
+        assert!(result.is_ok(), "{result:?}");
+        assert!(
+            lines
+                .iter()
+                .any(|line| line == "PLAYER_CONNECT     Alice connected"),
+            "{lines:?}"
+        );
+    }
 
     #[test]
     fn with_timestamp_puts_the_time_before_the_line() {
@@ -157,6 +217,15 @@ mod zmq_helper_tests {
         assert!(stamped.ends_with(" line"));
         assert_eq!(stamped.len(), "00:00:00 line".len());
         assert_eq!(with_timestamp("line".to_string(), false), "line");
+    }
+
+    #[test]
+    fn the_subscriber_is_configured_with_and_without_a_password() {
+        let subscriber = MonitoredSubscriber::new().expect("a subscriber can be created");
+        let open_subscriber = MonitoredSubscriber::new().expect("a subscriber can be created");
+
+        assert!(subscriber.configure("secret").is_ok());
+        assert!(open_subscriber.configure("").is_ok());
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -180,7 +249,8 @@ mod zmq_helper_tests {
             "secret",
         ])
         .expect("the options are valid");
-        let task = run_zmq(options, sender);
+        let running = CancellationToken::new();
+        let task = run_zmq(options, sender, &running);
 
         let result = timeout(Duration::from_secs(10), task).await;
 
@@ -188,7 +258,7 @@ mod zmq_helper_tests {
             matches!(result, Ok(Ok(()))),
             "run_zmq did not end cleanly: {result:?}"
         );
-        assert!(!CONTINUE_RUNNING.load(Ordering::Acquire));
+        assert!(running.is_cancelled());
         let mut lines = Vec::new();
         while let Ok(line) = receiver.try_recv() {
             lines.push(line);

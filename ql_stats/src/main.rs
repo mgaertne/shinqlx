@@ -3,18 +3,15 @@ mod cmd_line;
 mod format;
 mod zmq_helper;
 
-use core::sync::atomic::AtomicBool;
-
 use anyhow::Result;
 use tokio::{
     sync::mpsc::{UnboundedReceiver, unbounded_channel},
     try_join,
 };
+use tokio_util::sync::CancellationToken;
 use zmq_helper::run_zmq;
 
 extern crate alloc;
-
-pub(crate) static CONTINUE_RUNNING: AtomicBool = AtomicBool::new(true);
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
@@ -23,11 +20,12 @@ async fn main() -> Result<()> {
     let (display_sender, display_receiver) = unbounded_channel();
 
     let cloned_args = args.clone();
+    let running = CancellationToken::new();
 
     display_sender.send("Ctrl-C to exit zmq-stats session".to_string())?;
 
     try_join!(
-        run_zmq(cloned_args, display_sender),
+        run_zmq(cloned_args, display_sender, &running),
         receive_json(display_receiver)
     )?;
 
