@@ -2,21 +2,25 @@ use alloc::{borrow::Cow, sync::Arc};
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::{HashMap, HashSet},
-    io::{self, IsTerminal, Write},
+    io::{self, Write},
     path::{Path, PathBuf},
     sync::{Mutex, mpsc::SyncSender},
 };
 
 use anyhow::Result;
 use directories::UserDirs;
-use ql_zmq::quake_colors::{ql_rgb, split_ql_colors};
+use ql_zmq::{
+    ColorChoice,
+    quake_colors::{ql_rgb, split_ql_colors},
+    with_timestamp,
+};
 use reedline::{
     ColumnarMenu, Completer, CompletionResult, DefaultHinter, Emacs, ExternalPrinter,
     FileBackedHistory, History, HistoryItem, KeyCode, KeyModifiers, MenuBuilder, Prompt,
     PromptEditMode, PromptHistorySearch, Reedline, ReedlineEvent, ReedlineMenu, SearchDirection,
     SearchQuery, Signal, Span, Suggestion, default_emacs_keybindings,
 };
-use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
+use termcolor::{Buffer, Color, ColorSpec, WriteColor};
 use tokio::{
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
     task,
@@ -839,29 +843,23 @@ fn editor_with_history(
     (editor, shared_history)
 }
 
-fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
-    match color_choice {
-        ColorChoice::Always => Buffer::ansi(),
-        ColorChoice::AlwaysAnsi => Buffer::ansi(),
-        ColorChoice::Auto => {
-            if io::stdout().is_terminal() {
-                Buffer::ansi()
-            } else {
-                Buffer::no_color()
-            }
-        }
-        ColorChoice::Never => Buffer::no_color(),
+fn terminal_buffer(color_choice: ColorChoice) -> Buffer {
+    if color_choice.enabled() {
+        Buffer::ansi()
+    } else {
+        Buffer::no_color()
     }
 }
 
 async fn display_lines(
     printer: &SyncSender<String>,
-    color: &ColorChoice,
+    color: ColorChoice,
+    timestamp: bool,
     mut display_receiver: UnboundedReceiver<String>,
 ) -> Result<()> {
     while let Some(line) = display_receiver.recv().await {
         let mut buffer = terminal_buffer(color);
-        write_formatted_ql_colors(&mut buffer, &line)?;
+        write_formatted_ql_colors(&mut buffer, &with_timestamp(line, timestamp))?;
         let text = String::from_utf8(buffer.into_inner())
             .expect("the buffer only receives text that was written as str");
         if printer.send(text).is_err() {
@@ -892,7 +890,7 @@ pub(crate) async fn run_terminal(
     let reader =
         task::spawn_blocking(move || read_input(editor, &history, zmq_sender, &reader_running));
 
-    let displayed = display_lines(&output, &args.color, display_receiver).await;
+    let displayed = display_lines(&output, args.color, args.timestamp, display_receiver).await;
     running.cancel();
     break_signal.store(true, Ordering::Release);
 
@@ -974,11 +972,12 @@ mod line_editor_tests {
         sync::mpsc::sync_channel,
     };
 
+    use ql_zmq::ColorChoice;
     use reedline::{
         Completer, ExternalPrinter, FileBackedHistory, History, HistoryItem, Prompt,
         PromptEditMode, PromptHistorySearch, PromptHistorySearchStatus, Signal, Span,
     };
-    use termcolor::{Buffer, ColorChoice, WriteColor};
+    use termcolor::{Buffer, WriteColor};
     use tokio::sync::mpsc::unbounded_channel;
 
     use super::{
@@ -1048,14 +1047,13 @@ mod line_editor_tests {
 
     #[test]
     fn terminal_buffer_follows_the_color_choice() {
-        assert!(!terminal_buffer(&ColorChoice::Never).supports_color());
-        assert!(terminal_buffer(&ColorChoice::Always).supports_color());
-        assert!(terminal_buffer(&ColorChoice::AlwaysAnsi).supports_color());
+        assert!(!terminal_buffer(ColorChoice::Never).supports_color());
+        assert!(terminal_buffer(ColorChoice::Always).supports_color());
     }
 
     #[test]
     fn terminal_buffer_with_auto_does_not_color_without_a_terminal() {
-        assert!(!terminal_buffer(&ColorChoice::Auto).supports_color());
+        assert!(!terminal_buffer(ColorChoice::Auto).supports_color());
     }
 
     #[test]
@@ -2012,11 +2010,30 @@ mod line_editor_tests {
             .expect("the receiver is open");
         drop(sender);
 
-        display_lines(&printer, &ColorChoice::Never, receiver)
+        display_lines(&printer, ColorChoice::Never, false, receiver)
             .await
             .expect("could not display the lines");
 
         assert_eq!(output.try_iter().collect::<Vec<_>>(), ["red"]);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn received_lines_get_the_time_in_front_when_asked_for() {
+        let (printer, output) = sync_channel(8);
+        let (sender, receiver) = unbounded_channel();
+        sender
+            .send("^1red".to_string())
+            .expect("the receiver is open");
+        drop(sender);
+
+        display_lines(&printer, ColorChoice::Never, true, receiver)
+            .await
+            .expect("could not display the lines");
+
+        let lines = output.try_iter().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].ends_with(" red"), "{lines:?}");
+        assert_eq!(lines[0].len(), "00:00:00 red".len());
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -2028,7 +2045,7 @@ mod line_editor_tests {
             .expect("the receiver is open");
         drop(output);
 
-        let result = display_lines(&printer, &ColorChoice::Never, receiver).await;
+        let result = display_lines(&printer, ColorChoice::Never, false, receiver).await;
 
         assert!(result.is_ok());
     }

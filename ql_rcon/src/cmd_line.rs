@@ -1,9 +1,8 @@
-use core::str::FromStr;
 use std::{io::IsTerminal, path::PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
-use termcolor::ColorChoice;
+use ql_zmq::{ColorChoice, servers::migrate_legacy_config_dir, switch};
 
 use crate::profile::{Connection, ServerFile, server_file};
 
@@ -25,12 +24,21 @@ pub(crate) struct Cli {
     /// Specify the socket identity. Random UUID used by default
     #[arg(long)]
     identity: Option<String>,
-    /// Use color output: always, ansi, auto or never
-    #[arg(long)]
+    /// Use color output: auto (default), always or never
+    #[arg(long, value_enum)]
     color: Option<ColorChoice>,
     /// Ask the server for its commands and cvars and keep them for the completion of the next start
-    #[arg(long)]
+    #[arg(long, overrides_with = "no_fetch_completions")]
     fetch_completions: bool,
+    /// Do not ask the server for its commands and cvars, also when the server file asks for it
+    #[arg(long, overrides_with = "fetch_completions")]
+    no_fetch_completions: bool,
+    /// Put the time of receipt before every line of the output.
+    #[arg(long, overrides_with = "no_timestamp")]
+    timestamp: bool,
+    /// Do not put the time of receipt before the lines, also when the server file asks for it.
+    #[arg(long, overrides_with = "timestamp")]
+    no_timestamp: bool,
     /// Save host, password, identity and color as `servers/<name>.toml` (readable for the owner only) and connect
     #[arg(long, value_name = "NAME")]
     save_server: Option<String>,
@@ -44,6 +52,7 @@ pub(crate) struct CommandLineOptions {
     pub(crate) identity: String,
     pub(crate) color: ColorChoice,
     pub(crate) fetch_completions: bool,
+    pub(crate) timestamp: bool,
     /// The name of the server file that is used, if any.
     pub(crate) profile: Option<String>,
 }
@@ -66,12 +75,7 @@ fn with_scheme(host: String) -> String {
 impl Cli {
     /// Options win over the server file, the server file wins over the defaults.
     fn resolve(self, server: Connection) -> Result<Resolved> {
-        let color = match (self.color, server.color) {
-            (Some(color), _) => color,
-            (None, Some(color)) => ColorChoice::from_str(&color)
-                .map_err(|_| anyhow!("unknown color '{color}' in the server file"))?,
-            (None, None) => ColorChoice::Auto,
-        };
+        let color = self.color.or(server.color).unwrap_or(ColorChoice::Auto);
         let password = self.password.or(server.password);
 
         Ok(Resolved {
@@ -85,7 +89,12 @@ impl Cli {
                 password: password.unwrap_or_default(),
                 identity: self.identity.or(server.identity).unwrap_or_default(),
                 color,
-                fetch_completions: self.fetch_completions,
+                fetch_completions: switch(
+                    self.fetch_completions,
+                    self.no_fetch_completions,
+                    server.fetch_completions,
+                ),
+                timestamp: switch(self.timestamp, self.no_timestamp, server.timestamp),
                 profile: self.server,
             },
         })
@@ -115,7 +124,7 @@ fn save_server_at(path: PathBuf, options: &CommandLineOptions) -> Result<()> {
         host: Some(options.host.clone()),
         password: Some(options.password.clone()),
         identity: (!options.identity.is_empty()).then(|| options.identity.clone()),
-        color: None,
+        ..Connection::default()
     })
     .with_context(|| format!("could not save {}", file.path().display()))?;
     eprintln!("Saved the connection in {}.", file.path().display());
@@ -133,6 +142,7 @@ type ServerFileLocator<'a> = &'a dyn Fn(&str) -> Result<PathBuf>;
 
 /// Reads the options, the server file they name and, where needed, the password from the terminal.
 pub(crate) fn parse() -> Result<CommandLineOptions> {
+    migrate_legacy_config_dir();
     let prompt: Option<PasswordPrompt> = std::io::stdin().is_terminal().then_some(&prompt_password);
 
     options_from(Cli::parse(), &path_of_server_file, prompt)
@@ -201,7 +211,7 @@ mod cmd_line_tests {
     };
 
     use clap::Parser;
-    use termcolor::ColorChoice;
+    use ql_zmq::ColorChoice;
 
     use super::{
         Cli, CommandLineOptions, open_existing, options_from, path_of_server_file, save_server_at,
@@ -260,7 +270,9 @@ mod cmd_line_tests {
             host: Some("192.0.2.1:27961".to_string()),
             password: Some("from file".to_string()),
             identity: Some("crimson-arena".to_string()),
-            color: Some("never".to_string()),
+            color: Some(ColorChoice::Never),
+            fetch_completions: Some(true),
+            timestamp: Some(true),
         };
 
         let args = resolved(&["ql_rcon", "crimson-arena"], server);
@@ -269,7 +281,50 @@ mod cmd_line_tests {
         assert_eq!(args.password, "from file");
         assert_eq!(args.identity, "crimson-arena");
         assert_eq!(args.color, ColorChoice::Never);
+        assert!(args.fetch_completions);
+        assert!(args.timestamp);
         assert_eq!(args.profile.as_deref(), Some("crimson-arena"));
+    }
+
+    #[test]
+    fn the_switches_of_the_options_win_over_the_server_file() {
+        let server = Connection {
+            fetch_completions: Some(true),
+            timestamp: Some(true),
+            ..Connection::default()
+        };
+
+        let off = resolved(
+            &[
+                "ql_rcon",
+                "crimson-arena",
+                "--no-fetch-completions",
+                "--no-timestamp",
+            ],
+            server.clone(),
+        );
+        let on = resolved(
+            &["ql_rcon", "--fetch-completions", "--timestamp"],
+            Connection::default(),
+        );
+        let last_wins = resolved(
+            &["ql_rcon", "--no-timestamp", "--timestamp"],
+            Connection::default(),
+        );
+
+        assert!(!off.fetch_completions);
+        assert!(!off.timestamp);
+        assert!(on.fetch_completions);
+        assert!(on.timestamp);
+        assert!(last_wins.timestamp);
+    }
+
+    #[test]
+    fn without_a_server_file_and_options_the_switches_are_off() {
+        let args = resolved(&["ql_rcon"], Connection::default());
+
+        assert!(!args.fetch_completions);
+        assert!(!args.timestamp);
     }
 
     #[test]
@@ -318,15 +373,13 @@ mod cmd_line_tests {
     }
 
     #[test]
-    fn an_unknown_color_in_the_server_file_is_an_error() {
-        let result = Cli::try_parse_from(["ql_rcon", "crimson-arena"])
-            .expect("the options are valid")
-            .resolve(Connection {
-                color: Some("rainbow".to_string()),
-                ..Connection::default()
-            });
+    fn the_older_name_of_always_is_still_accepted() {
+        let args = resolved(
+            &["ql_rcon", "--color", "always-ansi"],
+            Connection::default(),
+        );
 
-        assert!(result.is_err());
+        assert_eq!(args.color, ColorChoice::Always);
     }
 
     fn options(identity: &str) -> CommandLineOptions {
@@ -336,6 +389,7 @@ mod cmd_line_tests {
             identity: identity.to_string(),
             color: ColorChoice::Never,
             fetch_completions: false,
+            timestamp: false,
             profile: None,
         }
     }
@@ -387,7 +441,7 @@ mod cmd_line_tests {
                 host: Some("tcp://192.0.2.1:27961".to_string()),
                 password: Some("secret".to_string()),
                 identity: Some("crimson-arena".to_string()),
-                color: None,
+                ..Connection::default()
             }
         );
         remove_directory_of(&path);

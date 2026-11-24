@@ -4,17 +4,67 @@ pub mod quake_colors;
 pub mod servers;
 
 use core::time::Duration;
+use std::io::{IsTerminal, stdout};
 
 use anyhow::Result;
 use arzmq::{
     context::Context,
     prelude::{ContextBuilder, MonitorFlags, MonitorSocketEvent},
 };
+use chrono::Local;
+use clap::ValueEnum;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio_util::sync::CancellationToken;
 
 /// One poll per server frame at 40 frames per second keeps the output close to real time without a busy loop.
 pub const POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+/// When the output is colored; `ql_rcon` and `ql_stats` take the same values on the command line and in the server file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ColorChoice {
+    /// Only when the output goes to a terminal and `NO_COLOR` is not set.
+    Auto,
+    /// Always, with ANSI escape sequences. `always-ansi` is the older name of the same choice.
+    #[value(alias = "always-ansi")]
+    Always,
+    /// Never.
+    Never,
+}
+
+impl ColorChoice {
+    /// Whether the output is colored now.
+    pub fn enabled(self) -> bool {
+        match self {
+            Self::Always => true,
+            Self::Never => false,
+            Self::Auto => stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none(),
+        }
+    }
+
+    /// The name of the choice in a server file.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Always => "always",
+            Self::Never => "never",
+        }
+    }
+}
+
+/// Whether a switch is on: `--x` (`on`) and `--no-x` (`off`) win over `file`, `off` wins when both are set, and
+/// without any of them the file decides, off by default.
+pub const fn switch(on: bool, off: bool, file: Option<bool>) -> bool {
+    !off && (on || matches!(file, Some(true)))
+}
+
+/// `line` with the local time of day in front of it, or `line` itself when `timestamp` is off.
+pub fn with_timestamp(line: String, timestamp: bool) -> String {
+    if timestamp {
+        format!("{} {line}", Local::now().format("%H:%M:%S"))
+    } else {
+        line
+    }
+}
 
 /// A context for one monitored socket that never blocks on shutdown.
 pub fn context(io_threads: i32) -> Result<Context> {
@@ -151,10 +201,48 @@ mod tests {
     use std::sync::Mutex;
 
     use anyhow::{Result, anyhow};
+    use clap::ValueEnum;
     use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
     use tokio_util::sync::CancellationToken;
 
-    use super::{LinkEvent, LinkState, Reconnect};
+    use super::{ColorChoice, LinkEvent, LinkState, Reconnect, switch, with_timestamp};
+
+    #[test]
+    fn color_can_be_forced() {
+        assert!(ColorChoice::Always.enabled());
+        assert!(!ColorChoice::Never.enabled());
+    }
+
+    #[test]
+    fn the_color_names_are_read_and_written_the_same_way() {
+        for choice in [ColorChoice::Auto, ColorChoice::Always, ColorChoice::Never] {
+            assert_eq!(ColorChoice::from_str(choice.name(), true), Ok(choice));
+        }
+        assert_eq!(
+            ColorChoice::from_str("Always-Ansi", true),
+            Ok(ColorChoice::Always)
+        );
+        assert!(ColorChoice::from_str("ansi", true).is_err());
+    }
+
+    #[test]
+    fn a_switch_is_decided_by_the_options_before_the_file() {
+        assert!(!switch(false, false, None));
+        assert!(!switch(false, false, Some(false)));
+        assert!(switch(false, false, Some(true)));
+        assert!(switch(true, false, Some(false)));
+        assert!(!switch(false, true, Some(true)));
+        assert!(!switch(true, true, None));
+    }
+
+    #[test]
+    fn with_timestamp_puts_the_time_before_the_line() {
+        let stamped = with_timestamp("line".to_string(), true);
+
+        assert!(stamped.ends_with(" line"));
+        assert_eq!(stamped.len(), "00:00:00 line".len());
+        assert_eq!(with_timestamp("line".to_string(), false), "line");
+    }
 
     #[derive(Default)]
     struct FakeLink {

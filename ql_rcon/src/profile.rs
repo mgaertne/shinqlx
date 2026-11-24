@@ -1,14 +1,20 @@
 //! The server files `servers/<name>.toml` of the config directory: how to connect to a server and what the server has
 //! reported so far.
 use std::{
-    fs,
-    io::{self, Write},
+    io,
     path::{Path, PathBuf},
 };
 
 #[cfg(test)]
 pub(crate) use ql_zmq::servers::is_server_name;
 pub(crate) use ql_zmq::servers::{config_dir, server_file, server_file_in};
+use ql_zmq::{
+    ColorChoice,
+    servers::{
+        Endpoint, Interface, choice, endpoint, flag, password_is_exposed, read_document,
+        save_settings, text, write_private,
+    },
+};
 use toml_edit::{Array, DocumentMut, Item, Table, value};
 
 use crate::{fetch::Fetched, learn::Learned};
@@ -19,7 +25,9 @@ pub(crate) struct Connection {
     pub(crate) host: Option<String>,
     pub(crate) password: Option<String>,
     pub(crate) identity: Option<String>,
-    pub(crate) color: Option<String>,
+    pub(crate) color: Option<ColorChoice>,
+    pub(crate) fetch_completions: Option<bool>,
+    pub(crate) timestamp: Option<bool>,
 }
 
 /// What the server reported for a cvar: default, minimum and maximum.
@@ -81,29 +89,6 @@ fn merge_list(table: &mut Table, key: &str, found: &[String]) {
     table.insert(key, value(string_array(&sorted_unique(names))));
 }
 
-fn write_private(path: &Path, text: &str) -> io::Result<()> {
-    if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir)?;
-    }
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-
-        fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(path)?
-            .write_all(text.as_bytes())
-    }
-    #[cfg(not(unix))]
-    {
-        fs::File::create(path)?.write_all(text.as_bytes())
-    }
-}
-
 impl ServerFile {
     pub(crate) fn new(path: PathBuf) -> Self {
         Self { path }
@@ -114,13 +99,7 @@ impl ServerFile {
     }
 
     fn document(&self) -> io::Result<DocumentMut> {
-        match fs::read_to_string(&self.path) {
-            Ok(text) => text
-                .parse::<DocumentMut>()
-                .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err)),
-            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(DocumentMut::new()),
-            Err(err) => Err(err),
-        }
+        read_document(&self.path)
     }
 
     fn update(&self, change: impl FnOnce(&mut DocumentMut)) -> io::Result<()> {
@@ -130,49 +109,35 @@ impl ServerFile {
     }
 
     /// `true` when other users can read a file that holds a password.
-    #[cfg(unix)]
     pub(crate) fn password_is_exposed(&self) -> bool {
-        use std::os::unix::fs::PermissionsExt;
-
-        let has_password = self.connection().is_ok_and(|connection| {
-            connection
-                .password
-                .is_some_and(|password| !password.is_empty())
-        });
-        has_password
-            && fs::metadata(&self.path).is_ok_and(|meta| meta.permissions().mode() & 0o077 != 0)
-    }
-
-    #[cfg(not(unix))]
-    pub(crate) fn password_is_exposed(&self) -> bool {
-        false
+        password_is_exposed(&self.path)
     }
 
     pub(crate) fn connection(&self) -> io::Result<Connection> {
         let document = self.document()?;
-        let text = |key: &str| document.get(key).and_then(Item::as_str).map(str::to_string);
+        let Endpoint { host, password } = endpoint(&document, Interface::Rcon)?;
 
         Ok(Connection {
-            host: text("host"),
-            password: text("password"),
-            identity: text("identity"),
-            color: text("color"),
+            host,
+            password,
+            identity: text(&document, Interface::Rcon, "identity")?,
+            color: choice(&document, Interface::Rcon, "color")?,
+            fetch_completions: flag(&document, Interface::Rcon, "fetch_completions")?,
+            timestamp: flag(&document, Interface::Rcon, "timestamp")?,
         })
     }
 
     pub(crate) fn save_connection(&self, connection: &Connection) -> io::Result<()> {
-        self.update(|document| {
-            for (key, setting) in [
-                ("host", &connection.host),
-                ("password", &connection.password),
-                ("identity", &connection.identity),
-                ("color", &connection.color),
-            ] {
-                if let Some(setting) = setting {
-                    document[key] = value(setting.as_str());
-                }
-            }
-        })
+        save_settings(
+            &self.path,
+            Interface::Rcon,
+            &[
+                ("host", connection.host.as_deref()),
+                ("password", connection.password.as_deref()),
+                ("identity", connection.identity.as_deref()),
+                ("color", connection.color.map(ColorChoice::name)),
+            ],
+        )
     }
 
     fn completions(&self, key: &str) -> Vec<String> {
@@ -336,6 +301,8 @@ mod profile_tests {
     use core::sync::atomic::{AtomicUsize, Ordering};
     use std::{fs, path::PathBuf};
 
+    use ql_zmq::ColorChoice;
+
     use super::{Connection, ServerFile, is_server_name};
     use crate::{fetch::Fetched, learn::Learned};
 
@@ -386,7 +353,8 @@ mod profile_tests {
             host: Some("tcp://192.0.2.1:27961".to_string()),
             password: Some("secret".to_string()),
             identity: None,
-            color: Some("never".to_string()),
+            color: Some(ColorChoice::Never),
+            ..Connection::default()
         };
 
         file.save_connection(&connection)
@@ -488,6 +456,109 @@ mod profile_tests {
         assert_eq!(file.factories(), ["ca", "ctf"]);
         assert_eq!(file.latched(), ["bot_enable"]);
         assert_eq!(file.read_only(), ["sv_cheats"]);
+        cleanup(&file);
+    }
+
+    #[test]
+    fn an_unknown_color_in_the_server_file_is_an_error() {
+        let path = scratch_file();
+        fs::create_dir_all(path.parent().expect("the file has a directory"))
+            .expect("the directory is created");
+        fs::write(&path, "[rcon]\ncolor = \"rainbow\"\n").expect("the file is written");
+        let file = ServerFile::new(path);
+
+        let message = file
+            .connection()
+            .expect_err("the color is unknown")
+            .to_string();
+
+        assert_eq!(message, "unknown color 'rainbow' in [rcon]");
+        cleanup(&file);
+    }
+
+    #[test]
+    fn the_older_name_always_ansi_is_read_and_written_as_always() {
+        let path = scratch_file();
+        fs::create_dir_all(path.parent().expect("the file has a directory"))
+            .expect("the directory is created");
+        fs::write(&path, "[rcon]\ncolor = \"always-ansi\"\n").expect("the file is written");
+        let file = ServerFile::new(path);
+
+        let connection = file.connection().expect("the file is read");
+        file.save_connection(&connection)
+            .expect("the file is written");
+
+        assert_eq!(connection.color, Some(ColorChoice::Always));
+        let text = fs::read_to_string(file.path()).expect("the file is read");
+        assert!(text.contains("color = \"always\""), "{text}");
+        cleanup(&file);
+    }
+
+    #[test]
+    fn the_connection_lies_in_the_table_rcon() {
+        let file = ServerFile::new(scratch_file());
+
+        file.save_connection(&Connection {
+            host: Some("tcp://192.0.2.1:28960".to_string()),
+            identity: Some("tester".to_string()),
+            ..Connection::default()
+        })
+        .expect("the file is written");
+
+        let text = fs::read_to_string(file.path()).expect("the file is read");
+        assert!(text.starts_with("[rcon]\n"), "{text}");
+        assert!(text.contains("identity = \"tester\""), "{text}");
+        cleanup(&file);
+    }
+
+    #[test]
+    fn the_values_at_the_top_of_an_older_file_are_still_read_and_move_on_saving() {
+        let path = scratch_file();
+        fs::create_dir_all(path.parent().expect("the file has a directory"))
+            .expect("the directory is created");
+        fs::write(
+            &path,
+            "host = \"tcp://192.0.2.1:28960\"\npassword = \"secret\"\n[stats]\nport = 27961\n",
+        )
+        .expect("the file is written");
+        let file = ServerFile::new(path);
+
+        let read = file.connection().expect("the file is read");
+        assert_eq!(read.host.as_deref(), Some("tcp://192.0.2.1:28960"));
+        assert_eq!(read.password.as_deref(), Some("secret"));
+
+        file.save_connection(&Connection {
+            color: Some(ColorChoice::Never),
+            ..Connection::default()
+        })
+        .expect("the file is written");
+
+        let moved = file.connection().expect("the file is read");
+        assert_eq!(moved.host, read.host);
+        assert_eq!(moved.password, read.password);
+        assert_eq!(moved.color, Some(ColorChoice::Never));
+        let text = fs::read_to_string(file.path()).expect("the file is read");
+        assert!(text.starts_with("[stats]"), "{text}");
+        assert!(text.contains("\n[rcon]\n"), "{text}");
+        cleanup(&file);
+    }
+
+    #[test]
+    fn the_rcon_host_can_come_from_the_stats_host_and_the_rcon_port() {
+        let path = scratch_file();
+        fs::create_dir_all(path.parent().expect("the file has a directory"))
+            .expect("the directory is created");
+        fs::write(
+            &path,
+            "[stats]\nhost = \"tcp://192.0.2.1:27961\"\n[rcon]\nport = 28960\n",
+        )
+        .expect("the file is written");
+        let file = ServerFile::new(path);
+
+        assert_eq!(
+            file.connection().expect("the file is read").host.as_deref(),
+            Some("tcp://192.0.2.1:28960")
+        );
         cleanup(&file);
     }
 

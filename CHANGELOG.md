@@ -90,7 +90,7 @@ Changes since 0.8.0.
   is read on its own blocking thread, and the tool runs on a single-threaded Tokio runtime without the `RwLock`s and
   `unsafe impl Send/Sync` around the sockets.
 * **`ql_rcon` keeps a file per server**: `ql_rcon crimson-arena` reads `servers/crimson-arena.toml` from the config directory and
-  connects with its `host`, `password`, `identity` and `color`; options on the command line win. `--save-server <name>`
+  connects with the `host`, `password`, `identity` and `color` of its table `[rcon]`; options on the command line win. `--save-server <name>`
   creates the file (readable for the owner only, `ql_rcon` warns about a readable file with a password). Without a
   password in the options and the file, `ql_rcon` asks for it on the terminal. What the server reports (names, maps,
   factories, latched and read-only cvars, usages, defaults and ranges) is kept in tables of the same file instead of
@@ -107,7 +107,7 @@ Changes since 0.8.0.
   guide at https://www.euere.eu/ql/ and the 530 cvars that a vanilla dedicated server lists with `cvarlist`, with their
   flags), after the matching history entries; the case is ignored.
   Own names go into `commands.txt` (all servers) and `commands-<host>.txt` (for example `commands-10_0_0_1_27961.txt`)
-  in the config directory (`~/.config/ql_rcon/` on Linux), one name per line; empty lines and lines starting with `#` are
+  in the config directory (`~/.config/ql_zmq/` on Linux), one name per line; empty lines and lines starting with `#` are
   skipped. `ql_rcon --fetch-completions` asks the server once for `cmdlist` and `cvarlist` (without showing the output),
   and keeps the names in `completions-<host>.txt` of the same directory. The completion reads the files on every Tab, so
   new names and edits are used at once. After `set`, `seta`, `sets` and `setu` it completes cvar names, and after
@@ -122,6 +122,29 @@ Changes since 0.8.0.
   from the console guide, such as `g_voteFlags`) and, for up to 20 names, the first line of their description. Own
   meanings go into `values.txt` and `values-<host>.txt` as lines `cvar<TAB>value<TAB>meaning`; they win over the guide.
 
+### ql_rcon and ql_stats
+
+* **One config directory and one format for both tools.** The server files and the completion files of
+  `ql_rcon` and the server files of `ql_stats` live in `~/.config/ql_zmq/` on Linux; the directory `~/.config/ql_rcon/`
+  of earlier versions is moved there at the start, unless the new one exists. A server file has the tables `[rcon]`
+  (`host`, `port`, `password`, `identity`, `color`) and `[stats]` (`host`, `port`, `password`); without a `host` each takes
+  the host of the other table with its own `port`. Files with `host`, `password`, `identity` and `color` at the top are
+  still read as `[rcon]` and the next save moves the values into the table. `ql_zmq/servers.example.toml` is a sample
+  with every key commented.
+* **More settings in the server file.** `[stats]` takes `format`, `color`, `timestamp`, `types` and `exclude`, which
+  are the options `--format`, `--color`, `--timestamp`, `--type` and `--exclude` of `ql_stats`; `[rcon]` takes
+  `timestamp` and `fetch_completions`. Options on the command line win. A value of the wrong type or an unknown
+  `format` or `color` stops the start with a message that names the key.
+* **`--no-timestamp` and `--no-fetch-completions`** turn the switches off for one run when the server file turns them
+  on; the last of `--timestamp` and `--no-timestamp` wins.
+* **`ql_rcon --timestamp`** puts the time of receipt before every line of the output, as `ql_stats --timestamp` does
+  before every message.
+* **`--color` and `color` take the same values in `ql_rcon` and `ql_stats`:** `auto`, `always` and `never`, without
+  regard to case. `ql_rcon` used the values of the `termcolor` crate (`always-ansi` as a fourth one, which was the same
+  as `always`; the help and README wrongly named it `ansi`), `ql_stats` had its own three. `always-ansi` is still
+  accepted as `always`. `auto` now means the same in both: a terminal and no `NO_COLOR` in the environment, where
+  `ql_rcon` looked only at the terminal before.
+
 ### ql_stats
 
 * **`ql_stats` no longer keeps a CPU core busy while idle** (about 100 % before, about 0.1 % now). The ZMQ socket is
@@ -134,7 +157,7 @@ Changes since 0.8.0.
   The keys of the json output keep the order of the server instead of being sorted. With color, the player names of
   `summary` appear in their colors of the game (`^1` to `^7`, decoded as in `ql_rcon`); without color the codes are removed.
 * **`ql_stats <name>` reads the server file of `ql_rcon`** (`servers/<name>.toml`). The table `[stats]` holds `port` (the
-  host of the rcon connection with this port), or `host` as a whole URI, and `password`; options on the command line
+  host of the `[rcon]` table with this port), or `host` as a whole URI, and `password`; options on the command line
   win. `--save-server <name>` writes the table, readable for the owner only, and a warning appears when a server file with
   a password can be read by other users. Without a password `ql_stats` does not ask, as the stats interface often has none.
 

@@ -6,8 +6,9 @@ use arzmq::{
     },
     security::SecurityMechanism,
 };
-use chrono::Local;
-use ql_zmq::{LinkEvent, LinkState, POLL_INTERVAL, Reconnect, context, monitor_flags};
+use ql_zmq::{
+    LinkEvent, LinkState, POLL_INTERVAL, Reconnect, context, monitor_flags, with_timestamp,
+};
 use tokio::{
     select,
     sync::mpsc::UnboundedSender,
@@ -88,14 +89,6 @@ impl Reconnect for MonitoredSubscriber {
     }
 }
 
-fn with_timestamp(line: String, timestamp: bool) -> String {
-    if timestamp {
-        format!("{} {line}", Local::now().format("%H:%M:%S"))
-    } else {
-        line
-    }
-}
-
 pub(crate) async fn run_zmq(
     args: CommandLineOptions,
     display_sender: UnboundedSender<String>,
@@ -108,7 +101,7 @@ pub(crate) async fn run_zmq(
 
     monitored_subscriber.connect(args.host())?;
 
-    let renderer = Renderer::new(&args, args.color.enabled());
+    let renderer = Renderer::new(&args, args.color().enabled());
     let mut link = LinkState::default();
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -157,7 +150,7 @@ mod zmq_helper_tests {
     };
     use tokio_util::sync::CancellationToken;
 
-    use super::{CommandLineOptions, MonitoredSubscriber, run_zmq, with_timestamp};
+    use super::{CommandLineOptions, MonitoredSubscriber, run_zmq};
 
     #[tokio::test(flavor = "current_thread")]
     async fn run_zmq_prints_the_messages_of_a_server_without_password() {
@@ -208,15 +201,6 @@ mod zmq_helper_tests {
                 .any(|line| line == "PLAYER_CONNECT     Alice connected"),
             "{lines:?}"
         );
-    }
-
-    #[test]
-    fn with_timestamp_puts_the_time_before_the_line() {
-        let stamped = with_timestamp("line".to_string(), true);
-
-        assert!(stamped.ends_with(" line"));
-        assert_eq!(stamped.len(), "00:00:00 line".len());
-        assert_eq!(with_timestamp("line".to_string(), false), "line");
     }
 
     #[test]

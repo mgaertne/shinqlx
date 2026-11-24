@@ -1,0 +1,100 @@
+# Sample server file for ql_rcon and ql_stats.
+#
+# Copy it to <config directory>/servers/<name>.toml, for example
+#   ~/.config/ql_zmq/servers/crimson-arena.toml
+# and connect with `ql_rcon crimson-arena` or `ql_stats crimson-arena`.
+# The name may contain letters, digits, `_`, `-` and `.`, and may not start with a dot.
+#
+# The file holds a password in plain text, so restrict it:
+#   chmod 600 ~/.config/ql_zmq/servers/crimson-arena.toml
+#
+# Every key is optional. Options on the command line win over this file, this file wins over the defaults.
+# Values of the examples below are invented (192.0.2.0/24 is reserved for documentation).
+
+# --- ql_rcon -------------------------------------------------------------------------------------------------------
+[rcon]
+
+# ZMQ URI of the rcon interface: the server's zmq_rcon_port (`+set zmq_rcon_port 28960`).
+# The scheme is `tcp://`, a host name works as well as an IP address.
+host = "tcp://192.0.2.1:28960"
+
+# Instead of `host`, give only the port to use the host of the [stats] table with this port.
+# `host` wins when both are set.
+# port = 28960
+
+# The server's zmq_rcon_password. Leave the key out and ql_rcon asks for it at every start (good on shared machines).
+# An empty string means the server has no password and ql_rcon does not ask.
+password = "change-me-rcon"
+
+# Name of the ZMQ socket on the server side. By default a random UUID is used for each start.
+# A fixed name is useful when you want to recognize the session in the server's log.
+# identity = "my-laptop"
+
+# Color of the output: "auto" (the default: only on a terminal and without NO_COLOR), "always" or "never".
+# The same values as in [stats]; "always-ansi" of earlier versions is still read as "always".
+# color = "auto"
+
+# Put the time of receipt (HH:MM:SS) before every line of the output. Default: false.
+# `--timestamp` and `--no-timestamp` on the command line win over this key.
+# timestamp = false
+
+# Ask the server for its commands, cvars and maps at the start and keep them for the completion. Default: false.
+# `--fetch-completions` and `--no-fetch-completions` on the command line win over this key.
+# fetch_completions = false
+
+# --- ql_stats ------------------------------------------------------------------------------------------------------
+[stats]
+
+# ZMQ URI of the stats interface: the server's zmq_stats_port (`+set zmq_stats_port 27960`).
+# The port usually differs from the rcon one.
+# host = "tcp://192.0.2.1:27960"
+
+# Short form: take the host of the [rcon] table (here 192.0.2.1) and only change the port.
+port = 27960
+
+# The server's zmq_stats_password. Leave the key out when the server has none; ql_stats does not ask for it.
+password = "change-me-stats"
+
+# How the messages are printed: "json" (compact, the default), "pretty" (indented json) or "summary" (one readable
+# line for the common event types such as PLAYER_DEATH, other types stay json). Case does not matter.
+# `--format` on the command line wins over this key.
+# format = "summary"
+
+# Color of the output: "auto" (the default: only on a terminal and without NO_COLOR), "always" or "never".
+# The same values as in [rcon].
+# color = "auto"
+
+# Put the time of receipt (HH:MM:SS) before every message. Default: false.
+# `--timestamp` and `--no-timestamp` on the command line win over this key.
+# timestamp = false
+
+# Only show these message types, for example the events of a round. The default is to show all types.
+# `--type` on the command line replaces this list, it is not added to it.
+# types = ["PLAYER_DEATH", "ROUND_OVER", "MATCH_REPORT"]
+
+# Hide these message types. A type that is in `types` and here is hidden.
+# `--exclude` on the command line replaces this list.
+# exclude = ["PLAYER_STATS"]
+
+# --- kept by ql_rcon -----------------------------------------------------------------------------------------------
+# The tables below are written by ql_rcon when a session uses this file: what the server reports (commands, cvars,
+# maps, flags of the cvars, usages and ranges) for the completion. You do not have to create them; you may edit them,
+# comments and the order of your own keys stay as they are.
+#
+# [completions]
+# names = ["addbot", "sv_maxclients"]  # commands and cvars, from cmdlist and cvarlist
+# maps = ["aerowalk", "campgrounds"]   # from `dir maps .bsp`
+# factories = ["ca", "ctf", "ffa"]     # from the map command
+# latched = ["bot_enable"]             # cvars that change only after a restart
+# read_only = ["sv_cheats"]            # cvars that cannot be set at runtime
+#
+# [flags]
+# sv_hostname = "SA"                   # flag letters of cvarlist, noted next to the name in the menu
+#
+# [usages]
+# kick = "kick <player name>"          # the `usage:` line of a command
+#
+# [cvars.sv_maxclients]                # from the answer to a cvar query
+# default = "8"
+# minimum = ""
+# maximum = ""

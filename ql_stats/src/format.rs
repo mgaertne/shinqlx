@@ -1,6 +1,4 @@
 //! Turns the stats messages of the server into the lines `ql_stats` prints.
-use std::io::{IsTerminal, stdout};
-
 use clap::ValueEnum;
 use ql_zmq::quake_colors::{ql_rgb, split_ql_colors};
 use serde_json::Value;
@@ -16,25 +14,6 @@ pub(crate) enum OutputFormat {
     Pretty,
     /// One readable line for the common event types, compact json for the others.
     Summary,
-}
-
-/// When the output is colored.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum ColorChoice {
-    /// Only when the output goes to a terminal and `NO_COLOR` is not set.
-    Auto,
-    Always,
-    Never,
-}
-
-impl ColorChoice {
-    pub(crate) fn enabled(self) -> bool {
-        match self {
-            Self::Always => true,
-            Self::Never => false,
-            Self::Auto => stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -286,7 +265,7 @@ fn write_container(
 mod format_tests {
     use clap::Parser;
 
-    use super::{ColorChoice, Renderer};
+    use super::Renderer;
     use crate::cmd_line::CommandLineOptions;
 
     fn renderer(extra: &[&str], color: bool) -> Renderer {
@@ -527,11 +506,5 @@ mod format_tests {
                 "{\x1b[36m\"a\"\x1b[0m:\x1b[32m\"x\"\x1b[0m,\x1b[36m\"b\"\x1b[0m:\x1b[33m1\x1b[0m,\x1b[36m\"c\"\x1b[0m:\x1b[35mnull\x1b[0m}"
             )
         );
-    }
-
-    #[test]
-    fn color_choice_can_be_forced() {
-        assert!(ColorChoice::Always.enabled());
-        assert!(!ColorChoice::Never.enabled());
     }
 }

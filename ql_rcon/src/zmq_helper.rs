@@ -327,7 +327,7 @@ mod zmq_helper_tests {
 
     use anyhow::Result;
     use arzmq::prelude::{ContextBuilder, RouterSocket, Socket};
-    use termcolor::ColorChoice;
+    use ql_zmq::ColorChoice;
     use tokio::{
         sync::mpsc::{UnboundedReceiver, unbounded_channel},
         time::{sleep, timeout},
@@ -702,6 +702,7 @@ mod zmq_helper_tests {
                 identity: "tester".to_string(),
                 color: ColorChoice::Never,
                 fetch_completions: false,
+                timestamp: false,
                 profile: None,
             },
             zmq_receiver,
