@@ -109,7 +109,7 @@ command is longer than ``qlx_scoreboardBudget`` bytes. It works in steps and sto
 5. Rows are dropped from the bottom of the larger team, one after the other, down to ``qlx_scoreboardMinPerTeam``.
 
 The row of the player who gets the scoreboard always stays. The number of rows in the header is adjusted, the scores of
-the teams in the header are not touched. Only ``scores_ca`` is known so far; other scoreboards are sent unchanged. The
+the teams in the header are not touched. The trim knows ``scores_ca``, ``scores_tdm``, ``scores_ctf``, ``scores_ft``, ``scores_ffa`` and ``scores_rr``. In ``scores_ffa`` and ``scores_rr`` there are no teams: all rows count as one group, in the order the game sorted them, and ``qlx_scoreboardFullPerTeam`` and the other limits apply to that group. ``scores_duel`` and ``scores_ad`` cannot get long and are sent unchanged. The
 ``server_command`` event sees the scoreboard before it is cut back.
 
 .. list-table::

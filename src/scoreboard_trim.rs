@@ -17,11 +17,57 @@ pub(crate) const LIGHT_CVAR: &str = "qlx_scoreboardLightPerTeam";
 /// The cvar for the ranks per team that stay even if the scoreboard is still too long.
 pub(crate) const MIN_CVAR: &str = "qlx_scoreboardMinPerTeam";
 
-/// The scoreboard commands that are known: name, fields before the rows, fields per row.
+/// The format of a scoreboard command.
 ///
-/// The first field of the header is the number of rows. A row starts with the client number and the team
-/// (1 red, 2 blue, 3 spectator).
-const LAYOUTS: [(&str, usize, usize); 1] = [("scores_ca", 3, 16)];
+/// The number of rows is the third field from the end of the header. A row starts with the client number. In the
+/// team scoreboards the team follows (1 red, 2 blue, 3 spectator); in the others there is no team and the rows
+/// are in the order the game sorted them.
+struct Layout {
+    name: &'static str,
+    header: usize,
+    row_width: usize,
+    teams: bool,
+}
+
+/// The scoreboards that are known. `scores_duel` and `scores_ad` are not in the table: they cannot get long.
+const LAYOUTS: [Layout; 6] = [
+    Layout {
+        name: "scores_ca",
+        header: 3,
+        row_width: 16,
+        teams: true,
+    },
+    Layout {
+        name: "scores_tdm",
+        header: 31,
+        row_width: 15,
+        teams: true,
+    },
+    Layout {
+        name: "scores_ctf",
+        header: 37,
+        row_width: 17,
+        teams: true,
+    },
+    Layout {
+        name: "scores_ft",
+        header: 31,
+        row_width: 17,
+        teams: true,
+    },
+    Layout {
+        name: "scores_ffa",
+        header: 3,
+        row_width: 18,
+        teams: false,
+    },
+    Layout {
+        name: "scores_rr",
+        header: 3,
+        row_width: 19,
+        teams: false,
+    },
+];
 
 /// The values of the cvars.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,6 +161,7 @@ struct Row<'a> {
     team_number: &'a str,
     rank: usize,
     own: bool,
+    first_value: usize,
 }
 
 impl Row<'_> {
@@ -123,16 +170,22 @@ impl Row<'_> {
         self.fields
             .iter_mut()
             .take(last)
-            .skip(2)
+            .skip(self.first_value)
             .for_each(|field| *field = "0");
     }
 }
 
-fn render(name: &str, head: &[&str], rows: &[Row<'_>]) -> String {
+fn render(layout: &Layout, head: &[&str], rows: &[Row<'_>]) -> String {
     let count = rows.len().to_string();
-    core::iter::once(name)
-        .chain(core::iter::once(count.as_str()))
-        .chain(head.iter().skip(1).copied())
+    let count_index = layout.header - 3;
+    core::iter::once(layout.name)
+        .chain(head.iter().enumerate().map(|(index, field)| {
+            if index == count_index {
+                count.as_str()
+            } else {
+                field
+            }
+        }))
         .chain(rows.iter().flat_map(|row| row.fields.iter().copied()))
         .collect::<Vec<&str>>()
         .join(" ")
@@ -192,47 +245,46 @@ pub(crate) fn trim(command: &str, client_id: i32, settings: TrimSettings) -> Opt
 
     let mut words = command.split(' ');
     let name = words.next()?;
-    let (_, header, row_width) = LAYOUTS.iter().find(|(known, ..)| *known == name)?;
+    let layout = LAYOUTS.iter().find(|layout| layout.name == name)?;
     let rest: Vec<&str> = words.collect();
-    let count: usize = rest.first()?.parse().ok()?;
-    if rest.len() != header + count * row_width {
+    let count: usize = rest.get(layout.header - 3)?.parse().ok()?;
+    if rest.len() != layout.header + count * layout.row_width {
         return None;
     }
 
-    let (head, body) = rest.split_at(*header);
+    let (head, body) = rest.split_at(layout.header);
     let own_number = client_id.to_string();
-    let mut ranks = [0_usize; 2];
-    let mut spectator_rank = 0;
+    let mut ranks = [0_usize; 3];
     let mut rows: Vec<Row<'_>> = body
-        .chunks(*row_width)
+        .chunks(layout.row_width)
         .map(|fields| {
-            let team_number = fields[1];
-            let (team, rank) = match team_number {
-                "1" | "2" => {
-                    let slot = usize::from(team_number == "2");
-                    ranks[slot] += 1;
-                    (Team::Playing, ranks[slot] - 1)
-                }
-                "3" => {
-                    spectator_rank += 1;
-                    (Team::Spectator, spectator_rank - 1)
-                }
+            let team_number = if layout.teams { fields[1] } else { "0" };
+            let (team, slot) = match team_number {
+                "0" => (Team::Playing, 0),
+                "1" => (Team::Playing, 1),
+                "2" => (Team::Playing, 2),
+                "3" => (Team::Spectator, 0),
                 _ => (Team::Other, 0),
             };
+            let rank = ranks[slot];
+            if team != Team::Other {
+                ranks[slot] += 1;
+            }
             Row {
                 fields: fields.to_vec(),
                 team,
                 team_number,
                 rank,
                 own: fields[0] == own_number,
+                first_value: if layout.teams { 2 } else { 1 },
             }
         })
         .collect();
 
-    let fits = |rows: &[Row<'_>]| render(name, head, rows).len() <= settings.budget;
+    let fits = |rows: &[Row<'_>]| render(layout, head, rows).len() <= settings.budget;
     let finish = |rows: &[Row<'_>], tier: Tier| {
         TRIM_COUNTERS.cut[tier.index()].fetch_add(1, Ordering::Relaxed);
-        Some(render(name, head, rows))
+        Some(render(layout, head, rows))
     };
 
     rows.iter_mut()
@@ -261,7 +313,7 @@ pub(crate) fn trim(command: &str, client_id: i32, settings: TrimSettings) -> Opt
     }
 
     while !fits(&rows) {
-        let droppable = ["1", "2"]
+        let droppable = ["0", "1", "2"]
             .into_iter()
             .map(|number| {
                 rows.iter()
@@ -444,6 +496,75 @@ mod scoreboard_trim_tests {
         let (cut, longest) = TRIM_COUNTERS.snapshot();
         assert_eq!(cut[Tier::TeamsCutToMinimum as usize], 1);
         assert_eq!(longest, command.len() as u64);
+    }
+
+    fn tdm_scoreboard(players: usize) -> String {
+        let header = (0..31)
+            .map(|index| match index {
+                28 => players.to_string(),
+                _ => "0".to_owned(),
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let rows = (0..players)
+            .map(|client| format!("{client} {} 5 0 0 5 1 23 5 0 2 0 0 0 467", 1 + client % 2))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("scores_tdm {header} {rows}")
+    }
+
+    #[test]
+    #[serial]
+    fn a_header_with_the_count_in_the_middle_is_adjusted() {
+        let command = tdm_scoreboard(28);
+        let settings = TrimSettings {
+            budget: command.len() - 100,
+            ..TIGHT
+        };
+
+        let trimmed = trim(&command, 0, settings).expect("the scoreboard should be cut");
+
+        let words: Vec<&str> = trimmed.split(' ').collect();
+        let count: usize = words[1 + 28].parse().expect("the count should be a number");
+        assert!(count < 28);
+        assert_eq!(words.len(), 1 + 31 + count * 15);
+        assert_eq!(words[1 + 29], "0");
+    }
+
+    #[test]
+    #[serial]
+    fn scoreboards_without_teams_are_cut_by_their_order() {
+        let rows = (0..24)
+            .map(|client| {
+                format!(
+                    "{client} {} 0 0 61 0 4 0 0 0 0 0 0 8 2 6 66 695",
+                    30 - client
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        let command = format!("scores_ffa 24 0 0 {rows}");
+        let settings = TrimSettings {
+            budget: 300,
+            min_per_team: 3,
+            ..TIGHT
+        };
+
+        let trimmed = trim(&command, 20, settings).expect("the scoreboard should be cut");
+
+        let words: Vec<&str> = trimmed.split(' ').collect();
+        let count: usize = words[1].parse().expect("the count should be a number");
+        assert_eq!(words.len(), 4 + count * 18);
+        assert!(trimmed.len() <= 300);
+        assert!(trimmed.contains(" 20 10 0 0 61 "));
+        assert!(trimmed.contains("scores_ffa"));
+    }
+
+    #[test]
+    fn scoreboards_that_cannot_get_long_are_not_touched() {
+        let long = format!("scores_duel {}", "0 ".repeat(600));
+
+        assert_eq!(trim(&long, 0, TIGHT), None);
     }
 
     #[test]

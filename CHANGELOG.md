@@ -6,13 +6,12 @@ Changes since 0.8.0.
 
 ### shinqlx
 
-* **Scoreboard trim for `scores_ca`:** the engine throws away a server command of 1023 bytes or more, and the game then
+* **Scoreboard trim for `scores_ca`, `scores_tdm`, `scores_ctf`, `scores_ft`, `scores_ffa` and `scores_rr`:** the engine throws away a server command of 1023 bytes or more, and the game then
   sends a stub without players. With many players the trim cuts the scoreboard back in steps (values of spectators and
   of the ranks beyond `qlx_scoreboardFullPerTeam` set to zero, ranks beyond `qlx_scoreboardLightPerTeam` and spectators
   dropped, finally rows from the larger team down to `qlx_scoreboardMinPerTeam`), only as far as the whole command
   needs to fit `qlx_scoreboardBudget` (default 1000 bytes). The row of the player who gets the scoreboard always
-  stays. `qlx_scoreboardTrim 0` switches it off, the console command `scoreboard` shows the counters. Other
-  scoreboards (`scores_tdm`, `scores_ctf`, ...) are not known yet and sent unchanged.
+  stays. `qlx_scoreboardTrim 0` switches it off, the console command `scoreboard` shows the counters. In `ffa` and `rr`, which have no teams, all rows count as one group.
 * **Reliable guard against "a reliable command was cycled out":** the engine keeps 64 reliable commands per client,
   and at the end of a match with 20 or more players the burst of `castats`, scoreboard, print and chat commands can
   run the ring over. The guard holds back `castats`, `print`, `chat`, `tchat`, `cp` and `scores*` for a client whose
