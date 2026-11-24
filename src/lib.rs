@@ -78,6 +78,7 @@ mod quake_live_engine;
     reason = "the variants of the module are the C symbol names of the engine functions"
 )]
 pub mod quake_live_functions;
+mod reliable_guard;
 
 pub(crate) mod prelude {
     pub(crate) use alloc::format;

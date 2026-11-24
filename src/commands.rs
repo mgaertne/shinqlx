@@ -9,8 +9,10 @@ use crate::{
         c::prelude::*,
         python::{is_false, prelude::*},
     },
+    hooks::guard_settings,
     prelude::*,
     quake_live_engine::{CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand},
+    reliable_guard::RELIABLE_GUARD,
 };
 
 #[unsafe(no_mangle)]
@@ -295,6 +297,40 @@ pub extern "C" fn cmd_restart_python() {
             }
             _ => (),
         }
+    });
+}
+
+/// Prints the counters of the reliable guard, or resets them with the argument `reset`.
+#[unsafe(no_mangle)]
+pub extern "C" fn cmd_reliable_guard() {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        if main_engine
+            .cmd_args()
+            .is_some_and(|args| args.trim().eq_ignore_ascii_case("reset"))
+        {
+            RELIABLE_GUARD.reset_stats();
+            main_engine.com_printf("Reliable guard counters reset.\n");
+            return;
+        }
+
+        let stats = RELIABLE_GUARD.stats();
+        let settings = guard_settings();
+        main_engine.com_printf(&format!(
+            "Reliable guard: {} (watermark {}, burst {}, global burst {})\nheld {}, released {}, passed through {}, forced {}, peak backlog {} of {}, peak queue {}, commands at ring size {}, held by the global limit {}\n",
+            if settings.enabled { "on" } else { "off" },
+            settings.watermark,
+            settings.burst,
+            settings.global_burst,
+            stats.held,
+            stats.released,
+            stats.passed_through,
+            stats.forced,
+            stats.peak_backlog,
+            settings.ring,
+            stats.peak_queue,
+            stats.at_ring,
+            stats.held_by_global,
+        ));
     });
 }
 

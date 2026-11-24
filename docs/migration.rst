@@ -213,6 +213,10 @@ Commands and hooks
 * The ``frame``, ``server_command``, ``set_configstring``, ``console_print`` and ``damage`` events are only dispatched
   if a hook is registered. Plugins notice nothing, the server saves the work.
 * Tasks queued with :func:`next_frame` are also taken over if the dispatch of the frame raised an exception.
+* While a client has many unacknowledged commands, shinqlx delays ``print``, ``chat``, ``tchat``, ``cp``, ``castats``
+  and the scoreboards for that client over a few frames (the :ref:`reliable guard <reliable_commands>`). The
+  ``server_command`` event is not affected, but a message can arrive a few frames later and after a command that is not
+  delayed. ``qlx_reliableGuard 0`` switches this off.
 * :meth:`Plugin.get_cvar` returns an empty list, set or tuple for a cvar with an empty value. minqlx returned a
   collection with one empty string. Like minqlx, it removes the whitespace around each item, so ``"2, 4"`` gives
   ``["2", "4"]``.

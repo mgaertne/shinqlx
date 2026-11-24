@@ -63,6 +63,7 @@ Indices and tables
    native_plugins
    examples
    logging
+   reliable_commands
    migration
    shinqlx
    enums

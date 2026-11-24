@@ -6,6 +6,17 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **Reliable guard against "a reliable command was cycled out":** the engine keeps 64 reliable commands per client,
+  and at the end of a match with 20 or more players the burst of `castats`, scoreboard, print and chat commands can
+  run the ring over. The guard holds back `castats`, `print`, `chat`, `tchat`, `cp` and `scores*` for a client whose
+  ring is filling up (`qlx_reliableWatermark`, default 32), hands them out again over the following frames
+  (`qlx_reliableBurst` per client, default 8, and `qlx_reliableGlobalBurst` for all clients together, default 64) and
+  never drops one: a command that waited 40 frames goes out regardless, and with 128 commands waiting for a client
+  further ones are sent straight through. Everything else, configstrings included, is sent immediately.
+  `qlx_reliableGuard 0` switches it off, `qlx_reliableRing` lowers the assumed ring size for test rigs. The console
+  command `reliable` shows the counters, `reliable reset` clears them. See the new page "Reliable commands" in the
+  documentation. In the test rig with 48 bots and a ring of 16
+  the guard cut the commands that arrive at a full ring from about 4000 to about 900 without losing any.
 * **New cvar `qlx_noDebugEvents`** lists the events that do not write a `debug` line to `shinqlx.log`. It replaces the
   built-in list (`frame`, `set_configstring`, `stats`, `server_command`, `death`, `kill`, `command`, `console_print`,
   `damage`, plus the new `cvar_changed`, `item_touch` and `weapon_fired`); an empty value logs all events.

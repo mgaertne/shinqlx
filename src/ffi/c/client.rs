@@ -80,6 +80,14 @@ impl<'a> Client<'a> {
         !self.client_t.gentity.is_null()
     }
 
+    /// The reliable commands that the client has not acknowledged yet.
+    #[cfg_attr(test, allow(dead_code, reason = "tests use the mocked client instead"))]
+    pub(crate) fn get_reliable_backlog(&self) -> i32 {
+        self.client_t
+            .reliableSequence
+            .wrapping_sub(self.client_t.reliableAcknowledge)
+    }
+
     pub(crate) fn disconnect<T>(&mut self, reason: T)
     where
         T: AsRef<str>,
@@ -125,6 +133,7 @@ mod client_mock {
         pub(crate) Client {
             pub(crate) fn get_name(&self) -> Cow<'_, str>;
             pub(crate) fn has_gentity(&self) -> bool;
+            pub(crate) fn get_reliable_backlog(&self) -> i32;
             pub(crate) fn get_client_id(&self) -> i32;
             pub(crate) fn get_state(&self) -> clientState_t;
             pub(crate) fn disconnect(&mut self, reason: &str);

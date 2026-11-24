@@ -5,7 +5,7 @@ use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
     hint::cold_path,
-    sync::atomic::{AtomicBool, AtomicI32, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use std::{sync::LazyLock, time::Instant};
@@ -28,6 +28,10 @@ use crate::{
         ExecuteClientCommand, FindCVar, FireWeaponOriginal, InitGame, RegisterDamage, RunFrame,
         SendServerCommand, SetConfigstring, SetCvarUndetected, SetModuleOffset, ShutdownGame,
         SpawnServer, TouchItem,
+    },
+    reliable_guard::{
+        BURST_CVAR, GLOBAL_BURST_CVAR, GUARD_CVAR, GuardSettings, RELIABLE_GUARD, RING_CVAR,
+        Verdict, WATERMARK_CVAR,
     },
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
@@ -273,6 +277,17 @@ where
                 return;
             };
             passed_on_cmd_str = res;
+
+            if !passed_on_cmd_str.is_empty()
+                && RELIABLE_GUARD.submit(
+                    client_id,
+                    &passed_on_cmd_str,
+                    safe_client.get_reliable_backlog(),
+                    guard_settings(),
+                ) == Verdict::Held
+            {
+                return;
+            }
         }
         None => {
             let Some(res) = server_command_dispatcher(None, cmd.as_ref()) else {
@@ -701,11 +716,102 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
         }
 
         report_objectives(main_engine);
+        release_held_commands(main_engine);
 
         frame_dispatcher();
 
         main_engine.run_frame(time);
     });
+}
+
+static GUARD_ENABLED: AtomicBool = AtomicBool::new(GuardSettings::DEFAULT.enabled);
+static GUARD_WATERMARK: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.watermark);
+static GUARD_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.burst as i32);
+static GUARD_RING: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.ring);
+static GUARD_GLOBAL_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.global_burst as i32);
+static GUARD_FRAMES: AtomicU32 = AtomicU32::new(1);
+
+/// The frames between two reads of the cvars of the reliable guard.
+const GUARD_REFRESH_FRAMES: u32 = 40;
+
+pub(crate) fn guard_settings() -> GuardSettings {
+    GuardSettings::from_values(
+        i32::from(GUARD_ENABLED.load(Ordering::Relaxed)),
+        GUARD_WATERMARK.load(Ordering::Relaxed),
+        GUARD_BURST.load(Ordering::Relaxed),
+        GUARD_RING.load(Ordering::Relaxed),
+        GUARD_GLOBAL_BURST.load(Ordering::Relaxed),
+    )
+}
+
+fn refresh_guard_settings(main_engine: &QuakeLiveEngine) {
+    if !GUARD_FRAMES
+        .fetch_add(1, Ordering::Relaxed)
+        .is_multiple_of(GUARD_REFRESH_FRAMES)
+    {
+        return;
+    }
+
+    let value_of = |name: &'static str, default: i32| {
+        main_engine
+            .find_cvar(name)
+            .map_or(default, |cvar| cvar.get_integer())
+    };
+    let settings = GuardSettings::from_values(
+        value_of(GUARD_CVAR, i32::from(GuardSettings::DEFAULT.enabled)),
+        value_of(WATERMARK_CVAR, GuardSettings::DEFAULT.watermark),
+        value_of(BURST_CVAR, GuardSettings::DEFAULT.burst as i32),
+        value_of(RING_CVAR, GuardSettings::DEFAULT.ring),
+        value_of(
+            GLOBAL_BURST_CVAR,
+            GuardSettings::DEFAULT.global_burst as i32,
+        ),
+    );
+    GUARD_ENABLED.store(settings.enabled, Ordering::Relaxed);
+    GUARD_WATERMARK.store(settings.watermark, Ordering::Relaxed);
+    GUARD_BURST.store(settings.burst as i32, Ordering::Relaxed);
+    GUARD_RING.store(settings.ring, Ordering::Relaxed);
+    GUARD_GLOBAL_BURST.store(settings.global_burst as i32, Ordering::Relaxed);
+}
+
+/// Hands the commands that the guard held back to the clients whose ring has room again.
+#[cfg_attr(
+    test,
+    allow(
+        irrefutable_let_patterns,
+        clippy::unnecessary_fallible_conversions,
+        reason = "the mocked client converts infallibly"
+    )
+)]
+fn release_held_commands(main_engine: &QuakeLiveEngine) {
+    refresh_guard_settings(main_engine);
+    RELIABLE_GUARD.begin_frame();
+    if !RELIABLE_GUARD.has_waiting() {
+        return;
+    }
+
+    let settings = guard_settings();
+    let clients = main_engine.get_max_clients().min(MAX_CLIENTS as i32);
+    let start = RELIABLE_GUARD.rotation_start(clients);
+    (0..clients)
+        .map(|offset| (start + offset) % clients)
+        .for_each(|client_id| {
+            let active_client = Client::try_from(client_id).ok().filter(|client| {
+                client.has_gentity() && client.get_state() == clientState_t::CS_ACTIVE
+            });
+            let Some(client) = active_client else {
+                RELIABLE_GUARD.clear(client_id);
+                return;
+            };
+
+            let released =
+                RELIABLE_GUARD.release(client_id, client.get_reliable_backlog(), settings);
+            released.iter().for_each(|command| {
+                if let Ok(client) = Client::try_from(client_id) {
+                    main_engine.send_server_command(Some(client), command);
+                }
+            });
+        });
 }
 
 const OBJECTIVE_KINDS: [&str; 6] = [
@@ -1363,8 +1469,8 @@ mod hooks_tests {
     use tap::Conv;
 
     use super::{
-        QUERY_DROP_RULES_REFRESHED_MS, QUERY_GATE, QUERY_RULES_GATE, ShiNQlx_Com_Printf,
-        ShiNQlx_SV_SendServerCommand, SteamPacketBuffer, grown_objectives,
+        GuardSettings, QUERY_DROP_RULES_REFRESHED_MS, QUERY_GATE, QUERY_RULES_GATE, RELIABLE_GUARD,
+        ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, SteamPacketBuffer, grown_objectives,
         reset_objective_tracking, shinqlx_client_connect, shinqlx_client_spawn,
         shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf, shinqlx_drop_client,
         shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
@@ -1873,6 +1979,10 @@ mod hooks_tests {
         let mut mock_client = MockClient::new();
         mock_client.expect_has_gentity().return_const(true).times(1);
         mock_client.expect_get_client_id().return_const(42).times(1);
+        mock_client
+            .expect_get_reliable_backlog()
+            .return_const(0)
+            .times(1);
 
         server_command_dispatcher_ctx
             .expect()
@@ -1884,6 +1994,64 @@ mod hooks_tests {
             .with_send_server_command(|client, cmd| client.is_some() && cmd == "cp modified", 1)
             .run(|| {
                 shinqlx_send_server_command(Some(mock_client), "cp asdf");
+            });
+    }
+
+    #[rstest]
+    #[serial]
+    fn send_server_command_holds_back_low_priority_command_for_a_full_ring(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
+        RELIABLE_GUARD.clear(41);
+        let mut mock_client = MockClient::new();
+        mock_client.expect_has_gentity().return_const(true).times(1);
+        mock_client.expect_get_client_id().return_const(41).times(1);
+        mock_client
+            .expect_get_reliable_backlog()
+            .return_const(60)
+            .times(1);
+
+        server_command_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(Some(41)), predicate::eq("castats 0"))
+            .return_const(Some("castats 0".into()))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 0)
+            .run(|| {
+                shinqlx_send_server_command(Some(mock_client), "castats 0");
+            });
+
+        assert_eq!(
+            RELIABLE_GUARD.release(41, 0, GuardSettings::DEFAULT),
+            ["castats 0"]
+        );
+    }
+
+    #[rstest]
+    #[serial]
+    fn send_server_command_sends_important_command_even_for_a_full_ring(
+        server_command_dispatcher_ctx: __server_command_dispatcher::Context,
+    ) {
+        let mut mock_client = MockClient::new();
+        mock_client.expect_has_gentity().return_const(true).times(1);
+        mock_client.expect_get_client_id().return_const(40).times(1);
+        mock_client
+            .expect_get_reliable_backlog()
+            .return_const(63)
+            .times(1);
+
+        server_command_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(Some(40)), predicate::eq("cs 3 \"x\""))
+            .return_const(Some("cs 3 \"x\"".into()))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_send_server_command(|client, cmd| client.is_some() && cmd == "cs 3 \"x\"", 1)
+            .run(|| {
+                shinqlx_send_server_command(Some(mock_client), "cs 3 \"x\"");
             });
     }
 
