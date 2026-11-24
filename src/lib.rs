@@ -79,6 +79,7 @@ mod quake_live_engine;
 )]
 pub mod quake_live_functions;
 mod reliable_guard;
+mod scoreboard_trim;
 
 pub(crate) mod prelude {
     pub(crate) use alloc::format;

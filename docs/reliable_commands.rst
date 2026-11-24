@@ -1,8 +1,8 @@
 .. _reliable_commands:
 
-*******************
-Reliable commands
-*******************
+*********************************
+Reliable commands and scoreboards
+*********************************
 
 The server sends texts and statistics to a client as *reliable commands*: ``print``, ``chat``, ``tchat``, ``cp``, the
 scoreboards (``scores_ca`` and the like) and, at the end of a Clan Arena match, one ``castats`` command per player. The
@@ -90,6 +90,59 @@ Console command ``reliable``
 * ``commands at ring size``: commands that were sent to a client whose backlog had reached ``qlx_reliableRing``.
   With a ring of 64 each of them was close to costing the client its connection.
 * ``held by the global limit``: commands that waited because ``qlx_reliableGlobalBurst`` was used up.
+
+Team scoreboards
+================
+
+The engine throws away a server command of 1023 bytes or more without a message. The game builds a team scoreboard
+(``scores_ca``) from the rows of all players and only counts the rows against its own limit, not the header, so with
+about 20 to 25 players a scoreboard can still be too long for the engine. The game then sends a stub that shows no
+players. The client can only show 8 players per team anyway.
+
+The scoreboard trim cuts a scoreboard back before it is sent, only as far as it needs to, and only if the whole
+command is longer than ``qlx_scoreboardBudget`` bytes. It works in steps and stops as soon as the scoreboard fits:
+
+1. The values of spectators are set to zero.
+2. The values of ranks beyond ``qlx_scoreboardFullPerTeam`` of each team are set to zero.
+3. Ranks beyond ``qlx_scoreboardLightPerTeam`` of each team are dropped.
+4. Spectator rows are dropped.
+5. Rows are dropped from the bottom of the larger team, one after the other, down to ``qlx_scoreboardMinPerTeam``.
+
+The row of the player who gets the scoreboard always stays. The number of rows in the header is adjusted, the scores of
+the teams in the header are not touched. Only ``scores_ca`` is known so far; other scoreboards are sent unchanged. The
+``server_command`` event sees the scoreboard before it is cut back.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 32 12 14 42
+
+   * - Cvar
+     - Default
+     - Range
+     - Meaning
+   * - ``qlx_scoreboardTrim``
+     - ``1``
+     -
+     - ``0`` switches the trim off.
+   * - ``qlx_scoreboardBudget``
+     - ``1000``
+     - 200 to 1022
+     - Size in bytes of the whole command from which it is cut back.
+   * - ``qlx_scoreboardFullPerTeam``
+     - ``8``
+     - 1 to 32
+     - Ranks per team that keep their values.
+   * - ``qlx_scoreboardLightPerTeam``
+     - ``12``
+     - full to 64
+     - Ranks per team that stay, with their values set to zero.
+   * - ``qlx_scoreboardMinPerTeam``
+     - ``4``
+     - 1 to 16
+     - Ranks per team that stay in the last step.
+
+The console command ``scoreboard`` shows the settings, the longest scoreboard seen and how often each step was the last
+one that was needed. ``scoreboard reset`` clears the counters.
 
 Statistics on the scoreboard
 ============================

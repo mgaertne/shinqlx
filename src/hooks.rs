@@ -33,6 +33,9 @@ use crate::{
         BURST_CVAR, GLOBAL_BURST_CVAR, GUARD_CVAR, GuardSettings, RELIABLE_GUARD, RING_CVAR,
         Verdict, WATERMARK_CVAR,
     },
+    scoreboard_trim::{
+        BUDGET_CVAR, FULL_CVAR, LIGHT_CVAR, MIN_CVAR, TRIM_CVAR, TrimSettings, trim,
+    },
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use crate::{
@@ -277,6 +280,12 @@ where
                 return;
             };
             passed_on_cmd_str = res;
+
+            if passed_on_cmd_str.starts_with("scores_")
+                && let Some(trimmed) = trim(&passed_on_cmd_str, client_id, trim_settings())
+            {
+                passed_on_cmd_str = Cow::Owned(trimmed);
+            }
 
             if !passed_on_cmd_str.is_empty()
                 && RELIABLE_GUARD.submit(
@@ -731,6 +740,46 @@ static GUARD_RING: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.ring);
 static GUARD_GLOBAL_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.global_burst as i32);
 static GUARD_FRAMES: AtomicU32 = AtomicU32::new(1);
 
+static TRIM_ENABLED: AtomicBool = AtomicBool::new(TrimSettings::DEFAULT.enabled);
+static TRIM_BUDGET: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.budget as i32);
+static TRIM_FULL: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.full_per_team as i32);
+static TRIM_LIGHT: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.light_per_team as i32);
+static TRIM_MIN: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.min_per_team as i32);
+
+pub(crate) fn trim_settings() -> TrimSettings {
+    TrimSettings::from_values(
+        i32::from(TRIM_ENABLED.load(Ordering::Relaxed)),
+        TRIM_BUDGET.load(Ordering::Relaxed),
+        TRIM_FULL.load(Ordering::Relaxed),
+        TRIM_LIGHT.load(Ordering::Relaxed),
+        TRIM_MIN.load(Ordering::Relaxed),
+    )
+}
+
+fn refresh_trim_settings(main_engine: &QuakeLiveEngine) {
+    let value_of = |name: &'static str, default: usize| {
+        main_engine
+            .find_cvar(name)
+            .map_or(default as i32, |cvar| cvar.get_integer())
+    };
+    let settings = TrimSettings::from_values(
+        i32::from(
+            main_engine
+                .find_cvar(TRIM_CVAR)
+                .is_none_or(|cvar| cvar.get_integer() != 0),
+        ),
+        value_of(BUDGET_CVAR, TrimSettings::DEFAULT.budget),
+        value_of(FULL_CVAR, TrimSettings::DEFAULT.full_per_team),
+        value_of(LIGHT_CVAR, TrimSettings::DEFAULT.light_per_team),
+        value_of(MIN_CVAR, TrimSettings::DEFAULT.min_per_team),
+    );
+    TRIM_ENABLED.store(settings.enabled, Ordering::Relaxed);
+    TRIM_BUDGET.store(settings.budget as i32, Ordering::Relaxed);
+    TRIM_FULL.store(settings.full_per_team as i32, Ordering::Relaxed);
+    TRIM_LIGHT.store(settings.light_per_team as i32, Ordering::Relaxed);
+    TRIM_MIN.store(settings.min_per_team as i32, Ordering::Relaxed);
+}
+
 /// The frames between two reads of the cvars of the reliable guard.
 const GUARD_REFRESH_FRAMES: u32 = 40;
 
@@ -752,6 +801,7 @@ fn refresh_guard_settings(main_engine: &QuakeLiveEngine) {
         return;
     }
 
+    refresh_trim_settings(main_engine);
     let value_of = |name: &'static str, default: i32| {
         main_engine
             .find_cvar(name)

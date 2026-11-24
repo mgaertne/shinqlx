@@ -33,7 +33,7 @@ use crate::quake_live_functions::pattern_search_module;
 use crate::{
     commands::{
         cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_reliable_guard,
-        cmd_restart_python, cmd_send_server_command, cmd_slap, cmd_slay,
+        cmd_restart_python, cmd_scoreboard_trim, cmd_send_server_command, cmd_slap, cmd_slay,
     },
     ffi::{c::prelude::*, python::prelude::*},
     hooks::{
@@ -1528,6 +1528,7 @@ impl QuakeLiveEngine {
         self.add_command("pycmd", cmd_py_command);
         self.add_command("pyrestart", cmd_restart_python);
         self.add_command("reliable", cmd_reliable_guard);
+        self.add_command("scoreboard", cmd_scoreboard_trim);
 
         pyshinqlx_initialize().map_err(|err| {
             cold_path();
@@ -2314,7 +2315,7 @@ mod quake_live_engine_tests {
     use crate::{
         commands::{
             cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_reliable_guard,
-            cmd_restart_python, cmd_send_server_command, cmd_slap, cmd_slay,
+            cmd_restart_python, cmd_scoreboard_trim, cmd_send_server_command, cmd_slap, cmd_slay,
         },
         ffi::{
             c::prelude::{CVarBuilder, cbufExec_t, client_t, cvar_t, qboolean, usercmd_t},
@@ -2608,6 +2609,15 @@ mod quake_live_engine_tests {
                     // SAFETY: the engine passes a valid, NUL-terminated C string.
                     && unsafe { CStr::from_ptr(cmd) } == c"reliable"
                     && ptr::fn_addr_eq(func, cmd_reliable_guard as extern "C" fn())
+            })
+            .times(1);
+        add_cmd_ctx
+            .expect()
+            .withf(|&cmd, &func| {
+                !cmd.is_null()
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
+                    && unsafe { CStr::from_ptr(cmd) } == c"scoreboard"
+                    && ptr::fn_addr_eq(func, cmd_scoreboard_trim as extern "C" fn())
             })
             .times(1);
 

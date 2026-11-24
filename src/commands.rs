@@ -9,10 +9,11 @@ use crate::{
         c::prelude::*,
         python::{is_false, prelude::*},
     },
-    hooks::guard_settings,
+    hooks::{guard_settings, trim_settings},
     prelude::*,
     quake_live_engine::{CmdArgc, CmdArgs, CmdArgv, ComPrintf, GameAddEvent, SendServerCommand},
     reliable_guard::RELIABLE_GUARD,
+    scoreboard_trim::{TRIM_COUNTERS, tier_names},
 };
 
 #[unsafe(no_mangle)]
@@ -330,6 +331,36 @@ pub extern "C" fn cmd_reliable_guard() {
             stats.peak_queue,
             stats.at_ring,
             stats.held_by_global,
+        ));
+    });
+}
+
+/// Prints how often the scoreboard trim cut a scoreboard, or resets the counters with the argument `reset`.
+#[unsafe(no_mangle)]
+pub extern "C" fn cmd_scoreboard_trim() {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        if main_engine
+            .cmd_args()
+            .is_some_and(|args| args.trim().eq_ignore_ascii_case("reset"))
+        {
+            TRIM_COUNTERS.reset();
+            main_engine.com_printf("Scoreboard trim counters reset.\n");
+            return;
+        }
+
+        let settings = trim_settings();
+        let (cut, longest) = TRIM_COUNTERS.snapshot();
+        let tiers = tier_names()
+            .zip(cut)
+            .map(|(name, count)| format!("  {count}x {name}\n"))
+            .collect::<String>();
+        main_engine.com_printf(&format!(
+            "Scoreboard trim: {} (budget {}, full {}, light {}, minimum {} per team)\nlongest scoreboard {longest} bytes, cut back so far:\n{tiers}",
+            if settings.enabled { "on" } else { "off" },
+            settings.budget,
+            settings.full_per_team,
+            settings.light_per_team,
+            settings.min_per_team,
         ));
     });
 }
