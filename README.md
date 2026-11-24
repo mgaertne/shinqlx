@@ -123,6 +123,7 @@ exec $basepath/run_server_shinqlx.sh \
 | `alloc`             | yes     | jemalloc (mimalloc on Windows) as global allocator                                |
 | `steam-query-limit` | yes     | rate limit for server queries against reflection and floods                       |
 | `patches`           | no      | enables `clientkick-fix`, `fps-patch`, `zmq-rcon-fix` and `steam-query-limit` |
+| `race-hooks`        | no      | race maps: touching a start point again keeps the run time, `target_init` triggers honour their KEEP* spawnflags, experimental |
 | `clientkick-fix`    | no      | patch for the callvote clientkick lookup in `qagame`, experimental                |
 | `fps-patch`         | no      | `qagame` registers `sv_fps` with 125 instead of the read-only 40      |
 | `zmq-rcon-fix`      | yes     | protects against dead RCON clients: drops the engine's "zmq RCON client disconnected" report and limits how long the engine waits for a client (`qlx_zmqRconSendTimeout`) |

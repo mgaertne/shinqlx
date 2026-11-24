@@ -6,6 +6,15 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **New opt-in feature `race-hooks` for race maps**, after the idea of the QLRace fork of
+  minqlx, but found by byte pattern instead of a fixed offset. After `G_InitGame` the touch function of the entities
+  `trigger_multiple` with the message `race_point` (with a `target` or `targetname`), `race_point` and
+  `trigger_multiple` with the message `target_init` is replaced: touching a start point a second time no longer
+  resets the run time (not for points without spawnflags and for `notr` points), the run time is kept in
+  `flagruntime`, and `target_init` resets armor, health, weapons, powerups and holdable item unless its spawnflag
+  keeps them (1 armor, 2 health, 4 weapons, 8 powerups, 16 holdable item, 32 removes the machine gun). Checked in the
+  test rig on `campgrounds`: the function is found at the same place as in the fork and 14 entities are replaced; the
+  behaviour with players on a race server is not tested yet.
 * **`hiredis` is optional.** `pip install shinqlx` no longer installs it; `pip install "shinqlx[hiredis]"` or
   `pip install hiredis` does, and `redis` then uses its C parser as before. Without it `redis` falls back to its own
   Python parser, which only matters for replies of about ten thousand entries and more (a third faster with
@@ -174,6 +183,9 @@ Changes since 0.8.0.
 
 ### Internal
 
+* The functions that walk over all entities (`dev_print_items`, `remove_dropped_items`, `force_weapon_respawn_time`,
+  `destroy_kamikaze_timers`, `replace_items` with a classname, and the targetting lookup of an entity) stop at the
+  number of entities that the level uses (`level.num_entities`, 204 on `campgrounds`) instead of all 1024 slots.
 * The criterion benchmarks of the event handlers run the dispatchers that the hooks call (`client_command_dispatcher`,
   `server_command_dispatcher`, `set_configstring_dispatcher`, `console_print_dispatcher`, `damage_dispatcher`,
   `frame_dispatcher`) instead of the `handle_*` Python functions, so they measure the path of the server. The benchmark

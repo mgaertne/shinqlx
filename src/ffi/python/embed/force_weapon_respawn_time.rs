@@ -3,7 +3,10 @@ use core::hint::cold_path;
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
 
-use crate::ffi::{c::prelude::*, python::prelude::*};
+use crate::ffi::{
+    c::{game_entity::entity_id_limit, prelude::*},
+    python::prelude::*,
+};
 
 /// Force all weapons to have a specified respawn time,
 /// overriding custom map respawn times set for them.
@@ -21,7 +24,7 @@ pub(crate) fn pyshinqlx_force_weapon_respawn_time(
             ));
         }
 
-        (0..MAX_GENTITIES)
+        (0..entity_id_limit())
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| game_entity.in_use() && game_entity.is_respawning_weapon())
             .for_each(|mut game_entity| game_entity.set_respawn_time(respawn_time));

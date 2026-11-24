@@ -129,6 +129,9 @@ pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart:
         main_engine.set_tag();
         main_engine.initialize_cvars();
 
+        #[cfg(all(target_os = "linux", feature = "race-hooks", not(test)))]
+        crate::fixes::race_touch::replace_race_touches();
+
         if restart != 0 {
             new_game_dispatcher(true);
         }

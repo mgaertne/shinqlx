@@ -4,7 +4,10 @@ use arrayvec::ArrayVec;
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
 
-use crate::ffi::{c::prelude::*, python::prelude::*};
+use crate::ffi::{
+    c::{game_entity::entity_id_limit, prelude::*},
+    python::prelude::*,
+};
 
 fn determine_item_id(item: &Bound<PyAny>) -> PyResult<i32> {
     match item.extract::<i32>() {
@@ -83,7 +86,7 @@ pub(crate) fn pyshinqlx_replace_items(
                 let mut matching_item1_entities: ArrayVec<
                     Box<GameEntity>,
                     { MAX_GENTITIES as usize },
-                > = (0..MAX_GENTITIES)
+                > = (0..entity_id_limit())
                     .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
                     .filter(|game_entity| {
                         game_entity.in_use()

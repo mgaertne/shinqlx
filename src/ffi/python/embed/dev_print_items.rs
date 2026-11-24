@@ -3,7 +3,7 @@ use tap::TryConv;
 
 use crate::{
     ffi::{
-        c::prelude::*,
+        c::{game_entity::entity_id_limit, prelude::*},
         python::{prelude::*, with_main_engine},
     },
     quake_live_engine::{ComPrintf, SendServerCommand},
@@ -14,7 +14,7 @@ use crate::{
 #[pyo3(name = "dev_print_items")]
 pub(crate) fn pyshinqlx_dev_print_items(py: Python<'_>) -> PyResult<()> {
     py.detach(|| {
-        let formatted_items: ArrayVec<String, { MAX_GENTITIES as usize }> = (0..MAX_GENTITIES)
+        let formatted_items: ArrayVec<String, { MAX_GENTITIES as usize }> = (0..entity_id_limit())
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.is_game_item(entityType_t::ET_ITEM)

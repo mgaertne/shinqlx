@@ -163,6 +163,8 @@ struct VmFunctions {
     g_run_frame_orig: AtomicUsize,
     #[cfg(feature = "clientkick-fix")]
     cmd_callvote_f_orig: AtomicUsize,
+    #[cfg(feature = "race-hooks")]
+    race_point_touch_orig: AtomicUsize,
 
     client_spawn_detour: ArcSwapOption<ClientSpawnDetourType>,
     client_connect_detour: ArcSwapOption<ClientConnectDetourType>,
@@ -248,6 +250,11 @@ impl VmFunctions {
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
                 #[cfg(feature = "clientkick-fix")]
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
+                #[cfg(feature = "race-hooks")]
+                (
+                    QuakeLiveFunction::RacePointTouch,
+                    &self.race_point_touch_orig,
+                ),
             ]
             .par_iter()
             .filter_map(
@@ -519,6 +526,8 @@ impl VmFunctions {
             &self.g_run_frame_orig,
             #[cfg(feature = "clientkick-fix")]
             &self.cmd_callvote_f_orig,
+            #[cfg(feature = "race-hooks")]
+            &self.race_point_touch_orig,
         ]
         .iter()
         .for_each(|field| {
@@ -609,6 +618,8 @@ mod vm_functions_tests {
             g_run_frame_orig: Default::default(),
             #[cfg(feature = "clientkick-fix")]
             cmd_callvote_f_orig: Default::default(),
+            #[cfg(feature = "race-hooks")]
+            race_point_touch_orig: Default::default(),
             client_spawn_detour: Default::default(),
             client_connect_detour: Default::default(),
             g_start_kamikaze_detour: Default::default(),
@@ -2120,6 +2131,41 @@ impl QuakeLiveEngine {
                     )
                 };
                 Ok(touch_item_func)
+            }
+        }
+    }
+
+    #[cfg(feature = "race-hooks")]
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
+    pub(crate) fn race_point_touch_orig(
+        &self,
+    ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>
+    {
+        match self
+            .vm_functions
+            .race_point_touch_orig
+            .load(Ordering::Acquire)
+        {
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::RacePointTouch,
+                ))
+            }
+            race_point_touch_orig => {
+                // SAFETY: the address was found in the engine and has the signature of the function type.
+                let race_point_touch_func = unsafe {
+                    function_at::<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>(
+                        race_point_touch_orig,
+                    )
+                };
+                Ok(race_point_touch_func)
             }
         }
     }
@@ -5978,6 +6024,10 @@ mockall::mock! {
             &self,
         ) -> Result<extern "C" fn(c_int, c_int, c_int), QuakeLiveEngineError>;
         pub(crate) fn touch_item_orig(
+            &self,
+        ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;
+        #[cfg(feature = "race-hooks")]
+        pub(crate) fn race_point_touch_orig(
             &self,
         ) -> Result<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t), QuakeLiveEngineError>;
         pub(crate) fn g_free_entity_orig(

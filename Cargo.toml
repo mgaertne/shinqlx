@@ -138,6 +138,8 @@ clientkick-fix = ["dep:region"]
 fps-patch = ["dep:region"]
 # drop the engine's report about a disconnected ZMQ RCON client, which crashes the server when several clients die at once
 zmq-rcon-fix = []
+# race maps: keep the run time on repeated touches and let target_init triggers honour their KEEP* spawnflags, experimental
+race-hooks = []
 # all patches and fixes
 patches = ["clientkick-fix", "fps-patch", "zmq-rcon-fix", "steam-query-limit"]
 # expose internals to the benchmarks, not meant for production builds

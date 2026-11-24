@@ -1,13 +1,16 @@
 use tap::TryConv;
 
-use crate::ffi::{c::prelude::*, python::prelude::*};
+use crate::ffi::{
+    c::{game_entity::entity_id_limit, prelude::*},
+    python::prelude::*,
+};
 
 /// Removes all dropped items.
 #[pyfunction]
 #[pyo3(name = "remove_dropped_items")]
 pub(crate) fn pyshinqlx_remove_dropped_items(py: Python<'_>) -> PyResult<bool> {
     py.detach(|| {
-        (0..MAX_GENTITIES)
+        (0..entity_id_limit())
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| {
                 game_entity.in_use() && game_entity.has_flags() && game_entity.is_dropped_item()

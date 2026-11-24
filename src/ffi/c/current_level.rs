@@ -68,6 +68,17 @@ impl CurrentLevel<'_> {
         self.level.time
     }
 
+    #[cfg_attr(
+        test,
+        allow(
+            dead_code,
+            reason = "only called from the running game process, not from tests"
+        )
+    )]
+    pub(crate) fn get_num_entities(&self) -> i32 {
+        self.level.num_entities
+    }
+
     pub(crate) fn get_round_state(&self) -> roundStateState_t {
         self.level.roundState.eCurrent
     }
@@ -109,6 +120,7 @@ mockall::mock! {
         pub(crate) fn try_get() -> Result<Self, QuakeLiveEngineError>;
         pub(crate) fn get_vote_time(&self) -> Option<i32>;
         pub(crate) fn get_leveltime(&self) -> i32;
+        pub(crate) fn get_num_entities(&self) -> i32;
         pub(crate) fn get_round_state(&self) -> roundStateState_t;
         pub(crate) fn callvote(&mut self, vote: &str, vote_disp: &str, vote_time: Option<i32>);
         pub(crate) fn set_training_map(&mut self, is_training_map: bool);

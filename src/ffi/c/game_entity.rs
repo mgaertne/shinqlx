@@ -139,6 +139,21 @@ pub(crate) extern "C" fn ShiNQlx_Switch_Touch_Item(ent: *mut gentity_t) {
 
 const OFFSET_G_ENTITIES: usize = 0x11B;
 
+fn clamp_entity_count(num_entities: i32) -> u32 {
+    u32::try_from(num_entities).map_or(MAX_GENTITIES, |count| count.min(MAX_GENTITIES))
+}
+
+/// Exclusive upper bound of the entity ids in use on the current map, `MAX_GENTITIES` if the level is unknown.
+pub(crate) fn entity_id_limit() -> u32 {
+    if cfg!(test) {
+        return MAX_GENTITIES;
+    }
+
+    CurrentLevel::try_get().map_or(MAX_GENTITIES, |level| {
+        clamp_entity_count(level.get_num_entities())
+    })
+}
+
 impl GameEntity {
     fn get_entities_list() -> *mut gentity_t {
         #[cfg(test)]
@@ -409,7 +424,7 @@ impl GameEntity {
         // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
         let my_targetname = unsafe { CStr::from_ptr(self.gentity_t.targetname) }.to_string_lossy();
 
-        (1..MAX_GENTITIES)
+        (1..entity_id_limit())
             .filter(|entity_id| {
                 GameEntity::try_from(*entity_id).is_ok_and(|other_ent| {
                     !other_ent.gentity_t.target.is_null()
@@ -683,10 +698,23 @@ mod game_entity_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
 
-    use super::{GameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item};
+    use super::{
+        GameEntity, MockStaticFunc, ShiNQlx_Switch_Touch_Item, ShiNQlx_Touch_Item,
+        clamp_entity_count,
+    };
     use crate::{
         ffi::c::prelude::*, hooks::mock_hooks::shinqlx_set_configstring_context, prelude::*,
     };
+
+    #[rstest::rstest]
+    #[case(0, 0)]
+    #[case(204, 204)]
+    #[case(1024, 1024)]
+    #[case(5000, 1024)]
+    #[case(-1, 1024)]
+    fn the_entity_count_is_limited_to_the_slots(#[case] num_entities: i32, #[case] expected: u32) {
+        assert_eq!(clamp_entity_count(num_entities), expected);
+    }
 
     #[test]
     #[serial]

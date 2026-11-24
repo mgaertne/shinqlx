@@ -1,7 +1,10 @@
 use arrayvec::ArrayVec;
 use tap::TryConv;
 
-use crate::ffi::{c::prelude::*, python::prelude::*};
+use crate::ffi::{
+    c::{game_entity::entity_id_limit, prelude::*},
+    python::prelude::*,
+};
 
 /// Removes all current kamikaze timers.
 #[pyfunction]
@@ -9,7 +12,7 @@ use crate::ffi::{c::prelude::*, python::prelude::*};
 pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
     py.detach(|| {
         let mut in_use_entities: ArrayVec<Box<GameEntity>, { MAX_GENTITIES as usize }> = (0
-            ..MAX_GENTITIES)
+            ..entity_id_limit())
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| game_entity.in_use())
             .map(Box::new)
