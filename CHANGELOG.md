@@ -6,6 +6,12 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **`hiredis` is optional.** `pip install shinqlx` no longer installs it; `pip install "shinqlx[hiredis]"` or
+  `pip install hiredis` does, and `redis` then uses its C parser as before. Without it `redis` falls back to its own
+  Python parser, which only matters for replies of about ten thousand entries and more (a third faster with
+  `hiredis` in a local measurement; a reply of ten fields takes the same time). The whole range of the commands that the wrapper and the
+  plugin collections use (strings, hashes, sets, lists, sorted sets, `scan_iter`, pipelines, `WATCH`/`MULTI`) behaves
+  the same with `redis` 5.0.8, 8.1.0 and 8.2.0, with and without `hiredis`.
 * **`CvarFlags` and `DamageFlags` are real bit flags** (built on the `bitflags` crate). A value is a set of flags like
   `enum.IntFlag`: `CvarFlags.ARCHIVE | CvarFlags.LATCH` is a `CvarFlags`, `CvarFlags(33)` creates the same value from an
   integer, `flag in flags` tests a flag, iterating gives the members that are set, `^` and `~` work too, and `print`

@@ -99,7 +99,8 @@ Database
       - `KeyDB <https://docs.keydb.dev>`_ (BSD-3-Clause) is based on Redis 6 and has had no release since October
         2023. It works, but it is not developed any further. Tested with 6.3.4.
 
-      The client stays the ``redis`` package. Many plugins ``import redis`` themselves, for example to check
+      The ``redis`` package uses its C parser when ``hiredis`` is installed (``pip install "shinqlx[hiredis]"``) and its
+      own Python parser otherwise; the results are the same. The client stays the ``redis`` package. Many plugins ``import redis`` themselves, for example to check
       ``redis.VERSION`` or to catch ``redis.exceptions.WatchError``, so a different client package such as
       ``valkey-py`` is not a drop-in replacement. A plugin that uses Lua scripts, Pub/Sub or server modules may need
       more than the commands listed above, so test such a plugin against your server before switching.
