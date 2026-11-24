@@ -26,10 +26,12 @@ pub fn is_server_name(name: &str) -> bool {
 
 /// The file `servers/<name>.toml` in the config directory.
 pub fn server_file(name: &str) -> Option<PathBuf> {
-    is_server_name(name)
-        .then(config_dir)
-        .flatten()
-        .map(|dir| dir.join("servers").join(format!("{name}.toml")))
+    config_dir().and_then(|dir| server_file_in(&dir, name))
+}
+
+/// The file `servers/<name>.toml` below `dir`, if `name` is a valid server name.
+pub fn server_file_in(dir: &Path, name: &str) -> Option<PathBuf> {
+    is_server_name(name).then(|| dir.join("servers").join(format!("{name}.toml")))
 }
 
 /// How to reach the stats interface of a server; what the file does not say stays `None`.
@@ -157,8 +159,8 @@ mod servers_tests {
     use std::fs;
 
     use super::{
-        StatsEndpoint, is_server_name, password_is_exposed, save_stats_endpoint, stats_endpoint,
-        with_port,
+        StatsEndpoint, is_server_name, password_is_exposed, save_stats_endpoint, server_file_in,
+        stats_endpoint, with_port,
     };
 
     #[test]
@@ -167,6 +169,19 @@ mod servers_tests {
         assert!(!is_server_name(""));
         assert!(!is_server_name(".hidden"));
         assert!(!is_server_name("a/b"));
+    }
+
+    #[test]
+    fn a_server_file_lies_in_the_servers_directory_below_the_given_one() {
+        let dir = std::path::Path::new("/config");
+
+        assert_eq!(
+            server_file_in(dir, "crimson-arena"),
+            Some(std::path::PathBuf::from(
+                "/config/servers/crimson-arena.toml"
+            ))
+        );
+        assert_eq!(server_file_in(dir, "../crimson-arena"), None);
     }
 
     #[test]

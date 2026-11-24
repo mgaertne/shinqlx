@@ -1,4 +1,4 @@
-use core::sync::atomic::Ordering;
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::{io, path::PathBuf};
 
 use anyhow::Result;
@@ -73,18 +73,23 @@ impl MonitoredDealer {
         };
 
         let socket_builder = SocketBuilder::default()
-            .security_mechanism(SecurityMechanism::Plain {
-                username: "rcon".into(),
-                password: password.into(),
-            })
             .immediate(true)
             .receive_timeout(0)
             .receive_highwater_mark(0)
             .send_timeout(0)
             .send_highwater_mark(0)
             .heartbeat_interval(600_000)
-            .heartbeat_timeout(600_000)
-            .zap_domain("rcon");
+            .heartbeat_timeout(600_000);
+        let socket_builder = if password.is_empty() {
+            socket_builder
+        } else {
+            socket_builder
+                .zap_domain("rcon")
+                .security_mechanism(SecurityMechanism::Plain {
+                    username: "rcon".into(),
+                    password: password.into(),
+                })
+        };
 
         let dealer_config = DealerBuilder::default()
             .socket_builder(socket_builder)
@@ -147,10 +152,10 @@ async fn check_link<T: Transport>(
     endpoint: &str,
     fetch: &mut FetchState,
     link: &mut LinkState,
+    running: &AtomicBool,
 ) -> Result<()> {
     while let Some(event) = transport.next_link_event().await {
-        if link.handle(event, transport, sender, endpoint, &CONTINUE_RUNNING)?
-            && fetch.handshake_succeeded()
+        if link.handle(event, transport, sender, endpoint, running)? && fetch.handshake_succeeded()
         {
             for command in FETCH_COMMANDS {
                 transport.send(command).await;
@@ -237,6 +242,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
     fetch_completions: bool,
     zmq_receiver: &mut UnboundedReceiver<String>,
     display_sender: &UnboundedSender<String>,
+    running: &AtomicBool,
 ) -> Result<()> {
     let mut fetch = FetchState::new(fetch_completions);
     let mut learner = Learner::default();
@@ -245,7 +251,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
     let mut poll = interval(POLL_INTERVAL);
     poll.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
-    while CONTINUE_RUNNING.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
+    while running.load(Ordering::Acquire) && !zmq_receiver.is_closed() {
         select!(
             biased;
 
@@ -268,7 +274,7 @@ async fn run_console<T: Transport, S: CompletionStore>(
                     store_fetched_names(store, &fetched, display_sender)?;
                 }
 
-                check_link(transport, display_sender, endpoint, &mut fetch, &mut link).await?;
+                check_link(transport, display_sender, endpoint, &mut fetch, &mut link, running).await?;
             }
         );
     }
@@ -294,6 +300,7 @@ pub(crate) async fn run_zmq(
         args.fetch_completions,
         &mut zmq_receiver,
         &display_sender,
+        &CONTINUE_RUNNING,
     )
     .await;
 
@@ -309,7 +316,10 @@ pub(crate) async fn run_zmq(
 #[cfg(test)]
 mod zmq_helper_tests {
     use alloc::collections::VecDeque;
-    use core::{sync::atomic::Ordering, time::Duration};
+    use core::{
+        sync::atomic::{AtomicBool, Ordering},
+        time::Duration,
+    };
     use std::{
         io,
         path::PathBuf,
@@ -321,13 +331,14 @@ mod zmq_helper_tests {
     use termcolor::ColorChoice;
     use tokio::{
         sync::mpsc::{UnboundedReceiver, unbounded_channel},
-        time::timeout,
+        time::{sleep, timeout},
     };
 
     use super::{
-        CONTINUE_RUNNING, CommandLineOptions, CompletionStore, FETCH_COMMANDS, FetchState,
-        LinkEvent, LinkState, Reconnect, Transport, check_link, handle_reply, handle_user_line,
-        run_zmq, trim_ql_msg,
+        CONTINUE_RUNNING, CommandLineOptions, CompletionStore, FETCH_COMMANDS, FLAG_LEGEND,
+        FetchState, LinkEvent, LinkState, MonitoredDealer, Reconnect, SessionFiles, Transport,
+        check_link, handle_reply, handle_user_line, run_console, run_zmq, store_fetched_names,
+        trim_ql_msg,
     };
     use crate::{
         fetch::Fetched,
@@ -343,6 +354,7 @@ mod zmq_helper_tests {
         sent: Mutex<Vec<String>>,
         connected: Mutex<Vec<String>>,
         events: Mutex<VecDeque<LinkEvent>>,
+        replies: Mutex<VecDeque<String>>,
     }
 
     impl Transport for FakeTransport {
@@ -351,7 +363,7 @@ mod zmq_helper_tests {
         }
 
         async fn receive(&self) -> Option<String> {
-            None
+            locked(&self.replies).pop_front()
         }
 
         async fn next_link_event(&self) -> Option<LinkEvent> {
@@ -385,6 +397,18 @@ mod zmq_helper_tests {
                 flags: fetched.flags.clone(),
             });
             Ok(PathBuf::from("completions.txt"))
+        }
+    }
+
+    struct FailingStore;
+
+    impl CompletionStore for FailingStore {
+        fn remember(&self, _learned: &Learned) -> io::Result<()> {
+            Err(io::Error::other("no space left"))
+        }
+
+        fn save_completions(&self, _fetched: &Fetched) -> io::Result<PathBuf> {
+            Err(io::Error::other("no space left"))
         }
     }
 
@@ -461,6 +485,7 @@ mod zmq_helper_tests {
             "tcp://127.0.0.1:27961",
             &mut FetchState::new(true),
             &mut LinkState::default(),
+            &AtomicBool::new(true),
         )
         .await
         .expect("the events can be handled");
@@ -484,12 +509,177 @@ mod zmq_helper_tests {
             "tcp://127.0.0.1:27961",
             &mut FetchState::new(false),
             &mut LinkState::default(),
+            &AtomicBool::new(true),
         )
         .await
         .expect("the events can be handled");
 
         assert_eq!(drained(&mut receiver), ["Reconnecting ZMQ..."]);
         assert_eq!(locked(&transport.connected).len(), 1);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_typed_line_goes_to_the_server() {
+        let transport = FakeTransport::default();
+        let (display_sender, mut display_receiver) = unbounded_channel();
+
+        handle_user_line(
+            "map campgrounds",
+            &mut FetchState::new(false),
+            &transport,
+            &display_sender,
+        )
+        .await
+        .expect("the line can be handled");
+
+        assert_eq!(locked(&transport.sent).as_slice(), ["map campgrounds"]);
+        assert!(drained(&mut display_receiver).is_empty());
+    }
+
+    #[test]
+    fn a_failing_store_is_reported_instead_of_stopping_the_console() {
+        let (sender, mut receiver) = unbounded_channel();
+        let fetched = Fetched {
+            names: vec!["quad".to_string()],
+            maps: Vec::new(),
+            flags: Vec::new(),
+        };
+
+        store_fetched_names(&FailingStore, &fetched, &sender).expect("the report can be sent");
+        store_fetched_names(&FakeStore::default(), &fetched, &sender)
+            .expect("the report can be sent");
+
+        let lines = drained(&mut receiver);
+        assert_eq!(lines[0], "could not keep the fetched names: no space left");
+        assert_eq!(
+            lines[1],
+            "ZMQ fetched 1 names for the completion into completions.txt, they are used for the completion now."
+        );
+    }
+
+    #[test]
+    fn a_cvar_answer_is_followed_by_its_explanation() {
+        let (sender, mut receiver) = unbounded_channel();
+        let answer = "\"g_gametype\" is:\"4^7\" default:\"0^7\"";
+
+        handle_reply(
+            answer.to_string(),
+            &mut Learner::default(),
+            &mut FetchState::new(false),
+            &FailingStore,
+            &sender,
+        )
+        .expect("the reply can be handled");
+
+        assert_eq!(drained(&mut receiver), [answer, "  = Clan Arena"]);
+    }
+
+    #[test]
+    fn the_end_of_a_requested_list_stores_it_and_a_typed_list_command_shows_it() {
+        let hidden_store = FakeStore::default();
+        let (sender, mut receiver) = unbounded_channel();
+        let mut hidden = FetchState::new(true);
+        assert!(hidden.handshake_succeeded());
+        for line in ["campgrounds.bsp", "3 cvar indexes"] {
+            handle_reply(
+                line.to_string(),
+                &mut Learner::default(),
+                &mut hidden,
+                &hidden_store,
+                &sender,
+            )
+            .expect("the reply can be handled");
+        }
+        assert_eq!(locked(&hidden_store.saved).len(), 1);
+        assert_eq!(drained(&mut receiver).len(), 1);
+
+        let shown_store = FakeStore::default();
+        let mut shown = FetchState::new(false);
+        shown.user_sent("cvarlist");
+        for line in ["sv_fps \"40\"", "3 cvar indexes"] {
+            handle_reply(
+                line.to_string(),
+                &mut Learner::default(),
+                &mut shown,
+                &shown_store,
+                &sender,
+            )
+            .expect("the reply can be handled");
+        }
+
+        let lines = drained(&mut receiver);
+        assert_eq!(lines[0], "sv_fps \"40\"");
+        assert_eq!(lines[1], "3 cvar indexes");
+        assert_eq!(lines[2], FLAG_LEGEND);
+        assert_eq!(locked(&shown_store.saved).len(), 1);
+    }
+
+    #[test]
+    fn the_session_files_keep_what_the_console_learns() {
+        let session = SessionFiles::default();
+
+        assert!(
+            session
+                .remember(&Learned::Latched("g_gametype".to_string()))
+                .is_ok()
+        );
+        let error = session
+            .save_completions(&Fetched::default())
+            .expect_err("a session without host has no file for the names");
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn the_console_sends_typed_lines_and_shows_the_replies_of_the_server() {
+        let transport = FakeTransport::default();
+        locked(&transport.replies)
+            .push_back("\u{19}usage: dir <directory> [extension]\n".to_string());
+        let store = FakeStore::default();
+        let running = AtomicBool::new(true);
+        let (zmq_sender, mut zmq_receiver) = unbounded_channel();
+        let (display_sender, mut display_receiver) = unbounded_channel();
+        zmq_sender
+            .send("map campgrounds".to_string())
+            .expect("the console is listening");
+
+        let (result, ()) = tokio::join!(
+            run_console(
+                &transport,
+                &store,
+                "tcp://127.0.0.1:27961",
+                false,
+                &mut zmq_receiver,
+                &display_sender,
+                &running,
+            ),
+            async {
+                sleep(Duration::from_millis(150)).await;
+                running.store(false, Ordering::Release);
+            }
+        );
+
+        result.expect("the console ends cleanly");
+        assert_eq!(locked(&transport.sent).as_slice(), ["map campgrounds"]);
+        assert_eq!(
+            drained(&mut display_receiver),
+            ["usage: dir <directory> [extension]"]
+        );
+        assert_eq!(locked(&store.remembered).len(), 1);
+    }
+
+    #[test]
+    fn an_empty_identity_gets_a_random_one() {
+        let dealer = MonitoredDealer::new().expect("the sockets can be created");
+
+        assert!(dealer.configure("", "").is_ok());
+    }
+
+    #[test]
+    fn a_server_without_password_is_configured_without_plain_security() {
+        let dealer = MonitoredDealer::new().expect("the sockets can be created");
+
+        assert!(dealer.configure("secret", "").is_ok());
+        assert!(dealer.configure("secret", "tester").is_ok());
     }
 
     #[tokio::test(flavor = "current_thread")]

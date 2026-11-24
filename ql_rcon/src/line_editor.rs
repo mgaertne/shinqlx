@@ -12,9 +12,9 @@ use directories::UserDirs;
 use ql_zmq::quake_colors::{ql_rgb, split_ql_colors};
 use reedline::{
     ColumnarMenu, Completer, CompletionResult, DefaultHinter, Emacs, ExternalPrinter,
-    FileBackedHistory, History, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptEditMode,
-    PromptHistorySearch, Reedline, ReedlineEvent, ReedlineMenu, SearchDirection, SearchQuery,
-    Signal, Span, Suggestion, default_emacs_keybindings,
+    FileBackedHistory, History, HistoryItem, KeyCode, KeyModifiers, MenuBuilder, Prompt,
+    PromptEditMode, PromptHistorySearch, Reedline, ReedlineEvent, ReedlineMenu, SearchDirection,
+    SearchQuery, Signal, Span, Suggestion, default_emacs_keybindings,
 };
 use termcolor::{Buffer, Color, ColorChoice, ColorSpec, WriteColor};
 use tokio::{
@@ -28,7 +28,7 @@ use crate::{
     fetch::Fetched,
     guide::{flags_for, help_for, value_labels},
     learn::Learned,
-    profile::{ServerFile, config_dir, server_file},
+    profile::{ServerFile, config_dir, server_file_in},
 };
 
 /// Console commands of Quake Live, one per line.
@@ -350,18 +350,17 @@ fn parse_user_names(text: &str) -> impl Iterator<Item = &str> {
 
 /// The server file of the session, if it was started with one.
 fn profile_file(session: &SessionFiles) -> Option<ServerFile> {
-    session
-        .profile
-        .as_deref()
-        .and_then(server_file)
-        .map(ServerFile::new)
+    let name = session.profile.as_deref()?;
+    let dir = session.config.as_deref()?;
+    server_file_in(dir, name).map(ServerFile::new)
 }
 
 /// The file that `--fetch-completions` keeps for the connected server: `completions-<host>.txt` for the names and
 /// `completions-maps-<host>.txt` for the maps.
 fn fetched_file(session: &SessionFiles, kind: &str) -> Option<PathBuf> {
     let slug = host_slug(session)?;
-    config_dir().map(|dir| dir.join(format!("{kind}-{slug}.txt")))
+    let dir = session.config.as_deref()?;
+    Some(dir.join(format!("{kind}-{slug}.txt")))
 }
 
 fn write_lines(file: &Path, lines: &[String]) -> io::Result<()> {
@@ -408,7 +407,7 @@ fn save_lists(names_file: &Path, maps_file: &Path, fetched: &Fetched) -> io::Res
 /// `<stem>.txt` for all servers, `<stem>-<host>.txt` and the fetched `<fetched>-<host>.txt` for the connected one, all
 /// in the config directory.
 fn list_files(session: &SessionFiles, stem: &str, fetched: &str) -> Vec<PathBuf> {
-    let Some(dir) = config_dir() else {
+    let Some(dir) = session.config.as_deref() else {
         return Vec::new();
     };
 
@@ -613,11 +612,13 @@ fn usage_listing(usage: String, word: &str, span: Span) -> Vec<Suggestion> {
 /// The history, newest entry first, shared between the editor loop and the completer.
 type SharedHistory = Arc<Mutex<Vec<String>>>;
 
-/// What names the files of a session: the server it talks to and its server file, if it has one.
+/// What names the files of a session: the server it talks to, its server file, if it has one, and the config directory
+/// that holds them.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SessionFiles {
     host: String,
     profile: Option<String>,
+    config: Option<PathBuf>,
 }
 
 impl From<&CommandLineOptions> for SessionFiles {
@@ -625,6 +626,7 @@ impl From<&CommandLineOptions> for SessionFiles {
         Self {
             host: options.host.clone(),
             profile: options.profile.clone(),
+            config: config_dir(),
         }
     }
 }
@@ -761,22 +763,26 @@ fn history_lines(history: &dyn History) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Deletes the older entries that equal the newest one, so that a command shows up once in the history.
-fn drop_older_duplicates(history: &mut dyn History, line: &str) {
-    let duplicates: Vec<_> = history
-        .search(SearchQuery::everything(SearchDirection::Backward, None))
-        .map(|items| {
-            items
-                .into_iter()
-                .filter(|item| item.command_line == line)
-                .skip(1)
-                .filter_map(|item| item.id)
-                .collect()
-        })
-        .unwrap_or_default();
-    for id in duplicates {
-        let _ = history.delete(id);
+/// Keeps only the newest entry of each command, so that a command shows up once in the history. The file history
+/// cannot delete single entries, so it is cleared and written again, and only if there is a duplicate.
+fn deduplicate_history(history: &mut dyn History) {
+    let newest_first = history_lines(history);
+    let mut seen = HashSet::new();
+    let mut unique: Vec<String> = newest_first
+        .iter()
+        .filter(|line| seen.insert(line.as_str()))
+        .cloned()
+        .collect();
+    if unique.len() == newest_first.len() {
+        return;
     }
+
+    unique.reverse();
+    let _ = history.clear();
+    for line in unique {
+        let _ = history.save(HistoryItem::from_command_line(line));
+    }
+    let _ = history.sync();
 }
 
 fn line_editor(
@@ -788,6 +794,17 @@ fn line_editor(
         Some(file) => Box::new(FileBackedHistory::with_file(HISTORY_SIZE, file)?),
         None => Box::new(FileBackedHistory::new(HISTORY_SIZE)?),
     };
+
+    Ok(editor_with_history(history, session, printer, break_signal))
+}
+
+fn editor_with_history(
+    mut history: Box<dyn History>,
+    session: &SessionFiles,
+    printer: ExternalPrinter<String>,
+    break_signal: Arc<AtomicBool>,
+) -> (Reedline, SharedHistory) {
+    deduplicate_history(history.as_mut());
     let shared_history: SharedHistory = Arc::new(Mutex::new(history_lines(history.as_ref())));
 
     let mut keybindings = default_emacs_keybindings();
@@ -819,7 +836,7 @@ fn line_editor(
         .with_external_printer(printer)
         .with_break_signal(break_signal);
 
-    Ok((editor, shared_history))
+    (editor, shared_history)
 }
 
 fn terminal_buffer(color_choice: &ColorChoice) -> Buffer {
@@ -880,39 +897,60 @@ pub(crate) async fn run_terminal(
     displayed
 }
 
+/// What the input loop does with what the editor returned.
+#[derive(Debug, PartialEq, Eq)]
+enum Step {
+    /// Remember the line and send it to the server.
+    Send(String),
+    Skip,
+    Stop,
+}
+
+fn step_for(signal: Signal) -> Step {
+    match signal {
+        Signal::Success(line) if line.is_empty() => Step::Skip,
+        Signal::Success(line) => Step::Send(line),
+        Signal::CtrlC(typed) if !typed.is_empty() => Step::Skip,
+        Signal::CtrlC(_) | Signal::CtrlD => Step::Stop,
+        _ => Step::Skip,
+    }
+}
+
+fn is_exit(line: &str) -> bool {
+    line.trim().eq_ignore_ascii_case("exit")
+}
+
+/// Writes the history to its file, keeps each command once and hands the lines to the completer.
+fn refresh_history(history: &mut dyn History, shared_history: &SharedHistory) -> io::Result<()> {
+    history.sync()?;
+    deduplicate_history(history);
+    if let Ok(mut shared) = shared_history.lock() {
+        *shared = history_lines(history);
+    }
+
+    Ok(())
+}
+
 fn read_input(
     mut editor: Reedline,
     shared_history: &SharedHistory,
     zmq_sender: UnboundedSender<String>,
 ) -> Result<()> {
     while CONTINUE_RUNNING.load(Ordering::Acquire) {
-        match editor.read_line(&EmptyPrompt)? {
-            Signal::Success(line) => {
-                if !CONTINUE_RUNNING.load(Ordering::Acquire) {
-                    break;
-                }
+        let signal = editor.read_line(&EmptyPrompt)?;
+        if !CONTINUE_RUNNING.load(Ordering::Acquire) {
+            break;
+        }
 
-                if line.is_empty() {
-                    continue;
-                }
-
-                drop_older_duplicates(editor.history_mut(), &line);
-                editor.sync_history()?;
-                if let Ok(mut history) = shared_history.lock() {
-                    *history = history_lines(editor.history());
-                }
-
-                if line.trim().eq_ignore_ascii_case("exit") {
-                    break;
-                }
-
-                if zmq_sender.send(line).is_err() {
+        match step_for(signal) {
+            Step::Skip => {}
+            Step::Stop => break,
+            Step::Send(line) => {
+                refresh_history(editor.history_mut(), shared_history)?;
+                if is_exit(&line) || zmq_sender.send(line).is_err() {
                     break;
                 }
             }
-            Signal::CtrlC(typed) if !typed.is_empty() => {}
-            Signal::CtrlC(_) | Signal::CtrlD => break,
-            _ => {}
         }
     }
 
@@ -924,20 +962,29 @@ fn read_input(
 
 #[cfg(test)]
 mod line_editor_tests {
-    use std::{fs, path::PathBuf};
+    use alloc::sync::Arc;
+    use core::sync::atomic::AtomicBool;
+    use std::{
+        fs, io,
+        path::{Path, PathBuf},
+        sync::mpsc::sync_channel,
+    };
 
     use reedline::{
-        Completer, FileBackedHistory, History, HistoryItem, Prompt, PromptEditMode,
-        PromptHistorySearch, PromptHistorySearchStatus, Span,
+        Completer, ExternalPrinter, FileBackedHistory, History, HistoryItem, Prompt,
+        PromptEditMode, PromptHistorySearch, PromptHistorySearchStatus, Signal, Span,
     };
     use termcolor::{Buffer, ColorChoice, WriteColor};
+    use tokio::sync::mpsc::unbounded_channel;
 
     use super::{
         CommandLineOptions, EmptyPrompt, LearnedCvar, ServerCompleter, SessionFiles, SharedHistory,
-        UserLists, apply_learned, completions, describe, get_history_file, history_lines,
-        known_values, learned_line, load_profile, merged, parse_labels, parse_user_names,
-        remember_in, save_lists, setting_note, terminal_buffer, usage_hint, usage_listing,
-        user_names_files, value_label, write_formatted_ql_colors, write_lines,
+        Step, UserLists, apply_learned, completions, deduplicate_history, describe, display_lines,
+        editor_with_history, get_history_file, history_lines, is_exit, known_values, learned_line,
+        list_files, load_profile, load_user_lists, merged, parse_labels, parse_user_names,
+        refresh_history, remember, remember_in, save_completions, save_lists, setting_note,
+        step_for, terminal_buffer, usage_hint, usage_listing, user_names_files, value_label,
+        write_formatted_ql_colors, write_lines,
     };
     use crate::{fetch::Fetched, guide::help_for, learn::Learned, profile::ServerFile};
 
@@ -1683,5 +1730,302 @@ mod line_editor_tests {
         }
 
         assert_eq!(history_lines(&history), ["third", "second", "first"]);
+    }
+
+    fn saved(history: &mut FileBackedHistory, lines: &[&str]) {
+        for line in lines {
+            history
+                .save(HistoryItem::from_command_line(*line))
+                .expect("could not save the entry");
+        }
+    }
+
+    #[test]
+    fn a_command_keeps_only_its_newest_entry_in_the_history() {
+        let mut history = FileBackedHistory::new(10).expect("could not create the history");
+        saved(&mut history, &["a", "b", "a", "c", "b"]);
+
+        deduplicate_history(&mut history);
+
+        assert_eq!(history_lines(&history), ["b", "c", "a"]);
+    }
+
+    #[test]
+    fn a_history_without_duplicates_stays_as_it_is() {
+        let mut history = FileBackedHistory::new(10).expect("could not create the history");
+        saved(&mut history, &["a", "b", "c"]);
+
+        deduplicate_history(&mut history);
+
+        assert_eq!(history_lines(&history), ["c", "b", "a"]);
+    }
+
+    #[test]
+    fn the_history_file_loses_its_duplicates_when_it_is_loaded() {
+        let dir = temp_dir("history");
+        fs::create_dir_all(&dir).expect("could not create the directory");
+        let file = dir.join("history");
+        let mut history =
+            FileBackedHistory::with_file(10, file.clone()).expect("could not open the history");
+        saved(&mut history, &["a", "b", "a", "c", "b"]);
+        history.sync().expect("could not write the history");
+        drop(history);
+
+        let mut reloaded =
+            FileBackedHistory::with_file(10, file.clone()).expect("could not open the history");
+        deduplicate_history(&mut reloaded);
+        drop(reloaded);
+
+        let reread = FileBackedHistory::with_file(10, file).expect("could not open the history");
+        assert_eq!(history_lines(&reread), ["b", "c", "a"]);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    fn session_in(dir: &Path, profile: Option<&str>) -> SessionFiles {
+        SessionFiles {
+            host: "tcp://192.0.2.1:27961".to_string(),
+            profile: profile.map(str::to_string),
+            config: Some(dir.to_path_buf()),
+        }
+    }
+
+    fn fetched(names: &[&str], maps: &[&str]) -> Fetched {
+        Fetched {
+            names: strings(names),
+            maps: strings(maps),
+            flags: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn fetched_completions_are_saved_for_the_host_of_the_session() {
+        let dir = temp_dir("session_save");
+
+        let file = save_completions(
+            &session_in(&dir, None),
+            &fetched(&["quad"], &["campgrounds"]),
+        )
+        .expect("could not save the completions");
+
+        assert_eq!(file, dir.join("completions-192_0_2_1_27961.txt"));
+        assert_eq!(fs::read_to_string(&file).expect("no names file"), "quad\n");
+        assert_eq!(
+            fs::read_to_string(dir.join("completions-maps-192_0_2_1_27961.txt"))
+                .expect("no maps file"),
+            "campgrounds\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn completions_are_not_saved_without_a_tcp_host() {
+        let dir = temp_dir("session_ipc");
+        let session = SessionFiles {
+            host: "ipc:///tmp/ql".to_string(),
+            ..session_in(&dir, None)
+        };
+
+        let error = save_completions(&session, &fetched(&["quad"], &[]))
+            .expect_err("there is no host to name the file");
+
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn completions_of_a_session_with_a_server_file_go_into_that_file() {
+        let dir = temp_dir("session_profile");
+        let session = session_in(&dir, Some("crimson-arena"));
+
+        let file = save_completions(&session, &fetched(&["quad"], &["campgrounds"]))
+            .expect("could not save the completions");
+
+        assert_eq!(file, dir.join("servers").join("crimson-arena.toml"));
+        assert_eq!(ServerFile::new(file).names(), ["quad"]);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn what_the_server_reports_is_remembered_for_its_host() {
+        let dir = temp_dir("session_remember");
+        let session = session_in(&dir, None);
+
+        remember(&session, &Learned::Latched("G_Gametype".to_string()))
+            .expect("could not remember the cvar");
+
+        assert_eq!(
+            fs::read_to_string(dir.join("learned-192_0_2_1_27961.txt")).expect("no learned file"),
+            "latched\tg_gametype\n"
+        );
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn what_the_server_reports_is_remembered_in_the_server_file() {
+        let dir = temp_dir("session_remember_profile");
+        let session = session_in(&dir, Some("crimson-arena"));
+
+        remember(&session, &Learned::ReadOnly("sv_fps".to_string()))
+            .expect("could not remember the cvar");
+
+        let file = ServerFile::new(dir.join("servers").join("crimson-arena.toml"));
+        assert!(file.read_only().iter().any(|name| name == "sv_fps"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn nothing_is_remembered_without_a_config_directory() {
+        let learned = Learned::Latched("g_gametype".to_string());
+
+        assert!(remember(&SessionFiles::default(), &learned).is_ok());
+        assert!(list_files(&SessionFiles::default(), "commands", "completions").is_empty());
+    }
+
+    #[test]
+    fn the_lists_of_the_user_come_from_all_files_of_the_session() {
+        let dir = temp_dir("session_load");
+        let session = session_in(&dir, Some("crimson-arena"));
+        for (file, text) in [
+            ("commands.txt", "quad\n# not a name\n\n"),
+            ("commands-192_0_2_1_27961.txt", "regeneration\n"),
+            ("maps.txt", "campgrounds\n"),
+            ("values.txt", "g_gametype\t4\tmy clan arena\n"),
+            (
+                "learned-192_0_2_1_27961.txt",
+                "cvar\tg_gravity\t800\t0\t1000\nlatched\tg_gametype\n",
+            ),
+        ] {
+            write_lines(&dir.join(file), &[text.trim_end().to_string()])
+                .expect("could not write the file");
+        }
+        ServerFile::new(dir.join("servers").join("crimson-arena.toml"))
+            .merge_fetched(&fetched(&["railgun"], &[]))
+            .expect("could not save the server file");
+
+        let user = load_user_lists(&session);
+
+        assert!(
+            ["quad", "regeneration", "railgun", "g_gravity"]
+                .iter()
+                .all(|name| user.names.iter().any(|known| known == name))
+        );
+        assert_eq!(user.maps, ["campgrounds"]);
+        assert!(user.labels.contains_key("g_gametype"));
+        assert!(user.latched.contains("g_gametype"));
+        assert!(user.cvars.contains_key("g_gravity"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_command_without_matches_shows_the_usage_the_server_reported() {
+        let dir = temp_dir("session_usage");
+        write_lines(
+            &dir.join("learned-192_0_2_1_27961.txt"),
+            &strings(&["usage\tmycmd\tmycmd <text>"]),
+        )
+        .expect("could not write the file");
+        let mut completer = ServerCompleter {
+            session: session_in(&dir, None),
+            history: SharedHistory::default(),
+        };
+
+        let result = completer.complete("mycmd zz", 8);
+
+        let suggestions = result.suggestions();
+        assert_eq!(suggestions.len(), 1);
+        assert_eq!(
+            suggestions[0].display_override.as_deref(),
+            Some("mycmd <text>")
+        );
+        assert_eq!(suggestions[0].value, "zz");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_editor_starts_with_the_history_of_each_command_once() {
+        let mut history = FileBackedHistory::new(10).expect("could not create the history");
+        saved(&mut history, &["a", "b", "a"]);
+
+        let (editor, shared) = editor_with_history(
+            Box::new(history),
+            &SessionFiles::default(),
+            ExternalPrinter::default(),
+            Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            *shared.lock().expect("the history is not poisoned"),
+            ["a", "b"]
+        );
+        assert_eq!(history_lines(editor.history()), ["a", "b"]);
+    }
+
+    #[test]
+    fn the_signals_of_the_editor_become_steps_of_the_input_loop() {
+        assert_eq!(
+            step_for(Signal::Success("map x".to_string())),
+            Step::Send("map x".to_string())
+        );
+        assert_eq!(step_for(Signal::Success(String::new())), Step::Skip);
+        assert_eq!(step_for(Signal::CtrlC("typed".to_string())), Step::Skip);
+        assert_eq!(step_for(Signal::CtrlC(String::new())), Step::Stop);
+        assert_eq!(step_for(Signal::CtrlD), Step::Stop);
+    }
+
+    #[test]
+    fn exit_is_recognized_regardless_of_case_and_spaces() {
+        assert!(is_exit(" EXIT "));
+        assert!(!is_exit("exit now"));
+    }
+
+    #[test]
+    fn a_sent_line_updates_the_history_file_and_the_completer() {
+        let dir = temp_dir("refresh");
+        fs::create_dir_all(&dir).expect("could not create the directory");
+        let file = dir.join("history");
+        let mut history =
+            FileBackedHistory::with_file(10, file.clone()).expect("could not open the history");
+        saved(&mut history, &["a", "b", "a"]);
+        let shared = SharedHistory::default();
+
+        refresh_history(&mut history, &shared).expect("could not refresh the history");
+
+        assert_eq!(
+            *shared.lock().expect("the history is not poisoned"),
+            ["a", "b"]
+        );
+        drop(history);
+        let reread = FileBackedHistory::with_file(10, file).expect("could not open the history");
+        assert_eq!(history_lines(&reread), ["a", "b"]);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn received_lines_reach_the_printer_with_their_colors_removed() {
+        let (printer, output) = sync_channel(8);
+        let (sender, receiver) = unbounded_channel();
+        sender
+            .send("^1red".to_string())
+            .expect("the receiver is open");
+        drop(sender);
+
+        display_lines(&printer, &ColorChoice::Never, receiver)
+            .await
+            .expect("could not display the lines");
+
+        assert_eq!(output.try_iter().collect::<Vec<_>>(), ["red"]);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn displaying_stops_when_the_printer_is_gone() {
+        let (printer, output) = sync_channel(8);
+        let (sender, receiver) = unbounded_channel();
+        sender
+            .send("line".to_string())
+            .expect("the receiver is open");
+        drop(output);
+
+        let result = display_lines(&printer, &ColorChoice::Never, receiver).await;
+
+        assert!(result.is_ok());
     }
 }

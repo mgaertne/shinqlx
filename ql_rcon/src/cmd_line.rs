@@ -98,10 +98,6 @@ fn path_of_server_file(name: &str) -> Result<PathBuf> {
     })
 }
 
-fn open_server_file(name: &str) -> Result<ServerFile> {
-    open_existing(name, path_of_server_file(name)?)
-}
-
 fn open_existing(name: &str, path: PathBuf) -> Result<ServerFile> {
     if !path.exists() {
         bail!(
@@ -111,10 +107,6 @@ fn open_existing(name: &str, path: PathBuf) -> Result<ServerFile> {
     }
 
     Ok(ServerFile::new(path))
-}
-
-fn save_server(name: &str, options: &CommandLineOptions) -> Result<()> {
-    save_server_at(path_of_server_file(name)?, options)
 }
 
 fn save_server_at(path: PathBuf, options: &CommandLineOptions) -> Result<()> {
@@ -131,14 +123,33 @@ fn save_server_at(path: PathBuf, options: &CommandLineOptions) -> Result<()> {
     Ok(())
 }
 
+fn prompt_password(host: &str) -> Result<String> {
+    rpassword::prompt_password(format!("rcon password for {host} (empty for none): "))
+        .context("could not read the password")
+}
+
+type PasswordPrompt<'a> = &'a dyn Fn(&str) -> Result<String>;
+type ServerFileLocator<'a> = &'a dyn Fn(&str) -> Result<PathBuf>;
+
 /// Reads the options, the server file they name and, where needed, the password from the terminal.
 pub(crate) fn parse() -> Result<CommandLineOptions> {
-    let cli = Cli::parse();
+    let prompt: Option<PasswordPrompt> = std::io::stdin().is_terminal().then_some(&prompt_password);
+
+    options_from(Cli::parse(), &path_of_server_file, prompt)
+}
+
+/// The settings of `cli` with the server file that `locate` finds for its name. Without `prompt` a missing password
+/// stays empty.
+fn options_from(
+    cli: Cli,
+    locate: ServerFileLocator,
+    prompt: Option<PasswordPrompt>,
+) -> Result<CommandLineOptions> {
     let save_as = cli.save_server.clone();
 
     let connection = match cli.server.as_deref() {
         Some(name) => {
-            let file = open_server_file(name)?;
+            let file = open_existing(name, locate(name)?)?;
             if file.password_is_exposed() {
                 eprintln!(
                     "Warning: {} holds a password and can be read by other users, restrict it with chmod 600.",
@@ -155,15 +166,11 @@ pub(crate) fn parse() -> Result<CommandLineOptions> {
         mut options,
         ask_password,
     } = cli.resolve(connection)?;
-    if ask_password && std::io::stdin().is_terminal() {
-        options.password = rpassword::prompt_password(format!(
-            "rcon password for {} (empty for none): ",
-            options.host
-        ))
-        .context("could not read the password")?;
+    if let (true, Some(prompt)) = (ask_password, prompt) {
+        options.password = prompt(&options.host)?;
     }
     if let Some(name) = save_as {
-        save_server(&name, &options)?;
+        save_server_at(locate(&name)?, &options)?;
         options.profile = Some(name);
     }
 
@@ -197,7 +204,7 @@ mod cmd_line_tests {
     use termcolor::ColorChoice;
 
     use super::{
-        Cli, CommandLineOptions, open_existing, open_server_file, save_server, save_server_at,
+        Cli, CommandLineOptions, open_existing, options_from, path_of_server_file, save_server_at,
     };
     use crate::profile::{Connection, ServerFile};
 
@@ -404,12 +411,132 @@ mod cmd_line_tests {
 
     #[test]
     fn invalid_server_names_are_rejected_before_the_file_system_is_touched() {
-        let opened = open_server_file("../crimson-arena");
-        let saved = save_server("../crimson-arena", &options(""));
+        let message = path_of_server_file("../crimson-arena")
+            .expect_err("the name is invalid")
+            .to_string();
 
-        for result in [opened.map(|_| ()), saved] {
-            let message = result.expect_err("the name is invalid").to_string();
-            assert!(message.contains("not a valid server name"), "{message}");
-        }
+        assert!(message.contains("not a valid server name"), "{message}");
+    }
+
+    fn locate_in(dir: &Path) -> impl Fn(&str) -> anyhow::Result<PathBuf> + use<> {
+        let dir = dir.to_path_buf();
+        move |name| Ok(dir.join(format!("{name}.toml")))
+    }
+
+    fn cli(args: &[&str]) -> Cli {
+        Cli::try_parse_from(args).expect("the options are valid")
+    }
+
+    fn the_dir(test: &str) -> PathBuf {
+        server_file_path(test)
+            .parent()
+            .expect("the path has a parent")
+            .to_path_buf()
+    }
+
+    #[test]
+    fn the_server_file_named_on_the_command_line_provides_the_connection() {
+        let dir = the_dir("options_from_file");
+        let locate = locate_in(&dir);
+        save_server_at(locate("crimson-arena").unwrap(), &options("crimson-arena"))
+            .expect("could not save the server");
+
+        let result = options_from(cli(&["ql_rcon", "crimson-arena"]), &locate, None)
+            .expect("the options are valid");
+
+        assert_eq!(result.host, "tcp://192.0.2.1:27961");
+        assert_eq!(result.password, "secret");
+        assert_eq!(result.identity, "crimson-arena");
+        assert_eq!(result.profile.as_deref(), Some("crimson-arena"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_server_file_that_does_not_exist_is_an_error() {
+        let dir = the_dir("options_from_missing");
+
+        let result = options_from(cli(&["ql_rcon", "crimson-arena"]), &locate_in(&dir), None);
+
+        let message = result.expect_err("there is no such file").to_string();
+        assert!(message.contains("--save-server crimson-arena"), "{message}");
+    }
+
+    #[test]
+    fn a_missing_password_is_asked_for_only_with_a_terminal() {
+        let ask: &dyn Fn(&str) -> anyhow::Result<String> = &|host| Ok(format!("for {host}"));
+        let dir = the_dir("options_prompt");
+
+        let asked = options_from(cli(&["ql_rcon"]), &locate_in(&dir), Some(ask))
+            .expect("the options are valid");
+        let not_asked =
+            options_from(cli(&["ql_rcon"]), &locate_in(&dir), None).expect("the options are valid");
+        let given = options_from(
+            cli(&["ql_rcon", "--password", "typed"]),
+            &locate_in(&dir),
+            Some(ask),
+        )
+        .expect("the options are valid");
+
+        assert_eq!(asked.password, "for tcp://127.0.0.1:27961");
+        assert_eq!(not_asked.password, "");
+        assert_eq!(given.password, "typed");
+    }
+
+    #[test]
+    fn a_failing_password_prompt_is_an_error() {
+        let ask: &dyn Fn(&str) -> anyhow::Result<String> = &|_| anyhow::bail!("no terminal");
+        let dir = the_dir("options_prompt_fails");
+
+        let result = options_from(cli(&["ql_rcon"]), &locate_in(&dir), Some(ask));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn save_server_writes_the_file_and_names_it_as_the_profile() {
+        let dir = the_dir("options_save");
+        let locate = locate_in(&dir);
+
+        let result = options_from(
+            cli(&[
+                "ql_rcon",
+                "--save-server",
+                "crimson-arena",
+                "--host",
+                "192.0.2.7:27961",
+                "--password",
+                "typed",
+            ]),
+            &locate,
+            None,
+        )
+        .expect("the options are valid");
+
+        assert_eq!(result.profile.as_deref(), Some("crimson-arena"));
+        let saved = ServerFile::new(locate("crimson-arena").unwrap())
+            .connection()
+            .expect("could not read the server file");
+        assert_eq!(saved.host.as_deref(), Some("tcp://192.0.2.7:27961"));
+        assert_eq!(saved.password.as_deref(), Some("typed"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_server_file_that_others_can_read_still_works() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = the_dir("options_exposed");
+        let locate = locate_in(&dir);
+        let path = locate("crimson-arena").unwrap();
+        save_server_at(path.clone(), &options("")).expect("could not save the server");
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644))
+            .expect("could not change the permissions");
+
+        let result = options_from(cli(&["ql_rcon", "crimson-arena"]), &locate, None)
+            .expect("the options are valid");
+
+        assert_eq!(result.password, "secret");
+        let _ = fs::remove_dir_all(dir);
     }
 }

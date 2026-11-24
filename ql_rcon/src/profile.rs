@@ -8,7 +8,7 @@ use std::{
 
 #[cfg(test)]
 pub(crate) use ql_zmq::servers::is_server_name;
-pub(crate) use ql_zmq::servers::{config_dir, server_file};
+pub(crate) use ql_zmq::servers::{config_dir, server_file, server_file_in};
 use toml_edit::{Array, DocumentMut, Item, Table, value};
 
 use crate::{fetch::Fetched, learn::Learned};
