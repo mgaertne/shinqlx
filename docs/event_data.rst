@@ -11,7 +11,7 @@ the ones of the server, so they can change with a Quake Live update. The type st
 ``TypedDict`` classes of the same names (``StatsData``, ``GameStartData``, ``GameEndData``, ``RoundEndData``,
 ``KillData`` and ``DeathData``).
 
-All of them need ``zmq_stats_enable``, see :ref:`zmq_enable`.
+Only ``game_end`` needs ``zmq_stats_enable``, the others also work without it, see :ref:`zmq_enable`.
 
 .. _event_data_stats:
 

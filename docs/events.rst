@@ -287,7 +287,7 @@ Concrete Event dispatchers
 
    ``name = "stats"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    Event that triggers whenever the server sends stats over ZMQ.
 
@@ -363,7 +363,7 @@ Concrete Event dispatchers
 
    ``name = "game_start"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    Event that goes off when a game starts.
 
@@ -411,7 +411,7 @@ Concrete Event dispatchers
 
    ``name = "round_end"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    Event that goes off when a round ends.
 
@@ -424,7 +424,7 @@ Concrete Event dispatchers
 
    ``name = "team_switch"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    For when a player switches teams. If cancelled, simply put the player back in the old team.
 
@@ -478,7 +478,7 @@ Concrete Event dispatchers
 
    ``name = "kill"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    Event that goes off when someone is killed.
 
@@ -493,7 +493,7 @@ Concrete Event dispatchers
 
    ``name = "death"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    Event that goes off when someone dies.
 

@@ -72,7 +72,8 @@ pub(crate) mod prelude {
         cvar_changed_dispatcher, damage_dispatcher, flag_status_dispatcher, frame_dispatcher,
         item_touch_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
         medal_dispatcher, new_game_dispatcher, objective_dispatcher, rcon_dispatcher,
-        server_command_dispatcher, set_configstring_dispatcher, weapon_fired_dispatcher,
+        server_command_dispatcher, set_configstring_dispatcher, stats_feed_dispatcher,
+        weapon_fired_dispatcher,
     };
     #[allow(
         unused_imports,
@@ -128,7 +129,8 @@ pub(crate) mod prelude {
         cvar_changed_dispatcher, damage_dispatcher, flag_status_dispatcher, frame_dispatcher,
         item_touch_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
         medal_dispatcher, new_game_dispatcher, objective_dispatcher, rcon_dispatcher,
-        server_command_dispatcher, set_configstring_dispatcher, weapon_fired_dispatcher,
+        server_command_dispatcher, set_configstring_dispatcher, stats_feed_dispatcher,
+        weapon_fired_dispatcher,
     };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
@@ -140,7 +142,8 @@ pub(crate) mod prelude {
         kamikaze_explode_dispatcher_context, kamikaze_use_dispatcher_context,
         medal_dispatcher_context, new_game_dispatcher_context, objective_dispatcher_context,
         rcon_dispatcher_context, server_command_dispatcher_context,
-        set_configstring_dispatcher_context, weapon_fired_dispatcher_context,
+        set_configstring_dispatcher_context, stats_feed_dispatcher_context,
+        weapon_fired_dispatcher_context,
     };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
@@ -2413,6 +2416,8 @@ pub(crate) mod python_tests {
     pub(crate) fn objective_dispatcher(_client_id: i32, _kind: &str, _count: i32) {}
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn medal_dispatcher(_client_id: i32, _medal: &str, _total: i32) {}
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn stats_feed_dispatcher() {}
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn flag_status_dispatcher(_team: i32, _status: i32, _carrier_id: Option<i32>) {}
     #[cfg(not(tarpaulin_include))]

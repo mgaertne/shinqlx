@@ -20,8 +20,8 @@ the command line of the server, together with the cvars that select where the li
    * - Cvar
      - Meaning
    * - ``zmq_stats_enable``
-     - ``1`` to enable the stats. Without it no :class:`StatsListener` runs and the events that need the stats are not
-       dispatched. Hooking such an event then raises an :exc:`AssertionError`.
+     - ``1`` to enable the stats. Without it no :class:`StatsListener` runs. ``game_end`` is then not dispatched, and
+       hooking it raises an :exc:`AssertionError`.
    * - ``zmq_stats_ip``
      - The host to connect to. Default: ``127.0.0.1``
    * - ``zmq_stats_port``
@@ -29,8 +29,12 @@ the command line of the server, together with the cvars that select where the li
    * - ``zmq_stats_password``
      - The password of the stats socket
 
-The events that need the stats are listed in :ref:`events` with ``need_zmq_stats_enabled = True``. The data that they
-pass is described in :ref:`event_data`.
+The only event that still needs the stats of the ZMQ socket is ``game_end``, listed in :ref:`events` with
+``need_zmq_stats_enabled = True``. The engine builds the ``MATCH_REPORT`` message of the end of a match itself. All other
+stats messages come from the game module, and shinqlx hooks the engine function that they pass through: ``stats``,
+``game_start``, ``round_end``, ``team_switch``, ``kill`` and ``death`` work without ``zmq_stats_enable`` when it is ``0``.
+They then see the same messages as from the socket, handed to the plugins in the next frame. With ``zmq_stats_enable``
+set the messages come from the socket, as before. The data that the events pass is described in :ref:`event_data`.
 
 .. class:: StatsListener
 

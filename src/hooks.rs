@@ -121,6 +121,9 @@ pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart:
 
         main_engine.init_game(level_time, random_seed, restart);
 
+        #[cfg(all(target_os = "linux", not(test)))]
+        main_engine.hook_stats_feed();
+
         main_engine.set_tag();
         main_engine.initialize_cvars();
 
@@ -726,6 +729,7 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
 
         report_objectives(main_engine);
         release_held_commands(main_engine);
+        stats_feed_dispatcher();
 
         frame_dispatcher();
 
@@ -2690,6 +2694,8 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn g_runframe_forwards_to_python() {
+        let stats_feed_dispatcher_ctx = stats_feed_dispatcher_context();
+        stats_feed_dispatcher_ctx.expect();
         let frame_dispatcher_ctx = frame_dispatcher_context();
         frame_dispatcher_ctx.expect().times(1);
 
@@ -2722,6 +2728,8 @@ mod hooks_tests {
         set_event_listened_to(EventName::Objective, false);
         configure_no_debug_events("objective");
         reset_objective_tracking();
+        let stats_feed_dispatcher_ctx = stats_feed_dispatcher_context();
+        stats_feed_dispatcher_ctx.expect();
         let frame_dispatcher_ctx = frame_dispatcher_context();
         frame_dispatcher_ctx.expect().times(1);
         let objective_dispatcher_ctx = objective_dispatcher_context();
@@ -2743,6 +2751,8 @@ mod hooks_tests {
 
         reset_objective_tracking();
         CAPTURES.store(2, Ordering::Relaxed);
+        let stats_feed_dispatcher_ctx = stats_feed_dispatcher_context();
+        stats_feed_dispatcher_ctx.expect();
         let frame_dispatcher_ctx = frame_dispatcher_context();
         frame_dispatcher_ctx.expect().times(3);
         let game_entity_from_ctx = MockGameEntity::from_context();

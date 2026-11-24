@@ -3,7 +3,9 @@ use core::{hint::cold_path, sync::atomic::Ordering};
 
 use pyo3::types::{PyBool, PyString};
 
-use super::{events::event_wanted, events_enum::EventName, prelude::*};
+use super::{
+    events::event_wanted, events_enum::EventName, prelude::*, stats_listener::handle_zmq_msg,
+};
 
 pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Cow<'_, str>> {
     if !pyshinqlx_is_initialized() {
@@ -168,6 +170,25 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     Python::attach(|py| handle_kamikaze_use(py, client_id));
 }
 
+/// Hands the stats messages that the game module produced since the last frame to the plugins.
+pub(crate) fn stats_feed_dispatcher() {
+    let messages = crate::stats_feed::take_pending();
+    if messages.is_empty() {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        messages
+            .iter()
+            .for_each(|message| handle_zmq_msg(py, message));
+    });
+}
+
 pub(crate) fn weapon_fired_dispatcher(client_id: i32, weapon: i32) {
     if !event_wanted(EventName::WeaponFired) {
         return;
@@ -321,12 +342,36 @@ mod pyshinqlx_dispatcher_tests {
         cvar_changed_dispatcher, damage_dispatcher, flag_status_dispatcher, frame_dispatcher,
         item_touch_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
         medal_dispatcher, new_game_dispatcher, objective_dispatcher, rcon_dispatcher,
-        server_command_dispatcher, set_configstring_dispatcher, weapon_fired_dispatcher,
+        server_command_dispatcher, set_configstring_dispatcher, stats_feed_dispatcher,
+        weapon_fired_dispatcher,
     };
     use crate::{
         ffi::{c::prelude::*, python::prelude::*},
         prelude::*,
     };
+
+    #[test]
+    #[serial]
+    fn stats_feed_dispatcher_without_messages_does_not_touch_python() {
+        let _ = crate::stats_feed::take_pending();
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().times(0);
+
+        stats_feed_dispatcher();
+    }
+
+    #[test]
+    #[serial]
+    fn stats_feed_dispatcher_drops_messages_when_python_not_initiailized() {
+        let _ = crate::stats_feed::take_pending();
+        crate::stats_feed::queue_message("{}".to_string());
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        stats_feed_dispatcher();
+
+        assert!(crate::stats_feed::take_pending().is_empty());
+    }
 
     #[test]
     #[serial]

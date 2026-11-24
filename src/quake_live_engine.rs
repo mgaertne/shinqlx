@@ -57,7 +57,7 @@ use crate::{
         reason = "stand-ins for engine symbols that not every test calls"
     )
 )]
-const QAGAME: &str = "qagamex64.so";
+pub(crate) const QAGAME: &str = "qagamex64.so";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum QuakeLiveEngineError {
@@ -1709,6 +1709,12 @@ impl QuakeLiveEngine {
 
     pub(crate) fn unhook_vm(&self, _restart: bool) {
         self.vm_functions.unhook();
+    }
+
+    /// Hooks the engine function that publishes the stats events, so that plugins get them without ZMQ.
+    #[cfg(all(target_os = "linux", not(test)))]
+    pub(crate) fn hook_stats_feed(&self) {
+        crate::stats_feed::install(self.vm_functions.stats_medal_orig.load(Ordering::Acquire));
     }
 
     fn com_printf_orig(
