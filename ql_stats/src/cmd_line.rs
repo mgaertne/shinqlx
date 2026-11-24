@@ -5,8 +5,8 @@ use clap::Parser;
 use ql_zmq::{
     ColorChoice,
     servers::{
-        Endpoint, Interface, choice, endpoint, flag, list, migrate_legacy_config_dir,
-        password_is_exposed, read_document, save_endpoint, server_file,
+        Endpoint, Interface, choice, endpoint, flag, list, password_is_exposed, read_document,
+        save_endpoint, server_file,
     },
     switch,
 };
@@ -140,7 +140,6 @@ fn save_server_at(path: &Path, options: &CommandLineOptions) -> Result<()> {
 
 /// Reads the options and the server file they name.
 pub(crate) fn parse() -> Result<CommandLineOptions> {
-    migrate_legacy_config_dir();
     resolve(CommandLineOptions::parse(), &server_file)
 }
 

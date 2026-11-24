@@ -477,24 +477,6 @@ mod profile_tests {
     }
 
     #[test]
-    fn the_older_name_always_ansi_is_read_and_written_as_always() {
-        let path = scratch_file();
-        fs::create_dir_all(path.parent().expect("the file has a directory"))
-            .expect("the directory is created");
-        fs::write(&path, "[rcon]\ncolor = \"always-ansi\"\n").expect("the file is written");
-        let file = ServerFile::new(path);
-
-        let connection = file.connection().expect("the file is read");
-        file.save_connection(&connection)
-            .expect("the file is written");
-
-        assert_eq!(connection.color, Some(ColorChoice::Always));
-        let text = fs::read_to_string(file.path()).expect("the file is read");
-        assert!(text.contains("color = \"always\""), "{text}");
-        cleanup(&file);
-    }
-
-    #[test]
     fn the_connection_lies_in_the_table_rcon() {
         let file = ServerFile::new(scratch_file());
 
@@ -512,20 +494,16 @@ mod profile_tests {
     }
 
     #[test]
-    fn the_values_at_the_top_of_an_older_file_are_still_read_and_move_on_saving() {
+    fn saving_the_color_keeps_the_rest_of_the_file() {
         let path = scratch_file();
         fs::create_dir_all(path.parent().expect("the file has a directory"))
             .expect("the directory is created");
         fs::write(
             &path,
-            "host = \"tcp://192.0.2.1:28960\"\npassword = \"secret\"\n[stats]\nport = 27961\n",
+            "# my server\n[rcon]\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"secret\"\n[stats]\nport = 27961\n",
         )
         .expect("the file is written");
         let file = ServerFile::new(path);
-
-        let read = file.connection().expect("the file is read");
-        assert_eq!(read.host.as_deref(), Some("tcp://192.0.2.1:28960"));
-        assert_eq!(read.password.as_deref(), Some("secret"));
 
         file.save_connection(&Connection {
             color: Some(ColorChoice::Never),
@@ -533,13 +511,13 @@ mod profile_tests {
         })
         .expect("the file is written");
 
-        let moved = file.connection().expect("the file is read");
-        assert_eq!(moved.host, read.host);
-        assert_eq!(moved.password, read.password);
-        assert_eq!(moved.color, Some(ColorChoice::Never));
+        let saved = file.connection().expect("the file is read");
+        assert_eq!(saved.host.as_deref(), Some("tcp://192.0.2.1:28960"));
+        assert_eq!(saved.password.as_deref(), Some("secret"));
+        assert_eq!(saved.color, Some(ColorChoice::Never));
         let text = fs::read_to_string(file.path()).expect("the file is read");
-        assert!(text.starts_with("[stats]"), "{text}");
-        assert!(text.contains("\n[rcon]\n"), "{text}");
+        assert!(text.starts_with("# my server"), "{text}");
+        assert!(text.contains("[stats]"), "{text}");
         cleanup(&file);
     }
 

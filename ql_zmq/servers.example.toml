@@ -31,7 +31,7 @@ password = "change-me-rcon"
 # identity = "my-laptop"
 
 # Color of the output: "auto" (the default: only on a terminal and without NO_COLOR), "always" or "never".
-# The same values as in [stats]; "always-ansi" of earlier versions is still read as "always".
+# The same values as in [stats].
 # color = "auto"
 
 # Put the time of receipt (HH:MM:SS) before every line of the output. Default: false.

@@ -24,8 +24,7 @@ pub const POLL_INTERVAL: Duration = Duration::from_millis(25);
 pub enum ColorChoice {
     /// Only when the output goes to a terminal and `NO_COLOR` is not set.
     Auto,
-    /// Always, with ANSI escape sequences. `always-ansi` is the older name of the same choice.
-    #[value(alias = "always-ansi")]
+    /// Always, with ANSI escape sequences.
     Always,
     /// Never.
     Never,
@@ -205,7 +204,9 @@ mod tests {
     use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
     use tokio_util::sync::CancellationToken;
 
-    use super::{ColorChoice, LinkEvent, LinkState, Reconnect, switch, with_timestamp};
+    use super::{
+        ColorChoice, LinkEvent, LinkState, MonitorSocketEvent, Reconnect, switch, with_timestamp,
+    };
 
     #[test]
     fn color_can_be_forced() {
@@ -219,10 +220,10 @@ mod tests {
             assert_eq!(ColorChoice::from_str(choice.name(), true), Ok(choice));
         }
         assert_eq!(
-            ColorChoice::from_str("Always-Ansi", true),
+            ColorChoice::from_str("ALWAYS", true),
             Ok(ColorChoice::Always)
         );
-        assert!(ColorChoice::from_str("ansi", true).is_err());
+        assert!(ColorChoice::from_str("always-ansi", true).is_err());
     }
 
     #[test]
@@ -366,6 +367,39 @@ mod tests {
 
         assert_eq!(lines, ["ZMQ socket error: MonitorStopped"]);
         assert!(running.is_cancelled());
+    }
+
+    #[test]
+    fn monitor_events_become_link_events() {
+        assert!(matches!(
+            LinkEvent::from(MonitorSocketEvent::Connected),
+            LinkEvent::Connected
+        ));
+        assert!(matches!(
+            LinkEvent::from(MonitorSocketEvent::Closed),
+            LinkEvent::Lost
+        ));
+        assert!(matches!(
+            LinkEvent::from(MonitorSocketEvent::ConnectDelayed),
+            LinkEvent::Ignored
+        ));
+        assert!(matches!(
+            LinkEvent::from(MonitorSocketEvent::MonitorStopped),
+            LinkEvent::Failed(description) if description == "MonitorStopped"
+        ));
+        assert!(matches!(
+            LinkEvent::from(MonitorSocketEvent::Accepted),
+            LinkEvent::Other(description) if description == "Accepted"
+        ));
+    }
+
+    #[test]
+    fn ignored_events_say_nothing() {
+        let running = CancellationToken::new();
+
+        let (lines, _) = handle_all([LinkEvent::Ignored], &FakeLink::default(), &running);
+
+        assert!(lines.is_empty());
     }
 
     #[test]

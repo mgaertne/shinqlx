@@ -2,7 +2,7 @@ use std::{io::IsTerminal, path::PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
-use ql_zmq::{ColorChoice, servers::migrate_legacy_config_dir, switch};
+use ql_zmq::{ColorChoice, switch};
 
 use crate::profile::{Connection, ServerFile, server_file};
 
@@ -142,7 +142,6 @@ type ServerFileLocator<'a> = &'a dyn Fn(&str) -> Result<PathBuf>;
 
 /// Reads the options, the server file they name and, where needed, the password from the terminal.
 pub(crate) fn parse() -> Result<CommandLineOptions> {
-    migrate_legacy_config_dir();
     let prompt: Option<PasswordPrompt> = std::io::stdin().is_terminal().then_some(&prompt_password);
 
     options_from(Cli::parse(), &path_of_server_file, prompt)
@@ -372,16 +371,6 @@ mod cmd_line_tests {
         ));
     }
 
-    #[test]
-    fn the_older_name_of_always_is_still_accepted() {
-        let args = resolved(
-            &["ql_rcon", "--color", "always-ansi"],
-            Connection::default(),
-        );
-
-        assert_eq!(args.color, ColorChoice::Always);
-    }
-
     fn options(identity: &str) -> CommandLineOptions {
         CommandLineOptions {
             host: "tcp://192.0.2.1:27961".to_string(),
@@ -503,6 +492,22 @@ mod cmd_line_tests {
         assert_eq!(result.identity, "crimson-arena");
         assert_eq!(result.profile.as_deref(), Some("crimson-arena"));
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_server_file_with_a_wrong_value_is_an_error_that_names_the_file() {
+        let dir = the_dir("options_from_invalid");
+        let locate = locate_in(&dir);
+        let path = locate("crimson-arena").unwrap();
+        fs::create_dir_all(path.parent().expect("the file has a directory"))
+            .expect("the directory is created");
+        fs::write(&path, "[rcon]\ncolor = \"rainbow\"\n").expect("the file is written");
+
+        let result = options_from(cli(&["ql_rcon", "crimson-arena"]), &locate, None);
+
+        let message = format!("{:#}", result.expect_err("the color is unknown"));
+        assert!(message.contains("could not read"), "{message}");
+        assert!(message.contains("unknown color 'rainbow'"), "{message}");
     }
 
     #[test]

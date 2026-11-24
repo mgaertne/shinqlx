@@ -130,12 +130,11 @@ Changes since 0.8.0.
 ### ql_rcon and ql_stats
 
 * **One config directory and one format for both tools.** The server files and the completion files of
-  `ql_rcon` and the server files of `ql_stats` live in `~/.config/ql_zmq/` on Linux; the directory `~/.config/ql_rcon/`
-  of earlier versions is moved there at the start, unless the new one exists. A server file has the tables `[rcon]`
+  `ql_rcon` and the server files of `ql_stats` live in `~/.config/ql_zmq/` on Linux; move the directory `~/.config/ql_rcon/`
+  of earlier versions there by hand. A server file has the tables `[rcon]`
   (`host`, `port`, `password`, `identity`, `color`) and `[stats]` (`host`, `port`, `password`); without a `host` each takes
-  the host of the other table with its own `port`. Files with `host`, `password`, `identity` and `color` at the top are
-  still read as `[rcon]` and the next save moves the values into the table. `ql_zmq/servers.example.toml` is a sample
-  with every key commented.
+  the host of the other table with its own `port`. Move the values `host`, `password`, `identity` and `color` at the top
+  of an older file into `[rcon]` by hand. `ql_zmq/servers.example.toml` is a sample with every key commented.
 * **More settings in the server file.** `[stats]` takes `format`, `color`, `timestamp`, `types` and `exclude`, which
   are the options `--format`, `--color`, `--timestamp`, `--type` and `--exclude` of `ql_stats`; `[rcon]` takes
   `timestamp` and `fetch_completions`. Options on the command line win. A value of the wrong type or an unknown
@@ -146,8 +145,8 @@ Changes since 0.8.0.
   before every message.
 * **`--color` and `color` take the same values in `ql_rcon` and `ql_stats`:** `auto`, `always` and `never`, without
   regard to case. `ql_rcon` used the values of the `termcolor` crate (`always-ansi` as a fourth one, which was the same
-  as `always`; the help and README wrongly named it `ansi`), `ql_stats` had its own three. `always-ansi` is still
-  accepted as `always`. `auto` now means the same in both: a terminal and no `NO_COLOR` in the environment, where
+  as `always`; the help and README wrongly named it `ansi`), `ql_stats` had its own three. `always-ansi` is not accepted
+  any more, use `always`. `auto` now means the same in both: a terminal and no `NO_COLOR` in the environment, where
   `ql_rcon` looked only at the terminal before.
 
 ### ql_stats

@@ -2,8 +2,7 @@
 //!
 //! A file has one table per interface of the server: `[rcon]` and `[stats]`. Both take `host`, `port` and `password`;
 //! without `host` the host of the other table is used with the own `port`, because the two ports and passwords usually
-//! differ while the machine is the same. `[rcon]` also holds `identity` and `color`. Files from before the tables
-//! existed keep the values of `[rcon]` at the top and are still read that way.
+//! differ while the machine is the same. `[rcon]` also holds `identity` and `color`.
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -12,44 +11,13 @@ use std::{
 use clap::ValueEnum;
 use directories::ProjectDirs;
 pub use toml_edit::DocumentMut;
-use toml_edit::{Item, Key, Table, value};
+use toml_edit::{Item, Table, value};
 
 const CONFIG_DIR_NAME: &str = "ql_zmq";
-const LEGACY_CONFIG_DIR_NAME: &str = "ql_rcon";
-const LEGACY_RCON_KEYS: [&str; 4] = ["host", "password", "identity", "color"];
 
 /// The config directory, `~/.config/ql_zmq/` on Linux.
 pub fn config_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", CONFIG_DIR_NAME).map(|dirs| dirs.config_dir().to_path_buf())
-}
-
-/// Moves the config directory of earlier versions, `~/.config/ql_rcon/` on Linux, to [`config_dir`] unless that exists.
-///
-/// The programs call it at their start; it says on stderr when it moved the directory.
-pub fn migrate_legacy_config_dir() {
-    let (Some(old), Some(new)) = (
-        ProjectDirs::from("", "", LEGACY_CONFIG_DIR_NAME)
-            .map(|dirs| dirs.config_dir().to_path_buf()),
-        config_dir(),
-    ) else {
-        return;
-    };
-
-    if move_directory(&old, &new).is_ok_and(|moved| moved) {
-        eprintln!("Moved {} to {}.", old.display(), new.display());
-    }
-}
-
-fn move_directory(old: &Path, new: &Path) -> io::Result<bool> {
-    if new.exists() || !old.is_dir() {
-        return Ok(false);
-    }
-    if let Some(parent) = new.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::rename(old, new)?;
-
-    Ok(true)
 }
 
 /// A server name becomes a file name, so it may not contain path separators or start with a dot.
@@ -129,7 +97,7 @@ fn table_of(document: &DocumentMut, interface: Interface) -> Option<&Table> {
     document.get(interface.table()).and_then(Item::as_table)
 }
 
-/// The value `key` of the table of `interface`; for `[rcon]` the value at the top of an older file counts too.
+/// The value `key` of the table of `interface`.
 ///
 /// A value of another type than `convert` accepts is an error that names the table, the key and what is expected.
 fn typed<T>(
@@ -139,12 +107,8 @@ fn typed<T>(
     expected: &str,
     convert: impl Fn(&Item) -> Option<T>,
 ) -> io::Result<Option<T>> {
-    let own = table_of(document, interface).and_then(|table| table.get(key));
-    let legacy = (interface == Interface::Rcon)
-        .then(|| document.get(key))
-        .flatten();
-
-    own.or(legacy)
+    table_of(document, interface)
+        .and_then(|table| table.get(key))
         .map(|item| {
             convert(item).ok_or_else(|| {
                 io::Error::new(
@@ -224,36 +188,15 @@ pub fn read_endpoint(path: &Path, interface: Interface) -> io::Result<Endpoint> 
     endpoint(&read_document(path)?, interface)
 }
 
-fn adopt_legacy_rcon_keys(document: &mut DocumentMut) {
-    let legacy: Vec<(Key, Item)> = LEGACY_RCON_KEYS
-        .into_iter()
-        .filter_map(|key| document.remove_entry(key))
-        .collect();
-    if legacy.is_empty() {
-        return;
-    }
-
-    let mut table = table_of(document, Interface::Rcon)
-        .cloned()
-        .unwrap_or_default();
-    for (key, item) in legacy {
-        if !table.contains_key(key.get()) {
-            table.insert_formatted(&key, item);
-        }
-    }
-    document[Interface::Rcon.table()] = Item::Table(table);
-}
-
 /// Writes the settings that are `Some` into the table of `interface`, readable for the owner only.
 ///
-/// Other content stays, and values at the top of an older file move into `[rcon]`.
+/// Other content of the file stays.
 pub fn save_settings(
     path: &Path,
     interface: Interface,
     settings: &[(&str, Option<&str>)],
 ) -> io::Result<()> {
     let mut document = read_document(path)?;
-    adopt_legacy_rcon_keys(&mut document);
 
     let mut table = table_of(&document, interface).cloned().unwrap_or_default();
     for (key, setting) in settings {
@@ -329,9 +272,8 @@ mod servers_tests {
     use std::fs;
 
     use super::{
-        Endpoint, Interface, choice, flag, is_server_name, list, move_directory,
-        password_is_exposed, read_document, read_endpoint, save_endpoint, save_settings,
-        server_file_in, text, with_port,
+        Endpoint, Interface, choice, flag, is_server_name, list, password_is_exposed,
+        read_endpoint, save_endpoint, server_file_in, text, with_port,
     };
 
     #[test]
@@ -545,63 +487,6 @@ mod servers_tests {
     }
 
     #[test]
-    fn values_at_the_top_of_an_older_file_count_for_rcon_only() {
-        let dir = tempdir("legacy_read");
-        let path = dir.join("arena.toml");
-        fs::write(
-            &path,
-            "host = \"tcp://192.0.2.1:28960\"\nidentity = \"tester\"\n[stats]\nport = 27961\n",
-        )
-        .expect("the file can be written");
-        let document = read_document(&path).expect("the file is valid");
-
-        assert_eq!(
-            text(&document, Interface::Rcon, "identity")
-                .expect("the value is a text")
-                .as_deref(),
-            Some("tester")
-        );
-        assert_eq!(
-            text(&document, Interface::Stats, "identity").expect("nothing is set"),
-            None
-        );
-        assert_eq!(
-            read_endpoint(&path, Interface::Stats)
-                .expect("the file is valid")
-                .host
-                .as_deref(),
-            Some("tcp://192.0.2.1:27961")
-        );
-    }
-
-    #[test]
-    fn saving_moves_the_values_of_an_older_file_into_rcon() {
-        let dir = tempdir("legacy_save");
-        let path = dir.join("arena.toml");
-        fs::write(
-            &path,
-            "# my server\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"rcon\"\n[completions]\nnames = [\"kick\"]\n",
-        )
-        .expect("writable");
-
-        save_settings(&path, Interface::Rcon, &[("color", Some("never"))])
-            .expect("the file can be saved");
-
-        let text = fs::read_to_string(&path).expect("readable");
-        assert!(text.contains("# my server"), "{text}");
-        assert!(text.contains("[completions]"), "{text}");
-        let document = read_document(&path).expect("the file is valid");
-        assert_eq!(
-            document["rcon"]["host"].as_str(),
-            Some("tcp://192.0.2.1:28960")
-        );
-        assert_eq!(document["rcon"]["password"].as_str(), Some("rcon"));
-        assert_eq!(document["rcon"]["color"].as_str(), Some("never"));
-        assert!(document.get("host").is_none());
-        assert!(document.get("password").is_none());
-    }
-
-    #[test]
     fn saving_keeps_the_rest_of_the_file_and_is_private() {
         let dir = tempdir("save");
         let path = dir.join("arena.toml");
@@ -638,7 +523,6 @@ mod servers_tests {
         for (name, text) in [
             ("stats.toml", "[stats]\npassword = \"stats\"\n"),
             ("rcon.toml", "[rcon]\npassword = \"rcon\"\n"),
-            ("legacy.toml", "password = \"rcon\"\n"),
         ] {
             let path = dir.join(name);
             fs::write(&path, text).expect("writable");
@@ -649,32 +533,6 @@ mod servers_tests {
                 assert!(password_is_exposed(&path), "{name}");
             }
         }
-    }
-
-    #[test]
-    fn the_config_directory_of_earlier_versions_moves_once() {
-        let base = tempdir("move");
-        let old = base.join("ql_rcon");
-        let new = base.join("config").join("ql_zmq");
-        fs::create_dir_all(old.join("servers")).expect("the directory can be created");
-        fs::write(old.join("servers").join("arena.toml"), "x").expect("writable");
-
-        assert!(move_directory(&old, &new).expect("the directory moves"));
-        assert!(new.join("servers").join("arena.toml").is_file());
-        assert!(!old.exists());
-        assert!(!move_directory(&old, &new).expect("nothing is left to move"));
-    }
-
-    #[test]
-    fn an_existing_config_directory_is_not_replaced() {
-        let base = tempdir("keep");
-        let old = base.join("ql_rcon");
-        let new = base.join("ql_zmq");
-        fs::create_dir_all(&old).expect("the directory can be created");
-        fs::create_dir_all(&new).expect("the directory can be created");
-
-        assert!(!move_directory(&old, &new).expect("nothing to do"));
-        assert!(old.is_dir());
     }
 
     fn tempdir(name: &str) -> std::path::PathBuf {
