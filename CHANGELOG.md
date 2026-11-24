@@ -56,6 +56,7 @@ Changes since 0.8.0.
 * The `decorators` rule warns where converting a registration can change the order of handlers with the same event or
   command and priority: shinqlx registers decorated methods after `__init__` in the alphabetical order of their names.
   The old warning for every class that kept a registration is gone, because it was too general.
+* The `default-plugin-access` rule also warns about `Plugin.cointoss`, which shinqlx removed.
 
 ### ql_rcon
 

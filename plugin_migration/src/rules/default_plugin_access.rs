@@ -90,6 +90,16 @@ fn plugin_name_of_lookup<'a>(
     (is_plugins && key.kind() == "string").then(|| source.text_of(key).trim_matches(['"', '\'']))
 }
 
+fn is_plugin_class(object: tree_sitter::Node<'_>, source: &Source<'_>) -> bool {
+    match object.kind() {
+        "identifier" => source.text_of(object) == "Plugin",
+        "attribute" => object
+            .child_by_field_name("attribute")
+            .is_some_and(|name| source.text_of(name) == "Plugin"),
+        _ => false,
+    }
+}
+
 impl Rule for DefaultPluginAccess {
     fn name(&self) -> &'static str {
         "default-plugin-access"
@@ -111,6 +121,18 @@ impl Rule for DefaultPluginAccess {
                     line_of(node),
                     "next_frame_tasks is a queue.SimpleQueue in shinqlx (put/get_nowait), use the \
                      next_frame decorator instead",
+                ));
+                return;
+            }
+
+            if member_name == "cointoss"
+                && node
+                    .child_by_field_name("object")
+                    .is_some_and(|object| is_plugin_class(object, source))
+            {
+                output.warnings.push(Warning::new(
+                    line_of(node),
+                    "Plugin.cointoss is gone in shinqlx, it did nothing in minqlx either",
                 ));
                 return;
             }
@@ -165,6 +187,9 @@ mod tests {
     #[case("self.plugins['fun'].play_sound(x)\n", 0)]
     #[case("self.other['essentials'].mappool\n", 0)]
     #[case("minqlx.next_frame_tasks.append(x)\n", 1)]
+    #[case("minqlx.Plugin.cointoss(a, b)\n", 1)]
+    #[case("Plugin.cointoss()\n", 1)]
+    #[case("self.cointoss()\n", 0)]
     fn counts_warnings(#[case] input: &str, #[case] expected: usize) {
         assert_eq!(warnings(input), expected);
     }
