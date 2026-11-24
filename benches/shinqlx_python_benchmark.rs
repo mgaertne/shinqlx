@@ -39,33 +39,34 @@ fn constructor_benchmark(c: &mut Criterion) {
 }
 
 #[criterion]
-fn handle_set_configstring_benchmark(c: &mut Criterion) {
+fn set_configstring_dispatcher_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 
-    c.bench_function("handle_set_configstring::unobserved_index", |b| {
-        b.iter(|| bench_support::handle_set_configstring(black_box(700), black_box("some value")))
+    c.bench_function("set_configstring_dispatcher::unobserved_index", |b| {
+        b.iter(|| {
+            bench_support::set_configstring_dispatcher(black_box(700), black_box("some value"))
+        })
     });
 }
 
 #[criterion]
-fn handle_event_benchmark(c: &mut Criterion) {
+fn event_dispatcher_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 
-    let mut group = c.benchmark_group("handle_event");
+    let mut group = c.benchmark_group("event_dispatcher");
     group.bench_function("client_command_scores", |b| {
-        b.iter(|| bench_support::handle_client_command(black_box(3), black_box("scores")))
-    });
-    group.bench_function("client_command_dispatcher_scores", |b| {
         b.iter(|| bench_support::client_command_dispatcher(black_box(3), black_box("scores")))
     });
     group.bench_function("server_command_cs", |b| {
-        b.iter(|| bench_support::handle_server_command(black_box(3), black_box("cs 700 \"value\"")))
+        b.iter(|| {
+            bench_support::server_command_dispatcher(black_box(3), black_box("cs 700 \"value\""))
+        })
     });
     group.bench_function("stats_message", |b| {
         b.iter(|| bench_support::handle_stats_message(black_box(STATS_MESSAGE)))
     });
     group.bench_function("damage", |b| {
-        b.iter(|| bench_support::handle_damage(black_box(3), black_box(Some(4)), black_box(25)))
+        b.iter(|| bench_support::damage_dispatcher(black_box(3), black_box(Some(4)), black_box(25)))
     });
     group.finish();
 }
@@ -95,15 +96,15 @@ fn dispatch_benchmark(c: &mut Criterion) {
 }
 
 #[criterion]
-fn handle_frame_benchmark(c: &mut Criterion) {
+fn frame_dispatcher_benchmark(c: &mut Criterion) {
     bench_support::prepare_python();
 
-    let mut group = c.benchmark_group("handle_frame");
-    group.bench_function("idle", |b| b.iter(bench_support::handle_frame));
+    let mut group = c.benchmark_group("frame_dispatcher");
+    group.bench_function("idle", |b| b.iter(bench_support::frame_dispatcher));
     group.bench_function("with_three_tasks", |b| {
         b.iter(|| {
             bench_support::queue_next_frame_tasks(black_box(3));
-            bench_support::handle_frame();
+            bench_support::frame_dispatcher();
         })
     });
     group.finish();
@@ -299,21 +300,23 @@ fn more_events_benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("more_events");
     group.bench_function("client_command_say", |b| {
-        b.iter(|| bench_support::handle_client_command(black_box(3), black_box("say \"hello\"")))
+        b.iter(|| {
+            bench_support::client_command_dispatcher(black_box(3), black_box("say \"hello\""))
+        })
     });
     group.bench_function("client_command_callvote", |b| {
         b.iter(|| {
-            bench_support::handle_client_command(
+            bench_support::client_command_dispatcher(
                 black_box(3),
                 black_box("callvote map campgrounds"),
             )
         })
     });
     group.bench_function("client_command_vote", |b| {
-        b.iter(|| bench_support::handle_client_command(black_box(3), black_box("vote y")))
+        b.iter(|| bench_support::client_command_dispatcher(black_box(3), black_box("vote y")))
     });
     group.bench_function("console_print", |b| {
-        b.iter(|| bench_support::handle_console_print(black_box("broadcast: print \"text\"\n")))
+        b.iter(|| bench_support::console_print_dispatcher(black_box("broadcast: print \"text\"\n")))
     });
     for (name, message) in [
         (

@@ -1,5 +1,7 @@
 //! Entry points for the criterion benchmarks. Not part of the stable API of this crate.
 
+use core::sync::atomic::Ordering;
+
 use pyo3::{
     append_to_inittab,
     ffi::Py_IsInitialized,
@@ -9,20 +11,15 @@ use pyo3::{
 };
 
 use super::{
-    EVENT_DISPATCHERS, PythonReturnCodes, clean_text as clean_text_impl,
+    EVENT_DISPATCHERS, PYSHINQLX_INITIALIZED, PythonReturnCodes, clean_text as clean_text_impl,
     decorators::register_declared_cvars,
+    dispatchers,
     events::{
         ChatEventDispatcher, ClientCommandDispatcher, CommandDispatcher, ConsolePrintDispatcher,
         DamageDispatcher, DeathDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
         EventDispatcherMethods, FrameEventDispatcher, KillDispatcher, RoundEndDispatcher,
         ServerCommandDispatcher, SetConfigstringDispatcher, StatsDispatcher, VoteCalledDispatcher,
         VoteDispatcher, VoteStartedDispatcher, dispatcher_debug_log as dispatcher_debug_log_impl,
-    },
-    handlers::{
-        handle_client_command as handle_client_command_impl,
-        handle_console_print as handle_console_print_impl, handle_damage as handle_damage_impl,
-        handle_frame as handle_frame_impl, handle_server_command as handle_server_command_impl,
-        handle_set_configstring as handle_set_configstring_impl,
     },
     name_of, pyshinqlx_module,
     stats_listener::handle_zmq_msg,
@@ -89,6 +86,7 @@ pub fn prepare_python() {
         py.import(intern!(py, "shinqlx"))
             .expect("could not import shinqlx module");
     });
+    PYSHINQLX_INITIALIZED.store(true, Ordering::Release);
 }
 
 /// Removes the color tags from a text.
@@ -96,11 +94,9 @@ pub fn clean_text(text: &str) -> String {
     clean_text_impl(&text)
 }
 
-/// Runs the handler that is called by the server every frame.
-pub fn handle_frame() {
-    Python::attach(|py| {
-        handle_frame_impl(py);
-    });
+/// Runs the dispatcher the hooks call every frame.
+pub fn frame_dispatcher() {
+    dispatchers::frame_dispatcher();
 }
 
 /// A Python handler that does as little as the set_configstring hook of the clan plugin does for
@@ -149,11 +145,10 @@ impl ClanLikeHandler {
     }
 }
 
-/// Runs the handler that is called by the server whenever a configstring is set.
-pub fn handle_set_configstring(index: u32, value: &str) {
-    Python::attach(|py| {
-        handle_set_configstring_impl(py, index, value);
-    });
+/// Runs the dispatcher the hooks call whenever a configstring is set and returns the length of the value that is passed
+/// on.
+pub fn set_configstring_dispatcher(index: u32, value: &str) -> Option<usize> {
+    dispatchers::set_configstring_dispatcher(index, value).map(|passed| passed.len())
 }
 
 /// Writes a debug message to the log the way the event dispatchers do.
@@ -182,31 +177,21 @@ pub fn handle_stats_message(message: &str) {
     });
 }
 
-/// Runs the handler that is called by the server for every command of a client.
-pub fn handle_client_command(client_id: i32, command: &str) {
-    Python::attach(|py| {
-        handle_client_command_impl(py, client_id, command);
-    });
-}
-
-/// Runs the dispatcher the hooks call for every command of a client and returns the length of the command that is passed on.
+/// Runs the dispatcher the hooks call for every command of a client and returns the length of the command that is
+/// passed on.
 pub fn client_command_dispatcher(client_id: i32, command: &str) -> Option<usize> {
-    super::PYSHINQLX_INITIALIZED.store(true, core::sync::atomic::Ordering::Release);
-    super::dispatchers::client_command_dispatcher(client_id, command).map(|passed| passed.len())
+    dispatchers::client_command_dispatcher(client_id, command).map(|passed| passed.len())
 }
 
-/// Runs the handler that is called by the server for every command sent to a client.
-pub fn handle_server_command(client_id: i32, command: &str) {
-    Python::attach(|py| {
-        handle_server_command_impl(py, client_id, command);
-    });
+/// Runs the dispatcher the hooks call for every command sent to a client and returns the length of the command that is
+/// passed on.
+pub fn server_command_dispatcher(client_id: i32, command: &str) -> Option<usize> {
+    dispatchers::server_command_dispatcher(Some(client_id), command).map(|passed| passed.len())
 }
 
-/// Runs the handler that is called by the server whenever damage is dealt.
-pub fn handle_damage(target_id: i32, attacker_id: Option<i32>, damage: i32) {
-    Python::attach(|py| {
-        handle_damage_impl(py, target_id, attacker_id, damage, 0, 5);
-    });
+/// Runs the dispatcher the hooks call whenever damage is dealt.
+pub fn damage_dispatcher(target_id: i32, attacker_id: Option<i32>, damage: i32) {
+    dispatchers::damage_dispatcher(target_id, attacker_id, damage, 0, 5);
 }
 
 /// Creates a `shinqlx.Powerups` object from six integers the way a plugin does.
@@ -253,11 +238,10 @@ pub fn queue_next_frame_tasks(count: usize) {
     });
 }
 
-/// Runs the handler that is called by the server for every line printed to the console.
-pub fn handle_console_print(text: &str) {
-    Python::attach(|py| {
-        handle_console_print_impl(py, text);
-    });
+/// Runs the dispatcher the hooks call for every line printed to the console and returns the length of the text that is
+/// passed on.
+pub fn console_print_dispatcher(text: &str) -> Option<usize> {
+    dispatchers::console_print_dispatcher(text).map(|passed| passed.len())
 }
 
 /// Handles a message of the ZMQ stats protocol and empties the queue of the tasks that it has
