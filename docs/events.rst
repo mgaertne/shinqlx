@@ -376,7 +376,7 @@ Concrete Event dispatchers
 
    ``name = "game_end"``
 
-   ``need_zmq_stats_enabled = True``
+   ``need_zmq_stats_enabled = False``
 
    Event that goes off when a game ends.
 

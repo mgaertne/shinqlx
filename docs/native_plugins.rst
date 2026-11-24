@@ -74,8 +74,8 @@ The owner (``qlx_owner``) always has all permissions, whatever level is stored f
 ban
 ===
 
-Bans players temporarily, also across server restarts, and optionally for leaving too many games. Needs the cvar
-``zmq_stats_enable 1``, because it hooks ``game_start`` and ``game_end``.
+Bans players temporarily, also across server restarts, and optionally for leaving too many games. Hooks ``game_start`` and
+``game_end``.
 
 =========================================== ======= =======================================================
 command                                     level   description

@@ -8,7 +8,8 @@ use core::mem;
 use std::sync::Mutex;
 
 const MAX_PENDING: usize = 4096;
-const IMPORT_TABLE_SLOT: usize = 0x5d0;
+const EVENT_SLOT: usize = 0x5d0;
+const REPORT_SLOT: usize = 0x5c8;
 const GLOBAL_LOAD_OFFSET: usize = 0xdf;
 const GLOBAL_LOAD_OPCODE: [u8; 3] = [0x4c, 0x8b, 0x2d];
 
@@ -39,7 +40,8 @@ pub(crate) fn socket_message(kind: &str, data: &str) -> String {
     )
 }
 
-/// Reads the engine function that publishes a stats event from the import table of the game module.
+/// Reads an engine function from the import table of the game module: the function that publishes a stats event
+/// (`EVENT_SLOT`) or the one that publishes the report of a match (`REPORT_SLOT`).
 ///
 /// `builder` is the address of the function of the game module that builds the `PLAYER_MEDAL` event. It loads
 /// the pointer to the import table from a global variable, which this follows to the slot of the function.
@@ -48,7 +50,7 @@ pub(crate) fn socket_message(kind: &str, data: &str) -> String {
 ///
 /// `builder` must be the address of that function in a loaded game module, so that its code and the memory it
 /// refers to are readable.
-pub(crate) unsafe fn locate_import(builder: usize) -> Option<usize> {
+pub(crate) unsafe fn locate_import(builder: usize, slot: usize) -> Option<usize> {
     let instruction = builder + GLOBAL_LOAD_OFFSET;
     // SAFETY: the caller guarantees that the code of the function is readable.
     let opcode = unsafe { core::ptr::read_unaligned(instruction as *const [u8; 3]) };
@@ -70,7 +72,7 @@ pub(crate) unsafe fn locate_import(builder: usize) -> Option<usize> {
         return None;
     }
     // SAFETY: the import table has a slot at this offset.
-    let import = unsafe { core::ptr::read_unaligned((table + IMPORT_TABLE_SLOT) as *const usize) };
+    let import = unsafe { core::ptr::read_unaligned((table + slot) as *const usize) };
     (import != 0).then_some(import)
 }
 
@@ -87,15 +89,17 @@ mod linux {
     use std::sync::OnceLock;
 
     use arc_swap::ArcSwapOption;
-    use detour::TypedDetour;
+    use detour::{Function, HookableWith, TypedDetour};
     use log::{debug, error};
     use procfs::process::{MMapPath, Process};
 
-    use super::{locate_import, queue_message, socket_message};
+    use super::{EVENT_SLOT, REPORT_SLOT, locate_import, queue_message, socket_message};
     use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
     type ImportFn = extern "C" fn(*mut c_void, c_int, *const c_char, *const c_void);
     type ImportDetour = TypedDetour<ImportFn>;
+    type ReportFn = extern "C" fn(*const c_void);
+    type ReportDetour = TypedDetour<ReportFn>;
 
     type NewWriterFn = unsafe extern "C" fn(*mut c_void);
     type WriteFn = unsafe extern "C" fn(*mut *const c_char, *mut c_void, *const c_void);
@@ -116,6 +120,7 @@ mod linux {
     unsafe impl Sync for JsonWriter {}
 
     static DETOUR: OnceLock<ImportDetour> = OnceLock::new();
+    static REPORT_DETOUR: OnceLock<ReportDetour> = OnceLock::new();
     static WRITER: ArcSwapOption<JsonWriter> = ArcSwapOption::const_empty();
 
     fn symbol<T: Copy>(handle: *mut c_void, name: &CStr) -> Option<T> {
@@ -190,26 +195,70 @@ mod linux {
         kind: *const c_char,
         value: *const c_void,
     ) {
+        if !kind.is_null() {
+            // SAFETY: the game module passes a NUL-terminated type name.
+            let kind = unsafe { CStr::from_ptr(kind) }.to_string_lossy();
+            queue_value(&kind, value);
+        }
+
+        if let Some(detour) = DETOUR.get() {
+            detour.call(owner, number, kind, value);
+        }
+    }
+
+    extern "C" fn shinqlx_match_report(value: *const c_void) {
+        queue_value("MATCH_REPORT", value);
+
+        if let Some(detour) = REPORT_DETOUR.get() {
+            detour.call(value);
+        }
+    }
+
+    /// Queues the message of the game module, unless the stats socket delivers it.
+    fn queue_value(kind: &str, value: *const c_void) {
         let feed_wanted = MAIN_ENGINE.load().as_ref().is_some_and(|main_engine| {
             main_engine
                 .find_cvar("zmq_stats_enable")
                 .is_none_or(|cvar| cvar.get_integer() == 0)
         });
         if feed_wanted
-            && !kind.is_null()
             && !value.is_null()
             && let Some(writer) = WRITER.load().as_ref()
         {
-            // SAFETY: the game module passes a NUL-terminated type name and a live value.
-            let kind = unsafe { CStr::from_ptr(kind) }.to_string_lossy();
-            // SAFETY: as above.
+            // SAFETY: the game module passes a live value.
             if let Some(data) = unsafe { writer.to_text(value) } {
-                queue_message(socket_message(&kind, &data));
+                queue_message(socket_message(kind, &data));
             }
         }
+    }
 
-        if let Some(detour) = DETOUR.get() {
-            detour.call(owner, number, kind, value);
+    /// Hooks the engine function at `import` once, with `replacement` as the new function.
+    fn hook_import<F>(import: usize, replacement: F, cell: &OnceLock<TypedDetour<F>>)
+    where
+        F: Function + HookableWith<F> + Copy,
+    {
+        const { assert!(size_of::<F>() == size_of::<usize>()) };
+        if cell.get().is_some() {
+            return;
+        }
+
+        // SAFETY: the address is the engine function in the import table, with the signature of F.
+        let function = unsafe { core::mem::transmute_copy::<usize, F>(&import) };
+        // SAFETY: the original and the replacement are functions with the same signature.
+        let Ok(detour) = (unsafe { TypedDetour::new(function, replacement) }) else {
+            cold_path();
+            error!(target: "shinqlx", func = "hook_import"; "The stats import at {import:#X} could not be hooked.");
+            return;
+        };
+        // SAFETY: the detour was created from valid function addresses of the engine.
+        if unsafe { detour.enable() }.is_err() {
+            cold_path();
+            error!(target: "shinqlx", func = "hook_import"; "The stats import at {import:#X} could not be hooked.");
+            return;
+        }
+
+        if cell.set(detour).is_ok() {
+            debug!(target: "shinqlx", func = "hook_import"; "Stats import hooked at {import:#X}");
         }
     }
 
@@ -227,34 +276,22 @@ mod linux {
             error!(target: "shinqlx", func = "install"; "The JSON writer of the game module was not found, stats events need zmq_stats_enable.");
             return;
         }
-        if DETOUR.get().is_some() {
-            return;
-        }
 
         // SAFETY: the address comes from a pattern search of the loaded game module.
-        let Some(import) = (unsafe { locate_import(builder) }) else {
+        let Some(import) = (unsafe { locate_import(builder, EVENT_SLOT) }) else {
             cold_path();
             error!(target: "shinqlx", func = "install"; "The stats import of the game module was not found, stats events need zmq_stats_enable.");
             return;
         };
+        hook_import(import, shinqlx_stats_import as ImportFn, &DETOUR);
 
-        // SAFETY: the address is the engine function in the import table, with the signature of ImportFn.
-        let function = unsafe { core::mem::transmute_copy::<usize, ImportFn>(&import) };
-        // SAFETY: the original and the replacement are functions with the same signature.
-        let Ok(detour) = (unsafe { ImportDetour::new(function, shinqlx_stats_import) }) else {
-            cold_path();
-            error!(target: "shinqlx", func = "install"; "The stats import could not be hooked.");
-            return;
-        };
-        // SAFETY: the detour was created from valid function addresses of the engine.
-        if unsafe { detour.enable() }.is_err() {
-            cold_path();
-            error!(target: "shinqlx", func = "install"; "The stats import could not be hooked.");
-            return;
-        }
-
-        if DETOUR.set(detour).is_ok() {
-            debug!(target: "shinqlx", func = "install"; "Stats import hooked at {import:#X}");
+        // SAFETY: as above.
+        match unsafe { locate_import(builder, REPORT_SLOT) } {
+            Some(report) => hook_import(report, shinqlx_match_report as ReportFn, &REPORT_DETOUR),
+            None => {
+                cold_path();
+                error!(target: "shinqlx", func = "install"; "The match report import of the game module was not found, game_end needs zmq_stats_enable.");
+            }
         }
     }
 }
@@ -311,7 +348,8 @@ mod stats_feed_tests {
             let base = memory.as_ptr() as usize;
             memory[Self::GLOBAL_SLOT] = base + Self::GLOBAL * 8;
             memory[Self::GLOBAL] = base + Self::TABLE * 8;
-            memory[Self::TABLE + super::IMPORT_TABLE_SLOT / 8] = import;
+            memory[Self::TABLE + super::EVENT_SLOT / 8] = import;
+            memory[Self::TABLE + super::REPORT_SLOT / 8] = import + 1;
             Self { memory }
         }
 
@@ -339,7 +377,7 @@ mod stats_feed_tests {
         let builder = module.write_load(super::GLOBAL_LOAD_OPCODE);
 
         // SAFETY: the fake module is readable at every offset that is read.
-        let import = unsafe { locate_import(builder) };
+        let import = unsafe { locate_import(builder, super::EVENT_SLOT) };
 
         assert_eq!(import, Some(0xdead_beef));
     }
@@ -350,7 +388,7 @@ mod stats_feed_tests {
         let builder = module.write_load([0x90, 0x90, 0x90]);
 
         // SAFETY: the fake module is readable at every offset that is read.
-        let import = unsafe { locate_import(builder) };
+        let import = unsafe { locate_import(builder, super::EVENT_SLOT) };
 
         assert_eq!(import, None);
     }
@@ -361,7 +399,7 @@ mod stats_feed_tests {
         let builder = module.write_load(super::GLOBAL_LOAD_OPCODE);
 
         // SAFETY: the fake module is readable at every offset that is read.
-        let import = unsafe { locate_import(builder) };
+        let import = unsafe { locate_import(builder, super::EVENT_SLOT) };
 
         assert_eq!(import, None);
     }

@@ -20,7 +20,7 @@ impl GameEndDispatcher {
         non_upper_case_globals,
         reason = "exposed to Python as a lower-case class attribute"
     )]
-    const need_zmq_stats_enabled: bool = true;
+    const need_zmq_stats_enabled: bool = false;
 
     #[new]
     fn py_new(_py: Python<'_>) -> PyClassInitializer<Self> {

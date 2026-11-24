@@ -39,12 +39,13 @@ Changes since 0.8.0.
   string enumerations; `player` may be `None`). Both come from the
   functions of the game module that build the `PLAYER_MEDAL` and `FLAG_STATUS` stats messages, which shinqlx finds by
   byte pattern, so they need no `zmq_stats_enable`. The events cannot be cancelled.
-* **Stats events without `zmq_stats_enable`:** `stats`, `game_start`, `round_end`, `team_switch`, `kill` and `death` no
+* **Stats events without `zmq_stats_enable`:** `stats`, `game_start`, `game_end`, `round_end`, `team_switch`, `kill` and `death` no
   longer need the ZMQ stats socket. The game module hands every stats message to one function of the engine; shinqlx
   hooks that function (its address is read from the import table of the game module), writes the JSON with the
   `FastWriter` of the game module and hands the message to the plugins in the next frame. With `zmq_stats_enable` set
-  the messages still come from the socket, so nothing is dispatched twice. Only `game_end` still needs the socket,
-  because the engine builds the `MATCH_REPORT` message itself.
+  the messages still come from the socket, so nothing is dispatched twice. `game_end` follows the same way: the
+  game module reports the match through a second function of the engine, which is hooked as well. No event needs
+  `zmq_stats_enable` any more; the `StatsListener` only runs when the cvar is set.
 * **New event `weapon_fired`, after minqlxtended:** `handle(player, weapon)` goes off for every shot of a player,
   before the game fires the weapon. `weapon` is the number that `Player.weapon()` returns. The event cannot be
   cancelled and is not logged by default (see `qlx_noDebugEvents`). The game function `FireWeapon` is found by byte
