@@ -124,7 +124,7 @@ Changes since 0.8.0.
   meanings go into `values.txt` and `values-<host>.txt` as lines `cvar<TAB>value<TAB>meaning`; they win over the guide.
 * The descriptions of the completion gain the server cvars `sv_tags`, `sv_mapPoolFile`, `sv_idleExit`, `sv_serverType`,
   `sv_master`, `g_accessFile`, `g_allTalk`, the flood protection, timeout and warmup cvars, `serverstartup`, the eight
-  `zmq_rcon_*`/`zmq_stats_*` cvars and the command `setenv`, worded after community server configurations. The
+  `zmq_rcon_*`/`zmq_stats_*` cvars and the commands `setenv`, `setenemycolor` and `setteamcolor`, worded after community server configurations. The
   per-weapon cvars `g_startingAmmo_*`, `weapon_gravity_*` and a few more are described from their names alone; a
   comment line in `help.txt` marks them.
 

@@ -1122,6 +1122,8 @@ zmq_stats_enable	Enables the ZeroMQ stats socket. It is of little use without a 
 zmq_stats_ip	IP address the ZeroMQ stats socket binds to. Without it the IP of the game server is used.
 zmq_stats_password	Password of the ZeroMQ stats socket.
 zmq_stats_port	TCP port of the ZeroMQ stats socket. Without it the port of the game server is used, but with TCP.
+setenemycolor	Sets the color of the enemy player models with one to three color letters: one letter colors the whole model (setenemycolor h makes it green), three letters color the body, the legs and the head separately. The letters run through the rainbow, with white and gray added.
+setteamcolor	Sets the color of the player models of your team with one to three color letters, like setenemycolor.
 # Derived from the names, not from a description: g, gh, mg, sg, gl, rl, lg, rg, pg, bfg, cg, ng, pl and hmg stand for the weapons.
 g_damage_gh	Sets the damage done by the grappling hook.
 g_damage_hmg	Sets the damage done by a heavy machinegun bullet.
