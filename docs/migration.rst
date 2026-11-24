@@ -151,6 +151,16 @@ whose keyword is ``mean_of_death``.
 :class:`bool`, which says whether the client id belongs to a connected player. Hence do not use the return value of the
 method of the player.
 
+.. _migration_stats:
+
+The stats listener
+------------------
+
+``minqlx.StatsListener``, ``minqlx.stats_listener()`` and the attribute ``_stats`` exist only in a build with the Cargo
+feature ``zmq-stats``. The stats events no longer need the ZMQ socket or ``zmq_stats_enable``, see :ref:`zmq`, so a
+plugin has no reason to touch the listener. ``need_zmq_stats_enabled`` of the event dispatchers is ``False`` for all of
+them.
+
 .. _migration_names:
 
 Names and signatures that differ

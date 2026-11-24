@@ -1,24 +1,8 @@
-use core::{
-    hint::cold_path,
-    pin::pin,
-    sync::atomic::{AtomicBool, Ordering},
-    task::Poll,
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::sync::LazyLock;
 
-use arzmq::{
-    prelude::{
-        ContextBuilder, Receiver, SocketBuilder, SubscribeBuilder, SubscribeSocket, ZmqResult,
-    },
-    security::SecurityMechanism,
-};
-use async_io::block_on;
-use futures::{
-    future::{Either, poll_fn, select},
-    task::AtomicWaker,
-};
 use pyo3::{
-    exceptions::{PyEnvironmentError, PyIOError},
+    exceptions::PyIOError,
     intern,
     types::{PyBool, PyCFunction, PyDict, PyList, PyString, PyTuple},
 };
@@ -29,8 +13,6 @@ use super::{
     EVENT_DISPATCHERS, defer_next_frame, event_dispatcher, events_enum::EventName, is_false,
     log_exception, prelude::*,
 };
-use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
-
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import(intern!(py, "json"))
         .and_then(|json_module| json_module.call_method1(intern!(py, "loads"), (json_str,)))
@@ -467,494 +449,528 @@ fn dispatch_team_switch_event(
 
 static IN_PROGRESS: LazyLock<AtomicBool> = LazyLock::new(AtomicBool::default);
 
-/// Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
-/// we get stats from it.
-#[pyclass(module = "_zmq", name = "StatsListener", frozen, eq)]
-#[derive(Debug)]
-pub(crate) struct StatsListener {
-    done: AtomicBool,
-    stopped: AtomicWaker,
-    #[pyo3(name = "address", get)]
-    pub(crate) address: String,
-    #[pyo3(name = "password", get)]
-    password: String,
-}
+/// The stats listener, which reads the stats from the ZMQ socket of the server instead of the hook of the engine.
+#[cfg(feature = "zmq-stats")]
+pub(crate) mod socket {
+    use core::{
+        hint::cold_path,
+        pin::pin,
+        sync::atomic::{AtomicBool, Ordering},
+        task::Poll,
+    };
 
-impl StatsListener {
-    fn new(done: bool, address: String, password: String) -> Self {
-        Self {
-            done: done.into(),
-            stopped: AtomicWaker::new(),
-            address,
-            password,
+    use arzmq::{
+        prelude::{
+            ContextBuilder, Receiver, SocketBuilder, SubscribeBuilder, SubscribeSocket, ZmqResult,
+        },
+        security::SecurityMechanism,
+    };
+    use async_io::block_on;
+    use futures::{
+        future::{Either, poll_fn, select},
+        task::AtomicWaker,
+    };
+    use pyo3::exceptions::{PyEnvironmentError, PyIOError};
+
+    use super::{handle_zmq_msg, log_exception};
+    use crate::{MAIN_ENGINE, ffi::python::prelude::*, quake_live_engine::FindCVar};
+
+    /// Subscribes to the ZMQ stats protocol and calls the stats event dispatcher when
+    /// we get stats from it.
+    #[pyclass(module = "_zmq", name = "StatsListener", frozen, eq)]
+    #[derive(Debug)]
+    pub(crate) struct StatsListener {
+        done: AtomicBool,
+        stopped: AtomicWaker,
+        #[pyo3(name = "address", get)]
+        pub(crate) address: String,
+        #[pyo3(name = "password", get)]
+        password: String,
+    }
+
+    impl StatsListener {
+        fn new(done: bool, address: String, password: String) -> Self {
+            Self {
+                done: done.into(),
+                stopped: AtomicWaker::new(),
+                address,
+                password,
+            }
         }
     }
-}
 
-impl PartialEq for StatsListener {
-    fn eq(&self, other: &Self) -> bool {
-        self.address == other.address
-            && self.password == other.password
-            && self.done.load(Ordering::Acquire) == other.done.load(Ordering::Acquire)
-    }
-}
-
-#[pymethods]
-impl StatsListener {
-    #[new]
-    pub(crate) fn py_new() -> PyResult<Self> {
-        let Some(ref main_engine) = *MAIN_ENGINE.load() else {
-            cold_path();
-            return Err(PyEnvironmentError::new_err(
-                "main quake live engine not set",
-            ));
-        };
-
-        let zmq_enabled_cvar = main_engine.find_cvar("zmq_stats_enable");
-        if zmq_enabled_cvar.is_none_or(|cvar| cvar.get_integer() == 0) {
-            return Ok(Self::new(true, String::new(), String::new()));
+    impl PartialEq for StatsListener {
+        fn eq(&self, other: &Self) -> bool {
+            self.address == other.address
+                && self.password == other.password
+                && self.done.load(Ordering::Acquire) == other.done.load(Ordering::Acquire)
         }
+    }
 
-        let host = main_engine
-            .find_cvar("zmq_stats_ip")
-            .and_then(|ip| {
-                let host = ip.get_string();
-                if host.is_empty() {
-                    None
-                } else {
-                    Some(host.to_string())
-                }
-            })
-            .unwrap_or_else(|| "127.0.0.1".into());
-        let port = match main_engine.find_cvar("zmq_stats_port") {
-            None => main_engine
-                .find_cvar("net_port")
+    #[pymethods]
+    impl StatsListener {
+        #[new]
+        pub(crate) fn py_new() -> PyResult<Self> {
+            let Some(ref main_engine) = *MAIN_ENGINE.load() else {
+                cold_path();
+                return Err(PyEnvironmentError::new_err(
+                    "main quake live engine not set",
+                ));
+            };
+
+            let zmq_enabled_cvar = main_engine.find_cvar("zmq_stats_enable");
+            if zmq_enabled_cvar.is_none_or(|cvar| cvar.get_integer() == 0) {
+                return Ok(Self::new(true, String::new(), String::new()));
+            }
+
+            let host = main_engine
+                .find_cvar("zmq_stats_ip")
+                .and_then(|ip| {
+                    let host = ip.get_string();
+                    if host.is_empty() {
+                        None
+                    } else {
+                        Some(host.to_string())
+                    }
+                })
+                .unwrap_or_else(|| "127.0.0.1".into());
+            let port = match main_engine.find_cvar("zmq_stats_port") {
+                None => main_engine
+                    .find_cvar("net_port")
+                    .map(|cvar| cvar.get_string().to_string())
+                    .unwrap_or_default(),
+                Some(cvar) => cvar.get_string().to_string(),
+            };
+            let address = format!("tcp://{host}:{port}");
+            let password = main_engine
+                .find_cvar("zmq_stats_password")
                 .map(|cvar| cvar.get_string().to_string())
-                .unwrap_or_default(),
-            Some(cvar) => cvar.get_string().to_string(),
-        };
-        let address = format!("tcp://{host}:{port}");
-        let password = main_engine
-            .find_cvar("zmq_stats_password")
-            .map(|cvar| cvar.get_string().to_string())
-            .unwrap_or_default();
+                .unwrap_or_default();
 
-        Ok(Self::new(false, address, password))
-    }
-
-    #[getter]
-    fn get_done(slf: &Bound<'_, Self>) -> bool {
-        slf.get_done()
-    }
-
-    fn stop(slf: &Bound<'_, Self>) {
-        slf.stop()
-    }
-
-    /// Receives until 'self.done' is set to True.
-    pub(crate) fn keep_receiving(slf: &Bound<'_, Self>) -> PyResult<()> {
-        slf.keep_receiving()
-    }
-}
-
-pub(crate) trait StatsListenerMethods<'py> {
-    fn get_done(&self) -> bool;
-    fn stop(&self);
-    fn keep_receiving(&self) -> PyResult<()>;
-}
-
-impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
-    fn get_done(&self) -> bool {
-        self.get().done.load(Ordering::Acquire)
-    }
-
-    fn stop(&self) {
-        let listener = self.get();
-        listener.done.store(true, Ordering::Release);
-        listener.stopped.wake();
-    }
-
-    fn keep_receiving(&self) -> PyResult<()> {
-        spawn_receiver(self.clone().unbind())
-            .map(|_| ())
-            .map_err(|err| PyIOError::new_err(format!("could not start the stats thread: {err}")))
-    }
-}
-
-/// Waits until the listener is stopped.
-fn stopped(listener: &StatsListener) -> impl Future<Output = ()> {
-    poll_fn(|context| {
-        listener.stopped.register(context.waker());
-        if listener.done.load(Ordering::Acquire) {
-            Poll::Ready(())
-        } else {
-            Poll::Pending
+            Ok(Self::new(false, address, password))
         }
-    })
-}
 
-/// Hands every message of the stats socket to the handler until the listener is stopped.
-async fn receive_stats(
-    listener: &StatsListener,
-    mut handle_message: impl FnMut(&str),
-) -> ZmqResult<()> {
-    let socket = get_zmq_socket(&listener.address, &listener.password)?;
-    let mut stopped = pin!(stopped(listener));
+        #[getter]
+        fn get_done(slf: &Bound<'_, Self>) -> bool {
+            slf.get_done()
+        }
 
-    while !listener.done.load(Ordering::Acquire) {
-        match select(pin!(socket.recv_msg_wait()), stopped.as_mut()).await {
-            Either::Left((message, _)) => handle_message(&message?.to_string()),
-            Either::Right(_) => break,
+        fn stop(slf: &Bound<'_, Self>) {
+            slf.stop()
+        }
+
+        /// Receives until 'self.done' is set to True.
+        pub(crate) fn keep_receiving(slf: &Bound<'_, Self>) -> PyResult<()> {
+            slf.keep_receiving()
         }
     }
-    Ok(())
-}
 
-/// Receives the stats in a thread of its own, which sleeps until a message arrives.
-fn spawn_receiver(listener: Py<StatsListener>) -> std::io::Result<std::thread::JoinHandle<()>> {
-    std::thread::Builder::new()
-        .name("shinqlx-stats".into())
-        .spawn(move || {
-            let result = block_on(receive_stats(listener.get(), |message| {
-                Python::attach(|py| handle_zmq_msg(py, message));
-            }));
-            if let Err(err) = result {
-                Python::attach(|py| {
-                    log_exception(py, &PyIOError::new_err(format!("zmq error: {err:?}")));
-                });
+    pub(crate) trait StatsListenerMethods<'py> {
+        fn get_done(&self) -> bool;
+        fn stop(&self);
+        fn keep_receiving(&self) -> PyResult<()>;
+    }
+
+    impl<'py> StatsListenerMethods<'py> for Bound<'py, StatsListener> {
+        fn get_done(&self) -> bool {
+            self.get().done.load(Ordering::Acquire)
+        }
+
+        fn stop(&self) {
+            let listener = self.get();
+            listener.done.store(true, Ordering::Release);
+            listener.stopped.wake();
+        }
+
+        fn keep_receiving(&self) -> PyResult<()> {
+            spawn_receiver(self.clone().unbind())
+                .map(|_| ())
+                .map_err(|err| {
+                    PyIOError::new_err(format!("could not start the stats thread: {err}"))
+                })
+        }
+    }
+
+    /// Waits until the listener is stopped.
+    fn stopped(listener: &StatsListener) -> impl Future<Output = ()> {
+        poll_fn(|context| {
+            listener.stopped.register(context.waker());
+            if listener.done.load(Ordering::Acquire) {
+                Poll::Ready(())
+            } else {
+                Poll::Pending
             }
         })
-}
-
-fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
-    let context = ContextBuilder::default()
-        .blocky(false)
-        .max_sockets(10)
-        .io_threads(1)
-        .build()?;
-
-    let socket_builder = SocketBuilder::default()
-        .receive_timeout(0)
-        .receive_highwater_mark(0)
-        .send_timeout(0)
-        .send_highwater_mark(0);
-    let socket_builder = if password.is_empty() {
-        socket_builder
-    } else {
-        socket_builder
-            .zap_domain("stats")
-            .security_mechanism(SecurityMechanism::Plain {
-                username: "stats".into(),
-                password: password.into(),
-            })
-    };
-
-    let config = SubscribeBuilder::default()
-        .socket_builder(socket_builder)
-        .subscribe("");
-
-    let socket = config.build_from_context(&context)?;
-
-    socket.connect(address)?;
-
-    Ok(socket)
-}
-
-#[cfg(test)]
-mod stats_listener_tests {
-    use alloc::sync::Arc;
-    use core::{borrow::BorrowMut, time::Duration};
-    use std::sync::mpsc;
-
-    use arzmq::prelude::{Context, PublishSocket, SendFlags, Sender};
-    use async_io::block_on;
-    use pretty_assertions::assert_eq;
-    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
-    use rstest::*;
-
-    use super::{
-        Ordering, StatsListener, StatsListenerMethods, get_zmq_socket, receive_stats,
-        spawn_receiver,
-    };
-    use crate::{
-        ffi::{
-            c::prelude::{CVar, CVarBuilder, cvar_t},
-            python::pyshinqlx_setup_fixture::*,
-        },
-        prelude::*,
-    };
-
-    #[rstest]
-    #[case::without_password("")]
-    #[case::with_password("p4ssw0rd")]
-    #[cfg_attr(miri, ignore)]
-    fn get_zmq_socket_creates_socket_with_and_without_password(#[case] password: &str) {
-        let result = get_zmq_socket("tcp://127.0.0.1:1", password);
-
-        assert!(result.is_ok());
     }
 
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn constructor_with_no_main_engine(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            let result = StatsListener::py_new();
-            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
-        });
-    }
+    /// Hands every message of the stats socket to the handler until the listener is stopped.
+    async fn receive_stats(
+        listener: &StatsListener,
+        mut handle_message: impl FnMut(&str),
+    ) -> ZmqResult<()> {
+        let socket = get_zmq_socket(&listener.address, &listener.password)?;
+        let mut stopped = pin!(stopped(listener));
 
-    #[test]
-    #[serial]
-    fn constructor_with_disabled_zmq_cvar() {
-        let cvar_string = c"0";
-        let mut raw_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .integer(0)
-            .build()
-            .expect("this should not happen");
-
-        MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_enable",
-                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .run(|| {
-                let result = StatsListener::py_new();
-                assert_eq!(
-                    result.expect("this should not happen"),
-                    StatsListener::new(true, String::new(), String::new())
-                );
-            });
-    }
-
-    #[test]
-    #[serial]
-    fn constructor_with_defaulted_cvars() {
-        let mut raw_zmq_enable_cvar = CVarBuilder::default()
-            .integer(1)
-            .build()
-            .expect("this should not happen");
-        let zmq_ip = c"";
-        let mut raw_zmq_ip_cvar = CVarBuilder::default()
-            .string(zmq_ip.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-        let zmq_password = c"";
-        let mut raw_zmq_passwd_cvar = CVarBuilder::default()
-            .string(zmq_password.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-        let net_port = c"27960";
-        let mut raw_net_port_cvar = CVarBuilder::default()
-            .string(net_port.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-
-        MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_enable",
-                move |_| CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_ip",
-                move |_| CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(|cmd| cmd == "zmq_stats_port", |_| None, 1..)
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_password",
-                move |_| CVar::try_from(raw_zmq_passwd_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |cmd| cmd == "net_port",
-                move |_| CVar::try_from(raw_net_port_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .run(|| {
-                let result = StatsListener::py_new();
-                assert_eq!(
-                    result.expect("this should not happen"),
-                    StatsListener::new(false, "tcp://127.0.0.1:27960".into(), String::new())
-                );
-            });
-    }
-
-    #[test]
-    #[serial]
-    fn constructor_with_configured_cvars() {
-        let mut raw_zmq_enable_cvar = CVarBuilder::default()
-            .integer(1)
-            .build()
-            .expect("this should not happen");
-        let zmq_ip = c"192.168.0.1";
-        let mut raw_zmq_ip_cvar = CVarBuilder::default()
-            .string(zmq_ip.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-        let zmq_port = c"28960";
-        let mut raw_zmq_port_cvar = CVarBuilder::default()
-            .string(zmq_port.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-        let zmq_password = c"p4ssw0rd";
-        let mut raw_zmq_password_cvar = CVarBuilder::default()
-            .string(zmq_password.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-
-        MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_enable",
-                move |_| CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_ip",
-                move |_| CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_port",
-                move |_| CVar::try_from(raw_zmq_port_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_password",
-                move |_| CVar::try_from(raw_zmq_password_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .run(|| {
-                let result = StatsListener::py_new();
-                assert_eq!(
-                    result.expect("this should not happen"),
-                    StatsListener::new(false, "tcp://192.168.0.1:28960".into(), "p4ssw0rd".into(),)
-                );
-            });
-    }
-
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn stop_sets_done_field(_pyshinqlx_setup: ()) {
-        Python::attach(|py| {
-            let listener = Bound::new(py, StatsListener::new(false, String::new(), String::new()))
-                .expect("this should not happen");
-
-            listener.stop();
-
-            assert_eq!(listener.get_done(), true);
-        });
-    }
-
-    fn receive_in_thread(
-        listener: &Arc<StatsListener>,
-        messages: mpsc::Sender<String>,
-    ) -> mpsc::Receiver<Result<(), String>> {
-        let (finished, result) = mpsc::channel();
-        let receiving = listener.clone();
-        std::thread::spawn(move || {
-            let outcome = block_on(receive_stats(&receiving, |message| {
-                let _ = messages.send(message.to_owned());
-            }));
-            let _ = finished.send(outcome.map_err(|err| format!("{err:?}")));
-        });
-        result
-    }
-
-    fn stop(listener: &StatsListener) {
-        listener.done.store(true, Ordering::Release);
-        listener.stopped.wake();
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn receive_stats_returns_right_away_when_already_done() {
-        let listener = StatsListener::new(true, "tcp://127.0.0.1:1".into(), String::new());
-
-        let result = block_on(receive_stats(&listener, |_| {}));
-
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn receive_stats_ends_when_stopped_while_waiting() {
-        let listener = Arc::new(StatsListener::new(
-            false,
-            "tcp://127.0.0.1:1".into(),
-            String::new(),
-        ));
-        let (messages, _received) = mpsc::channel();
-        let result = receive_in_thread(&listener, messages);
-
-        std::thread::sleep(Duration::from_millis(200));
-        stop(&listener);
-
-        assert_eq!(result.recv_timeout(Duration::from_secs(10)), Ok(Ok(())));
-    }
-
-    #[test]
-    #[cfg_attr(miri, ignore)]
-    fn receive_stats_hands_every_message_to_the_handler() {
-        let context = Context::new().expect("could not create the context");
-        let publisher =
-            PublishSocket::from_context(&context).expect("could not create the publisher");
-        publisher
-            .bind("tcp://127.0.0.1:*")
-            .expect("could not bind the publisher");
-        let address = publisher
-            .last_endpoint()
-            .expect("could not get the endpoint");
-        let listener = Arc::new(StatsListener::new(false, address, String::new()));
-        let (messages, received) = mpsc::channel();
-        let result = receive_in_thread(&listener, messages);
-
-        for _ in 0..100 {
-            let _ = publisher.send_msg("warmup", SendFlags::DONT_WAIT);
-            if received.recv_timeout(Duration::from_millis(50)).is_ok() {
-                break;
+        while !listener.done.load(Ordering::Acquire) {
+            match select(pin!(socket.recv_msg_wait()), stopped.as_mut()).await {
+                Either::Left((message, _)) => handle_message(&message?.to_string()),
+                Either::Right(_) => break,
             }
         }
-        for message in ["first", "second", "third"] {
-            let _ = publisher.send_msg(message, SendFlags::DONT_WAIT);
-        }
-        let mut collected = vec![];
-        while collected.last().map(String::as_str) != Some("third") {
-            collected.push(
-                received
-                    .recv_timeout(Duration::from_secs(5))
-                    .unwrap_or_else(|_| panic!("the messages did not arrive: {collected:?}")),
-            );
-        }
-        collected.retain(|message| message != "warmup");
-        stop(&listener);
-
-        assert_eq!(collected, ["first", "second", "third"]);
-        assert_eq!(result.recv_timeout(Duration::from_secs(10)), Ok(Ok(())));
+        Ok(())
     }
 
-    #[rstest]
-    #[cfg_attr(miri, ignore)]
-    #[serial]
-    fn the_receiver_thread_ends_after_stop(_pyshinqlx_setup: ()) {
-        let listener = Python::attach(|py| {
-            Py::new(
-                py,
-                StatsListener::new(false, "tcp://127.0.0.1:1".into(), String::new()),
-            )
-            .expect("could not create the listener")
-        });
-        let handle = spawn_receiver(Python::attach(|py| listener.clone_ref(py)))
-            .expect("could not start the receiver");
+    /// Receives the stats in a thread of its own, which sleeps until a message arrives.
+    fn spawn_receiver(listener: Py<StatsListener>) -> std::io::Result<std::thread::JoinHandle<()>> {
+        std::thread::Builder::new()
+            .name("shinqlx-stats".into())
+            .spawn(move || {
+                let result = block_on(receive_stats(listener.get(), |message| {
+                    Python::attach(|py| handle_zmq_msg(py, message));
+                }));
+                if let Err(err) = result {
+                    Python::attach(|py| {
+                        log_exception(py, &PyIOError::new_err(format!("zmq error: {err:?}")));
+                    });
+                }
+            })
+    }
 
-        std::thread::sleep(Duration::from_millis(200));
-        Python::attach(|py| listener.bind(py).stop());
+    fn get_zmq_socket(address: &str, password: &str) -> ZmqResult<SubscribeSocket> {
+        let context = ContextBuilder::default()
+            .blocky(false)
+            .max_sockets(10)
+            .io_threads(1)
+            .build()?;
 
-        assert!(handle.join().is_ok());
+        let socket_builder = SocketBuilder::default()
+            .receive_timeout(0)
+            .receive_highwater_mark(0)
+            .send_timeout(0)
+            .send_highwater_mark(0);
+        let socket_builder = if password.is_empty() {
+            socket_builder
+        } else {
+            socket_builder
+                .zap_domain("stats")
+                .security_mechanism(SecurityMechanism::Plain {
+                    username: "stats".into(),
+                    password: password.into(),
+                })
+        };
+
+        let config = SubscribeBuilder::default()
+            .socket_builder(socket_builder)
+            .subscribe("");
+
+        let socket = config.build_from_context(&context)?;
+
+        socket.connect(address)?;
+
+        Ok(socket)
+    }
+
+    #[cfg(test)]
+    mod stats_listener_tests {
+        use alloc::sync::Arc;
+        use core::{borrow::BorrowMut, time::Duration};
+        use std::sync::mpsc;
+
+        use arzmq::prelude::{Context, PublishSocket, SendFlags, Sender};
+        use async_io::block_on;
+        use pretty_assertions::assert_eq;
+        use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+        use rstest::*;
+
+        use super::{
+            Ordering, StatsListener, StatsListenerMethods, get_zmq_socket, receive_stats,
+            spawn_receiver,
+        };
+        use crate::{
+            ffi::{
+                c::prelude::{CVar, CVarBuilder, cvar_t},
+                python::pyshinqlx_setup_fixture::*,
+            },
+            prelude::*,
+        };
+
+        #[rstest]
+        #[case::without_password("")]
+        #[case::with_password("p4ssw0rd")]
+        #[cfg_attr(miri, ignore)]
+        fn get_zmq_socket_creates_socket_with_and_without_password(#[case] password: &str) {
+            let result = get_zmq_socket("tcp://127.0.0.1:1", password);
+
+            assert!(result.is_ok());
+        }
+
+        #[rstest]
+        #[cfg_attr(miri, ignore)]
+        #[serial]
+        fn constructor_with_no_main_engine(_pyshinqlx_setup: ()) {
+            Python::attach(|py| {
+                let result = StatsListener::py_new();
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+            });
+        }
+
+        #[test]
+        #[serial]
+        fn constructor_with_disabled_zmq_cvar() {
+            let cvar_string = c"0";
+            let mut raw_cvar = CVarBuilder::default()
+                .string(cvar_string.as_ptr().cast_mut())
+                .integer(0)
+                .build()
+                .expect("this should not happen");
+
+            MockEngineBuilder::default()
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_enable",
+                    move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .run(|| {
+                    let result = StatsListener::py_new();
+                    assert_eq!(
+                        result.expect("this should not happen"),
+                        StatsListener::new(true, String::new(), String::new())
+                    );
+                });
+        }
+
+        #[test]
+        #[serial]
+        fn constructor_with_defaulted_cvars() {
+            let mut raw_zmq_enable_cvar = CVarBuilder::default()
+                .integer(1)
+                .build()
+                .expect("this should not happen");
+            let zmq_ip = c"";
+            let mut raw_zmq_ip_cvar = CVarBuilder::default()
+                .string(zmq_ip.as_ptr().cast_mut())
+                .build()
+                .expect("this should not happen");
+            let zmq_password = c"";
+            let mut raw_zmq_passwd_cvar = CVarBuilder::default()
+                .string(zmq_password.as_ptr().cast_mut())
+                .build()
+                .expect("this should not happen");
+            let net_port = c"27960";
+            let mut raw_net_port_cvar = CVarBuilder::default()
+                .string(net_port.as_ptr().cast_mut())
+                .build()
+                .expect("this should not happen");
+
+            MockEngineBuilder::default()
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_enable",
+                    move |_| CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_ip",
+                    move |_| CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .with_find_cvar(|cmd| cmd == "zmq_stats_port", |_| None, 1..)
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_password",
+                    move |_| CVar::try_from(raw_zmq_passwd_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .with_find_cvar(
+                    |cmd| cmd == "net_port",
+                    move |_| CVar::try_from(raw_net_port_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .run(|| {
+                    let result = StatsListener::py_new();
+                    assert_eq!(
+                        result.expect("this should not happen"),
+                        StatsListener::new(false, "tcp://127.0.0.1:27960".into(), String::new())
+                    );
+                });
+        }
+
+        #[test]
+        #[serial]
+        fn constructor_with_configured_cvars() {
+            let mut raw_zmq_enable_cvar = CVarBuilder::default()
+                .integer(1)
+                .build()
+                .expect("this should not happen");
+            let zmq_ip = c"192.168.0.1";
+            let mut raw_zmq_ip_cvar = CVarBuilder::default()
+                .string(zmq_ip.as_ptr().cast_mut())
+                .build()
+                .expect("this should not happen");
+            let zmq_port = c"28960";
+            let mut raw_zmq_port_cvar = CVarBuilder::default()
+                .string(zmq_port.as_ptr().cast_mut())
+                .build()
+                .expect("this should not happen");
+            let zmq_password = c"p4ssw0rd";
+            let mut raw_zmq_password_cvar = CVarBuilder::default()
+                .string(zmq_password.as_ptr().cast_mut())
+                .build()
+                .expect("this should not happen");
+
+            MockEngineBuilder::default()
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_enable",
+                    move |_| CVar::try_from(raw_zmq_enable_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_ip",
+                    move |_| CVar::try_from(raw_zmq_ip_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_port",
+                    move |_| CVar::try_from(raw_zmq_port_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .with_find_cvar(
+                    |cmd| cmd == "zmq_stats_password",
+                    move |_| CVar::try_from(raw_zmq_password_cvar.borrow_mut() as *mut cvar_t).ok(),
+                    1..,
+                )
+                .run(|| {
+                    let result = StatsListener::py_new();
+                    assert_eq!(
+                        result.expect("this should not happen"),
+                        StatsListener::new(
+                            false,
+                            "tcp://192.168.0.1:28960".into(),
+                            "p4ssw0rd".into(),
+                        )
+                    );
+                });
+        }
+
+        #[rstest]
+        #[cfg_attr(miri, ignore)]
+        #[serial]
+        fn stop_sets_done_field(_pyshinqlx_setup: ()) {
+            Python::attach(|py| {
+                let listener =
+                    Bound::new(py, StatsListener::new(false, String::new(), String::new()))
+                        .expect("this should not happen");
+
+                listener.stop();
+
+                assert_eq!(listener.get_done(), true);
+            });
+        }
+
+        fn receive_in_thread(
+            listener: &Arc<StatsListener>,
+            messages: mpsc::Sender<String>,
+        ) -> mpsc::Receiver<Result<(), String>> {
+            let (finished, result) = mpsc::channel();
+            let receiving = listener.clone();
+            std::thread::spawn(move || {
+                let outcome = block_on(receive_stats(&receiving, |message| {
+                    let _ = messages.send(message.to_owned());
+                }));
+                let _ = finished.send(outcome.map_err(|err| format!("{err:?}")));
+            });
+            result
+        }
+
+        fn stop(listener: &StatsListener) {
+            listener.done.store(true, Ordering::Release);
+            listener.stopped.wake();
+        }
+
+        #[test]
+        #[cfg_attr(miri, ignore)]
+        fn receive_stats_returns_right_away_when_already_done() {
+            let listener = StatsListener::new(true, "tcp://127.0.0.1:1".into(), String::new());
+
+            let result = block_on(receive_stats(&listener, |_| {}));
+
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        #[cfg_attr(miri, ignore)]
+        fn receive_stats_ends_when_stopped_while_waiting() {
+            let listener = Arc::new(StatsListener::new(
+                false,
+                "tcp://127.0.0.1:1".into(),
+                String::new(),
+            ));
+            let (messages, _received) = mpsc::channel();
+            let result = receive_in_thread(&listener, messages);
+
+            std::thread::sleep(Duration::from_millis(200));
+            stop(&listener);
+
+            assert_eq!(result.recv_timeout(Duration::from_secs(10)), Ok(Ok(())));
+        }
+
+        #[test]
+        #[cfg_attr(miri, ignore)]
+        fn receive_stats_hands_every_message_to_the_handler() {
+            let context = Context::new().expect("could not create the context");
+            let publisher =
+                PublishSocket::from_context(&context).expect("could not create the publisher");
+            publisher
+                .bind("tcp://127.0.0.1:*")
+                .expect("could not bind the publisher");
+            let address = publisher
+                .last_endpoint()
+                .expect("could not get the endpoint");
+            let listener = Arc::new(StatsListener::new(false, address, String::new()));
+            let (messages, received) = mpsc::channel();
+            let result = receive_in_thread(&listener, messages);
+
+            for _ in 0..100 {
+                let _ = publisher.send_msg("warmup", SendFlags::DONT_WAIT);
+                if received.recv_timeout(Duration::from_millis(50)).is_ok() {
+                    break;
+                }
+            }
+            for message in ["first", "second", "third"] {
+                let _ = publisher.send_msg(message, SendFlags::DONT_WAIT);
+            }
+            let mut collected = vec![];
+            while collected.last().map(String::as_str) != Some("third") {
+                collected.push(
+                    received
+                        .recv_timeout(Duration::from_secs(5))
+                        .unwrap_or_else(|_| panic!("the messages did not arrive: {collected:?}")),
+                );
+            }
+            collected.retain(|message| message != "warmup");
+            stop(&listener);
+
+            assert_eq!(collected, ["first", "second", "third"]);
+            assert_eq!(result.recv_timeout(Duration::from_secs(10)), Ok(Ok(())));
+        }
+
+        #[rstest]
+        #[cfg_attr(miri, ignore)]
+        #[serial]
+        fn the_receiver_thread_ends_after_stop(_pyshinqlx_setup: ()) {
+            let listener = Python::attach(|py| {
+                Py::new(
+                    py,
+                    StatsListener::new(false, "tcp://127.0.0.1:1".into(), String::new()),
+                )
+                .expect("could not create the listener")
+            });
+            let handle = spawn_receiver(Python::attach(|py| listener.clone_ref(py)))
+                .expect("could not start the receiver");
+
+            std::thread::sleep(Duration::from_millis(200));
+            Python::attach(|py| listener.bind(py).stop());
+
+            assert!(handle.join().is_ok());
+        }
     }
 }
 

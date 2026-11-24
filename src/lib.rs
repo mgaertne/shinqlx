@@ -35,6 +35,9 @@
 //!   entry. It also sets a send timeout on the RCON socket (`qlx_zmqRconSendTimeout`, milliseconds, default 25, `0` for
 //!   non-blocking sends, negative for the engine's unlimited wait), because the engine otherwise waits for a dead
 //!   client without a limit and the server stops. Plugins no longer see the report in `console_print`.
+//! * `zmq-stats`: reads the stats from the ZMQ socket of the server (`zmq_stats_enable`) with the `StatsListener`
+//!   (`shinqlx.stats_listener()`). Disabled by default, because the stats events work without it: the crate hooks the
+//!   functions of the engine that the game module passes its stats messages to.
 //! * `clientkick-fix`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by
 //!   default.
 //! * `fps-patch`: makes `qagame` register `sv_fps` with the default 125 instead of the read-only 40.

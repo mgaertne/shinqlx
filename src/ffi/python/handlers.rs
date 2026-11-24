@@ -27,7 +27,7 @@ use super::{
 use crate::{
     MAIN_ENGINE,
     ffi::{c::prelude::*, python::events_enum::EventName},
-    quake_live_engine::{FindCVar, GetConfigstring},
+    quake_live_engine::GetConfigstring,
 };
 
 fn try_handle_rcon(py: Python<'_>, cmd: &str) -> PyResult<Option<bool>> {
@@ -4443,7 +4443,6 @@ for event in frame_tasks.queue:
     }
 }
 
-static ZMQ_WARNING_ISSUED: AtomicBool = AtomicBool::new(false);
 static IS_FIRST_GAME: AtomicBool = AtomicBool::new(true);
 
 fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
@@ -4451,21 +4450,6 @@ fn try_handle_new_game(py: Python<'_>, is_restart: bool) -> PyResult<()> {
     if IS_FIRST_GAME.load(Ordering::Acquire) {
         late_init(&shinqlx_module)?;
         IS_FIRST_GAME.store(false, Ordering::Release);
-
-        let zmq_enabled = MAIN_ENGINE.load().as_ref().is_some_and(|main_engine| {
-            main_engine
-                .find_cvar("zmq_stats_enable")
-                .is_some_and(|cvar| cvar.get_string() != "0")
-        });
-        if !zmq_enabled && !ZMQ_WARNING_ISSUED.load(Ordering::Acquire) {
-            warn!(
-                target: "shinqlx",
-                func = "handle_new_game";
-                r#"Some events will not work because ZMQ stats is not enabled. Launch the server with "zmq_stats_enable 1""#
-            );
-
-            ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
-        }
     }
 
     set_map_subtitles(&shinqlx_module)?;
@@ -4518,7 +4502,7 @@ mod handle_new_game_tests {
     use pyo3::{exceptions::PyEnvironmentError, intern, prelude::*};
     use rstest::*;
 
-    use super::{IS_FIRST_GAME, ZMQ_WARNING_ISSUED, handle_new_game, try_handle_new_game};
+    use super::{IS_FIRST_GAME, handle_new_game, try_handle_new_game};
     use crate::{
         ffi::{
             c::prelude::{CS_AUTHOR, CS_AUTHOR2, CS_MESSAGE, CVar, CVarBuilder, cvar_t},
@@ -4561,7 +4545,6 @@ mod handle_new_game_tests {
             .times(1);
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         MockEngineBuilder::default()
             .with_get_configstring(CS_MESSAGE as u16, "thunderstruck", 1)
@@ -4602,7 +4585,6 @@ mod handle_new_game_tests {
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let cvar_string = c"1";
         let mut raw_cvar = CVarBuilder::default()
@@ -4669,7 +4651,6 @@ mod handle_new_game_tests {
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         MockEngineBuilder::default()
             .with_get_configstring(CS_MESSAGE as u16, "", 1)
@@ -4701,7 +4682,6 @@ mod handle_new_game_tests {
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let cvar_string = c"1";
         let mut raw_zmq_cvar = CVarBuilder::default()
@@ -4809,7 +4789,6 @@ mod handle_new_game_tests {
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         let map_string = c"campgrounds";
         let mut raw_mapname_cvar = CVarBuilder::default()
@@ -4858,6 +4837,7 @@ mod handle_new_game_tests {
     });
 
     #[rstest]
+    #[cfg(feature = "zmq-stats")]
     #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     #[serial]
     fn try_handle_new_game_when_first_game_with_zmq_enabled(_pyshinqlx_setup: ()) {
@@ -4867,7 +4847,6 @@ mod handle_new_game_tests {
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(true, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(false, Ordering::Release);
 
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");
@@ -4963,7 +4942,6 @@ mod handle_new_game_tests {
                     assert!(result.is_ok());
 
                     assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
-                    assert!(!ZMQ_WARNING_ISSUED.load(Ordering::Acquire));
                 });
             });
     }
@@ -4971,14 +4949,13 @@ mod handle_new_game_tests {
     #[rstest]
     #[cfg_attr(any(miri, target_os = "macos"), ignore)]
     #[serial]
-    fn try_handle_new_game_when_first_game_with_zmq_disabled(_pyshinqlx_setup: ()) {
+    fn try_handle_new_game_when_first_game(_pyshinqlx_setup: ()) {
         let set_configstring_ctx = shinqlx_set_configstring_context();
         set_configstring_ctx
             .expect()
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(true, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(false, Ordering::Release);
 
         let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");
@@ -4996,7 +4973,7 @@ mod handle_new_game_tests {
             .with_find_cvar(
                 |cmd| cmd == "zmq_stats_enable",
                 move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
+                0..,
             )
             .with_find_cvar(
                 |name| ["qlx_pluginsPath", "fs_homepath"].contains(&name),
@@ -5074,121 +5051,6 @@ mod handle_new_game_tests {
                     assert!(result.is_ok());
 
                     assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
-                    assert!(ZMQ_WARNING_ISSUED.load(Ordering::Acquire));
-                });
-            });
-    }
-
-    #[rstest]
-    #[cfg_attr(any(miri, target_os = "macos"), ignore)]
-    #[serial]
-    fn try_handle_new_game_when_first_game_with_zmq_disabled_when_warning_already_issued(
-        _pyshinqlx_setup: (),
-    ) {
-        let set_configstring_ctx = shinqlx_set_configstring_context();
-        set_configstring_ctx
-            .expect()
-            .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
-
-        IS_FIRST_GAME.store(true, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
-
-        let temp_path = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
-            .expect("this should not happen");
-        let cvar_string = c"0";
-        let mut raw_zmq_cvar = CVarBuilder::default()
-            .string(cvar_string.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-
-        let mut raw_pluginspath_cvar = CVarBuilder::default()
-            .string(temp_path.as_ptr().cast_mut())
-            .build()
-            .expect("this should not happen");
-
-        MockEngineBuilder::default()
-            .with_find_cvar(
-                |cmd| cmd == "zmq_stats_enable",
-                move |_| CVar::try_from(raw_zmq_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |name| ["qlx_pluginsPath", "fs_homepath"].contains(&name),
-                move |_| CVar::try_from(raw_pluginspath_cvar.borrow_mut() as *mut cvar_t).ok(),
-                1..,
-            )
-            .with_find_cvar(
-                |name| {
-                    [
-                        "qlx_owner",
-                        "qlx_plugins",
-                        "qlx_database",
-                        "qlx_commandPrefix",
-                        "qlx_logs",
-                        "qlx_logsSize",
-                        "qlx_noDebugEvents",
-                        "qlx_steamQueryRate",
-                        "qlx_steamQueryBurst",
-                        "qlx_steamQueryGlobalRate",
-                        "qlx_steamQueryRulesRate",
-                        "qlx_steamQueryRulesBurst",
-                        "qlx_steamQueryRulesGlobalRate",
-                        "qlx_steamQueryDropRules",
-                        "qlx_redisAddress",
-                        "qlx_redisDatabase",
-                        "qlx_redisUnixSocket",
-                        "qlx_redisPassword",
-                    ]
-                    .contains(&name)
-                },
-                |_| None,
-                1..,
-            )
-            .with_get_configstring(CS_MESSAGE as u16, "", 1)
-            .with_get_configstring(CS_AUTHOR as u16, "", 1)
-            .with_get_configstring(CS_AUTHOR2 as u16, "", 1)
-            .configure(|mock_engine| {
-                mock_engine.expect_get_cvar().withf(|name, _, _| {
-                    [
-                        "qlx_owner",
-                        "qlx_plugins",
-                        "qlx_database",
-                        "qlx_commandPrefix",
-                        "qlx_logs",
-                        "qlx_logsSize",
-                        "qlx_noDebugEvents",
-                        "qlx_steamQueryRate",
-                        "qlx_steamQueryBurst",
-                        "qlx_steamQueryGlobalRate",
-                        "qlx_steamQueryRulesRate",
-                        "qlx_steamQueryRulesBurst",
-                        "qlx_steamQueryRulesGlobalRate",
-                        "qlx_steamQueryDropRules",
-                        "qlx_redisAddress",
-                        "qlx_redisDatabase",
-                        "qlx_redisUnixSocket",
-                        "qlx_redisPassword",
-                    ]
-                    .contains(&name)
-                });
-            })
-            .run(|| {
-                Python::attach(|py| {
-                    let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
-                        .expect("this should not happen");
-                    event_dispatcher
-                        .add_dispatcher(&py.get_type::<NewGameDispatcher>())
-                        .expect("could not add new_game dispatcher");
-                    EVENT_DISPATCHERS.store(Some(event_dispatcher.unbind().into()));
-
-                    let result = try_handle_new_game(py, true);
-                    let _ = py
-                        .import(intern!(py, "shinqlx"))
-                        .and_then(|module| module.setattr(intern!(py, "_stats"), py.None()));
-                    assert!(result.is_ok());
-
-                    assert!(!IS_FIRST_GAME.load(Ordering::Acquire));
-                    assert!(ZMQ_WARNING_ISSUED.load(Ordering::Acquire));
                 });
             });
     }
@@ -5200,7 +5062,6 @@ mod handle_new_game_tests {
         EVENT_DISPATCHERS.store(None);
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         Python::attach(|py| {
             let result = handle_new_game(py, true);
@@ -5218,7 +5079,6 @@ mod handle_new_game_tests {
             .withf(|index, _| [CS_AUTHOR, CS_AUTHOR2].contains(index));
 
         IS_FIRST_GAME.store(false, Ordering::Release);
-        ZMQ_WARNING_ISSUED.store(true, Ordering::Release);
 
         MockEngineBuilder::default()
             .with_get_configstring(CS_MESSAGE as u16, "", 1)

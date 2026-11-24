@@ -45,7 +45,10 @@ Changes since 0.8.0.
   `FastWriter` of the game module and hands the message to the plugins in the next frame. With `zmq_stats_enable` set
   the messages still come from the socket, so nothing is dispatched twice. `game_end` follows the same way: the
   game module reports the match through a second function of the engine, which is hooked as well. No event needs
-  `zmq_stats_enable` any more; the `StatsListener` only runs when the cvar is set.
+  `zmq_stats_enable` any more. **Breaking:** the `StatsListener` (`stats_listener()`, `_stats`, the cvars `zmq_stats_*`)
+  moved behind the new Cargo feature `zmq-stats`, which is off by default; `minqlx.StatsListener` and
+  `minqlx.stats_listener` are gone without it. With the feature the listener runs when `zmq_stats_enable` is set, and
+  the hook stays silent then. The warning "Some events will not work because ZMQ stats is not enabled" is gone.
 * **New event `weapon_fired`, after minqlxtended:** `handle(player, weapon)` goes off for every shot of a player,
   before the game fires the weapon. `weapon` is the number that `Player.weapon()` returns. The event cannot be
   cancelled and is not logged by default (see `qlx_noDebugEvents`). The game function `FireWeapon` is found by byte

@@ -2,7 +2,7 @@
 //!
 //! The game module builds one `Json::Value` per stats event and passes it, together with the name of the event
 //! type, to a single function of the engine, which publishes it on the ZMQ stats socket. Hooking that function
-//! delivers the same messages without `zmq_stats_enable`.
+//! delivers the same messages without the socket and without `zmq_stats_enable`.
 
 use core::mem;
 use std::sync::Mutex;
@@ -94,6 +94,7 @@ mod linux {
     use procfs::process::{MMapPath, Process};
 
     use super::{EVENT_SLOT, REPORT_SLOT, locate_import, queue_message, socket_message};
+    #[cfg(feature = "zmq-stats")]
     use crate::{MAIN_ENGINE, quake_live_engine::FindCVar};
 
     type ImportFn = extern "C" fn(*mut c_void, c_int, *const c_char, *const c_void);
@@ -214,14 +215,24 @@ mod linux {
         }
     }
 
-    /// Queues the message of the game module, unless the stats socket delivers it.
-    fn queue_value(kind: &str, value: *const c_void) {
-        let feed_wanted = MAIN_ENGINE.load().as_ref().is_some_and(|main_engine| {
+    /// With the `zmq-stats` feature the messages come from the socket while `zmq_stats_enable` is set.
+    #[cfg(feature = "zmq-stats")]
+    fn feed_wanted() -> bool {
+        MAIN_ENGINE.load().as_ref().is_some_and(|main_engine| {
             main_engine
                 .find_cvar("zmq_stats_enable")
                 .is_none_or(|cvar| cvar.get_integer() == 0)
-        });
-        if feed_wanted
+        })
+    }
+
+    #[cfg(not(feature = "zmq-stats"))]
+    fn feed_wanted() -> bool {
+        true
+    }
+
+    /// Queues the message of the game module, unless the stats socket delivers it.
+    fn queue_value(kind: &str, value: *const c_void) {
+        if feed_wanted()
             && !value.is_null()
             && let Some(writer) = WRITER.load().as_ref()
         {
@@ -273,14 +284,14 @@ mod linux {
         WRITER.store(load_writer().map(Into::into));
         if WRITER.load().is_none() {
             cold_path();
-            error!(target: "shinqlx", func = "install"; "The JSON writer of the game module was not found, stats events need zmq_stats_enable.");
+            error!(target: "shinqlx", func = "install"; "The JSON writer of the game module was not found, no stats events are delivered.");
             return;
         }
 
         // SAFETY: the address comes from a pattern search of the loaded game module.
         let Some(import) = (unsafe { locate_import(builder, EVENT_SLOT) }) else {
             cold_path();
-            error!(target: "shinqlx", func = "install"; "The stats import of the game module was not found, stats events need zmq_stats_enable.");
+            error!(target: "shinqlx", func = "install"; "The stats import of the game module was not found, no stats events are delivered.");
             return;
         };
         hook_import(import, shinqlx_stats_import as ImportFn, &DETOUR);
@@ -290,7 +301,7 @@ mod linux {
             Some(report) => hook_import(report, shinqlx_match_report as ReportFn, &REPORT_DETOUR),
             None => {
                 cold_path();
-                error!(target: "shinqlx", func = "install"; "The match report import of the game module was not found, game_end needs zmq_stats_enable.");
+                error!(target: "shinqlx", func = "install"; "The match report import of the game module was not found, game_end is not delivered.");
             }
         }
     }

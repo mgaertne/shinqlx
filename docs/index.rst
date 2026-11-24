@@ -31,7 +31,7 @@ Low-level classes and functions
 * :ref:`EventDispatcher <events>`
 * :ref:`Event data <event_data>`
 * :ref:`Handlers <handlers>`
-* :ref:`StatsListener <zmq>`
+* :ref:`Stats <zmq>`
 * `Changelog <https://github.com/mgaertne/shinqlx/blob/main/CHANGELOG.md>`_
 * `Source code on GitHub <https://github.com/mgaertne/shinqlx>`_
 * `License (BSD-3-Clause) <https://github.com/mgaertne/shinqlx/blob/main/LICENSE>`_

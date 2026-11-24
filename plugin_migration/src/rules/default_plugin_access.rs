@@ -125,6 +125,19 @@ impl Rule for DefaultPluginAccess {
                 return;
             }
 
+            if matches!(member_name, "StatsListener" | "stats_listener")
+                && node
+                    .child_by_field_name("object")
+                    .is_some_and(|object| matches!(source.text_of(object), "minqlx" | "shinqlx"))
+            {
+                output.warnings.push(Warning::new(
+                    line_of(node),
+                    "the stats listener exists in shinqlx only with the Cargo feature zmq-stats, the stats \
+                     events work without the ZMQ socket",
+                ));
+                return;
+            }
+
             if member_name == "cointoss"
                 && node
                     .child_by_field_name("object")
@@ -190,6 +203,10 @@ mod tests {
     #[case("minqlx.Plugin.cointoss(a, b)\n", 1)]
     #[case("Plugin.cointoss()\n", 1)]
     #[case("self.cointoss()\n", 0)]
+    #[case("minqlx.stats_listener().stop()\n", 1)]
+    #[case("isinstance(x, minqlx.StatsListener)\n", 1)]
+    #[case("self.stats_listener = None\n", 0)]
+    #[case("self.stats = None\n", 0)]
     fn counts_warnings(#[case] input: &str, #[case] expected: usize) {
         assert_eq!(warnings(input), expected);
     }

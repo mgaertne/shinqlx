@@ -155,6 +155,8 @@ pub(crate) mod prelude {
     };
     #[cfg(test)]
     pub(crate) use super::pyshinqlx_setup_fixture::*;
+    #[cfg(feature = "zmq-stats")]
+    pub(crate) use super::stats_listener::socket::{StatsListener, StatsListenerMethods};
     pub(crate) use super::{
         ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, PythonInitializationError, clean_py_text,
         clean_text,
@@ -180,7 +182,6 @@ pub(crate) mod prelude {
         player_stats::PlayerStats,
         plugin::{Plugin, PluginMethods},
         powerups::Powerups,
-        stats_listener::{StatsListener, StatsListenerMethods},
         vector3::Vector3,
         weapons::Weapons,
     };
@@ -773,20 +774,23 @@ mod owner_tests {
 }
 
 /// Returns the :class:`shinqlx.StatsListener` instance used to listen for stats.
+#[cfg(feature = "zmq-stats")]
 #[pyfunction(name = "stats_listener")]
 #[pyo3(pass_module)]
 fn get_stats_listener<'py>(module: &Bound<'py, PyModule>) -> PyResult<Bound<'py, PyAny>> {
     module.getattr(intern!(module.py(), "_stats"))
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "zmq-stats"))]
 mod stats_listener_tests {
     use core::borrow::BorrowMut;
 
     use pyo3::{intern, prelude::*};
     use rstest::rstest;
 
-    use super::{get_stats_listener, pyshinqlx_setup_fixture::*, stats_listener::StatsListener};
+    use super::{
+        get_stats_listener, pyshinqlx_setup_fixture::*, stats_listener::socket::StatsListener,
+    };
     use crate::{
         ffi::c::prelude::{CVar, CVarBuilder, cvar_t},
         prelude::*,

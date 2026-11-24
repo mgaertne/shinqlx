@@ -35,7 +35,6 @@ from ._core import (
     PluginUnloadError,
     _configure_logger,
     _modules,
-    _stats,
     _thread_count,
     _thread_name,
     delay,
@@ -54,7 +53,6 @@ from ._core import (
     reload_plugin,
     set_map_subtitles,
     set_plugins_version,
-    stats_listener,
     thread,
     threading_excepthook,
     unload_plugin,
@@ -292,7 +290,6 @@ from ._shinqlx import (
     slay_with_mod,
     spawn_item,
 )
-from ._zmq import StatsListener
 
 _map_title: str | None
 _map_subtitle1: str | None
@@ -920,7 +917,6 @@ __all__ = [
     "SingleWeaponStatsEntry",
     "StatsData",
     "StatsDispatcher",
-    "StatsListener",
     "StatsMeansOfDeath",
     "StatsWeapon",
     "TeamChatChannel",
@@ -953,7 +949,6 @@ __all__ = [
     "_map_title",
     "_modules",
     "_re_vote",
-    "_stats",
     "_thread_count",
     "_thread_name",
     "add_console_command",
@@ -1047,7 +1042,6 @@ __all__ = [
     "set_weapons",
     "slay_with_mod",
     "spawn_item",
-    "stats_listener",
     "thread",
     "threading_excepthook",
     "unload_plugin",

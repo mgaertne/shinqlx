@@ -739,12 +739,6 @@ Functions
 
    :return: the SteamID64 of the owner, or ``None`` if none is set or set to an invalid value.
 
-.. function:: stats_listener() -> StatsListener
-
-   Returns the :class:`shinqlx.StatsListener` instance used to listen for stats.
-
-   :return: :class:`shinqlx.StatsListener` instance used to listen for stats from the server.
-
 .. function:: set_cvar_once(name, value, flags = 0) -> bool
 
    Sets a cvar if no cvar is already set.

@@ -15,8 +15,7 @@ use super::{
     decorators, delay,
     events::{NO_DEBUG_EVENTS_CVAR, configure_no_debug_events},
     events_enum::register_events_enum,
-    get_stats_listener, handlers, initialize, initialize_cvars, later, load_plugin,
-    load_preset_plugins, next_frame,
+    handlers, initialize, initialize_cvars, later, load_plugin, load_preset_plugins, next_frame,
     prelude::*,
     pyshinqlx_configure_logger, pyshinqlx_get_logger, pyshinqlx_handle_exception,
     pyshinqlx_handle_threading_exception, pyshinqlx_log_exception, pyshinqlx_owner,
@@ -129,7 +128,9 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
 
             load_preset_plugins(module.py())?;
 
+            #[cfg(feature = "zmq-stats")]
             let stats_enable_cvar = main_engine.find_cvar("zmq_stats_enable");
+            #[cfg(feature = "zmq-stats")]
             if stats_enable_cvar.is_some_and(|value| value.get_string() != "0") {
                 let stats_value = Bound::new(module.py(), StatsListener::py_new()?)?;
                 module.setattr(intern!(module.py(), "_stats"), &stats_value)?;
@@ -178,6 +179,7 @@ pub(super) fn pyshinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     register_commands_module(m)?;
     register_handlers_module(m)?;
     register_events_module(m)?;
+    #[cfg(feature = "zmq-stats")]
     register_zmq_module(m)?;
     register_plugin_module(m)?;
     register_database_submodule(m)?;
@@ -439,6 +441,7 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("_thread_count", 0)?;
     m.add("_thread_name", SHINQLX_THREADNAME)?;
 
+    #[cfg(feature = "zmq-stats")]
     m.add("_stats", m.py().None())?;
     MODULES.store(Some(PyDict::new(m.py()).unbind().into()));
     m.add(
@@ -457,7 +460,8 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_handle_threading_exception, m)?)?;
     m.add_function(wrap_pyfunction!(uptime, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_owner, m)?)?;
-    m.add_function(wrap_pyfunction!(get_stats_listener, m)?)?;
+    #[cfg(feature = "zmq-stats")]
+    m.add_function(wrap_pyfunction!(super::get_stats_listener, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_once, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_set_cvar_limit_once, m)?)?;
     m.add_function(wrap_pyfunction!(set_plugins_version, m)?)?;
@@ -740,6 +744,7 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+#[cfg(feature = "zmq-stats")]
 fn register_zmq_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<StatsListener>()?;
 
