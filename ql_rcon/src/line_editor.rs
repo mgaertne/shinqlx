@@ -1263,6 +1263,39 @@ mod line_editor_tests {
     }
 
     #[test]
+    fn init_only_and_cheat_cvars_are_noted_too() {
+        let user = UserLists::default();
+
+        assert_eq!(
+            setting_note("fs_basegame", &user),
+            Some("[init only]".to_string())
+        );
+        assert_eq!(
+            setting_note("bot_debug", &user),
+            Some("[cheat]".to_string())
+        );
+    }
+
+    #[test]
+    fn the_cvar_of_a_value_is_the_word_before_it_or_after_set() {
+        assert_eq!(super::cvar_of_value(&["g_gravity"]), Some("g_gravity"));
+        assert_eq!(
+            super::cvar_of_value(&["set", "g_gravity"]),
+            Some("g_gravity")
+        );
+        assert_eq!(super::cvar_of_value(&["map", "campgrounds"]), None);
+        assert_eq!(super::cvar_of_value(&["set", "a", "b"]), None);
+    }
+
+    #[test]
+    fn an_external_break_does_not_send_or_stop() {
+        assert_eq!(
+            step_for(Signal::ExternalBreak("typed".to_string())),
+            Step::Skip
+        );
+    }
+
+    #[test]
     fn the_flags_of_the_cvarlist_are_noted() {
         let mut user = UserLists::default();
         user.cvar_flags

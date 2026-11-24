@@ -172,11 +172,83 @@ pub(crate) fn take_terminate_request() -> bool {
 
 #[cfg(test)]
 mod crash_guard_tests {
-    use core::sync::atomic::Ordering;
+    use core::{
+        ffi::{c_int, c_void},
+        mem,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
 
     use serial_test::serial;
 
-    use super::{TERMINATE_REQUESTED, take_terminate_request};
+    use super::{EngineHandler, TERMINATE_REQUESTED, guard, take_terminate_request};
+
+    static PLAIN_CALLS: AtomicUsize = AtomicUsize::new(0);
+    static INFO_CALLS: AtomicUsize = AtomicUsize::new(0);
+    static GUARD_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    extern "C" fn plain_handler(_signal: c_int) {
+        PLAIN_CALLS.fetch_add(1, Ordering::AcqRel);
+    }
+
+    extern "C" fn info_handler(_signal: c_int, _info: *mut libc::siginfo_t, _context: *mut c_void) {
+        INFO_CALLS.fetch_add(1, Ordering::AcqRel);
+    }
+
+    extern "C" fn guard_handler(
+        _signal: c_int,
+        _info: *mut libc::siginfo_t,
+        _context: *mut c_void,
+    ) {
+        GUARD_CALLS.fetch_add(1, Ordering::AcqRel);
+    }
+
+    fn registered(address: usize, flags: c_int) -> libc::sigaction {
+        // SAFETY: all-zero is a valid `sigaction`.
+        let mut action: libc::sigaction = unsafe { mem::zeroed() };
+        action.sa_sigaction = address;
+        action.sa_flags = flags;
+        action
+    }
+
+    #[test]
+    #[serial]
+    fn the_handler_of_the_engine_is_called_with_the_arguments_it_registered() {
+        let plain = EngineHandler::new();
+        plain.remember(&registered(plain_handler as *const () as usize, 0));
+        let with_info = EngineHandler::new();
+        with_info.remember(&registered(
+            info_handler as *const () as usize,
+            libc::SA_SIGINFO,
+        ));
+
+        plain.call(libc::SIGUSR1, core::ptr::null_mut(), core::ptr::null_mut());
+        with_info.call(libc::SIGUSR1, core::ptr::null_mut(), core::ptr::null_mut());
+
+        assert_eq!(PLAIN_CALLS.load(Ordering::Acquire), 1);
+        assert_eq!(INFO_CALLS.load(Ordering::Acquire), 1);
+    }
+
+    #[test]
+    #[serial]
+    fn a_guard_replaces_the_handler_once_and_keeps_the_engine_one() {
+        // SAFETY: the signal is only used by this test and put back to the default at its end.
+        unsafe { libc::signal(libc::SIGUSR2, libc::SIG_DFL) };
+
+        guard(libc::SIGUSR2, guard_handler).expect("the guard can be installed");
+        guard(libc::SIGUSR2, guard_handler).expect("a second guard changes nothing");
+        // SAFETY: the guard handler is installed and only counts the call.
+        unsafe { libc::raise(libc::SIGUSR2) };
+
+        assert_eq!(GUARD_CALLS.load(Ordering::Acquire), 1);
+        // SAFETY: restores the default action of the signal used here.
+        unsafe { libc::signal(libc::SIGUSR2, libc::SIG_DFL) };
+    }
+
+    #[test]
+    #[serial]
+    fn a_guard_for_an_impossible_signal_is_an_error() {
+        assert!(guard(-1, guard_handler).is_err());
+    }
 
     #[test]
     #[serial]
