@@ -48,12 +48,6 @@ Game
 
       The (short) map name of the game.
 
-   .. property:: map_info
-      :type: MapInfo | None
-
-      What :func:`map_info` knows about the running map, ``None`` if it is not found. Reads the ``pk3`` files, see
-      :func:`installed_maps`. **Read-only**.
-
    .. property:: map_title
       :type: str
 

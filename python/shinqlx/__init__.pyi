@@ -59,10 +59,6 @@ from ._core import (
     threading_excepthook,
     unload_plugin,
     uptime,
-    installed_maps,
-    map_info,
-    factories,
-    map_supports,
 )
 from ._events import (
     EVENT_DISPATCHERS,
@@ -225,7 +221,6 @@ from ._shinqlx import (
     Events,
     Objective,
     Flight,
-    MapInfo,
     GameStates,
     Holdable,
     MeansOfDeath,
@@ -844,7 +839,6 @@ __all__ = [
     "Events",
     "Objective",
     "Flight",
-    "MapInfo",
     "FrameEventDispatcher",
     "Game",
     "GameCountdownDispatcher",
@@ -1044,8 +1038,4 @@ __all__ = [
     "threading_excepthook",
     "unload_plugin",
     "uptime",
-    "installed_maps",
-    "map_info",
-    "factories",
-    "map_supports",
 ]

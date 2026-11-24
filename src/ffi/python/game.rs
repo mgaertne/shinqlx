@@ -184,12 +184,6 @@ impl Game {
         slf.set_map(value)
     }
 
-    /// What is known about the running map from the installed ``pk3`` files, ``None`` if it is not found.
-    #[getter(map_info)]
-    fn get_map_info(slf: &Bound<'_, Self>) -> PyResult<Option<MapInfo>> {
-        map_info(slf.py(), &slf.get_map()?)
-    }
-
     /// The full name of the map. Ex.: ``Longest Yard``.
     #[getter(map_title)]
     fn get_map_title(slf: &Bound<'_, Self>) -> PyResult<String> {

@@ -93,7 +93,6 @@ semver = { version = ">=1.0", default-features = false }
 unicode-segmentation = { version = ">=1.13", default-features = false, features = ["no_std"] }
 
 region = { version = ">=4.0", default-features = false, optional = true }
-zip = { version = ">=9.8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 procfs = { version = ">=0.18", default-features = false }
