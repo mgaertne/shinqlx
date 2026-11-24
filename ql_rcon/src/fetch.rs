@@ -2,6 +2,8 @@
 use core::time::Duration;
 use std::time::Instant;
 
+use ql_zmq::quake_colors::{TERMINAL_DEFAULT, split_ql_colors};
+
 /// The rcon commands that make the server list its maps, commands and cvars, in the order the lists arrive.
 pub(crate) const FETCH_COMMANDS: [&str; 3] = ["dir maps .bsp", "cmdlist", "cvarlist"];
 
@@ -55,12 +57,18 @@ pub(crate) enum FetchState {
 pub(crate) const FLAG_LEGEND: &str = "Flags: S serverinfo, U userinfo, R read-only, I init only, A archived, L latched, C cheat, T temporary (help cvarflags)";
 
 /// The cvar line with its flags at the end, `sv_hostname "x"  [SA]`; a cvar without flags stays as it is.
+///
+/// A value with color codes would color the flags too, so they are put back to the terminal default first.
 fn with_flags(line: &str, flags: &str) -> String {
     if flags.is_empty() {
-        line.to_string()
-    } else {
-        format!("{line}  [{flags}]")
+        return line.to_string();
     }
+    let colored = split_ql_colors(line)
+        .iter()
+        .any(|(code, _)| *code != "reset");
+    let reset = if colored { TERMINAL_DEFAULT } else { "" };
+
+    format!("{line}{reset}  [{flags}]")
 }
 
 /// A list typed by the user has no end marker (`cmdlist`, `dir`), so it ends after this much silence.
@@ -216,7 +224,7 @@ impl FetchState {
 
 #[cfg(test)]
 mod fetch_tests {
-    use super::{Feed, FetchState, Fetched};
+    use super::{Feed, FetchState, Fetched, TERMINAL_DEFAULT, with_flags};
 
     fn collecting() -> FetchState {
         let mut state = FetchState::new(true);
@@ -365,6 +373,18 @@ mod fetch_tests {
                 maps: Vec::new(),
                 flags: Vec::new(),
             })
+        );
+    }
+
+    #[test]
+    fn the_flags_are_not_colored_by_the_value() {
+        assert_eq!(
+            with_flags("qlx_clanprefix \"^1[BUS]\"", "T"),
+            format!("qlx_clanprefix \"^1[BUS]\"{TERMINAL_DEFAULT}  [T]")
+        );
+        assert_eq!(
+            with_flags("qlx_botname \"Bob\"", "T"),
+            "qlx_botname \"Bob\"  [T]"
         );
     }
 

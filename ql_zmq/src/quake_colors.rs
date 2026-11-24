@@ -1,7 +1,10 @@
 //! The color codes `^0` to `^7` of Quake Live in player names and server messages.
 
+/// Text that the tools add themselves put the color back to the default of the terminal, which `^7` (white) is not.
+pub const TERMINAL_DEFAULT: &str = "^\u{1}";
+
 fn is_color_code(bytes: &[u8], at: usize) -> bool {
-    bytes.get(at) == Some(&b'^') && matches!(bytes.get(at + 1), Some(b'0'..=b'7'))
+    bytes.get(at) == Some(&b'^') && matches!(bytes.get(at + 1), Some(b'0'..=b'7' | 1))
 }
 
 /// Splits `input` at its color codes into `(code, text)` pairs; text before the first code has the code `"reset"`.
@@ -23,7 +26,13 @@ pub fn split_ql_colors(input: &str) -> Vec<(&str, &str)> {
             .find(|&next| is_color_code(bytes, next))
             .unwrap_or(bytes.len());
         if text_end > text_start {
-            result.push((&input[at..text_start], &input[text_start..text_end]));
+            let code = &input[at..text_start];
+            let code = if code == TERMINAL_DEFAULT {
+                "reset"
+            } else {
+                code
+            };
+            result.push((code, &input[text_start..text_end]));
         }
         at = text_end.max(text_start);
     }
@@ -49,7 +58,7 @@ pub fn ql_rgb(code: &str) -> Option<(u8, u8, u8)> {
 
 #[cfg(test)]
 mod quake_colors_tests {
-    use super::{ql_rgb, split_ql_colors};
+    use super::{TERMINAL_DEFAULT, ql_rgb, split_ql_colors};
 
     #[test]
     fn split_ql_colors_returns_unformatted_text_as_reset() {
@@ -83,6 +92,14 @@ mod quake_colors_tests {
     fn split_ql_colors_keeps_an_unknown_color_code_as_text() {
         assert_eq!(split_ql_colors("^1red^8kept"), vec![("^1", "red^8kept")]);
         assert_eq!(split_ql_colors("a^8b^^c"), vec![("reset", "a^8b^^c")]);
+    }
+
+    #[test]
+    fn the_terminal_default_code_resets_the_color() {
+        assert_eq!(
+            split_ql_colors(&format!("^1red{TERMINAL_DEFAULT}  [T]")),
+            vec![("^1", "red"), ("reset", "  [T]")]
+        );
     }
 
     #[test]
