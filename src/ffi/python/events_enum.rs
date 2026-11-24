@@ -41,6 +41,7 @@ event_names! {
     CvarChanged => "cvar_changed",
     Damage => "damage",
     Death => "death",
+    FlagStatus => "flag_status",
     Frame => "frame",
     GameCountdown => "game_countdown",
     GameEnd => "game_end",
@@ -50,6 +51,7 @@ event_names! {
     KamikazeUse => "kamikaze_use",
     Kill => "kill",
     Map => "map",
+    Medal => "medal",
     NewGame => "new_game",
     Objective => "objective",
     PlayerConnect => "player_connect",
@@ -115,6 +117,59 @@ class Objective(str, enum.Enum):
     CARRIER_DEFENSE = "carrier_defense"
     FRAG_CARRIER = "frag_carrier"
     UNKNOWN = "unknown"
+
+
+class FlagTeam(str, enum.Enum):
+    """The flags that the event ``flag_status`` reports; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    RED = "red"
+    BLUE = "blue"
+    NEUTRAL = "neutral"
+
+
+class Medal(str, enum.Enum):
+    """The medals that the event ``medal`` reports, named as the game module names them; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    ACCURACY = "ACCURACY"
+    ASSIST = "ASSIST"
+    COMBOKILL = "COMBOKILL"
+    DEFENSE = "DEFENSE"
+    EXCELLENT = "EXCELLENT"
+    FIRSTFRAG = "FIRSTFRAG"
+    HUMILIATION = "HUMILIATION"
+    IMPRESSIVE = "IMPRESSIVE"
+    MIDAIR = "MIDAIR"
+    PERFECT = "PERFECT"
+    PERFORATED = "PERFORATED"
+    QUADGOD = "QUADGOD"
+    RAMPAGE = "RAMPAGE"
+    REVENGE = "REVENGE"
+
+
+class FlagStatus(str, enum.Enum):
+    """The states of a flag that the event ``flag_status`` reports; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    AT_BASE = "at_base"
+    TAKEN = "taken"
+    DROPPED = "dropped"
 "#
     )
 }
@@ -138,7 +193,16 @@ pub(crate) fn register_events_enum(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let objective = globals.get_item(intern!(py, "Objective"))?.ok_or_else(|| {
         pyo3::exceptions::PyRuntimeError::new_err("Objective could not be created")
     })?;
-    m.add("Objective", objective)
+    m.add("Objective", objective)?;
+
+    ["FlagTeam", "FlagStatus", "Medal"]
+        .into_iter()
+        .try_for_each(|name| {
+            let member = globals.get_item(name)?.ok_or_else(|| {
+                pyo3::exceptions::PyRuntimeError::new_err(format!("{name} could not be created"))
+            })?;
+            m.add(name, member)
+        })
 }
 
 #[cfg(test)]

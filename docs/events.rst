@@ -538,6 +538,51 @@ Concrete Event dispatchers
    ``BASE_DEFENSE = "base_defense"``, ``CARRIER_DEFENSE = "carrier_defense"``, ``FRAG_CARRIER = "frag_carrier"`` and
    ``UNKNOWN = "unknown"``, which stands for a counter that this build cannot name and is not reported at the moment.
 
+.. class:: MedalDispatcher
+
+   ``name = "medal"``
+
+   Event that goes off when a player is awarded a medal. It cannot be cancelled. The game module builds its
+   ``PLAYER_MEDAL`` stats message in a function that shinqlx finds by byte pattern; the event goes off right before it,
+   whether ``zmq_stats_enable`` is set or not, and only while a plugin hooks it or the log wants a line for it.
+
+   .. method:: dispatch(player, medal, total) -> bool
+
+      :param Player player: The player that got the medal.
+      :param Medal medal: The medal, a member of :class:`Medal`; it is a string as well, ``medal == "IMPRESSIVE"``
+         works. A name that this build does not know is handed over as a plain string.
+      :param int total: How many medals of this kind the player holds now.
+      :return: Always ``True``.
+
+.. class:: FlagStatusDispatcher
+
+   ``name = "flag_status"``
+
+   Event that goes off when a flag changes its state in a flag mode. It cannot be cancelled. It is raised by the
+   function of the game module that builds the ``FLAG_STATUS`` stats message, so it needs no ``zmq_stats_enable``.
+
+   .. method:: dispatch(team, status, player) -> bool
+
+      :param FlagTeam team: The flag, a member of :class:`FlagTeam`. It is a string as well, ``team == "red"`` works.
+      :param FlagStatus status: The state, a member of :class:`FlagStatus`; ``status == "taken"`` works too.
+      :param Player player: The player that took the flag, or ``None``: the game names nobody when the flag is back
+         at its base or dropped.
+      :return: Always ``True``.
+
+.. class:: FlagTeam
+
+   String enumeration of the flags: ``RED = "red"``, ``BLUE = "blue"`` and ``NEUTRAL = "neutral"``.
+
+.. class:: Medal
+
+   String enumeration of the medals, named as the game module names them: ``ACCURACY``, ``ASSIST``, ``COMBOKILL``,
+   ``DEFENSE``, ``EXCELLENT``, ``FIRSTFRAG``, ``HUMILIATION``, ``IMPRESSIVE``, ``MIDAIR``, ``PERFECT``,
+   ``PERFORATED``, ``QUADGOD``, ``RAMPAGE`` and ``REVENGE``.
+
+.. class:: FlagStatus
+
+   String enumeration of the states of a flag: ``AT_BASE = "at_base"``, ``TAKEN = "taken"`` and ``DROPPED = "dropped"``.
+
 .. class:: WeaponFiredDispatcher
 
    ``name = "weapon_fired"``

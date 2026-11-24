@@ -34,6 +34,11 @@ Changes since 0.8.0.
   team mode. `kind` is a member of the new string enumeration `Objective` (`capture`, `return`, `assist`,
   `base_defense`, `carrier_defense`, `frag_carrier`), `count` the new value of the counter. The server compares the
   counters once per frame, only while somebody listens. The event cannot be cancelled.
+* **New events `medal` and `flag_status`, after minqlxtended:** `handle(player, medal, total)` goes off when a player
+  is awarded a medal, `handle(team, status, player)` when a flag is taken, dropped or back at its base (`team` is a `FlagTeam`, `status` a `FlagStatus`, both
+  string enumerations; `player` may be `None`). Both come from the
+  functions of the game module that build the `PLAYER_MEDAL` and `FLAG_STATUS` stats messages, which shinqlx finds by
+  byte pattern, so they need no `zmq_stats_enable`. The events cannot be cancelled.
 * **New event `weapon_fired`, after minqlxtended:** `handle(player, weapon)` goes off for every shot of a player,
   before the game fires the weapon. `weapon` is the number that `Player.weapon()` returns. The event cannot be
   cancelled and is not logged by default (see `qlx_noDebugEvents`). The game function `FireWeapon` is found by byte

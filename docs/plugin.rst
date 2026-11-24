@@ -308,6 +308,22 @@ Plugins
                                        kind: Objective,
                                        count: int
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"medal"``               .. code-block:: python
+
+                                   def handle_medal(
+                                       self,
+                                       player: Player,
+                                       medal: Medal,
+                                       total: int
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"flag_status"``         .. code-block:: python
+
+                                   def handle_flag_status(
+                                       self,
+                                       team: FlagTeam,
+                                       status: FlagStatus,
+                                       player: Player | None
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"weapon_fired"``        .. code-block:: python
 
                                    def handle_weapon_fired(

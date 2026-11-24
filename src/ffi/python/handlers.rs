@@ -7679,6 +7679,179 @@ mod handle_objective_tests {
     }
 }
 
+fn try_handle_medal(
+    py: Python<'_>,
+    client_id: i32,
+    medal: &str,
+    total: i32,
+) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::Medal.as_str()),
+        "could not get access to medal dispatcher",
+    )
+    .and_then(|medal_dispatcher| {
+        let player = Player::from_client_id(client_id, None);
+
+        MedalDispatcherMethods::dispatch(
+            medal_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            medal,
+            total,
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever a player is awarded a medal.
+#[pyfunction]
+pub(crate) fn handle_medal(py: Python<'_>, client_id: i32, medal: &str, total: i32) -> Py<PyAny> {
+    try_handle_medal(py, client_id, medal, total).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_medal_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use rstest::*;
+
+    use super::try_handle_medal;
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_medal_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_medal(py, 42, "IMPRESSIVE", 1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+}
+
+/// The name of the flag of the team number the game module passes to its stats event.
+fn flag_team_name(team: i32) -> &'static str {
+    match team {
+        1 => "red",
+        2 => "blue",
+        _ => "neutral",
+    }
+}
+
+/// The name of the flag state the game module passes to its stats event, where 3 and 4 count as taken too.
+fn flag_status_name(status: i32) -> &'static str {
+    match status {
+        0 => "at_base",
+        2 => "dropped",
+        _ => "taken",
+    }
+}
+
+fn try_handle_flag_status(
+    py: Python<'_>,
+    team: i32,
+    status: i32,
+    carrier_id: Option<i32>,
+) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::FlagStatus.as_str()),
+        "could not get access to flag status dispatcher",
+    )
+    .and_then(|flag_status_dispatcher| {
+        let carrier = carrier_id
+            .map(|client_id| Bound::new(py, Player::from_client_id(client_id, None)))
+            .transpose()?;
+
+        FlagStatusDispatcherMethods::dispatch(
+            flag_status_dispatcher.cast()?,
+            flag_team_name(team),
+            flag_status_name(status),
+            carrier.as_ref(),
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever a flag changes its state.
+#[pyfunction]
+pub(crate) fn handle_flag_status(
+    py: Python<'_>,
+    team: i32,
+    status: i32,
+    carrier_id: Option<i32>,
+) -> Py<PyAny> {
+    try_handle_flag_status(py, team, status, carrier_id).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_flag_status_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use rstest::*;
+
+    use super::{flag_status_name, flag_team_name, try_handle_flag_status};
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[case(1, "red")]
+    #[case(2, "blue")]
+    #[case(3, "neutral")]
+    fn flag_team_names(#[case] team: i32, #[case] expected: &str) {
+        assert_eq!(flag_team_name(team), expected);
+    }
+
+    #[rstest]
+    #[case(0, "at_base")]
+    #[case(1, "taken")]
+    #[case(2, "dropped")]
+    #[case(3, "taken")]
+    #[case(4, "taken")]
+    fn flag_status_names(#[case] status: i32, #[case] expected: &str) {
+        assert_eq!(flag_status_name(status), expected);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_flag_status_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_flag_status(py, 1, 1, Some(42));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+}
+
 fn try_handle_item_touch(
     py: Python<'_>,
     client_id: i32,
@@ -9502,6 +9675,34 @@ pub(crate) mod handlers {
         _client_id: i32,
         _kind: &str,
         _count: i32,
+    ) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_medal<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _medal: &str,
+        _total: i32,
+    ) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_flag_status<'a>(
+        py: Python<'a>,
+        _team: i32,
+        _status: i32,
+        _carrier_id: Option<i32>,
     ) -> Py<PyAny> {
         py.None()
     }

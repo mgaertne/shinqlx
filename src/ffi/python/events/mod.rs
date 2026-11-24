@@ -6,6 +6,7 @@ mod console_print_dispatcher;
 mod cvar_changed_dispatcher;
 mod damage_dispatcher;
 mod death_dispatcher;
+mod flag_status_dispatcher;
 mod frame_event_dispatcher;
 mod game_countdown_dispatcher;
 mod game_end_dispatcher;
@@ -15,6 +16,7 @@ mod kamikaze_explode_dispatcher;
 mod kamikaze_use_dispatcher;
 mod kill_dispatcher;
 mod map_dispatcher;
+mod medal_dispatcher;
 mod new_game_dispatcher;
 mod objective_dispatcher;
 mod player_connect_dispatcher;
@@ -67,6 +69,7 @@ pub(crate) use damage_dispatcher::{DamageDispatcher, DamageDispatcherMethods};
     reason = "re-exported for the prelude, not every build uses every item"
 )]
 pub(crate) use death_dispatcher::{DeathDispatcher, DeathDispatcherMethods};
+pub(crate) use flag_status_dispatcher::{FlagStatusDispatcher, FlagStatusDispatcherMethods};
 pub(crate) use frame_event_dispatcher::{FrameEventDispatcher, FrameEventDispatcherMethods};
 pub(crate) use game_countdown_dispatcher::{
     GameCountdownDispatcher, GameCountdownDispatcherMethods,
@@ -94,6 +97,7 @@ pub(crate) use kamikaze_use_dispatcher::{KamikazeUseDispatcher, KamikazeUseDispa
 pub(crate) use kill_dispatcher::{KillDispatcher, KillDispatcherMethods};
 use log::{Level, log_enabled, warn};
 pub(crate) use map_dispatcher::{MapDispatcher, MapDispatcherMethods};
+pub(crate) use medal_dispatcher::{MedalDispatcher, MedalDispatcherMethods};
 pub(crate) use new_game_dispatcher::{NewGameDispatcher, NewGameDispatcherMethods};
 pub(crate) use objective_dispatcher::{ObjectiveDispatcher, ObjectiveDispatcherMethods};
 pub(crate) use player_connect_dispatcher::{

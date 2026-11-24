@@ -27,7 +27,7 @@ use crate::{
         AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ConsoleCommand,
         ExecuteClientCommand, FindCVar, FireWeaponOriginal, InitGame, RegisterDamage, RunFrame,
         SendServerCommand, SetConfigstring, SetCvarUndetected, SetModuleOffset, ShutdownGame,
-        SpawnServer, TouchItem,
+        SpawnServer, StatsFlagStatusOriginal, StatsMedalOriginal, TouchItem,
     },
     reliable_guard::{
         BURST_CVAR, GLOBAL_BURST_CVAR, GUARD_CVAR, GuardSettings, MERGE_PRINTS_CVAR,
@@ -1098,6 +1098,44 @@ pub(crate) extern "C" fn shinqlx_fire_weapon(ent: *mut gentity_t) {
     });
 }
 
+/// Reports every medal the game module awards to the `medal` event, before the game module builds its stats event.
+pub(crate) extern "C" fn shinqlx_stats_medal(
+    ent: *mut gentity_t,
+    medal: *const c_char,
+    total: c_int,
+) {
+    MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+        if !medal.is_null() {
+            let _ = GameEntity::try_from(ent)
+                .and_then(|game_entity| game_entity.get_game_client())
+                .tap_ok(|game_client| {
+                    // SAFETY: the game module passes a valid, NUL-terminated C string.
+                    let medal_name = unsafe { CStr::from_ptr(medal) }.to_string_lossy();
+                    medal_dispatcher(game_client.get_client_num(), &medal_name, total);
+                });
+        }
+
+        main_engine.stats_medal(ent, medal, total);
+    });
+}
+
+/// Reports every change of a flag to the `flag_status` event, before the game module builds its stats event.
+pub(crate) extern "C" fn shinqlx_stats_flag_status(
+    team: c_int,
+    status: c_int,
+    carrier: *mut gentity_t,
+) {
+    MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+        let carrier_id = GameEntity::try_from(carrier)
+            .and_then(|game_entity| game_entity.get_game_client())
+            .map(|game_client| game_client.get_client_num())
+            .ok();
+        flag_status_dispatcher(team, status, carrier_id);
+
+        main_engine.stats_flag_status(team, status, carrier);
+    });
+}
+
 thread_local! {
     static REPORTING_CVAR_CHANGE: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
 }
@@ -1247,6 +1285,141 @@ mod fire_weapon_hook_tests {
                 mock_engine.expect_fire_weapon().times(1);
             })
             .run(|| shinqlx_fire_weapon(ent_ptr));
+    }
+}
+
+#[cfg(test)]
+mod stats_hook_tests {
+    use core::{borrow::BorrowMut, ptr};
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use super::{shinqlx_stats_flag_status, shinqlx_stats_medal};
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
+
+    fn player_entity() -> MockGameEntity {
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity.expect_get_game_client().returning(|| {
+            let mut mock_game_client = MockGameClient::new();
+            mock_game_client.expect_get_client_num().return_const(7);
+            Ok(mock_game_client)
+        });
+        mock_gentity
+    }
+
+    #[test]
+    #[serial]
+    fn stats_medal_with_no_main_engine() {
+        shinqlx_stats_medal(ptr::null_mut(), c"IMPRESSIVE".as_ptr(), 1);
+    }
+
+    #[test]
+    #[serial]
+    fn stats_flag_status_with_no_main_engine() {
+        shinqlx_stats_flag_status(1, 0, ptr::null_mut());
+    }
+
+    #[rstest]
+    #[serial]
+    fn stats_medal_of_a_player_is_reported_and_forwarded() {
+        let mut ent = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(|_| Ok(player_entity()));
+        let medal_dispatcher_ctx = medal_dispatcher_context();
+        medal_dispatcher_ctx
+            .expect()
+            .with(
+                predicate::eq(7),
+                predicate::eq("IMPRESSIVE"),
+                predicate::eq(3),
+            )
+            .times(1);
+
+        let ent_ptr = ent.borrow_mut() as *mut gentity_t;
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_stats_medal()
+                    .withf(|_, _, &total| total == 3)
+                    .times(1);
+            })
+            .run(|| shinqlx_stats_medal(ent_ptr, c"IMPRESSIVE".as_ptr(), 3));
+    }
+
+    #[rstest]
+    #[serial]
+    fn stats_medal_of_something_that_is_no_player_is_only_forwarded() {
+        let mut ent = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            Ok(mock_gentity)
+        });
+        let medal_dispatcher_ctx = medal_dispatcher_context();
+        medal_dispatcher_ctx.expect().times(0);
+
+        let ent_ptr = ent.borrow_mut() as *mut gentity_t;
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_stats_medal().times(1);
+            })
+            .run(|| shinqlx_stats_medal(ent_ptr, c"EXCELLENT".as_ptr(), 1));
+    }
+
+    #[rstest]
+    #[serial]
+    fn stats_flag_status_with_a_carrier_is_reported_and_forwarded() {
+        let mut ent = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(|_| Ok(player_entity()));
+        let flag_status_dispatcher_ctx = flag_status_dispatcher_context();
+        flag_status_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(2), predicate::eq(1), predicate::eq(Some(7)))
+            .times(1);
+
+        let ent_ptr = ent.borrow_mut() as *mut gentity_t;
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_stats_flag_status()
+                    .withf(|&team, &status, _| team == 2 && status == 1)
+                    .times(1);
+            })
+            .run(|| shinqlx_stats_flag_status(2, 1, ent_ptr));
+    }
+
+    #[rstest]
+    #[serial]
+    fn stats_flag_status_without_a_carrier_is_reported_without_a_player() {
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx
+            .expect()
+            .returning(|_| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+        let flag_status_dispatcher_ctx = flag_status_dispatcher_context();
+        flag_status_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(1), predicate::eq(0), predicate::eq(None))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_stats_flag_status().times(1);
+            })
+            .run(|| shinqlx_stats_flag_status(1, 0, ptr::null_mut()));
     }
 }
 

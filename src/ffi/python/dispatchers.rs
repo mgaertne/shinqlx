@@ -183,6 +183,36 @@ pub(crate) fn weapon_fired_dispatcher(client_id: i32, weapon: i32) {
     });
 }
 
+pub(crate) fn medal_dispatcher(client_id: i32, medal: &str, total: i32) {
+    if !event_wanted(EventName::Medal) {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        let _ = handle_medal(py, client_id, medal, total);
+    });
+}
+
+pub(crate) fn flag_status_dispatcher(team: i32, status: i32, carrier_id: Option<i32>) {
+    if !event_wanted(EventName::FlagStatus) {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        let _ = handle_flag_status(py, team, status, carrier_id);
+    });
+}
+
 pub(crate) fn objective_dispatcher(client_id: i32, kind: &str, count: i32) {
     if !event_wanted(EventName::Objective) {
         return;
@@ -288,10 +318,10 @@ mod pyshinqlx_dispatcher_tests {
     use super::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-        cvar_changed_dispatcher, damage_dispatcher, frame_dispatcher, item_touch_dispatcher,
-        kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
-        objective_dispatcher, rcon_dispatcher, server_command_dispatcher,
-        set_configstring_dispatcher, weapon_fired_dispatcher,
+        cvar_changed_dispatcher, damage_dispatcher, flag_status_dispatcher, frame_dispatcher,
+        item_touch_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
+        medal_dispatcher, new_game_dispatcher, objective_dispatcher, rcon_dispatcher,
+        server_command_dispatcher, set_configstring_dispatcher, weapon_fired_dispatcher,
     };
     use crate::{
         ffi::{c::prelude::*, python::prelude::*},
@@ -325,6 +355,66 @@ mod pyshinqlx_dispatcher_tests {
             .times(1);
 
         weapon_fired_dispatcher(123, 5);
+    }
+
+    #[test]
+    #[serial]
+    fn medal_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_medal_ctx = handle_medal_context();
+        handle_medal_ctx.expect().times(0);
+
+        medal_dispatcher(123, "IMPRESSIVE", 2);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn medal_dispatcher_hands_medal_and_total_to_the_handler(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_medal_ctx = handle_medal_context();
+        handle_medal_ctx
+            .expect()
+            .withf(|_, client_id, medal, total| {
+                *client_id == 123 && medal == "EXCELLENT" && *total == 2
+            })
+            .returning(|py, _, _, _| py.None())
+            .times(1);
+
+        medal_dispatcher(123, "EXCELLENT", 2);
+    }
+
+    #[test]
+    #[serial]
+    fn flag_status_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_flag_status_ctx = handle_flag_status_context();
+        handle_flag_status_ctx.expect().times(0);
+
+        flag_status_dispatcher(1, 1, Some(123));
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn flag_status_dispatcher_hands_flag_and_carrier_to_the_handler(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_flag_status_ctx = handle_flag_status_context();
+        handle_flag_status_ctx
+            .expect()
+            .withf(|_, team, status, carrier_id| *team == 2 && *status == 0 && carrier_id.is_none())
+            .returning(|py, _, _, _| py.None())
+            .times(1);
+
+        flag_status_dispatcher(2, 0, None);
     }
 
     #[test]

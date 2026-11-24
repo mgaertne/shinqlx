@@ -51,6 +51,8 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handlers::handle_item_touch, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_weapon_fired, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_objective, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_medal, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_flag_status, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_use, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_explode, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_damage, m)?)?;
@@ -680,6 +682,8 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<CvarChangedDispatcher>()?;
     m.add_class::<WeaponFiredDispatcher>()?;
     m.add_class::<ObjectiveDispatcher>()?;
+    m.add_class::<MedalDispatcher>()?;
+    m.add_class::<FlagStatusDispatcher>()?;
     m.add_class::<ItemTouchDispatcher>()?;
     m.add_class::<DamageDispatcher>()?;
     m.add_class::<EventDispatcherManager>()?;
@@ -722,6 +726,8 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     event_dispatchers.add_dispatcher(&m.py().get_type::<CvarChangedDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<WeaponFiredDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<ObjectiveDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<MedalDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<FlagStatusDispatcher>())?;
     EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
     m.add(
         "EVENT_DISPATCHERS",

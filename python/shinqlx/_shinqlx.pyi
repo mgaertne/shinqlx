@@ -323,6 +323,32 @@ class Objective(str, Enum):
     FRAG_CARRIER = "frag_carrier"
     UNKNOWN = "unknown"
 
+class FlagTeam(str, Enum):
+    RED = "red"
+    BLUE = "blue"
+    NEUTRAL = "neutral"
+
+class Medal(str, Enum):
+    ACCURACY = "ACCURACY"
+    ASSIST = "ASSIST"
+    COMBOKILL = "COMBOKILL"
+    DEFENSE = "DEFENSE"
+    EXCELLENT = "EXCELLENT"
+    FIRSTFRAG = "FIRSTFRAG"
+    HUMILIATION = "HUMILIATION"
+    IMPRESSIVE = "IMPRESSIVE"
+    MIDAIR = "MIDAIR"
+    PERFECT = "PERFECT"
+    PERFORATED = "PERFORATED"
+    QUADGOD = "QUADGOD"
+    RAMPAGE = "RAMPAGE"
+    REVENGE = "REVENGE"
+
+class FlagStatus(str, Enum):
+    AT_BASE = "at_base"
+    TAKEN = "taken"
+    DROPPED = "dropped"
+
 class Events(str, Enum):
     CHAT = "chat"
     CLIENT_COMMAND = "client_command"
@@ -335,6 +361,8 @@ class Events(str, Enum):
     GAME_END = "game_end"
     GAME_START = "game_start"
     OBJECTIVE = "objective"
+    MEDAL = "medal"
+    FLAG_STATUS = "flag_status"
     WEAPON_FIRED = "weapon_fired"
     CVAR_CHANGED = "cvar_changed"
     ITEM_TOUCH = "item_touch"
@@ -619,6 +647,12 @@ def register_handler(
 def register_handler(event: Literal["player_spawn"], handler: Callable[[int], bool | None] | None = ...) -> None: ...
 @overload
 def register_handler(event: Literal["objective"], handler: Callable[[int, str, int], bool | None] | None = ...) -> None: ...
+@overload
+def register_handler(event: Literal["medal"], handler: Callable[[int, str, int], bool | None] | None = ...) -> None: ...
+@overload
+def register_handler(
+    event: Literal["flag_status"], handler: Callable[[int, int, int | None], bool | None] | None = ...
+) -> None: ...
 @overload
 def register_handler(event: Literal["weapon_fired"], handler: Callable[[int, int], bool | None] | None = ...) -> None: ...
 @overload

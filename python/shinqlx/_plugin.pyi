@@ -23,7 +23,7 @@ from shinqlx.database import Redis
 from typing_extensions import Concatenate, Never, TypeAlias, Unpack, disjoint_base
 
 from ._commands import ReplyKwargs
-from ._shinqlx import Events, GameStates, Objective, Teams
+from ._shinqlx import Events, FlagStatus, FlagTeam, GameStates, Medal, Objective, Teams
 
 _PluginT = TypeVar("_PluginT", bound=Plugin)
 _HandlerT = TypeVar("_HandlerT", bound=Callable[..., object])
@@ -91,6 +91,10 @@ _UserinfoHookHandler: TypeAlias = Callable[[Player, UserinfoEventInput], UserInf
 _UserinfoHookMethod: TypeAlias = Callable[[_PluginT, Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
 _ObjectiveHookHandler: TypeAlias = Callable[[Player, Objective, int], CancellableEventReturn]
 _ObjectiveHookMethod: TypeAlias = Callable[[_PluginT, Player, Objective, int], CancellableEventReturn]
+_MedalHookHandler: TypeAlias = Callable[[Player, Medal, int], CancellableEventReturn]
+_MedalHookMethod: TypeAlias = Callable[[_PluginT, Player, Medal, int], CancellableEventReturn]
+_FlagStatusHookHandler: TypeAlias = Callable[[FlagTeam, FlagStatus, Player | None], CancellableEventReturn]
+_FlagStatusHookMethod: TypeAlias = Callable[[_PluginT, FlagTeam, FlagStatus, Player | None], CancellableEventReturn]
 _WeaponFiredHookHandler: TypeAlias = Callable[[Player, int], CancellableEventReturn]
 _WeaponFiredHookMethod: TypeAlias = Callable[[_PluginT, Player, int], CancellableEventReturn]
 _CvarChangedHookHandler: TypeAlias = Callable[[str, str, str], CancellableEventReturn]
@@ -237,6 +241,14 @@ def hook(
 def hook(
     event: Literal["objective", Events.OBJECTIVE], priority: SupportsIndex | None = ...
 ) -> Callable[[_ObjectiveHookMethod[_PluginT]], _ObjectiveHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["medal", Events.MEDAL], priority: SupportsIndex | None = ...
+) -> Callable[[_MedalHookMethod[_PluginT]], _MedalHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["flag_status", Events.FLAG_STATUS], priority: SupportsIndex | None = ...
+) -> Callable[[_FlagStatusHookMethod[_PluginT]], _FlagStatusHookMethod[_PluginT]]: ...
 @overload
 def hook(
     event: Literal["weapon_fired", Events.WEAPON_FIRED], priority: SupportsIndex | None = ...
@@ -822,6 +834,20 @@ class Plugin:
     @overload
     def add_hook(
         self,
+        event: Literal["medal", Events.MEDAL],
+        handler: _MedalHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
+        event: Literal["flag_status", Events.FLAG_STATUS],
+        handler: _FlagStatusHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
         event: Literal["weapon_fired", Events.WEAPON_FIRED],
         handler: _WeaponFiredHookHandler,
         priority: SupportsIndex = ...,
@@ -1076,6 +1102,20 @@ class Plugin:
         self,
         event: Literal["objective", Events.OBJECTIVE],
         handler: _ObjectiveHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["medal", Events.MEDAL],
+        handler: _MedalHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["flag_status", Events.FLAG_STATUS],
+        handler: _FlagStatusHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload

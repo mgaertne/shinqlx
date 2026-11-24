@@ -41,9 +41,10 @@ use crate::{
         ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect,
         shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_cvar_set2, shinqlx_fire_weapon,
         shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame,
-        shinqlx_g_startkamikaze, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
-        shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver,
-        shinqlx_sys_setmoduleoffset, shinqlx_touch_item,
+        shinqlx_g_startkamikaze, shinqlx_stats_flag_status, shinqlx_stats_medal,
+        shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
+        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        shinqlx_touch_item,
     },
     prelude::*,
     quake_live_functions::QuakeLiveFunction,
@@ -151,6 +152,8 @@ type GDamageDetourType = TypedDetour<
 >;
 type TouchItemDetourType = TypedDetour<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>;
 type FireWeaponDetourType = TypedDetour<extern "C" fn(*mut gentity_t)>;
+type StatsMedalDetourType = TypedDetour<extern "C" fn(*mut gentity_t, *const c_char, c_int)>;
+type StatsFlagStatusDetourType = TypedDetour<extern "C" fn(c_int, c_int, *mut gentity_t)>;
 
 #[derive(Default)]
 struct VmFunctions {
@@ -163,6 +166,8 @@ struct VmFunctions {
     g_damage_orig: AtomicUsize,
     touch_item_orig: AtomicUsize,
     fire_weapon_orig: AtomicUsize,
+    stats_medal_orig: AtomicUsize,
+    stats_flag_status_orig: AtomicUsize,
     launch_item_orig: AtomicUsize,
     drop_item_orig: AtomicUsize,
     g_start_kamikaze_orig: AtomicUsize,
@@ -181,6 +186,8 @@ struct VmFunctions {
     g_damage_detour: ArcSwapOption<GDamageDetourType>,
     touch_item_detour: ArcSwapOption<TouchItemDetourType>,
     fire_weapon_detour: ArcSwapOption<FireWeaponDetourType>,
+    stats_medal_detour: ArcSwapOption<StatsMedalDetourType>,
+    stats_flag_status_detour: ArcSwapOption<StatsFlagStatusDetourType>,
 }
 
 #[cfg_attr(
@@ -253,6 +260,11 @@ impl VmFunctions {
                 (QuakeLiveFunction::G_Damage, &self.g_damage_orig),
                 (QuakeLiveFunction::Touch_Item, &self.touch_item_orig),
                 (QuakeLiveFunction::FireWeapon, &self.fire_weapon_orig),
+                (QuakeLiveFunction::G_StatsMedal, &self.stats_medal_orig),
+                (
+                    QuakeLiveFunction::G_StatsFlagStatus,
+                    &self.stats_flag_status_orig,
+                ),
                 (QuakeLiveFunction::LaunchItem, &self.launch_item_orig),
                 (QuakeLiveFunction::Drop_Item, &self.drop_item_orig),
                 (
@@ -556,6 +568,66 @@ impl VmFunctions {
                 });
             });
 
+        let stats_medal_orig = self.stats_medal_orig.load(Ordering::Acquire);
+        // SAFETY: the address was found in the engine and has the signature of the function type.
+        let stats_medal_func = unsafe {
+            function_at::<extern "C" fn(*mut gentity_t, *const c_char, c_int)>(stats_medal_orig)
+        };
+        // SAFETY: the original and the replacement are functions with the same signature.
+        let stats_medal_detour =
+            unsafe { StatsMedalDetourType::new(stats_medal_func, shinqlx_stats_medal) }.map_err(
+                |_| {
+                    cold_path();
+                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StatsMedal)
+                },
+            )?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
+        unsafe { stats_medal_detour.enable() }.map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StatsMedal)
+        })?;
+
+        self.stats_medal_detour
+            .swap(Some(stats_medal_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
+                    error!(target: "shinqlx", func = "hook"; "error when disabling stats medal detour: {e}");
+                });
+            });
+
+        let stats_flag_status_orig = self.stats_flag_status_orig.load(Ordering::Acquire);
+        // SAFETY: the address was found in the engine and has the signature of the function type.
+        let stats_flag_status_func = unsafe {
+            function_at::<extern "C" fn(c_int, c_int, *mut gentity_t)>(stats_flag_status_orig)
+        };
+        // SAFETY: the original and the replacement are functions with the same signature.
+        let stats_flag_status_detour = unsafe {
+            StatsFlagStatusDetourType::new(stats_flag_status_func, shinqlx_stats_flag_status)
+        }
+        .map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StatsFlagStatus)
+        })?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
+        unsafe { stats_flag_status_detour.enable() }.map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StatsFlagStatus)
+        })?;
+
+        self.stats_flag_status_detour
+            .swap(Some(stats_flag_status_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
+                    error!(target: "shinqlx", func = "hook"; "error when disabling stats flag status detour: {e}");
+                });
+            });
+
         Ok(())
     }
 
@@ -592,6 +664,8 @@ impl VmFunctions {
             &self.g_damage_orig,
             &self.touch_item_orig,
             &self.fire_weapon_orig,
+            &self.stats_medal_orig,
+            &self.stats_flag_status_orig,
             &self.launch_item_orig,
             &self.drop_item_orig,
             &self.g_start_kamikaze_orig,
@@ -667,6 +741,26 @@ impl VmFunctions {
                     error!(target: "shinqlx", func = "unhook"; "error when disabling fire weapon detour: {e}");
                 });
             });
+
+        self.stats_medal_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling stats medal detour: {e}");
+                });
+            });
+
+        self.stats_flag_status_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling stats flag status detour: {e}");
+                });
+            });
     }
 }
 
@@ -688,9 +782,9 @@ mod vm_functions_tests {
         prelude::serial,
         quake_live_engine::mock_quake_functions::{
             CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, FireWeapon, G_AddEvent,
-            G_Damage, G_FreeEntity, G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem,
-            Touch_Item, detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage,
-            detoured_G_StartKamikaze,
+            G_Damage, G_FreeEntity, G_InitGame, G_RunFrame, G_StartKamikaze, G_StatsFlagStatus,
+            G_StatsMedal, LaunchItem, Touch_Item, detoured_ClientConnect, detoured_ClientSpawn,
+            detoured_G_Damage, detoured_G_StartKamikaze,
         },
     };
 
@@ -704,6 +798,8 @@ mod vm_functions_tests {
             g_damage_orig: Default::default(),
             touch_item_orig: Default::default(),
             fire_weapon_orig: Default::default(),
+            stats_medal_orig: Default::default(),
+            stats_flag_status_orig: Default::default(),
             launch_item_orig: Default::default(),
             drop_item_orig: Default::default(),
             g_start_kamikaze_orig: Default::default(),
@@ -721,6 +817,8 @@ mod vm_functions_tests {
             g_damage_detour: Default::default(),
             touch_item_detour: Default::default(),
             fire_weapon_detour: Default::default(),
+            stats_medal_detour: Default::default(),
+            stats_flag_status_detour: Default::default(),
         }
     }
 
@@ -781,6 +879,8 @@ mod vm_functions_tests {
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
             fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
+            stats_medal_orig: AtomicUsize::new(G_StatsMedal as *const () as usize),
+            stats_flag_status_orig: AtomicUsize::new(G_StatsFlagStatus as *const () as usize),
             ..default_vm_functions()
         };
 
@@ -860,6 +960,8 @@ mod vm_functions_tests {
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
             fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
+            stats_medal_orig: AtomicUsize::new(G_StatsMedal as *const () as usize),
+            stats_flag_status_orig: AtomicUsize::new(G_StatsFlagStatus as *const () as usize),
             launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
             drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
@@ -910,6 +1012,8 @@ mod vm_functions_tests {
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
             fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
+            stats_medal_orig: AtomicUsize::new(G_StatsMedal as *const () as usize),
+            stats_flag_status_orig: AtomicUsize::new(G_StatsFlagStatus as *const () as usize),
             launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
             drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
@@ -988,6 +1092,8 @@ mod vm_functions_tests {
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
             fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
+            stats_medal_orig: AtomicUsize::new(G_StatsMedal as *const () as usize),
+            stats_flag_status_orig: AtomicUsize::new(G_StatsFlagStatus as *const () as usize),
             launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
             drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
@@ -5757,6 +5863,40 @@ impl FireWeaponOriginal for QuakeLiveEngine {
     }
 }
 
+pub(crate) trait StatsMedalOriginal {
+    /// Lets the game module build the `PLAYER_MEDAL` stats event with the original function.
+    fn stats_medal(&self, ent: *mut gentity_t, medal: *const c_char, total: c_int);
+}
+
+impl StatsMedalOriginal for QuakeLiveEngine {
+    fn stats_medal(&self, ent: *mut gentity_t, medal: *const c_char, total: c_int) {
+        self.vm_functions
+            .stats_medal_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(ent, medal, total);
+            });
+    }
+}
+
+pub(crate) trait StatsFlagStatusOriginal {
+    /// Lets the game module build the `FLAG_STATUS` stats event with the original function.
+    fn stats_flag_status(&self, team: c_int, status: c_int, carrier: *mut gentity_t);
+}
+
+impl StatsFlagStatusOriginal for QuakeLiveEngine {
+    fn stats_flag_status(&self, team: c_int, status: c_int, carrier: *mut gentity_t) {
+        self.vm_functions
+            .stats_flag_status_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(team, status, carrier);
+            });
+    }
+}
+
 pub(crate) trait TouchItem {
     /// Lets the game module process the touch of the item with the original function.
     fn touch_item(&self, item: *mut gentity_t, toucher: *mut gentity_t, trace: *mut trace_t);
@@ -6303,6 +6443,12 @@ mockall::mock! {
     }
     impl FireWeaponOriginal for QuakeEngine {
         fn fire_weapon(&self, ent: *mut gentity_t);
+    }
+    impl StatsMedalOriginal for QuakeEngine {
+        fn stats_medal(&self, ent: *mut gentity_t, medal: *const c_char, total: c_int);
+    }
+    impl StatsFlagStatusOriginal for QuakeEngine {
+        fn stats_flag_status(&self, team: c_int, status: c_int, carrier: *mut gentity_t);
     }
     impl TouchItem for QuakeEngine {
         fn touch_item(&self, item: *mut gentity_t, toucher: *mut gentity_t, trace: *mut trace_t);
@@ -7068,6 +7214,32 @@ mod quake_functions {
     )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn FireWeapon(_ent: *mut gentity_t) {}
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_StatsMedal(
+        _ent: *mut gentity_t,
+        _medal: *const c_char,
+        _total: c_int,
+    ) {
+    }
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn G_StatsFlagStatus(
+        _team: c_int,
+        _status: c_int,
+        _carrier: *mut gentity_t,
+    ) {
+    }
 
     #[allow(
         unused_attributes,

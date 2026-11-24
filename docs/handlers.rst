@@ -90,6 +90,24 @@ Low-level handlers. These are all called by the Rust-code, not within Python.
    :param int count: The new value of the counter of the player for this kind.
    :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
 
+.. function:: handle_medal(client_id, medal, total) -> bool | None
+
+   This will be called whenever a player is awarded a medal.
+
+   :param int client_id: The client identifier.
+   :param str medal: The name of the medal.
+   :param int total: How many medals of this kind the player holds now.
+   :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
+
+.. function:: handle_flag_status(team, status, carrier_id) -> bool | None
+
+   This will be called whenever a flag changes its state.
+
+   :param int team: The flag, 1 for red, 2 for blue, anything else for the neutral flag.
+   :param int status: 0 at base, 2 dropped, anything else taken.
+   :param int carrier_id: The client identifier of the player that took the flag, or ``None`` for ``at base`` and ``dropped``.
+   :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
+
 .. function:: handle_weapon_fired(client_id, weapon) -> bool | None
 
    This will be called whenever a player fires a weapon.
