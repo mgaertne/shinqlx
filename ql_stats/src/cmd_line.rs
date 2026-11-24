@@ -54,14 +54,16 @@ fn with_scheme(host: String) -> String {
     }
 }
 
-fn path_of_server_file(name: &str) -> Result<PathBuf> {
-    server_file(name).ok_or_else(|| {
+type ServerFileLocator<'a> = &'a dyn Fn(&str) -> Option<PathBuf>;
+
+fn path_of_server_file(name: &str, locate: ServerFileLocator) -> Result<PathBuf> {
+    locate(name).ok_or_else(|| {
         anyhow!("'{name}' is not a valid server name or there is no config directory")
     })
 }
 
-fn open_server_file(name: &str) -> Result<PathBuf> {
-    open_existing(name, path_of_server_file(name)?)
+fn open_server_file(name: &str, locate: ServerFileLocator) -> Result<PathBuf> {
+    open_existing(name, path_of_server_file(name, locate)?)
 }
 
 fn open_existing(name: &str, path: PathBuf) -> Result<PathBuf> {
@@ -75,8 +77,8 @@ fn open_existing(name: &str, path: PathBuf) -> Result<PathBuf> {
     Ok(path)
 }
 
-fn save_server(name: &str, options: &CommandLineOptions) -> Result<()> {
-    save_server_at(&path_of_server_file(name)?, options)
+fn save_server(name: &str, options: &CommandLineOptions, locate: ServerFileLocator) -> Result<()> {
+    save_server_at(&path_of_server_file(name, locate)?, options)
 }
 
 fn save_server_at(path: &Path, options: &CommandLineOptions) -> Result<()> {
@@ -95,10 +97,13 @@ fn save_server_at(path: &Path, options: &CommandLineOptions) -> Result<()> {
 
 /// Reads the options and the server file they name.
 pub(crate) fn parse() -> Result<CommandLineOptions> {
-    let cli = CommandLineOptions::parse();
+    resolve(CommandLineOptions::parse(), &server_file)
+}
+
+fn resolve(cli: CommandLineOptions, locate: ServerFileLocator) -> Result<CommandLineOptions> {
     let endpoint = match cli.server.as_deref() {
         Some(name) => {
-            let path = open_server_file(name)?;
+            let path = open_server_file(name, locate)?;
             if password_is_exposed(&path) {
                 eprintln!(
                     "Warning: {} holds a password and can be read by other users, restrict it with chmod 600.",
@@ -113,7 +118,7 @@ pub(crate) fn parse() -> Result<CommandLineOptions> {
     let options = cli.with_server_file(endpoint);
 
     if let Some(name) = save_as {
-        save_server(&name, &options)?;
+        save_server(&name, &options, locate)?;
     }
 
     Ok(options)
@@ -157,7 +162,9 @@ mod cmd_line_tests {
     use clap::Parser;
     use ql_zmq::servers::{StatsEndpoint, stats_endpoint};
 
-    use super::{CommandLineOptions, open_existing, open_server_file, save_server, save_server_at};
+    use super::{
+        CommandLineOptions, open_existing, open_server_file, resolve, save_server, save_server_at,
+    };
     use crate::format::{ColorChoice, OutputFormat};
 
     fn server_file_path(test: &str) -> PathBuf {
@@ -315,11 +322,143 @@ mod cmd_line_tests {
         let options = CommandLineOptions::try_parse_from(["ql_stats"]).expect("defaults are valid");
 
         for result in [
-            open_server_file("../crimson-arena").map(|_| ()),
-            save_server("../crimson-arena", &options),
+            open_server_file("../crimson-arena", &|_| None).map(|_| ()),
+            save_server("../crimson-arena", &options, &|_| None),
+            resolve(
+                CommandLineOptions::try_parse_from(["ql_stats", "../crimson-arena"])
+                    .expect("the options are valid"),
+                &|_| None,
+            )
+            .map(|_| ()),
         ] {
             let message = result.expect_err("the name is invalid").to_string();
             assert!(message.contains("not a valid server name"), "{message}");
         }
+    }
+
+    fn resolved(args: &[&str], path: &Path) -> anyhow::Result<CommandLineOptions> {
+        let cli = CommandLineOptions::try_parse_from(args).expect("the options are valid");
+        let path = path.to_path_buf();
+        resolve(cli, &move |_| Some(path.clone()))
+    }
+
+    #[test]
+    fn resolving_without_a_server_keeps_the_options() {
+        let cli = CommandLineOptions::try_parse_from(["ql_stats", "--host", "192.0.2.1:27962"])
+            .expect("the options are valid");
+
+        let options = resolve(cli, &|_| None).expect("no server file is needed");
+
+        assert_eq!(options.host(), "tcp://192.0.2.1:27962");
+    }
+
+    #[test]
+    fn resolving_a_server_reads_its_file() {
+        let path = server_file_path("resolve_read");
+        let saved = CommandLineOptions::try_parse_from([
+            "ql_stats",
+            "--host",
+            "192.0.2.1:27962",
+            "--password",
+            "stats",
+        ])
+        .expect("the options are valid")
+        .with_server_file(StatsEndpoint::default());
+        save_server_at(&path, &saved).expect("could not save the server");
+
+        let options = resolved(&["ql_stats", "crimson-arena"], &path);
+
+        remove_directory_of(&path);
+        let options = options.expect("the server file is readable");
+        assert_eq!(options.host(), "tcp://192.0.2.1:27962");
+        assert_eq!(options.password(), "stats");
+    }
+
+    #[test]
+    fn resolving_a_missing_server_file_names_the_way_to_create_it() {
+        let path = server_file_path("resolve_missing");
+
+        let message = resolved(&["ql_stats", "crimson-arena"], &path)
+            .expect_err("the file does not exist")
+            .to_string();
+
+        assert!(message.contains("--save-server crimson-arena"), "{message}");
+    }
+
+    #[test]
+    fn resolving_an_unreadable_server_file_names_the_file() {
+        let path = server_file_path("resolve_unreadable");
+        fs::create_dir_all(path.parent().expect("the path has a directory"))
+            .expect("could not create the directory");
+        fs::write(&path, "[stats\nhost = ").expect("could not write the file");
+
+        let message = resolved(&["ql_stats", "crimson-arena"], &path)
+            .expect_err("the file is not valid TOML")
+            .to_string();
+
+        remove_directory_of(&path);
+        assert!(message.contains("could not read"), "{message}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolving_a_server_file_that_others_can_read_still_works() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = server_file_path("resolve_exposed");
+        let saved = CommandLineOptions::try_parse_from(["ql_stats", "--password", "stats"])
+            .expect("the options are valid");
+        save_server_at(&path, &saved).expect("could not save the server");
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("chmod");
+
+        let options = resolved(&["ql_stats", "crimson-arena"], &path);
+
+        remove_directory_of(&path);
+        assert_eq!(options.expect("the file is readable").password(), "stats");
+    }
+
+    #[test]
+    fn resolving_with_save_server_writes_the_connection() {
+        let path = server_file_path("resolve_save");
+
+        let options = resolved(
+            &[
+                "ql_stats",
+                "--host",
+                "192.0.2.1:27962",
+                "--password",
+                "stats",
+                "--save-server",
+                "crimson-arena",
+            ],
+            &path,
+        );
+
+        let saved = stats_endpoint(&path);
+        remove_directory_of(&path);
+        assert_eq!(
+            options.expect("the connection is saved").host(),
+            "tcp://192.0.2.1:27962"
+        );
+        assert_eq!(
+            saved.expect("could not read the server file"),
+            endpoint(Some("tcp://192.0.2.1:27962"), Some("stats"))
+        );
+    }
+
+    #[test]
+    fn a_connection_that_cannot_be_saved_is_reported() {
+        let blocker = server_file_path("resolve_blocked");
+        fs::create_dir_all(blocker.parent().expect("the path has a directory"))
+            .expect("could not create the directory");
+        fs::write(&blocker, "").expect("could not write the file");
+        let options = CommandLineOptions::try_parse_from(["ql_stats"]).expect("defaults are valid");
+
+        let message = save_server_at(&blocker.join("crimson-arena.toml"), &options)
+            .expect_err("the parent is a file")
+            .to_string();
+
+        remove_directory_of(&blocker);
+        assert!(message.contains("could not save"), "{message}");
     }
 }

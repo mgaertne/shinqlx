@@ -421,6 +421,74 @@ mod format_tests {
     }
 
     #[test]
+    fn the_summary_of_team_switches_and_player_stats() {
+        let summary = renderer(&["--format", "summary"], false);
+
+        assert_eq!(
+            summary
+                .render(
+                    r#"{"TYPE":"PLAYER_SWITCHTEAM","DATA":{"KILLER":{"NAME":"Alice","OLD_TEAM":"SPECTATOR","TEAM":"RED"}}}"#
+                )
+                .as_deref(),
+            Some("PLAYER_SWITCHTEAM  Alice: SPECTATOR -> RED")
+        );
+        assert_eq!(
+            summary
+                .render(
+                    r#"{"TYPE":"PLAYER_STATS","DATA":{"NAME":"Bob","KILLS":12,"DEATHS":7,"SCORE":-3}}"#
+                )
+                .as_deref(),
+            Some("PLAYER_STATS       Bob kills 12 deaths 7 score -3")
+        );
+    }
+
+    #[test]
+    fn the_summary_of_a_match_start_and_report() {
+        let summary = renderer(&["--format", "summary"], false);
+
+        assert_eq!(
+            summary
+                .render(
+                    r#"{"TYPE":"MATCH_STARTED","DATA":{"FACTORY_TITLE":"Clan Arena","MAP":"crimson"}}"#
+                )
+                .as_deref(),
+            Some("MATCH_STARTED      Clan Arena on crimson")
+        );
+        assert_eq!(
+            summary
+                .render(
+                    r#"{"TYPE":"MATCH_REPORT","DATA":{"FACTORY":"ca","MAP":"crimson","EXIT_MSG":"Roundlimit hit.","TSCORE0":8,"TSCORE1":5,"GAME_LENGTH":900}}"#
+                )
+                .as_deref(),
+            Some("MATCH_REPORT       ca on crimson: Roundlimit hit., score 8:5, 900 s")
+        );
+    }
+
+    #[test]
+    fn a_team_kill_is_marked_in_the_summary() {
+        let line = renderer(&["--format", "summary"], false).render(
+            r#"{"TYPE":"PLAYER_KILL","DATA":{"KILLER":{"NAME":"Alice"},"MOD":"ROCKET","SUICIDE":false,"TEAMKILL":true,"VICTIM":{"NAME":"Bob"}}}"#,
+        );
+
+        assert_eq!(
+            line.as_deref(),
+            Some("PLAYER_KILL        Bob <- Alice (ROCKET, teamkill)")
+        );
+    }
+
+    #[test]
+    fn a_color_code_without_a_game_color_is_painted_black() {
+        let line = renderer(&["--format", "summary"], true)
+            .render(r#"{"TYPE":"PLAYER_CONNECT","DATA":{"NAME":"^0Bob"}}"#);
+
+        assert!(
+            line.as_deref()
+                .is_some_and(|line| line.contains("\x1b[30mBob")),
+            "{line:?}"
+        );
+    }
+
+    #[test]
     fn a_connect_without_a_name_falls_back_to_json() {
         let line = renderer(&["--format", "summary"], false)
             .render(r#"{"TYPE":"PLAYER_CONNECT","DATA":{"TIME":701}}"#);
