@@ -684,6 +684,40 @@ impl Redis {
         slf.close()
     }
 
+    /// Closes the connection that all plugins with the default configuration share,
+    /// no matter how many of them still use it.
+    fn close_shared(slf: &Bound<'_, Self>) -> PyResult<()> {
+        RedisMethods::close_shared(slf)
+    }
+
+    /// Returns the specified flag for each of the *players* with a single request.
+    /// Players without the flag get *default*.
+    #[pyo3(name = "get_flags", signature = (players, flag, default = false), text_signature = "($self, players, flag, default=False)")]
+    fn get_flags(
+        slf: &Bound<'_, Self>,
+        players: &Bound<'_, PyAny>,
+        flag: &str,
+        default: bool,
+    ) -> PyResult<Vec<bool>> {
+        RedisMethods::get_flags(slf, players, flag, default)
+    }
+
+    fn __enter__<'py>(slf: Bound<'py, Self>) -> PyResult<Bound<'py, Self>> {
+        slf.connect()?;
+        Ok(slf)
+    }
+
+    #[pyo3(signature = (_exc_type, _exc_value, _traceback))]
+    fn __exit__(
+        slf: &Bound<'_, Self>,
+        _exc_type: &Bound<'_, PyAny>,
+        _exc_value: &Bound<'_, PyAny>,
+        _traceback: &Bound<'_, PyAny>,
+    ) -> PyResult<bool> {
+        slf.close()?;
+        Ok(false)
+    }
+
     #[pyo3(name = "mset", signature = (*args, **kwargs))]
     fn mset<'py>(
         slf: &Bound<'py, Self>,
@@ -801,10 +835,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn set_flag(&self, player: &Bound<'py, PyAny>, flag: &str, value: bool) -> PyResult<()> {
-        let key = match player.extract::<Player>() {
-            Ok(rust_player) => format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag),
-            _ => format!("minqlx:players:{}:flags:{}", player.str()?, flag),
-        };
+        let key = flag_key(player, flag)?;
 
         let redis_value = if value { 1i32 } else { 0i32 };
 
@@ -816,10 +847,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn get_flag(&self, player: &Bound<'py, PyAny>, flag: &str, default: bool) -> PyResult<bool> {
-        let key = match player.extract::<Player>() {
-            Ok(rust_player) => format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag),
-            _ => format!("minqlx:players:{}:flags:{}", player.str()?, flag),
-        };
+        let key = flag_key(player, flag)?;
 
         if !self.contains(&key)? {
             return Ok(default);
@@ -996,31 +1024,35 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
             _ => (),
         }
 
-        let redis_type = self.py().get_type::<Redis>();
-        let class_counter = redis_type
+        let class_counter = self
+            .py()
+            .get_type::<Redis>()
             .getattr(intern!(self.py(), "_counter"))
             .and_then(|value| value.extract::<i32>())
             .unwrap_or(0);
-        if class_counter <= 1
-            && redis_type
-                .getattr(intern!(self.py(), "_conn"))
-                .is_ok_and(|class_connection| !class_connection.is_none())
-        {
-            redis_type.setattr(intern!(self.py(), "_conn"), self.py().None())?;
-            match redis_type.getattr(intern!(self.py(), "_pool")) {
-                Ok(class_pool) if !class_pool.is_none() => {
-                    class_pool.call_method0(intern!(self.py(), "disconnect"))?;
-                    redis_type.setattr(intern!(self.py(), "_pool"), self.py().None())?;
-                }
-                _ => (),
-            }
+        if class_counter <= 1 {
+            self.close_shared()?;
         }
         Ok(())
     }
 }
 
+fn flag_key(player: &Bound<'_, PyAny>, flag: &str) -> PyResult<String> {
+    Ok(match player.extract::<Player>() {
+        Ok(rust_player) => format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag),
+        _ => format!("minqlx:players:{}:flags:{}", player.str()?, flag),
+    })
+}
+
 pub(crate) trait RedisMethods<'py> {
     fn get_redis(&self) -> PyResult<Bound<'py, PyAny>>;
+    fn close_shared(&self) -> PyResult<()>;
+    fn get_flags(
+        &self,
+        players: &Bound<'py, PyAny>,
+        flag: &str,
+        default: bool,
+    ) -> PyResult<Vec<bool>>;
     fn connect_with_parameters(
         &self,
         host: &str,
@@ -1067,6 +1099,48 @@ pub(crate) trait RedisMethods<'py> {
 impl<'py> RedisMethods<'py> for Bound<'py, Redis> {
     fn get_redis(&self) -> PyResult<Bound<'py, PyAny>> {
         self.connect()
+    }
+
+    fn close_shared(&self) -> PyResult<()> {
+        let redis_type = self.py().get_type::<Redis>();
+        if redis_type
+            .getattr(intern!(self.py(), "_conn"))
+            .is_ok_and(|class_connection| !class_connection.is_none())
+        {
+            redis_type.setattr(intern!(self.py(), "_conn"), self.py().None())?;
+            match redis_type.getattr(intern!(self.py(), "_pool")) {
+                Ok(class_pool) if !class_pool.is_none() => {
+                    class_pool.call_method0(intern!(self.py(), "disconnect"))?;
+                    redis_type.setattr(intern!(self.py(), "_pool"), self.py().None())?;
+                }
+                _ => (),
+            }
+        }
+        Ok(())
+    }
+
+    fn get_flags(
+        &self,
+        players: &Bound<'py, PyAny>,
+        flag: &str,
+        default: bool,
+    ) -> PyResult<Vec<bool>> {
+        let keys = players
+            .try_iter()?
+            .map(|player| flag_key(&player?, flag))
+            .collect::<PyResult<Vec<_>>>()?;
+        if keys.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let values = self
+            .get_redis()?
+            .call_method1(intern!(self.py(), "mget"), (keys,))?
+            .extract::<Vec<Option<String>>>()?;
+        Ok(values
+            .into_iter()
+            .map(|value| value.map_or(default, |text| text != "0"))
+            .collect())
     }
 
     fn connect_with_parameters(
@@ -1399,6 +1473,10 @@ class Redis:
 
     def delete(self, key):
         return 1 if self.data.pop(key, None) is not None else 0
+
+    def mget(self, keys):
+        self.calls.append(("mget", list(keys)))
+        return [self.data.get(key) for key in keys]
 
     def mset(self, mapping):
         self.data.update({key: str(value) for key, value in mapping.items()})
@@ -1794,6 +1872,94 @@ class Redis:
             .getattr(name)
             .map(|value| value.to_string())
             .expect("missing attribute")
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_flags_reads_all_flags_with_one_request(_pyshinqlx_setup: ()) {
+        with_fake_redis(|py, redis| {
+            let connection = connected(&redis);
+            connection
+                .getattr("data")
+                .and_then(|data| {
+                    data.set_item("minqlx:players:1:flags:mute", "1")?;
+                    data.set_item("minqlx:players:2:flags:mute", "0")
+                })
+                .expect("could not prepare the data");
+            let players = PyTuple::new(py, [1i64, 2, 3]).expect("could not create the players");
+
+            let flags = RedisMethods::get_flags(&redis, players.as_any(), "mute", true);
+
+            assert_eq!(
+                flags.expect("could not read the flags"),
+                [true, false, true]
+            );
+            assert_eq!(
+                calls(&connection),
+                "[('mget', ['minqlx:players:1:flags:mute', 'minqlx:players:2:flags:mute', 'minqlx:players:3:flags:mute'])]"
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_flags_without_players_sends_no_request(_pyshinqlx_setup: ()) {
+        with_fake_redis(|py, redis| {
+            let connection = connected(&redis);
+            let players = PyTuple::empty(py);
+
+            let flags = RedisMethods::get_flags(&redis, players.as_any(), "mute", false);
+
+            assert_eq!(flags.expect("could not read the flags"), Vec::<bool>::new());
+            assert_eq!(calls(&connection), "[]");
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn close_shared_closes_the_default_connection_of_all_instances(_pyshinqlx_setup: ()) {
+        with_redis(redis_engine(default_cvars()), |py, redis| {
+            let plugin = test_plugin(py)
+                .call0()
+                .expect("could not create the plugin");
+            let _other = Bound::new(py, Redis::py_new(py, plugin.as_any()))
+                .expect("could not create the second database");
+            redis.connect().expect("could not connect");
+            let redis_type = py.get_type::<Redis>();
+            let pool = redis_type.getattr("_pool").expect("no pool created");
+
+            assert!(RedisMethods::close_shared(&redis).is_ok());
+
+            assert_eq!(kwarg_free(&pool, "disconnects"), "1");
+            assert!(redis_type.getattr("_conn").is_ok_and(|conn| conn.is_none()));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_with_block_connects_and_closes(_pyshinqlx_setup: ()) {
+        with_redis(redis_engine(default_cvars()), |py, redis| {
+            let locals = PyDict::new(py);
+            locals
+                .set_item("db", &redis)
+                .expect("could not create the locals");
+            py.run(
+                c"
+with db as same:
+    assert same is db
+    assert same.r is not None
+    pool = type(db)._pool
+assert pool.disconnects == 1
+",
+                None,
+                Some(&locals),
+            )
+            .expect("the with block failed");
+        });
     }
 
     #[rstest]

@@ -6,6 +6,9 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **New in `Redis`, after minqlxtended:** `get_flags(players, flag, default=False)` reads a flag for many players with one
+  `MGET`, `close_shared()` closes the connection that the plugins with the default configuration share, and
+  `with self.db as db:` connects on entering and closes on leaving.
 * **New opt-in feature `race-hooks` for race maps**, after the idea of the QLRace fork of
   minqlx, but found by byte pattern instead of a fixed offset. After `G_InitGame` the touch function of the entities
   `trigger_multiple` with the message `race_point` (with a `target` or `targetname`), `race_point` and

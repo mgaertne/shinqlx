@@ -174,6 +174,24 @@ Database
 
       Close the Redis connection if the config was overridden. Otherwise only do so if this is the last plugin using the default connection.
 
+   .. method:: close_shared()
+
+      Closes the connection that all plugins with the default configuration share, no matter how many of them still use it. The plugins connect again on their next access.
+
+   .. method:: get_flags(players, flag, default = False) -> list[bool]
+
+      Gets the specified flag for each of the ``players`` with a single request, in the order of ``players``.
+
+      :param Iterable[Player | int | str] players: The players to get the flag for.
+      :param str flag: The flag to get.
+      :param bool default: The value for players that do not have the flag set. (default: ``False``)
+      :return: One flag value per player.
+
+   .. method:: __enter__() -> Redis
+               __exit__(exc_type, exc_value, traceback) -> bool
+
+      Allows ``with self.db as db:``. Entering connects, leaving calls :meth:`close`, so a connection with its own settings is closed and the shared one only when no other plugin uses it. Exceptions are not suppressed.
+
    .. method:: __contains__(key) -> bool
 
       Allows ``key in self.db``. Checks whether the key exists in the database.
