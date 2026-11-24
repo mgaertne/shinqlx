@@ -81,6 +81,42 @@ Low-level handlers. These are all called by the Rust-code, not within Python.
    :param int client_id: The client identifier.
    :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
 
+.. function:: handle_objective(client_id, kind, count) -> bool | None
+
+   This will be called whenever a player scores an objective of a team mode.
+
+   :param int client_id: The client identifier.
+   :param str kind: The objective, see :class:`Objective`.
+   :param int count: The new value of the counter of the player for this kind.
+   :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
+
+.. function:: handle_weapon_fired(client_id, weapon) -> bool | None
+
+   This will be called whenever a player fires a weapon.
+
+   :param int client_id: The client identifier.
+   :param int weapon: The weapon that is fired, the same number that :meth:`Player.weapon` returns.
+   :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
+
+.. function:: handle_cvar_changed(cvar_name, old_value, new_value) -> bool | None
+
+   This will be called whenever the value of a cvar changed.
+
+   :param str cvar_name: The name of the cvar.
+   :param str old_value: The value before the change.
+   :param str new_value: The value after the change.
+   :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
+
+.. function:: handle_item_touch(client_id, entity_id, classname) -> bool | None
+
+   This will be called whenever a player touches an item, before the game decides whether the player picks it up.
+   Returning ``False`` from the hooks keeps the player from picking the item up.
+
+   :param int client_id: The client identifier.
+   :param int entity_id: The entity identifier of the item.
+   :param str classname: The class name of the item, for example ``"item_armor_body"``.
+   :return: ``False`` if the touch was stopped, ``True`` if the event is passed on to the game.
+
 .. function:: handle_kamikaze_use(client_id) -> bool | None
 
    This will be called whenever player uses kamikaze item.

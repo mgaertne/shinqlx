@@ -4901,6 +4901,7 @@ mod handle_new_game_tests {
                         "qlx_commandPrefix",
                         "qlx_logs",
                         "qlx_logsSize",
+                        "qlx_noDebugEvents",
                         "qlx_steamQueryRate",
                         "qlx_steamQueryBurst",
                         "qlx_steamQueryGlobalRate",
@@ -4930,6 +4931,7 @@ mod handle_new_game_tests {
                         "qlx_commandPrefix",
                         "qlx_logs",
                         "qlx_logsSize",
+                        "qlx_noDebugEvents",
                         "qlx_steamQueryRate",
                         "qlx_steamQueryBurst",
                         "qlx_steamQueryGlobalRate",
@@ -5010,6 +5012,7 @@ mod handle_new_game_tests {
                         "qlx_commandPrefix",
                         "qlx_logs",
                         "qlx_logsSize",
+                        "qlx_noDebugEvents",
                         "qlx_steamQueryRate",
                         "qlx_steamQueryBurst",
                         "qlx_steamQueryGlobalRate",
@@ -5039,6 +5042,7 @@ mod handle_new_game_tests {
                         "qlx_commandPrefix",
                         "qlx_logs",
                         "qlx_logsSize",
+                        "qlx_noDebugEvents",
                         "qlx_steamQueryRate",
                         "qlx_steamQueryBurst",
                         "qlx_steamQueryGlobalRate",
@@ -5122,6 +5126,7 @@ mod handle_new_game_tests {
                         "qlx_commandPrefix",
                         "qlx_logs",
                         "qlx_logsSize",
+                        "qlx_noDebugEvents",
                         "qlx_steamQueryRate",
                         "qlx_steamQueryBurst",
                         "qlx_steamQueryGlobalRate",
@@ -5151,6 +5156,7 @@ mod handle_new_game_tests {
                         "qlx_commandPrefix",
                         "qlx_logs",
                         "qlx_logsSize",
+                        "qlx_noDebugEvents",
                         "qlx_steamQueryRate",
                         "qlx_steamQueryBurst",
                         "qlx_steamQueryGlobalRate",
@@ -7476,6 +7482,298 @@ mod handle_player_spawn_tests {
     }
 }
 
+fn try_handle_cvar_changed(
+    py: Python<'_>,
+    cvar_name: &str,
+    old_value: &str,
+    new_value: &str,
+) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::CvarChanged.as_str()),
+        "could not get access to cvar changed dispatcher",
+    )
+    .and_then(|cvar_changed_dispatcher| {
+        CvarChangedDispatcherMethods::dispatch(
+            cvar_changed_dispatcher.cast()?,
+            cvar_name,
+            old_value,
+            new_value,
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever the value of a cvar changed.
+#[pyfunction]
+pub(crate) fn handle_cvar_changed(
+    py: Python<'_>,
+    cvar_name: &str,
+    old_value: &str,
+    new_value: &str,
+) -> Py<PyAny> {
+    try_handle_cvar_changed(py, cvar_name, old_value, new_value).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_cvar_changed_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use rstest::*;
+
+    use super::try_handle_cvar_changed;
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_cvar_changed_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_cvar_changed(py, "sv_hostname", "old", "new");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+}
+
+fn try_handle_weapon_fired(py: Python<'_>, client_id: i32, weapon: i32) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::WeaponFired.as_str()),
+        "could not get access to weapon fired dispatcher",
+    )
+    .and_then(|weapon_fired_dispatcher| {
+        let player = Player::from_client_id(client_id, None);
+
+        WeaponFiredDispatcherMethods::dispatch(
+            weapon_fired_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            weapon,
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever a player fires a weapon.
+#[pyfunction]
+pub(crate) fn handle_weapon_fired(py: Python<'_>, client_id: i32, weapon: i32) -> Py<PyAny> {
+    try_handle_weapon_fired(py, client_id, weapon).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_weapon_fired_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use rstest::*;
+
+    use super::try_handle_weapon_fired;
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_weapon_fired_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_weapon_fired(py, 42, 5);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+}
+
+fn try_handle_objective(
+    py: Python<'_>,
+    client_id: i32,
+    kind: &str,
+    count: i32,
+) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::Objective.as_str()),
+        "could not get access to objective dispatcher",
+    )
+    .and_then(|objective_dispatcher| {
+        let player = Player::from_client_id(client_id, None);
+
+        ObjectiveDispatcherMethods::dispatch(
+            objective_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            kind,
+            count,
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever a player scores an objective of a team mode.
+#[pyfunction]
+pub(crate) fn handle_objective(
+    py: Python<'_>,
+    client_id: i32,
+    kind: &str,
+    count: i32,
+) -> Py<PyAny> {
+    try_handle_objective(py, client_id, kind, count).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_objective_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*};
+    use rstest::*;
+
+    use super::try_handle_objective;
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_objective_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_objective(py, 42, "capture", 1);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+}
+
+fn try_handle_item_touch(
+    py: Python<'_>,
+    client_id: i32,
+    entity_id: i32,
+    classname: &str,
+) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::ItemTouch.as_str()),
+        "could not get access to item touch dispatcher",
+    )
+    .and_then(|item_touch_dispatcher| {
+        let player = Player::from_client_id(client_id, None);
+
+        ItemTouchDispatcherMethods::dispatch(
+            item_touch_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            entity_id,
+            classname,
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever a player touches an item, before the game decides whether the
+/// player picks it up. Returning `False` from the hooks keeps the player from picking it up.
+#[pyfunction]
+pub(crate) fn handle_item_touch(
+    py: Python<'_>,
+    client_id: i32,
+    entity_id: i32,
+    classname: &str,
+) -> Py<PyAny> {
+    try_handle_item_touch(py, client_id, entity_id, classname).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_item_touch_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use rstest::*;
+
+    use super::{handle_item_touch, try_handle_item_touch};
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_item_touch_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_item_touch(py, 42, 100, "item_armor_body");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_item_touch_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default().run(|| {
+            Python::attach(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
+
+                let result = handle_item_touch(py, 42, 100, "item_armor_body");
+                assert!(
+                    result
+                        .bind(py)
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
+            });
+        });
+    }
+}
+
 fn try_handle_kamikaze_use(py: Python<'_>, client_id: i32) -> PyResult<Py<PyAny>> {
     event_dispatcher(
         py,
@@ -9150,6 +9448,61 @@ pub(crate) mod handlers {
     )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn handle_kamikaze_use<'a>(py: Python<'a>, _client_id: i32) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_weapon_fired<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _weapon: i32,
+    ) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_cvar_changed<'a>(
+        py: Python<'a>,
+        _cvar_name: &str,
+        _old_value: &str,
+        _new_value: &str,
+    ) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_item_touch<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _entity_id: i32,
+        _classname: &str,
+    ) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_objective<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _kind: &str,
+        _count: i32,
+    ) -> Py<PyAny> {
         py.None()
     }
 

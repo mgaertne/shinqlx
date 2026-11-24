@@ -290,6 +290,20 @@ impl GameClient {
         self.game_client.ps.ping
     }
 
+    /// The objective counters of the player: captures, returns, assists, base defenses,
+    /// carrier defenses and carrier frags.
+    pub(crate) fn get_objective_counters(&self) -> [i32; 6] {
+        let team_state = &self.game_client.pers.teamState;
+        [
+            team_state.captures,
+            team_state.flagrecovery,
+            team_state.assists,
+            team_state.basedefense,
+            team_state.carrierdefense,
+            team_state.fragcarrier,
+        ]
+    }
+
     pub(crate) fn set_vote_pending(&mut self) {
         self.game_client.pers.voteState = voteState_t::VOTE_PENDING;
     }
@@ -369,6 +383,7 @@ mockall::mock! {
         pub(crate) fn get_damage_taken(&self) -> i32;
         pub(crate) fn get_time_on_team(&self) -> i32;
         pub(crate) fn get_ping(&self) -> i32;
+        pub(crate) fn get_objective_counters(&self) -> [i32; 6];
         pub(crate) fn set_vote_pending(&mut self);
         pub(crate) fn set_vote_state(&mut self, yes_or_no: bool);
         pub(crate) fn spawn(&mut self);
@@ -1121,6 +1136,30 @@ mod game_client_tests {
         let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
             .expect("this should not happen");
         assert_eq!(game_client.get_ping(), 1);
+    }
+
+    #[test]
+    fn game_client_get_objective_counters() {
+        let team_state = PlayerTeamStateBuilder::default()
+            .captures(1)
+            .flagrecovery(2)
+            .assists(3)
+            .basedefense(4)
+            .carrierdefense(5)
+            .fragcarrier(6)
+            .build()
+            .expect("this should not happen");
+        let client_persistant = ClientPersistantBuilder::default()
+            .teamState(team_state)
+            .build()
+            .expect("this should not happen");
+        let mut gclient = GClientBuilder::default()
+            .pers(client_persistant)
+            .build()
+            .expect("this should not happen");
+        let game_client = GameClient::try_from(gclient.borrow_mut() as *mut gclient_t)
+            .expect("this should not happen");
+        assert_eq!(game_client.get_objective_counters(), [1, 2, 3, 4, 5, 6]);
     }
 
     #[rstest]

@@ -22,6 +22,13 @@ Console and file
 * The file is written by a thread of its own. A slow disk does not slow down the server; if more than 8192 lines
   pile up, debug and info lines are dropped and a line ``N log lines dropped`` says how many. Warnings and errors wait
   briefly to be written.
+* Every event that is dispatched to the plugins writes one ``debug`` line with its arguments to the file, except the
+  noisy ones. The cvar ``qlx_noDebugEvents`` lists the events without such a line, separated by commas or spaces. It
+  starts with ``frame``, ``set_configstring``, ``stats``, ``server_command``, ``death``, ``kill``, ``command``,
+  ``console_print``, ``damage``, ``cvar_changed``, ``item_touch`` and ``weapon_fired``. The list replaces the default completely: set it
+  to an empty string to log all events, or to the names you want to silence. It is read once while shinqlx starts, so
+  put it into the server configuration with ``set``. The configuration file below cannot do this, it knows loggers and
+  not events.
 * The chat log of the built-in plugin ``log`` is separate, it keeps its own file ``chatlogs/chat.log`` and its cvars
   ``qlx_chatlogs`` and ``qlx_chatlogsSize``.
 

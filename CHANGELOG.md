@@ -6,6 +6,27 @@ Changes since 0.8.0.
 
 ### shinqlx
 
+* **New cvar `qlx_noDebugEvents`** lists the events that do not write a `debug` line to `shinqlx.log`. It replaces the
+  built-in list (`frame`, `set_configstring`, `stats`, `server_command`, `death`, `kill`, `command`, `console_print`,
+  `damage`, plus the new `cvar_changed`, `item_touch` and `weapon_fired`); an empty value logs all events.
+* **Frequent events only run when somebody listens:** `damage`, `weapon_fired`, `item_touch`, `cvar_changed`,
+  `objective`, `kamikaze_use` and `kamikaze_explode` are no longer handed to Python while no plugin hooks them and
+  the debug log has no line for them (see `qlx_noDebugEvents`). Hooking them later takes effect immediately.
+* **New event `objective`, after minqlxtended:** `handle(player, kind, count)` goes off when a player scores in a
+  team mode. `kind` is a member of the new string enumeration `Objective` (`capture`, `return`, `assist`,
+  `base_defense`, `carrier_defense`, `frag_carrier`), `count` the new value of the counter. The server compares the
+  counters once per frame, only while somebody listens. The event cannot be cancelled.
+* **New event `weapon_fired`, after minqlxtended:** `handle(player, weapon)` goes off for every shot of a player,
+  before the game fires the weapon. `weapon` is the number that `Player.weapon()` returns. The event cannot be
+  cancelled and is not logged by default (see `qlx_noDebugEvents`). The game function `FireWeapon` is found by byte
+  pattern.
+* **New event `cvar_changed`, after minqlxtended:** `handle(cvar_name, old_value, new_value)` goes off after the value
+  of a cvar changed, whoever changed it. It is found by a detour of `Cvar_Set2`. The event cannot be cancelled, and a
+  handler that changes cvars does not trigger the event again.
+* **New event `item_touch`, after minqlxtended:** `handle(player, entity_id, classname)` goes off before the game
+  processes the touch of an item by a player (map items and dropped items). Stopping the event keeps the player from
+  picking the item up. The game touches an item in every frame in which the player overlaps it, also when the player
+  cannot pick it up, so the hooks should be cheap.
 * **New in `Redis`, after minqlxtended:** `get_flags(players, flag, default=False)` reads a flag for many players with one
   `MGET`, `close_shared()` closes the connection that the plugins with the default configuration share, and
   `with self.db as db:` connects on entering and closes on leaving.

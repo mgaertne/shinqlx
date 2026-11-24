@@ -38,10 +38,11 @@ use crate::{
     ffi::{c::prelude::*, python::prelude::*},
     hooks::{
         ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect,
-        shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_g_damage, shinqlx_g_initgame,
-        shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
-        shinqlx_sv_cliententerworld, shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand,
-        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_cvar_set2, shinqlx_fire_weapon,
+        shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame,
+        shinqlx_g_startkamikaze, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
+        shinqlx_sv_executeclientcommand, shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver,
+        shinqlx_sys_setmoduleoffset, shinqlx_touch_item,
     },
     prelude::*,
     quake_live_functions::QuakeLiveFunction,
@@ -125,7 +126,11 @@ struct StaticDetours {
     sv_handlesteampacket_detour: Option<TypedDetour<SteamPacketHandlerType>>,
     sv_sendservercommand_detour: RawDetour,
     com_printf_detour: RawDetour,
+    cvar_set2_detour: CvarSet2DetourType,
 }
+
+type CvarSet2DetourType =
+    TypedDetour<extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t>;
 
 type ClientSpawnDetourType = TypedDetour<extern "C" fn(*mut gentity_t)>;
 type ClientConnectDetourType =
@@ -143,6 +148,8 @@ type GDamageDetourType = TypedDetour<
         c_int,
     ),
 >;
+type TouchItemDetourType = TypedDetour<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>;
+type FireWeaponDetourType = TypedDetour<extern "C" fn(*mut gentity_t)>;
 
 #[derive(Default)]
 struct VmFunctions {
@@ -154,6 +161,7 @@ struct VmFunctions {
     client_spawn_orig: AtomicUsize,
     g_damage_orig: AtomicUsize,
     touch_item_orig: AtomicUsize,
+    fire_weapon_orig: AtomicUsize,
     launch_item_orig: AtomicUsize,
     drop_item_orig: AtomicUsize,
     g_start_kamikaze_orig: AtomicUsize,
@@ -170,6 +178,8 @@ struct VmFunctions {
     client_connect_detour: ArcSwapOption<ClientConnectDetourType>,
     g_start_kamikaze_detour: ArcSwapOption<GStartKamikazeDetourType>,
     g_damage_detour: ArcSwapOption<GDamageDetourType>,
+    touch_item_detour: ArcSwapOption<TouchItemDetourType>,
+    fire_weapon_detour: ArcSwapOption<FireWeaponDetourType>,
 }
 
 #[cfg_attr(
@@ -241,6 +251,7 @@ impl VmFunctions {
                 (QuakeLiveFunction::ClientSpawn, &self.client_spawn_orig),
                 (QuakeLiveFunction::G_Damage, &self.g_damage_orig),
                 (QuakeLiveFunction::Touch_Item, &self.touch_item_orig),
+                (QuakeLiveFunction::FireWeapon, &self.fire_weapon_orig),
                 (QuakeLiveFunction::LaunchItem, &self.launch_item_orig),
                 (QuakeLiveFunction::Drop_Item, &self.drop_item_orig),
                 (
@@ -483,6 +494,67 @@ impl VmFunctions {
                 });
             });
 
+        let touch_item_orig = self.touch_item_orig.load(Ordering::Acquire);
+        // SAFETY: the address was found in the engine and has the signature of the function type.
+        let touch_item_func = unsafe {
+            function_at::<extern "C" fn(*mut gentity_t, *mut gentity_t, *mut trace_t)>(
+                touch_item_orig,
+            )
+        };
+        // SAFETY: the original and the replacement are functions with the same signature.
+        let touch_item_detour =
+            unsafe { TouchItemDetourType::new(touch_item_func, shinqlx_touch_item) }.map_err(
+                |_| {
+                    cold_path();
+                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::Touch_Item)
+                },
+            )?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
+        unsafe { touch_item_detour.enable() }.map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::Touch_Item)
+        })?;
+
+        self.touch_item_detour
+            .swap(Some(touch_item_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
+                    error!(target: "shinqlx", func = "hook"; "error when disabling touch item detour: {e}");
+                });
+            });
+
+        let fire_weapon_orig = self.fire_weapon_orig.load(Ordering::Acquire);
+        // SAFETY: the address was found in the engine and has the signature of the function type.
+        let fire_weapon_func =
+            unsafe { function_at::<extern "C" fn(*mut gentity_t)>(fire_weapon_orig) };
+        // SAFETY: the original and the replacement are functions with the same signature.
+        let fire_weapon_detour =
+            unsafe { FireWeaponDetourType::new(fire_weapon_func, shinqlx_fire_weapon) }.map_err(
+                |_| {
+                    cold_path();
+                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::FireWeapon)
+                },
+            )?;
+        // SAFETY: the detour was created from valid function addresses of the engine.
+        unsafe { fire_weapon_detour.enable() }.map_err(|_| {
+            cold_path();
+            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::FireWeapon)
+        })?;
+
+        self.fire_weapon_detour
+            .swap(Some(fire_weapon_detour.into()))
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    cold_path();
+                    error!(target: "shinqlx", func = "hook"; "error when disabling fire weapon detour: {e}");
+                });
+            });
+
         Ok(())
     }
 
@@ -518,6 +590,7 @@ impl VmFunctions {
             &self.client_spawn_orig,
             &self.g_damage_orig,
             &self.touch_item_orig,
+            &self.fire_weapon_orig,
             &self.launch_item_orig,
             &self.drop_item_orig,
             &self.g_start_kamikaze_orig,
@@ -573,6 +646,26 @@ impl VmFunctions {
                     error!(target: "shinqlx", func = "unhook"; "error when disabling damage detour: {e}");
                 });
             });
+
+        self.touch_item_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling touch item detour: {e}");
+                });
+            });
+
+        self.fire_weapon_detour
+            .swap(None)
+            .filter(|detour| detour.is_enabled())
+            .tap_some(|detour| {
+                // SAFETY: the detour was created from a function address of the engine and is only disabled while it is enabled.
+                let _ = unsafe { detour.disable() }.tap_err(|e| {
+                    error!(target: "shinqlx", func = "unhook"; "error when disabling fire weapon detour: {e}");
+                });
+            });
     }
 }
 
@@ -593,9 +686,9 @@ mod vm_functions_tests {
         hooks::{shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame},
         prelude::serial,
         quake_live_engine::mock_quake_functions::{
-            CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, G_AddEvent, G_Damage,
-            G_FreeEntity, G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem, Touch_Item,
-            detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage,
+            CheckPrivileges, ClientConnect, ClientSpawn, Drop_Item, FireWeapon, G_AddEvent,
+            G_Damage, G_FreeEntity, G_InitGame, G_RunFrame, G_StartKamikaze, LaunchItem,
+            Touch_Item, detoured_ClientConnect, detoured_ClientSpawn, detoured_G_Damage,
             detoured_G_StartKamikaze,
         },
     };
@@ -609,6 +702,7 @@ mod vm_functions_tests {
             client_spawn_orig: Default::default(),
             g_damage_orig: Default::default(),
             touch_item_orig: Default::default(),
+            fire_weapon_orig: Default::default(),
             launch_item_orig: Default::default(),
             drop_item_orig: Default::default(),
             g_start_kamikaze_orig: Default::default(),
@@ -624,6 +718,8 @@ mod vm_functions_tests {
             client_connect_detour: Default::default(),
             g_start_kamikaze_detour: Default::default(),
             g_damage_detour: Default::default(),
+            touch_item_detour: Default::default(),
+            fire_weapon_detour: Default::default(),
         }
     }
 
@@ -682,6 +778,8 @@ mod vm_functions_tests {
             client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
+            touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
             ..default_vm_functions()
         };
 
@@ -703,6 +801,13 @@ mod vm_functions_tests {
         assert!(
             vm_functions
                 .g_damage_detour
+                .load()
+                .as_ref()
+                .is_some_and(|detour| detour.is_enabled())
+        );
+        assert!(
+            vm_functions
+                .touch_item_detour
                 .load()
                 .as_ref()
                 .is_some_and(|detour| detour.is_enabled())
@@ -753,6 +858,7 @@ mod vm_functions_tests {
             client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
             launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
             drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
@@ -802,6 +908,7 @@ mod vm_functions_tests {
             client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
             launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
             drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
@@ -879,6 +986,7 @@ mod vm_functions_tests {
             client_spawn_orig: AtomicUsize::new(ClientSpawn as *const () as usize),
             g_damage_orig: AtomicUsize::new(G_Damage as *const () as usize),
             touch_item_orig: AtomicUsize::new(Touch_Item as *const () as usize),
+            fire_weapon_orig: AtomicUsize::new(FireWeapon as *const () as usize),
             launch_item_orig: AtomicUsize::new(LaunchItem as *const () as usize),
             drop_item_orig: AtomicUsize::new(Drop_Item as *const () as usize),
             g_start_kamikaze_orig: AtomicUsize::new(G_StartKamikaze as *const () as usize),
@@ -1339,6 +1447,9 @@ impl QuakeLiveEngine {
                 shinqlx_sv_spawnserver,
             )?;
 
+        let cvar_set2_detour = QuakeLiveFunction::Cvar_Set2
+            .create_and_enable_generic_detour(self.cvar_set2_orig()?, shinqlx_cvar_set2)?;
+
         #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
         let sv_handlesteampacket_detour = self
             .sv_handlesteampacket_orig()
@@ -1362,6 +1473,7 @@ impl QuakeLiveEngine {
                 sv_handlesteampacket_detour,
                 sv_sendservercommand_detour,
                 com_printf_detour,
+                cvar_set2_detour,
             })
             .expect("the static detours are hooked only once per engine");
 
@@ -3652,7 +3764,7 @@ mod quake_live_engine_test_helpers {
         QuakeLiveEngine, StaticDetours, StaticFunctions, SteamPacketHandlerType,
         mock_quake_functions::*,
     };
-    use crate::ffi::c::prelude::{client_t, qboolean, usercmd_t};
+    use crate::ffi::c::prelude::{client_t, cvar_t, qboolean, usercmd_t};
 
     pub(crate) fn default_static_functions() -> StaticFunctions {
         StaticFunctions {
@@ -3762,6 +3874,15 @@ mod quake_live_engine_test_helpers {
             // SAFETY: the original is a function of the engine and the replacement has the same signature.
             com_printf_detour: unsafe {
                 RawDetour::new(Com_Printf as *const (), detoured_Com_Printf as *const ())
+            }
+            .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
+            cvar_set2_detour: unsafe {
+                TypedDetour::new(
+                    Cvar_Set2
+                        as extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
+                    detoured_Cvar_Set2,
+                )
             }
             .expect("this should not happen"),
         }
@@ -5247,6 +5368,31 @@ mod get_cvar_quake_live_engine_tests {
     }
 }
 
+pub(crate) trait SetCvarUndetected {
+    /// Runs the original `Cvar_Set2` of the engine, past the hook that reports changed cvars.
+    fn set_cvar_undetected(
+        &self,
+        name: *const c_char,
+        value: *const c_char,
+        force: qboolean,
+    ) -> *mut cvar_t;
+}
+
+impl SetCvarUndetected for QuakeLiveEngine {
+    fn set_cvar_undetected(
+        &self,
+        name: *const c_char,
+        value: *const c_char,
+        force: qboolean,
+    ) -> *mut cvar_t {
+        self.static_detours
+            .get()
+            .map_or(ptr::null_mut(), |static_detours| {
+                static_detours.cvar_set2_detour.call(name, value, force)
+            })
+    }
+}
+
 pub(crate) trait SetCVarForced<T: AsRef<str>, U: AsRef<str>, V: Into<qboolean>> {
     fn set_cvar_forced(&self, name: T, value: U, forced: V) -> Option<CVar<'_>>;
 }
@@ -5559,6 +5705,40 @@ mod get_configstring_quake_live_engine_tests {
 
         let result = quake_engine.get_configstring(42);
         assert_eq!(result, "asdf");
+    }
+}
+
+pub(crate) trait FireWeaponOriginal {
+    /// Lets the game module fire the weapon of the entity with the original function.
+    fn fire_weapon(&self, ent: *mut gentity_t);
+}
+
+impl FireWeaponOriginal for QuakeLiveEngine {
+    fn fire_weapon(&self, ent: *mut gentity_t) {
+        self.vm_functions
+            .fire_weapon_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(ent);
+            });
+    }
+}
+
+pub(crate) trait TouchItem {
+    /// Lets the game module process the touch of the item with the original function.
+    fn touch_item(&self, item: *mut gentity_t, toucher: *mut gentity_t, trace: *mut trace_t);
+}
+
+impl TouchItem for QuakeLiveEngine {
+    fn touch_item(&self, item: *mut gentity_t, toucher: *mut gentity_t, trace: *mut trace_t) {
+        self.vm_functions
+            .touch_item_detour
+            .load()
+            .as_ref()
+            .tap_some(|detour| {
+                detour.call(item, toucher, trace);
+            });
     }
 }
 
@@ -6085,6 +6265,15 @@ mockall::mock! {
     }
     impl ClientSpawn<&mut GameEntity> for QuakeEngine {
         fn client_spawn(&self, ent: &mut GameEntity);
+    }
+    impl SetCvarUndetected for QuakeEngine {
+        fn set_cvar_undetected(&self, name: *const c_char, value: *const c_char, force: qboolean) -> *mut cvar_t;
+    }
+    impl FireWeaponOriginal for QuakeEngine {
+        fn fire_weapon(&self, ent: *mut gentity_t);
+    }
+    impl TouchItem for QuakeEngine {
+        fn touch_item(&self, item: *mut gentity_t, toucher: *mut gentity_t, trace: *mut trace_t);
     }
     impl RegisterDamage<c_int, c_int, c_int> for QuakeEngine {
         #[allow(clippy::too_many_arguments, reason = "mirrors the signature of the engine function")]
@@ -6643,6 +6832,20 @@ mod quake_functions {
         reason = "mock stand-in for the engine function of the same C name"
     )]
     #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_Cvar_Set2(
+        _var_name: *const c_char,
+        _value: *const c_char,
+        _force: qboolean,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn detoured_SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
 
     #[allow(
@@ -6825,6 +7028,14 @@ mod quake_functions {
     )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn CheckPrivileges(_ent: *mut gentity_t, _cmd: *mut c_char) {}
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn FireWeapon(_ent: *mut gentity_t) {}
 
     #[allow(
         unused_attributes,

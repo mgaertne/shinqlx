@@ -68,9 +68,10 @@ pub(crate) mod prelude {
     pub(crate) use super::dispatchers::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
-        set_configstring_dispatcher,
+        cvar_changed_dispatcher, damage_dispatcher, frame_dispatcher, item_touch_dispatcher,
+        kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
+        objective_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher, weapon_fired_dispatcher,
     };
     #[allow(
         unused_imports,
@@ -88,10 +89,12 @@ pub(crate) mod prelude {
         reason = "re-exported for the prelude, not every build uses every item"
     )]
     pub(crate) use super::handlers::mock_handlers::{
-        handle_client_command_outcome, handle_console_print_outcome, handle_damage, handle_frame,
-        handle_kamikaze_explode, handle_kamikaze_use, handle_new_game, handle_player_connect,
+        handle_client_command_outcome, handle_console_print_outcome, handle_cvar_changed,
+        handle_damage, handle_frame, handle_item_touch, handle_kamikaze_explode,
+        handle_kamikaze_use, handle_new_game, handle_objective, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
-        handle_server_command_outcome, handle_set_configstring_outcome, register_handlers,
+        handle_server_command_outcome, handle_set_configstring_outcome, handle_weapon_fired,
+        register_handlers,
     };
     #[cfg(test)]
     #[allow(
@@ -100,35 +103,42 @@ pub(crate) mod prelude {
     )]
     pub(crate) use super::handlers::mock_handlers::{
         handle_client_command_outcome_context, handle_console_print_outcome_context,
-        handle_damage_context, handle_frame_context, handle_kamikaze_explode_context,
-        handle_kamikaze_use_context, handle_new_game_context, handle_player_connect_context,
+        handle_cvar_changed_context, handle_damage_context, handle_frame_context,
+        handle_item_touch_context, handle_kamikaze_explode_context, handle_kamikaze_use_context,
+        handle_new_game_context, handle_objective_context, handle_player_connect_context,
         handle_player_disconnect_context, handle_player_loaded_context,
         handle_player_spawn_context, handle_rcon_context, handle_server_command_outcome_context,
-        handle_set_configstring_outcome_context, register_handlers_context,
+        handle_set_configstring_outcome_context, handle_weapon_fired_context,
+        register_handlers_context,
     };
     #[cfg(not(test))]
     pub(crate) use super::handlers::{
-        handle_client_command_outcome, handle_console_print_outcome, handle_damage, handle_frame,
-        handle_kamikaze_explode, handle_kamikaze_use, handle_new_game, handle_player_connect,
+        handle_client_command_outcome, handle_console_print_outcome, handle_cvar_changed,
+        handle_damage, handle_frame, handle_item_touch, handle_kamikaze_explode,
+        handle_kamikaze_use, handle_new_game, handle_objective, handle_player_connect,
         handle_player_disconnect, handle_player_loaded, handle_player_spawn, handle_rcon,
-        handle_server_command_outcome, handle_set_configstring_outcome, register_handlers,
+        handle_server_command_outcome, handle_set_configstring_outcome, handle_weapon_fired,
+        register_handlers,
     };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
-        set_configstring_dispatcher,
+        cvar_changed_dispatcher, damage_dispatcher, frame_dispatcher, item_touch_dispatcher,
+        kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
+        objective_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher, weapon_fired_dispatcher,
     };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
         client_command_dispatcher_context, client_connect_dispatcher_context,
         client_disconnect_dispatcher_context, client_loaded_dispatcher_context,
         client_spawn_dispatcher_context, console_print_dispatcher_context,
-        damage_dispatcher_context, frame_dispatcher_context, kamikaze_explode_dispatcher_context,
-        kamikaze_use_dispatcher_context, new_game_dispatcher_context, rcon_dispatcher_context,
-        server_command_dispatcher_context, set_configstring_dispatcher_context,
+        cvar_changed_dispatcher_context, damage_dispatcher_context, frame_dispatcher_context,
+        item_touch_dispatcher_context, kamikaze_explode_dispatcher_context,
+        kamikaze_use_dispatcher_context, new_game_dispatcher_context, objective_dispatcher_context,
+        rcon_dispatcher_context, server_command_dispatcher_context,
+        set_configstring_dispatcher_context, weapon_fired_dispatcher_context,
     };
     #[cfg(test)]
     pub(crate) use super::mock_python_tests::{
@@ -146,6 +156,7 @@ pub(crate) mod prelude {
         config_string::ConfigString,
         embed::*,
         events::*,
+        events_enum::EventName,
         flag_enums::{CvarFlags, DamageFlags},
         flight::Flight,
         game_enums::{
@@ -1513,6 +1524,7 @@ fn initialize_cvars(py: Python<'_>) -> PyResult<()> {
     create("qlx_commandPrefix", "!")?;
     create("qlx_logs", "2")?;
     create("qlx_logsSize", "3000000")?;
+    create(NO_DEBUG_EVENTS_CVAR, &default_no_debug_events())?;
 
     #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
     {
@@ -2393,6 +2405,20 @@ pub(crate) mod python_tests {
     pub(crate) fn client_spawn_dispatcher(_client_id: i32) {}
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn kamikaze_use_dispatcher(_client_id: i32) {}
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn weapon_fired_dispatcher(_client_id: i32, _weapon: i32) {}
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn objective_dispatcher(_client_id: i32, _kind: &str, _count: i32) {}
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn cvar_changed_dispatcher(_name: &str, _old_value: &str, _new_value: &str) {}
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn item_touch_dispatcher(
+        _client_id: i32,
+        _entity_id: i32,
+        _classname: &str,
+    ) -> bool {
+        true
+    }
     #[cfg(not(tarpaulin_include))]
     pub(crate) fn kamikaze_explode_dispatcher(_client_id: i32, _is_used_on_demand: bool) {}
     #[cfg(not(tarpaulin_include))]

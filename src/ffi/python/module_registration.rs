@@ -6,13 +6,18 @@ use pyo3::{
     intern,
     types::{IntoPyDict, PyDict, PyTuple},
 };
+use tap::TapOptional;
 
 use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, ConnectionStates,
     DEFAULT_PLUGINS, EVENT_DISPATCHERS, FREE_CHAT_CHANNEL, GameTypes, MODULES, PluginLoadError,
     PluginUnloadError, RED_TEAM_CHAT_CHANNEL, SHINQLX_THREADNAME, SPECTATOR_CHAT_CHANNEL, Teams,
-    decorators, delay, events_enum::register_events_enum, get_stats_listener, handlers, initialize,
-    initialize_cvars, later, load_plugin, load_preset_plugins, next_frame, prelude::*,
+    decorators, delay,
+    events::{NO_DEBUG_EVENTS_CVAR, configure_no_debug_events},
+    events_enum::register_events_enum,
+    get_stats_listener, handlers, initialize, initialize_cvars, later, load_plugin,
+    load_preset_plugins, next_frame,
+    prelude::*,
     pyshinqlx_configure_logger, pyshinqlx_get_logger, pyshinqlx_handle_exception,
     pyshinqlx_handle_threading_exception, pyshinqlx_log_exception, pyshinqlx_owner,
     pyshinqlx_parse_variables, reload_plugin, set_map_subtitles, set_plugins_version, thread,
@@ -42,6 +47,10 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handlers::handle_player_loaded, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_spawn, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_cvar_changed, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_item_touch, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_weapon_fired, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_objective, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_use, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_kamikaze_explode, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_damage, m)?)?;
@@ -99,6 +108,10 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
                         },
                     )?;
             }
+
+            main_engine
+                .find_cvar(NO_DEBUG_EVENTS_CVAR)
+                .tap_some(|cvar| configure_no_debug_events(&cvar.get_string()));
 
             pyshinqlx_configure_logger(module.py())?;
 
@@ -664,6 +677,10 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<UserinfoDispatcher>()?;
     m.add_class::<KamikazeUseDispatcher>()?;
     m.add_class::<KamikazeExplodeDispatcher>()?;
+    m.add_class::<CvarChangedDispatcher>()?;
+    m.add_class::<WeaponFiredDispatcher>()?;
+    m.add_class::<ObjectiveDispatcher>()?;
+    m.add_class::<ItemTouchDispatcher>()?;
     m.add_class::<DamageDispatcher>()?;
     m.add_class::<EventDispatcherManager>()?;
 
@@ -701,6 +718,10 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     event_dispatchers.add_dispatcher(&m.py().get_type::<DeathDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<UserinfoDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<DamageDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<ItemTouchDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<CvarChangedDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<WeaponFiredDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<ObjectiveDispatcher>())?;
     EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
     m.add(
         "EVENT_DISPATCHERS",

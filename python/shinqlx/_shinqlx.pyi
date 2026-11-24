@@ -314,6 +314,15 @@ class Holdable:
     def __eq__(self, other: object, /) -> bool: ...
     def __ne__(self, other: object, /) -> bool: ...
 
+class Objective(str, Enum):
+    CAPTURE = "capture"
+    RETURN = "return"
+    ASSIST = "assist"
+    BASE_DEFENSE = "base_defense"
+    CARRIER_DEFENSE = "carrier_defense"
+    FRAG_CARRIER = "frag_carrier"
+    UNKNOWN = "unknown"
+
 class Events(str, Enum):
     CHAT = "chat"
     CLIENT_COMMAND = "client_command"
@@ -325,6 +334,10 @@ class Events(str, Enum):
     GAME_COUNTDOWN = "game_countdown"
     GAME_END = "game_end"
     GAME_START = "game_start"
+    OBJECTIVE = "objective"
+    WEAPON_FIRED = "weapon_fired"
+    CVAR_CHANGED = "cvar_changed"
+    ITEM_TOUCH = "item_touch"
     KAMIKAZE_EXPLODE = "kamikaze_explode"
     KAMIKAZE_USE = "kamikaze_use"
     KILL = "kill"
@@ -604,6 +617,18 @@ def register_handler(
 ) -> None: ...
 @overload
 def register_handler(event: Literal["player_spawn"], handler: Callable[[int], bool | None] | None = ...) -> None: ...
+@overload
+def register_handler(event: Literal["objective"], handler: Callable[[int, str, int], bool | None] | None = ...) -> None: ...
+@overload
+def register_handler(event: Literal["weapon_fired"], handler: Callable[[int, int], bool | None] | None = ...) -> None: ...
+@overload
+def register_handler(
+    event: Literal["cvar_changed"], handler: Callable[[str, str, str], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    event: Literal["item_touch"], handler: Callable[[int, int, str], bool | None] | None = ...
+) -> None: ...
 @overload
 def register_handler(event: Literal["kamikaze_use"], handler: Callable[[int], bool | None] | None = ...) -> None: ...
 @overload

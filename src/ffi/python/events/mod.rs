@@ -3,17 +3,20 @@ mod chat_event_dispatcher;
 mod client_command_dispatcher;
 mod command_dispatcher;
 mod console_print_dispatcher;
+mod cvar_changed_dispatcher;
 mod damage_dispatcher;
 mod death_dispatcher;
 mod frame_event_dispatcher;
 mod game_countdown_dispatcher;
 mod game_end_dispatcher;
 mod game_start_dispatcher;
+mod item_touch_dispatcher;
 mod kamikaze_explode_dispatcher;
 mod kamikaze_use_dispatcher;
 mod kill_dispatcher;
 mod map_dispatcher;
 mod new_game_dispatcher;
+mod objective_dispatcher;
 mod player_connect_dispatcher;
 mod player_disconnect_dispatcher;
 mod player_loaded_dispatcher;
@@ -32,6 +35,7 @@ mod vote_called_dispatcher;
 mod vote_dispatcher;
 mod vote_ended_dispatcher;
 mod vote_started_dispatcher;
+mod weapon_fired_dispatcher;
 
 mod prelude {
     pub(crate) use pyo3::{intern, prelude::*};
@@ -42,15 +46,21 @@ mod prelude {
     };
 }
 
-use core::hint::cold_path;
+use alloc::sync::Arc;
+use core::{
+    hint::cold_path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use std::sync::OnceLock;
 
+use arc_swap::ArcSwapOption;
 pub(crate) use chat_event_dispatcher::{ChatEventDispatcher, ChatEventDispatcherMethods};
 pub(crate) use client_command_dispatcher::{
     ClientCommandDispatcher, ClientCommandDispatcherMethods,
 };
 pub(crate) use command_dispatcher::{CommandDispatcher, CommandDispatcherMethods};
 pub(crate) use console_print_dispatcher::{ConsolePrintDispatcher, ConsolePrintDispatcherMethods};
+pub(crate) use cvar_changed_dispatcher::{CvarChangedDispatcher, CvarChangedDispatcherMethods};
 pub(crate) use damage_dispatcher::{DamageDispatcher, DamageDispatcherMethods};
 #[allow(
     unused_imports,
@@ -71,6 +81,7 @@ pub(crate) use game_end_dispatcher::{GameEndDispatcher, GameEndDispatcherMethods
     reason = "re-exported for the prelude, not every build uses every item"
 )]
 pub(crate) use game_start_dispatcher::{GameStartDispatcher, GameStartDispatcherMethods};
+pub(crate) use item_touch_dispatcher::{ItemTouchDispatcher, ItemTouchDispatcherMethods};
 use itertools::Itertools;
 pub(crate) use kamikaze_explode_dispatcher::{
     KamikazeExplodeDispatcher, KamikazeExplodeDispatcherMethods,
@@ -84,6 +95,7 @@ pub(crate) use kill_dispatcher::{KillDispatcher, KillDispatcherMethods};
 use log::{Level, log_enabled, warn};
 pub(crate) use map_dispatcher::{MapDispatcher, MapDispatcherMethods};
 pub(crate) use new_game_dispatcher::{NewGameDispatcher, NewGameDispatcherMethods};
+pub(crate) use objective_dispatcher::{ObjectiveDispatcher, ObjectiveDispatcherMethods};
 pub(crate) use player_connect_dispatcher::{
     PlayerConnectDispatcher, PlayerConnectDispatcherMethods,
 };
@@ -134,6 +146,7 @@ pub(crate) use vote_called_dispatcher::{VoteCalledDispatcher, VoteCalledDispatch
 pub(crate) use vote_dispatcher::{VoteDispatcher, VoteDispatcherMethods};
 pub(crate) use vote_ended_dispatcher::{VoteEndedDispatcher, VoteEndedDispatcherMethods};
 pub(crate) use vote_started_dispatcher::{VoteStartedDispatcher, VoteStartedDispatcherMethods};
+pub(crate) use weapon_fired_dispatcher::{WeaponFiredDispatcher, WeaponFiredDispatcherMethods};
 
 use super::{commands::CommandPriorities, defer_next_frame, get_cvar, log_debug};
 
@@ -187,11 +200,11 @@ pub(crate) struct EventDispatcher {
         reason = "keeps the handlers per priority next to the plugin name"
     )]
     plugins: parking_lot::RwLock<Vec<(String, [Vec<Py<PyAny>>; 5])>>,
-    /// The `name` of the dispatcher class and whether its events are logged, read on first dispatch.
-    identity: OnceLock<(String, bool)>,
+    /// The `name` of the dispatcher class read on first dispatch.
+    identity: OnceLock<String>,
 }
 
-const NO_DEBUG: [EventName; 9] = [
+const NO_DEBUG: [EventName; 12] = [
     EventName::Frame,
     EventName::SetConfigstring,
     EventName::Stats,
@@ -201,7 +214,83 @@ const NO_DEBUG: [EventName; 9] = [
     EventName::Command,
     EventName::ConsolePrint,
     EventName::Damage,
+    EventName::CvarChanged,
+    EventName::ItemTouch,
+    EventName::WeaponFired,
 ];
+
+/// The name of the cvar that lists the events without a debug message in the log.
+pub(crate) const NO_DEBUG_EVENTS_CVAR: &str = "qlx_noDebugEvents";
+
+static CONFIGURED_NO_DEBUG: ArcSwapOption<Vec<String>> = ArcSwapOption::const_empty();
+
+/// The value of the cvar that lists the events without a debug message, as long as nobody changed it.
+pub(crate) fn default_no_debug_events() -> String {
+    NO_DEBUG.iter().map(|event| event.as_str()).join(", ")
+}
+
+/// Takes the list of events without a debug message from the value of the cvar `qlx_noDebugEvents`.
+pub(crate) fn configure_no_debug_events(list: &str) {
+    let events = list
+        .split([',', ' '])
+        .filter(|name| !name.is_empty())
+        .map(str::to_owned)
+        .collect();
+    CONFIGURED_NO_DEBUG.store(Some(Arc::new(events)));
+}
+
+fn is_event_logged(name: &str) -> bool {
+    CONFIGURED_NO_DEBUG.load().as_ref().map_or_else(
+        || NO_DEBUG.iter().all(|event| event.as_str() != name),
+        |events| events.iter().all(|event| event != name),
+    )
+}
+
+static HOOKED_EVENTS: [AtomicBool; EventName::ALL.len()] =
+    [const { AtomicBool::new(false) }; EventName::ALL.len()];
+
+/// The unit tests of the dispatchers expect their handlers to run, so the gate only closes on request.
+#[cfg(test)]
+pub(crate) static GATING_ACTIVE_IN_TESTS: AtomicBool = AtomicBool::new(false);
+
+/// Whether anybody is interested in the event: a plugin hooked it, or the debug log wants a line for it.
+///
+/// The hooks of the engine ask before they call into Python, so the events that go off very often
+/// cost almost nothing as long as nobody listens.
+pub(crate) fn event_wanted(event: EventName) -> bool {
+    #[cfg(test)]
+    if !GATING_ACTIVE_IN_TESTS.load(Ordering::Acquire) {
+        return true;
+    }
+
+    event_listened_to(event)
+}
+
+/// Like [`event_wanted`], but without the opening for the unit tests of the dispatchers.
+pub(crate) fn event_listened_to(event: EventName) -> bool {
+    HOOKED_EVENTS[event as usize].load(Ordering::Acquire)
+        || (log_enabled!(target: "shinqlx", Level::Debug) && is_event_logged(event.as_str()))
+}
+
+/// Lets the tests of the engine hooks pretend that a plugin hooked, or unhooked, the event.
+#[cfg(test)]
+pub(crate) fn set_event_listened_to(event: EventName, listened_to: bool) {
+    HOOKED_EVENTS[event as usize].store(listened_to, Ordering::Release);
+}
+
+fn any_hooks(plugins: &[(String, [Vec<Py<PyAny>>; 5])]) -> bool {
+    plugins.iter().any(|(_, hooks)| {
+        hooks
+            .iter()
+            .any(|priority_hooks| !priority_hooks.is_empty())
+    })
+}
+
+fn publish_hook_state(dispatcher_name: &str, hooked: bool) {
+    if let Some(event) = EventName::from_name(dispatcher_name) {
+        HOOKED_EVENTS[event as usize].store(hooked, Ordering::Release);
+    }
+}
 
 #[cfg(feature = "bench-support")]
 impl EventDispatcher {
@@ -225,22 +314,8 @@ impl Default for EventDispatcher {
 #[pymethods]
 impl EventDispatcher {
     #[classattr]
-    fn no_debug() -> (
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-        &'static str,
-    ) {
-        NO_DEBUG
-            .iter()
-            .map(|event| event.as_str())
-            .collect_tuple()
-            .unwrap_or_default()
+    fn no_debug(py: Python<'_>) -> PyResult<Bound<'_, PyTuple>> {
+        PyTuple::new(py, NO_DEBUG.iter().map(|event| event.as_str()))
     }
 
     #[new]
@@ -351,9 +426,9 @@ pub(crate) trait EventDispatcherMethods<'py> {
 }
 
 impl EventDispatcher {
-    /// The name of the dispatcher class and whether its events are logged, or `None` if the class
+    /// The name of the dispatcher class, or `None` if the class
     /// has no usable `name`.
-    fn identity<'a>(slf: &'a Bound<'_, Self>) -> Option<&'a (String, bool)> {
+    fn identity<'a>(slf: &'a Bound<'_, Self>) -> Option<&'a String> {
         let identity = &slf.get().identity;
         if identity.get().is_none() {
             let name = slf
@@ -361,8 +436,8 @@ impl EventDispatcher {
                 .getattr(intern!(slf.py(), "name"))
                 .and_then(|name| name.extract::<String>())
                 .ok()?;
-            let is_logged = NO_DEBUG.iter().all(|event| event.as_str() != name);
-            let _ = identity.set((name, is_logged));
+
+            let _ = identity.set(name);
         }
         identity.get()
     }
@@ -398,19 +473,15 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
     }
 
     fn has_hooks(&self) -> bool {
-        self.get().plugins.read().iter().any(|(_, hooks)| {
-            hooks
-                .iter()
-                .any(|priority_hooks| !priority_hooks.is_empty())
-        })
+        any_hooks(&self.get().plugins.read())
     }
 
     fn dispatch(&self, args: &Bound<'py, PyTuple>) -> Bound<'py, PyAny> {
-        let Some((dispatcher_name, is_logged)) = EventDispatcher::identity(self) else {
+        let Some(dispatcher_name) = EventDispatcher::identity(self) else {
             cold_path();
             return self.py().None().into_bound(self.py());
         };
-        if *is_logged && log_enabled!(target: "shinqlx", Level::Debug) {
+        if log_enabled!(target: "shinqlx", Level::Debug) && is_event_logged(dispatcher_name) {
             let dbgstr = format!("{dispatcher_name}{args}");
             dispatcher_debug_log(&dbgstr);
         }
@@ -529,6 +600,7 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                         (plugin.to_string(), [vec![], vec![], vec![], vec![], vec![]]);
                     new_hooks.1[priority as usize].push(handler.to_owned().unbind());
                     plugins.push(new_hooks);
+                    publish_hook_state(&dispatcher_name, true);
                     return Ok(());
                 };
 
@@ -548,13 +620,15 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
                 }
 
                 plugin_hooks.1[priority as usize].push(handler.to_owned().unbind());
+                publish_hook_state(&dispatcher_name, true);
             }
         }
         Ok(())
     }
 
     fn remove_hook(&self, plugin: &str, handler: &Bound<'_, PyAny>, priority: i32) -> PyResult<()> {
-        self.get_type()
+        let dispatcher_name = self
+            .get_type()
             .getattr(intern!(self.py(), "name"))
             .and_then(|value| value.extract::<String>())
             .map_err(|_| {
@@ -593,9 +667,155 @@ impl<'py> EventDispatcherMethods<'py> for Bound<'py, EventDispatcher> {
 
                 plugin_hooks.1[priority as usize]
                     .retain(|item| item.bind(self.py()).ne(handler).unwrap_or(true));
+                publish_hook_state(&dispatcher_name, any_hooks(&plugins));
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod event_gate_tests {
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
+
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    use super::{
+        CONFIGURED_NO_DEBUG, EventDispatcherMethods, GATING_ACTIVE_IN_TESTS, WeaponFiredDispatcher,
+        configure_no_debug_events, event_wanted,
+    };
+    use crate::{
+        ffi::{
+            c::prelude::*,
+            python::{
+                commands::CommandPriorities, events_enum::EventName, pyshinqlx_setup,
+                pyshinqlx_test_support::python_function_returning,
+            },
+        },
+        prelude::*,
+    };
+
+    fn with_closed_gate(test: impl FnOnce()) {
+        GATING_ACTIVE_IN_TESTS.store(true, Ordering::Release);
+        CONFIGURED_NO_DEBUG.store(None);
+        test();
+        GATING_ACTIVE_IN_TESTS.store(false, Ordering::Release);
+        CONFIGURED_NO_DEBUG.store(None);
+    }
+
+    #[test]
+    #[serial]
+    fn the_gate_is_open_while_the_tests_do_not_ask_for_it() {
+        assert!(event_wanted(EventName::WeaponFired));
+    }
+
+    #[test]
+    #[serial]
+    fn nobody_listening_closes_the_gate_of_a_quiet_event() {
+        with_closed_gate(|| {
+            assert!(!event_wanted(EventName::WeaponFired));
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn a_debug_log_line_opens_the_gate_when_the_event_is_not_in_the_list_of_quiet_events() {
+        with_closed_gate(|| {
+            configure_no_debug_events("");
+
+            assert_eq!(
+                event_wanted(EventName::WeaponFired),
+                log::log_enabled!(target: "shinqlx", log::Level::Debug)
+            );
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_hook_opens_the_gate_and_removing_it_closes_the_gate_again(_pyshinqlx_setup: ()) {
+        let cvar_string = c"1";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(cvar_string.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "zmq_stats_enable",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                with_closed_gate(|| {
+                    Python::attach(|py| {
+                        let dispatcher = Bound::new(py, WeaponFiredDispatcher::py_new(py))
+                            .expect("this should not happen");
+                        let hook = python_function_returning(py, &py.None().into_bound(py));
+
+                        dispatcher
+                            .as_super()
+                            .add_hook("test_plugin", &hook, CommandPriorities::PRI_NORMAL as i32)
+                            .expect("this should not happen");
+                        assert!(event_wanted(EventName::WeaponFired));
+
+                        dispatcher
+                            .as_super()
+                            .remove_hook("test_plugin", &hook, CommandPriorities::PRI_NORMAL as i32)
+                            .expect("this should not happen");
+                        assert!(!event_wanted(EventName::WeaponFired));
+                    });
+                });
+            });
+    }
+}
+
+#[cfg(test)]
+mod no_debug_events_tests {
+    use rstest::rstest;
+
+    use super::{
+        CONFIGURED_NO_DEBUG, configure_no_debug_events, default_no_debug_events, is_event_logged,
+    };
+    use crate::prelude::*;
+
+    #[test]
+    #[serial]
+    fn the_default_list_leaves_out_the_noisy_events() {
+        CONFIGURED_NO_DEBUG.store(None);
+
+        assert!(!is_event_logged("frame"));
+        assert!(!is_event_logged("cvar_changed"));
+        assert!(!is_event_logged("item_touch"));
+        assert!(is_event_logged("map"));
+    }
+
+    #[test]
+    #[serial]
+    fn the_default_cvar_value_lists_the_default_events() {
+        let default = default_no_debug_events();
+
+        assert!(default.starts_with("frame, set_configstring"));
+        assert!(default.ends_with("cvar_changed, item_touch, weapon_fired"));
+    }
+
+    #[rstest]
+    #[case("map, vote", "map", false)]
+    #[case("map,vote", "vote", false)]
+    #[case("map, vote", "frame", true)]
+    #[case("", "frame", true)]
+    #[case("   ", "cvar_changed", true)]
+    #[serial]
+    fn a_configured_list_replaces_the_default(
+        #[case] list: &str,
+        #[case] event: &str,
+        #[case] expected: bool,
+    ) {
+        configure_no_debug_events(list);
+
+        assert_eq!(is_event_logged(event), expected);
+
+        CONFIGURED_NO_DEBUG.store(None);
     }
 }
 

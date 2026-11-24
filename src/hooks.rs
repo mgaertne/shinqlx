@@ -1,18 +1,11 @@
 use alloc::borrow::Cow;
-#[cfg(feature = "zmq-rcon-fix")]
-use core::sync::atomic::AtomicI32;
-#[cfg(any(
-    all(target_os = "linux", feature = "steam-query-limit"),
-    feature = "zmq-rcon-fix",
-    test
-))]
-use core::sync::atomic::Ordering;
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-use core::sync::atomic::{AtomicBool, AtomicU64};
+use core::sync::atomic::AtomicU64;
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
     hint::cold_path,
+    sync::atomic::{AtomicBool, AtomicI32, Ordering},
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use std::{sync::LazyLock, time::Instant};
@@ -26,20 +19,15 @@ use crate::fixes::zmq_rcon::{
     SEND_TIMEOUT_CVAR, SendTimeoutError, configured_socket, effective_send_timeout,
     is_disconnect_notice,
 };
-#[cfg(any(
-    all(target_os = "linux", feature = "steam-query-limit"),
-    feature = "zmq-rcon-fix",
-    test
-))]
-use crate::quake_live_engine::FindCVar;
 use crate::{
     MAIN_ENGINE,
     ffi::{c::prelude::*, python::prelude::*},
     prelude::*,
     quake_live_engine::{
         AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ConsoleCommand,
-        ExecuteClientCommand, InitGame, RegisterDamage, RunFrame, SendServerCommand,
-        SetConfigstring, SetModuleOffset, ShutdownGame, SpawnServer,
+        ExecuteClientCommand, FindCVar, FireWeaponOriginal, InitGame, RegisterDamage, RunFrame,
+        SendServerCommand, SetConfigstring, SetCvarUndetected, SetModuleOffset, ShutdownGame,
+        SpawnServer, TouchItem,
     },
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
@@ -708,13 +696,85 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
 pub(crate) fn shinqlx_g_runframe(time: c_int) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if terminate_requested() {
-            info!(target: "shinqlx", "Received a termination signal, quitting the server.");
+            log::info!(target: "shinqlx", "Received a termination signal, quitting the server.");
             main_engine.execute_console_command("quit");
         }
+
+        report_objectives(main_engine);
 
         frame_dispatcher();
 
         main_engine.run_frame(time);
+    });
+}
+
+const OBJECTIVE_KINDS: [&str; 6] = [
+    "capture",
+    "return",
+    "assist",
+    "base_defense",
+    "carrier_defense",
+    "frag_carrier",
+];
+
+static OBJECTIVE_COUNTERS: [[AtomicI32; 6]; MAX_CLIENTS as usize] =
+    [const { [const { AtomicI32::new(0) }; 6] }; MAX_CLIENTS as usize];
+static OBJECTIVES_TRACKED: AtomicBool = AtomicBool::new(false);
+
+/// The kinds whose counter grew, with the new value of the counter.
+fn grown_objectives(before: [i32; 6], now: [i32; 6]) -> impl Iterator<Item = (&'static str, i32)> {
+    OBJECTIVE_KINDS
+        .into_iter()
+        .zip(before.into_iter().zip(now))
+        .filter(|(_, (before, now))| now > before)
+        .map(|(kind, (_, now))| (kind, now))
+}
+
+#[cfg(test)]
+fn reset_objective_tracking() {
+    OBJECTIVES_TRACKED.store(false, Ordering::Release);
+    OBJECTIVE_COUNTERS
+        .iter()
+        .flatten()
+        .for_each(|slot| slot.store(0, Ordering::Relaxed));
+}
+
+/// Compares the objective counters of the players with those of the last frame, as long as
+/// somebody listens to the event `objective`.
+#[cfg_attr(
+    test,
+    allow(
+        clippy::unnecessary_fallible_conversions,
+        reason = "the mocked entity converts infallibly"
+    )
+)]
+fn report_objectives(main_engine: &QuakeLiveEngine) {
+    if !event_listened_to(EventName::Objective) {
+        OBJECTIVES_TRACKED.store(false, Ordering::Release);
+        return;
+    }
+
+    let was_tracked = OBJECTIVES_TRACKED.swap(true, Ordering::AcqRel);
+    (0..main_engine.get_max_clients().min(MAX_CLIENTS as i32)).for_each(|client_id| {
+        let now = GameEntity::try_from(client_id)
+            .ok()
+            .and_then(|game_entity| game_entity.get_game_client().ok())
+            .filter(|game_client| {
+                game_client.get_connection_state() == clientConnected_t::CON_CONNECTED
+            })
+            .map(|game_client| game_client.get_objective_counters())
+            .unwrap_or_default();
+        let known = &OBJECTIVE_COUNTERS[client_id as usize];
+        let before: [i32; 6] = core::array::from_fn(|i| known[i].load(Ordering::Relaxed));
+        known
+            .iter()
+            .zip(now)
+            .for_each(|(slot, value)| slot.store(value, Ordering::Relaxed));
+
+        if was_tracked {
+            grown_objectives(before, now)
+                .for_each(|(kind, count)| objective_dispatcher(client_id, kind, count));
+        }
     });
 }
 
@@ -857,6 +917,409 @@ pub(crate) extern "C" fn shinqlx_g_damage(
     });
 }
 
+/// Reports every shot of a player to the `weapon_fired` event before the game fires the weapon.
+pub(crate) extern "C" fn shinqlx_fire_weapon(ent: *mut gentity_t) {
+    MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+        let _ = GameEntity::try_from(ent)
+            .and_then(|game_entity| game_entity.get_game_client())
+            .tap_ok(|game_client| {
+                weapon_fired_dispatcher(
+                    game_client.get_client_num(),
+                    game_client.get_weapon() as i32,
+                );
+            });
+
+        main_engine.fire_weapon(ent);
+    });
+}
+
+thread_local! {
+    static REPORTING_CVAR_CHANGE: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+}
+
+/// Passes every `Cvar_Set2` on to the engine and reports the cvars whose value changed to the `cvar_changed` event.
+///
+/// Changes that handlers of the event cause themselves are not reported again.
+pub(crate) extern "C" fn shinqlx_cvar_set2(
+    name: *const c_char,
+    value: *const c_char,
+    force: qboolean,
+) -> *mut cvar_t {
+    MAIN_ENGINE
+        .load()
+        .as_ref()
+        .map_or(ptr::null_mut(), |main_engine| {
+            let old = (!name.is_null())
+                .then(|| {
+                    // SAFETY: the engine passes a valid, NUL-terminated C string.
+                    unsafe { CStr::from_ptr(name) }
+                        .to_string_lossy()
+                        .into_owned()
+                })
+                .and_then(|cvar_name| {
+                    main_engine
+                        .find_cvar(&cvar_name)
+                        .map(|cvar| (cvar_name, cvar.get_string()))
+                });
+
+            let result = main_engine.set_cvar_undetected(name, value, force);
+
+            old.zip(CVar::try_from(result).ok())
+                .filter(|((_, old_value), cvar)| *old_value != cvar.get_string())
+                .filter(|_| !REPORTING_CVAR_CHANGE.replace(true))
+                .tap_some(|((cvar_name, old_value), cvar)| {
+                    cvar_changed_dispatcher(cvar_name, old_value, &cvar.get_string());
+                    REPORTING_CVAR_CHANGE.set(false);
+                });
+
+            result
+        })
+}
+
+/// The game calls this for every frame in which a player overlaps an item, also when the player
+/// cannot pick the item up. A handler of `item_touch` that stops the event keeps the touch from
+/// reaching the game module.
+pub(crate) extern "C" fn shinqlx_touch_item(
+    item: *mut gentity_t,
+    toucher: *mut gentity_t,
+    trace: *mut trace_t,
+) {
+    MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        let touch_allowed = GameEntity::try_from(toucher)
+            .ok()
+            .filter(|toucher_entity| toucher_entity.get_game_client().is_ok())
+            .zip(GameEntity::try_from(item).ok())
+            .is_none_or(|(toucher_entity, item_entity)| {
+                item_touch_dispatcher(
+                    toucher_entity.get_entity_id(),
+                    item_entity.get_entity_id(),
+                    &item_entity.get_classname(),
+                )
+            });
+
+        if touch_allowed {
+            main_engine.touch_item(item, toucher, trace);
+        }
+    });
+}
+
+#[cfg(test)]
+mod fire_weapon_hook_tests {
+    use core::{borrow::BorrowMut, ptr};
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use super::shinqlx_fire_weapon;
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
+
+    #[test]
+    #[serial]
+    fn fire_weapon_with_no_main_engine() {
+        shinqlx_fire_weapon(ptr::null_mut());
+    }
+
+    #[rstest]
+    #[serial]
+    fn fire_weapon_of_a_player_is_reported_and_forwarded() {
+        let mut ent = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client.expect_get_client_num().return_const(7);
+                mock_game_client
+                    .expect_get_weapon()
+                    .return_const(weapon_t::WP_ROCKET_LAUNCHER);
+                Ok(mock_game_client)
+            });
+            Ok(mock_gentity)
+        });
+        let weapon_fired_dispatcher_ctx = weapon_fired_dispatcher_context();
+        weapon_fired_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(7), predicate::eq(5))
+            .times(1);
+
+        let ent_ptr = ent.borrow_mut() as *mut gentity_t;
+        let ent_address = ent_ptr as usize;
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_fire_weapon()
+                    .withf(move |&fired| fired as usize == ent_address)
+                    .times(1);
+            })
+            .run(|| shinqlx_fire_weapon(ent_ptr));
+    }
+
+    #[rstest]
+    #[serial]
+    fn fire_weapon_of_something_that_is_no_player_is_only_forwarded() {
+        let mut ent = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity
+                .expect_get_game_client()
+                .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized));
+            Ok(mock_gentity)
+        });
+        let weapon_fired_dispatcher_ctx = weapon_fired_dispatcher_context();
+        weapon_fired_dispatcher_ctx.expect().times(0);
+
+        let ent_ptr = ent.borrow_mut() as *mut gentity_t;
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_fire_weapon().times(1);
+            })
+            .run(|| shinqlx_fire_weapon(ent_ptr));
+    }
+}
+
+#[cfg(test)]
+mod cvar_set2_hook_tests {
+    use core::borrow::BorrowMut;
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use super::shinqlx_cvar_set2;
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
+
+    fn run_cvar_set2(old_value: &'static core::ffi::CStr, new_value: &'static core::ffi::CStr) {
+        let mut old_cvar = CVarBuilder::default()
+            .string(old_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let mut new_cvar = CVarBuilder::default()
+            .string(new_value.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let old_address = old_cvar.borrow_mut() as *mut cvar_t as usize;
+        let new_address = new_cvar.borrow_mut() as *mut cvar_t as usize;
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |name| name == "sv_hostname",
+                move |_| CVar::try_from(old_address as *mut cvar_t).ok(),
+                1,
+            )
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_cvar_undetected()
+                    .returning_st(move |_, _, _| new_address as *mut cvar_t)
+                    .times(1);
+            })
+            .run(|| {
+                let result =
+                    shinqlx_cvar_set2(c"sv_hostname".as_ptr(), c"asdf".as_ptr(), qboolean::qfalse);
+                assert_eq!(result as usize, new_address);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn cvar_set2_with_no_main_engine_returns_null() {
+        let result = shinqlx_cvar_set2(c"sv_hostname".as_ptr(), c"asdf".as_ptr(), qboolean::qfalse);
+        assert!(result.is_null());
+    }
+
+    #[rstest]
+    #[serial]
+    fn cvar_set2_reports_a_changed_value() {
+        let dispatcher_ctx = cvar_changed_dispatcher_context();
+        dispatcher_ctx
+            .expect()
+            .with(
+                predicate::eq("sv_hostname"),
+                predicate::eq("old"),
+                predicate::eq("new"),
+            )
+            .times(1);
+
+        run_cvar_set2(c"old", c"new");
+    }
+
+    #[rstest]
+    #[serial]
+    fn cvar_set2_does_not_report_an_unchanged_value() {
+        let dispatcher_ctx = cvar_changed_dispatcher_context();
+        dispatcher_ctx.expect().times(0);
+
+        run_cvar_set2(c"same", c"same");
+    }
+
+    #[rstest]
+    #[serial]
+    fn cvar_set2_does_not_report_a_cvar_that_did_not_exist() {
+        let dispatcher_ctx = cvar_changed_dispatcher_context();
+        dispatcher_ctx.expect().times(0);
+
+        let mut new_cvar = CVarBuilder::default()
+            .string(c"new".as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let new_address = new_cvar.borrow_mut() as *mut cvar_t as usize;
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|name| name == "sv_hostname", |_| None, 1)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_cvar_undetected()
+                    .returning_st(move |_, _, _| new_address as *mut cvar_t)
+                    .times(1);
+            })
+            .run(|| {
+                shinqlx_cvar_set2(c"sv_hostname".as_ptr(), c"new".as_ptr(), qboolean::qfalse);
+            });
+    }
+}
+
+#[cfg(test)]
+mod touch_item_hook_tests {
+    use alloc::borrow::Cow;
+    use core::{borrow::BorrowMut, ptr};
+
+    use mockall::predicate;
+    use rstest::*;
+
+    use super::shinqlx_touch_item;
+    use crate::{
+        ffi::{c::prelude::*, python::prelude::*},
+        prelude::*,
+    };
+
+    fn entities(toucher_is_client: bool) {
+        let mut toucher = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut item = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let toucher_address = toucher.borrow_mut() as *mut gentity_t as usize;
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(move |ptr| {
+            let mut mock_gentity = MockGameEntity::new();
+            if ptr as usize == toucher_address {
+                mock_gentity.expect_get_entity_id().return_const(3);
+                mock_gentity.expect_get_game_client().returning(move || {
+                    if toucher_is_client {
+                        Ok(MockGameClient::new())
+                    } else {
+                        Err(QuakeLiveEngineError::MainEngineNotInitialized)
+                    }
+                });
+            } else {
+                mock_gentity.expect_get_entity_id().return_const(120);
+                mock_gentity
+                    .expect_get_classname()
+                    .returning(|| Cow::Borrowed("item_armor_body"));
+            }
+            Ok(mock_gentity)
+        });
+
+        let toucher_ptr = toucher.borrow_mut() as *mut gentity_t;
+        let item_ptr = item.borrow_mut() as *mut gentity_t;
+        let (item_address, toucher_address) = (item_ptr as usize, toucher_ptr as usize);
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_touch_item()
+                    .withf(move |&touched_item, &touching, &trace| {
+                        touched_item as usize == item_address
+                            && touching as usize == toucher_address
+                            && trace.is_null()
+                    })
+                    .times(1);
+            })
+            .run(|| shinqlx_touch_item(item_ptr, toucher_ptr, ptr::null_mut()));
+    }
+
+    #[test]
+    #[serial]
+    fn touch_item_with_no_main_engine() {
+        shinqlx_touch_item(
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut() as *mut gentity_t,
+            ptr::null_mut(),
+        );
+    }
+
+    #[rstest]
+    #[serial]
+    fn touch_item_of_a_player_is_forwarded_when_the_dispatcher_allows_it() {
+        let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
+        item_touch_dispatcher_ctx
+            .expect()
+            .with(
+                predicate::eq(3),
+                predicate::eq(120),
+                predicate::eq("item_armor_body"),
+            )
+            .return_const(true)
+            .times(1);
+
+        entities(true);
+    }
+
+    #[rstest]
+    #[serial]
+    fn touch_item_of_something_that_is_no_player_skips_the_dispatcher() {
+        let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
+        item_touch_dispatcher_ctx.expect().times(0);
+
+        entities(false);
+    }
+
+    #[rstest]
+    #[serial]
+    fn touch_item_is_not_forwarded_when_the_dispatcher_stops_it() {
+        let mut toucher = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut item = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let try_from_ctx = MockGameEntity::try_from_context();
+        try_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity.expect_get_entity_id().return_const(3);
+            mock_gentity
+                .expect_get_game_client()
+                .returning(|| Ok(MockGameClient::new()));
+            mock_gentity
+                .expect_get_classname()
+                .returning(|| Cow::Borrowed("item_health"));
+            Ok(mock_gentity)
+        });
+        let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
+        item_touch_dispatcher_ctx
+            .expect()
+            .return_const(false)
+            .times(1);
+
+        let toucher_ptr = toucher.borrow_mut() as *mut gentity_t;
+        let item_ptr = item.borrow_mut() as *mut gentity_t;
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_touch_item().times(0);
+            })
+            .run(|| shinqlx_touch_item(item_ptr, toucher_ptr, ptr::null_mut()));
+    }
+}
+
 #[cfg(test)]
 #[mockall::automock]
 #[allow(
@@ -901,14 +1364,14 @@ mod hooks_tests {
 
     use super::{
         QUERY_DROP_RULES_REFRESHED_MS, QUERY_GATE, QUERY_RULES_GATE, ShiNQlx_Com_Printf,
-        ShiNQlx_SV_SendServerCommand, SteamPacketBuffer, shinqlx_client_connect,
-        shinqlx_client_spawn, shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf,
-        shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame,
-        shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
-        shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
-        shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket,
-        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
-        steam_query_allowed,
+        ShiNQlx_SV_SendServerCommand, SteamPacketBuffer, grown_objectives,
+        reset_objective_tracking, shinqlx_client_connect, shinqlx_client_spawn,
+        shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf, shinqlx_drop_client,
+        shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
+        shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_send_server_command,
+        shinqlx_set_configstring, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
+        shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket, shinqlx_sv_setconfigstring,
+        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset, steam_query_allowed,
     };
     use crate::{
         MAIN_ENGINE,
@@ -1831,6 +2294,7 @@ mod hooks_tests {
         frame_dispatcher_ctx.expect().times(1);
 
         MockEngineBuilder::default()
+            .with_max_clients(0)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_run_frame()
@@ -1840,6 +2304,81 @@ mod hooks_tests {
             .run(|| {
                 shinqlx_g_runframe(42);
             });
+    }
+
+    #[test]
+    fn grown_objectives_names_the_counters_that_grew() {
+        let grown = grown_objectives([1, 0, 2, 5, 0, 7], [1, 1, 3, 4, 0, 9]).collect::<Vec<_>>();
+
+        assert_eq!(
+            grown,
+            vec![("return", 1), ("assist", 3), ("frag_carrier", 9)]
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn g_runframe_does_not_look_at_objectives_when_nobody_listens() {
+        set_event_listened_to(EventName::Objective, false);
+        configure_no_debug_events("objective");
+        reset_objective_tracking();
+        let frame_dispatcher_ctx = frame_dispatcher_context();
+        frame_dispatcher_ctx.expect().times(1);
+        let objective_dispatcher_ctx = objective_dispatcher_context();
+        objective_dispatcher_ctx.expect().times(0);
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine.expect_run_frame().times(1);
+                mock_engine.expect_get_max_clients().times(0);
+            })
+            .run(|| shinqlx_g_runframe(1));
+        configure_no_debug_events(&default_no_debug_events());
+    }
+
+    #[test]
+    #[serial]
+    fn g_runframe_reports_the_objectives_that_grew_after_the_first_look() {
+        static CAPTURES: core::sync::atomic::AtomicI32 = core::sync::atomic::AtomicI32::new(2);
+
+        reset_objective_tracking();
+        CAPTURES.store(2, Ordering::Relaxed);
+        let frame_dispatcher_ctx = frame_dispatcher_context();
+        frame_dispatcher_ctx.expect().times(3);
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx.expect().returning(|_| {
+            let mut mock_gentity = MockGameEntity::new();
+            mock_gentity.expect_get_game_client().returning(|| {
+                let mut mock_game_client = MockGameClient::new();
+                mock_game_client
+                    .expect_get_connection_state()
+                    .return_const(clientConnected_t::CON_CONNECTED);
+                mock_game_client
+                    .expect_get_objective_counters()
+                    .returning(|| [CAPTURES.load(Ordering::Relaxed), 0, 0, 0, 0, 0]);
+                Ok(mock_game_client)
+            });
+            mock_gentity
+        });
+        let objective_dispatcher_ctx = objective_dispatcher_context();
+        objective_dispatcher_ctx
+            .expect()
+            .with(predicate::eq(0), predicate::eq("capture"), predicate::eq(3))
+            .times(1);
+
+        MockEngineBuilder::default()
+            .with_max_clients(1)
+            .configure(|mock_engine| {
+                mock_engine.expect_run_frame().times(3);
+            })
+            .run(|| {
+                set_event_listened_to(EventName::Objective, true);
+                shinqlx_g_runframe(1);
+                shinqlx_g_runframe(2);
+                CAPTURES.store(3, Ordering::Relaxed);
+                shinqlx_g_runframe(3);
+            });
+        set_event_listened_to(EventName::Objective, false);
     }
 
     #[test]

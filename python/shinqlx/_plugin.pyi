@@ -23,7 +23,7 @@ from shinqlx.database import Redis
 from typing_extensions import Concatenate, Never, TypeAlias, Unpack, disjoint_base
 
 from ._commands import ReplyKwargs
-from ._shinqlx import Events, GameStates, Teams
+from ._shinqlx import Events, GameStates, Objective, Teams
 
 _PluginT = TypeVar("_PluginT", bound=Plugin)
 _HandlerT = TypeVar("_HandlerT", bound=Callable[..., object])
@@ -89,6 +89,14 @@ _DeathHookHandler: TypeAlias = Callable[[Player, Player | None, DeathData], Canc
 _DeathHookMethod: TypeAlias = Callable[[_PluginT, Player, Player | None, DeathData], CancellableEventReturn]
 _UserinfoHookHandler: TypeAlias = Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
 _UserinfoHookMethod: TypeAlias = Callable[[_PluginT, Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
+_ObjectiveHookHandler: TypeAlias = Callable[[Player, Objective, int], CancellableEventReturn]
+_ObjectiveHookMethod: TypeAlias = Callable[[_PluginT, Player, Objective, int], CancellableEventReturn]
+_WeaponFiredHookHandler: TypeAlias = Callable[[Player, int], CancellableEventReturn]
+_WeaponFiredHookMethod: TypeAlias = Callable[[_PluginT, Player, int], CancellableEventReturn]
+_CvarChangedHookHandler: TypeAlias = Callable[[str, str, str], CancellableEventReturn]
+_CvarChangedHookMethod: TypeAlias = Callable[[_PluginT, str, str, str], CancellableEventReturn]
+_ItemTouchHookHandler: TypeAlias = Callable[[Player, int, str], CancellableEventReturn]
+_ItemTouchHookMethod: TypeAlias = Callable[[_PluginT, Player, int, str], CancellableEventReturn]
 _KamikazeUseHookHandler: TypeAlias = Callable[[Player], CancellableEventReturn]
 _KamikazeUseHookMethod: TypeAlias = Callable[[_PluginT, Player], CancellableEventReturn]
 _KamikazeExplodeHookHandler: TypeAlias = Callable[[Player, bool], CancellableEventReturn]
@@ -225,6 +233,22 @@ def hook(
 def hook(
     event: Literal["userinfo", Events.USERINFO], priority: SupportsIndex | None = ...
 ) -> Callable[[_UserinfoHookMethod[_PluginT]], _UserinfoHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["objective", Events.OBJECTIVE], priority: SupportsIndex | None = ...
+) -> Callable[[_ObjectiveHookMethod[_PluginT]], _ObjectiveHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["weapon_fired", Events.WEAPON_FIRED], priority: SupportsIndex | None = ...
+) -> Callable[[_WeaponFiredHookMethod[_PluginT]], _WeaponFiredHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["cvar_changed", Events.CVAR_CHANGED], priority: SupportsIndex | None = ...
+) -> Callable[[_CvarChangedHookMethod[_PluginT]], _CvarChangedHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["item_touch", Events.ITEM_TOUCH], priority: SupportsIndex | None = ...
+) -> Callable[[_ItemTouchHookMethod[_PluginT]], _ItemTouchHookMethod[_PluginT]]: ...
 @overload
 def hook(
     event: Literal["kamikaze_use", Events.KAMIKAZE_USE], priority: SupportsIndex | None = ...
@@ -791,6 +815,34 @@ class Plugin:
     @overload
     def add_hook(
         self,
+        event: Literal["objective", Events.OBJECTIVE],
+        handler: _ObjectiveHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
+        event: Literal["weapon_fired", Events.WEAPON_FIRED],
+        handler: _WeaponFiredHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
+        event: Literal["cvar_changed", Events.CVAR_CHANGED],
+        handler: _CvarChangedHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
+        event: Literal["item_touch", Events.ITEM_TOUCH],
+        handler: _ItemTouchHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
         event: Literal["kamikaze_use", Events.KAMIKAZE_USE],
         handler: _KamikazeUseHookHandler,
         priority: SupportsIndex = ...,
@@ -1017,6 +1069,34 @@ class Plugin:
         self,
         event: Literal["userinfo", Events.USERINFO],
         handler: _UserinfoHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["objective", Events.OBJECTIVE],
+        handler: _ObjectiveHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["weapon_fired", Events.WEAPON_FIRED],
+        handler: _WeaponFiredHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["cvar_changed", Events.CVAR_CHANGED],
+        handler: _CvarChangedHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["item_touch", Events.ITEM_TOUCH],
+        handler: _ItemTouchHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload

@@ -3,7 +3,7 @@ use core::{hint::cold_path, sync::atomic::Ordering};
 
 use pyo3::types::{PyBool, PyString};
 
-use super::prelude::*;
+use super::{events::event_wanted, events_enum::EventName, prelude::*};
 
 pub(crate) fn client_command_dispatcher(client_id: i32, cmd: &str) -> Option<Cow<'_, str>> {
     if !pyshinqlx_is_initialized() {
@@ -156,6 +156,10 @@ pub(crate) fn client_spawn_dispatcher(client_id: i32) {
 }
 
 pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
+    if !event_wanted(EventName::KamikazeUse) {
+        return;
+    }
+
     if !pyshinqlx_is_initialized() {
         cold_path();
         return;
@@ -164,7 +168,75 @@ pub(crate) fn kamikaze_use_dispatcher(client_id: i32) {
     Python::attach(|py| handle_kamikaze_use(py, client_id));
 }
 
+pub(crate) fn weapon_fired_dispatcher(client_id: i32, weapon: i32) {
+    if !event_wanted(EventName::WeaponFired) {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        let _ = handle_weapon_fired(py, client_id, weapon);
+    });
+}
+
+pub(crate) fn objective_dispatcher(client_id: i32, kind: &str, count: i32) {
+    if !event_wanted(EventName::Objective) {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        let _ = handle_objective(py, client_id, kind, count);
+    });
+}
+
+pub(crate) fn cvar_changed_dispatcher(cvar_name: &str, old_value: &str, new_value: &str) {
+    if !event_wanted(EventName::CvarChanged) {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        let _ = handle_cvar_changed(py, cvar_name, old_value, new_value);
+    });
+}
+
+/// Whether the player may go on touching the item, `false` if a handler stopped the event.
+pub(crate) fn item_touch_dispatcher(client_id: i32, entity_id: i32, classname: &str) -> bool {
+    if !event_wanted(EventName::ItemTouch) {
+        return true;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return true;
+    }
+
+    Python::attach(|py| {
+        let result = handle_item_touch(py, client_id, entity_id, classname).into_bound(py);
+        !result
+            .cast::<PyBool>()
+            .is_ok_and(|py_bool| !py_bool.is_true())
+    })
+}
+
 pub(crate) fn kamikaze_explode_dispatcher(client_id: i32, is_used_on_demand: bool) {
+    if !event_wanted(EventName::KamikazeExplode) {
+        return;
+    }
+
     if !pyshinqlx_is_initialized() {
         cold_path();
         return;
@@ -180,6 +252,10 @@ pub(crate) fn damage_dispatcher(
     dflags: i32,
     means_of_death: i32,
 ) {
+    if !event_wanted(EventName::Damage) {
+        return;
+    }
+
     if !pyshinqlx_is_initialized() {
         cold_path();
         return;
@@ -212,14 +288,157 @@ mod pyshinqlx_dispatcher_tests {
     use super::{
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
-        damage_dispatcher, frame_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-        new_game_dispatcher, rcon_dispatcher, server_command_dispatcher,
-        set_configstring_dispatcher,
+        cvar_changed_dispatcher, damage_dispatcher, frame_dispatcher, item_touch_dispatcher,
+        kamikaze_explode_dispatcher, kamikaze_use_dispatcher, new_game_dispatcher,
+        objective_dispatcher, rcon_dispatcher, server_command_dispatcher,
+        set_configstring_dispatcher, weapon_fired_dispatcher,
     };
     use crate::{
         ffi::{c::prelude::*, python::prelude::*},
         prelude::*,
     };
+
+    #[test]
+    #[serial]
+    fn weapon_fired_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_weapon_fired_ctx = handle_weapon_fired_context();
+        handle_weapon_fired_ctx.expect().times(0);
+
+        weapon_fired_dispatcher(123, 5);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn weapon_fired_dispatcher_hands_the_weapon_to_the_handler(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_weapon_fired_ctx = handle_weapon_fired_context();
+        handle_weapon_fired_ctx
+            .expect()
+            .withf(|_, client_id, weapon| *client_id == 123 && *weapon == 5)
+            .returning(|py, _, _| py.None())
+            .times(1);
+
+        weapon_fired_dispatcher(123, 5);
+    }
+
+    #[test]
+    #[serial]
+    fn objective_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_objective_ctx = handle_objective_context();
+        handle_objective_ctx.expect().times(0);
+
+        objective_dispatcher(123, "capture", 2);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn objective_dispatcher_hands_kind_and_count_to_the_handler(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_objective_ctx = handle_objective_context();
+        handle_objective_ctx
+            .expect()
+            .withf(|_, client_id, kind, count| {
+                *client_id == 123 && kind == "frag_carrier" && *count == 2
+            })
+            .returning(|py, _, _, _| py.None())
+            .times(1);
+
+        objective_dispatcher(123, "frag_carrier", 2);
+    }
+
+    #[test]
+    #[serial]
+    fn cvar_changed_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_cvar_changed_ctx = handle_cvar_changed_context();
+        handle_cvar_changed_ctx.expect().times(0);
+
+        cvar_changed_dispatcher("sv_hostname", "old", "new");
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn cvar_changed_dispatcher_hands_the_values_to_the_handler(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_cvar_changed_ctx = handle_cvar_changed_context();
+        handle_cvar_changed_ctx
+            .expect()
+            .withf(|_, name, old, new| name == "sv_hostname" && old == "old" && new == "new")
+            .returning(|py, _, _, _| py.None())
+            .times(1);
+
+        cvar_changed_dispatcher("sv_hostname", "old", "new");
+    }
+
+    #[test]
+    #[serial]
+    fn item_touch_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_item_touch_ctx = handle_item_touch_context();
+        handle_item_touch_ctx.expect().times(0);
+
+        assert!(item_touch_dispatcher(123, 42, "item_armor_body"));
+    }
+
+    #[rstest]
+    #[case(true, true)]
+    #[case(false, false)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn item_touch_dispatcher_follows_the_handler(
+        _pyshinqlx_setup: (),
+        #[case] handler_result: bool,
+        #[case] expected: bool,
+    ) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_item_touch_ctx = handle_item_touch_context();
+        handle_item_touch_ctx
+            .expect()
+            .returning(move |py, _, _, _| {
+                PyBool::new(py, handler_result)
+                    .to_owned()
+                    .into_any()
+                    .unbind()
+            });
+
+        assert_eq!(item_touch_dispatcher(123, 42, "item_armor_body"), expected);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn item_touch_dispatcher_ignores_other_return_values(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_item_touch_ctx = handle_item_touch_context();
+        handle_item_touch_ctx
+            .expect()
+            .returning(|py, _, _, _| py.None());
+
+        assert!(item_touch_dispatcher(123, 42, "item_armor_body"));
+    }
 
     #[test]
     #[serial]

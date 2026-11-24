@@ -58,3 +58,4 @@ shinqlx._plugin.command
 
 # The Enum with the str mixin has a different __new__ signature at runtime.
 shinqlx._shinqlx.Events.__new__
+shinqlx._shinqlx.Objective.__new__

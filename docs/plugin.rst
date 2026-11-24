@@ -300,6 +300,37 @@ Plugins
                                        player: Player,
                                        changed: dict[str, str]
                                      ) ->  dict[str, str] | None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"objective"``           .. code-block:: python
+
+                                   def handle_objective(
+                                       self,
+                                       player: Player,
+                                       kind: Objective,
+                                       count: int
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"weapon_fired"``        .. code-block:: python
+
+                                   def handle_weapon_fired(
+                                       self,
+                                       player: Player,
+                                       weapon: int
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"cvar_changed"``        .. code-block:: python
+
+                                   def handle_cvar_changed(
+                                       self,
+                                       cvar_name: str,
+                                       old_value: str,
+                                       new_value: str
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"item_touch"``          .. code-block:: python
+
+                                   def handle_item_touch(
+                                       self,
+                                       player: Player,
+                                       entity_id: int,
+                                       classname: str
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"kamikaze_use"``        .. code-block:: python
 
                                    def handle_kamikaze_use(

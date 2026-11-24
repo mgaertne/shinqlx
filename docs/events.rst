@@ -44,7 +44,10 @@ Events
 
       Events for which no debug messages are produced in the logfile.
 
-      By default this is set to: ``"frame"``, ``"set_configstring"``, ``"stats"``, ``"server_command"``, ``"death"``, ``"kill"``, ``"command"``, ``"console_print"``, ``"damage"``
+      By default this is set to: ``"frame"``, ``"set_configstring"``, ``"stats"``, ``"server_command"``, ``"death"``, ``"kill"``, ``"command"``, ``"console_print"``, ``"damage"``, ``"cvar_changed"``, ``"item_touch"``, ``"weapon_fired"``
+
+      The cvar ``qlx_noDebugEvents`` replaces this list for the log, see :ref:`logging`. The property always shows the
+      built-in default.
 
       **Read-only**.
 
@@ -512,6 +515,75 @@ Concrete Event dispatchers
       :param Player player: The player that changed their userinfo.
       :param dict changed: The changed userinfo values.
       :return: Whether to pass on the event to the engine, or the new changed userinfo values.
+
+.. class:: ObjectiveDispatcher
+
+   ``name = "objective"``
+
+   Event that goes off when a player scores an objective in a team mode. It cannot be cancelled. The server compares
+   the objective counters of the players once per frame, so the event goes off a moment after the score, and only
+   while a plugin hooks it or the log wants a line for it.
+
+   .. method:: dispatch(player, kind, count) -> bool
+
+      :param Player player: The player that scored.
+      :param Objective kind: What was scored, a member of :class:`Objective`. It is a string as well, ``kind ==
+         "capture"`` works.
+      :param int count: The new value of the counter of the player for this kind.
+      :return: Always ``True``.
+
+.. class:: Objective
+
+   String enumeration of the objectives: ``CAPTURE = "capture"``, ``RETURN = "return"``, ``ASSIST = "assist"``,
+   ``BASE_DEFENSE = "base_defense"``, ``CARRIER_DEFENSE = "carrier_defense"``, ``FRAG_CARRIER = "frag_carrier"`` and
+   ``UNKNOWN = "unknown"``, which stands for a counter that this build cannot name and is not reported at the moment.
+
+.. class:: WeaponFiredDispatcher
+
+   ``name = "weapon_fired"``
+
+   Event that goes off when a player fires a weapon, before the game fires it. It cannot be cancelled. The event
+   goes off for every shot, so keep the hooks cheap. The log does not contain a line per event by default, see
+   :ref:`logging`.
+
+   .. method:: dispatch(player, weapon) -> bool
+
+      :param Player player: The player that fires.
+      :param int weapon: The weapon that is fired, the same number that :meth:`Player.weapon` returns.
+      :return: Always ``True``.
+
+.. class:: CvarChangedDispatcher
+
+   ``name = "cvar_changed"``
+
+   Event that goes off after the value of a cvar changed, no matter whether the engine, the console, a client with
+   rcon access or a plugin changed it. The value is set already, so the event cannot be cancelled. Cvars that did not
+   exist before and changes that do not change the value are not reported. Changes that a handler of this event causes
+   itself are not reported again. The engine changes some cvars by itself, for example ``mapname``, ``nextmap`` and
+   ``g_levelStartTime`` on every map change, so filter by the name early in the hook.
+
+   .. method:: dispatch(cvar_name, old_value, new_value) -> bool
+
+      :param str cvar_name: The name of the cvar.
+      :param str old_value: The value before the change.
+      :param str new_value: The value after the change.
+      :return: Always ``True``.
+
+.. class:: ItemTouchDispatcher
+
+   ``name = "item_touch"``
+
+   Event that goes off when a player touches an item, before the game decides whether the player picks it up.
+   The game calls this for every frame in which the player overlaps the item, also when the player cannot pick it
+   up (full health, for example), so keep the hooks cheap. Stopping the event keeps the player from picking
+   the item up.
+
+   .. method:: dispatch(player, entity_id, classname) -> bool
+
+      :param Player player: The player that touches the item.
+      :param int entity_id: The entity identifier of the item.
+      :param str classname: The class name of the item.
+      :return: Whether to pass on the event to the engine.
 
 .. class:: KamikazeUseDispatcher
 

@@ -15,6 +15,14 @@ macro_rules! event_names {
         impl EventName {
             pub(crate) const ALL: &[Self] = &[$(Self::$variant),+];
 
+            /// The event that a dispatcher with this `name` stands for.
+            pub(crate) fn from_name(name: &str) -> Option<Self> {
+                match name {
+                    $($name => Some(Self::$variant),)+
+                    _ => None,
+                }
+            }
+
             /// The name under which the dispatcher of the event is registered.
             pub(crate) const fn as_str(self) -> &'static str {
                 match self {
@@ -30,17 +38,20 @@ event_names! {
     ClientCommand => "client_command",
     Command => "command",
     ConsolePrint => "console_print",
+    CvarChanged => "cvar_changed",
     Damage => "damage",
     Death => "death",
     Frame => "frame",
     GameCountdown => "game_countdown",
     GameEnd => "game_end",
     GameStart => "game_start",
+    ItemTouch => "item_touch",
     KamikazeExplode => "kamikaze_explode",
     KamikazeUse => "kamikaze_use",
     Kill => "kill",
     Map => "map",
     NewGame => "new_game",
+    Objective => "objective",
     PlayerConnect => "player_connect",
     PlayerDisconnect => "player_disconnect",
     PlayerLoaded => "player_loaded",
@@ -59,6 +70,7 @@ event_names! {
     VoteCalled => "vote_called",
     VoteEnded => "vote_ended",
     VoteStarted => "vote_started",
+    WeaponFired => "weapon_fired",
 }
 
 fn events_class_source() -> String {
@@ -85,6 +97,24 @@ class Events(str, enum.Enum):
         return str.__format__(str(self), format_spec)
 
 {members}
+
+
+class Objective(str, enum.Enum):
+    """The objectives of the team modes that the event ``objective`` reports; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    CAPTURE = "capture"
+    RETURN = "return"
+    ASSIST = "assist"
+    BASE_DEFENSE = "base_defense"
+    CARRIER_DEFENSE = "carrier_defense"
+    FRAG_CARRIER = "frag_carrier"
+    UNKNOWN = "unknown"
 "#
     )
 }
@@ -103,7 +133,12 @@ pub(crate) fn register_events_enum(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let events = globals
         .get_item(intern!(py, "Events"))?
         .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Events could not be created"))?;
-    m.add("Events", events)
+    m.add("Events", events)?;
+
+    let objective = globals.get_item(intern!(py, "Objective"))?.ok_or_else(|| {
+        pyo3::exceptions::PyRuntimeError::new_err("Objective could not be created")
+    })?;
+    m.add("Objective", objective)
 }
 
 #[cfg(test)]
