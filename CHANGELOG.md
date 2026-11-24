@@ -121,6 +121,11 @@ Changes since 0.8.0.
   The list of the completion tells what a value means (`g_gametype`: `4  Clan Arena`, 107 cvars with values or bits
   from the console guide, such as `g_voteFlags`) and, for up to 20 names, the first line of their description. Own
   meanings go into `values.txt` and `values-<host>.txt` as lines `cvar<TAB>value<TAB>meaning`; they win over the guide.
+* The descriptions of the completion gain the server cvars `sv_tags`, `sv_mapPoolFile`, `sv_idleExit`, `sv_serverType`,
+  `sv_master`, `g_accessFile`, `g_allTalk`, the flood protection, timeout and warmup cvars, `serverstartup`, the eight
+  `zmq_rcon_*`/`zmq_stats_*` cvars and the command `setenv`, worded after community server configurations. The
+  per-weapon cvars `g_startingAmmo_*`, `weapon_gravity_*` and a few more are described from their names alone; a
+  comment line in `help.txt` marks them.
 
 ### ql_rcon and ql_stats
 

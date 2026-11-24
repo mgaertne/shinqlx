@@ -1099,3 +1099,51 @@ journal	Sets whether journal.dat is written in the game directory.
 sv_maxclients	Sets the maximum number of client slots on server.
 sv_premium	Classifies a server as a premium server.
 sv_ranked	Enables the creation of a ranked server.
+g_accessFile	File that says which 64-bit Steam IDs have admin rights or are banned.
+g_allTalk	Voice chat during a match. 0 limits it to the team, 1 lets everybody talk to everybody, 2 is 1 and sends your own voice back to you for testing.
+g_floodprot_decay	Lowers the userinfo flood counter of a player by 1 this often, in milliseconds.
+g_floodprot_maxcount	Kicks a player whose userinfo flood counter reaches this value.
+g_timeoutCount	Sets the number of timeouts per player.
+g_timeoutLen	Sets the length of a timeout.
+g_warmupReadyDelay	Forces the game to start this many seconds after someone has readied up.
+g_warmupReadyDelayAction	Sets what happens when g_warmupReadyDelay runs out: 1 moves the players who are not ready to the spectators, 2 readies them up.
+serverstartup	Command the server runs when it has finished initializing, for example to start a random map of the map pool or a map with a factory.
+setenv	Mostly used to set environment variables of the old Voodoo renderer. Very likely unused and without effect now.
+sv_idleExit	Exits the server after it has been idle, not running a map, for the specified time.
+sv_mapPoolFile	File with the map pool the server uses.
+sv_master	Sets whether the server answers queries. Turn it off to keep the server out of the server browser.
+sv_serverType	Sets where the server is available: 0 offline, 1 LAN, 2 Internet.
+sv_tags	Comma-separated tags the server shows in the server browser. The game type and some modifications of the game are added automatically.
+zmq_rcon_enable	Enables the remote console over ZeroMQ. It can not be switched on or off after the launch.
+zmq_rcon_ip	IP address the ZeroMQ rcon binds to. It can not be changed after the launch.
+zmq_rcon_password	Password of the ZeroMQ rcon. Unlike the other zmq_rcon cvars it can be changed after the launch.
+zmq_rcon_port	TCP port of the ZeroMQ rcon. It is separate from the game port, differs from the stats port and can not be changed after the launch.
+zmq_stats_enable	Enables the ZeroMQ stats socket. It is of little use without a client listening.
+zmq_stats_ip	IP address the ZeroMQ stats socket binds to. Without it the IP of the game server is used.
+zmq_stats_password	Password of the ZeroMQ stats socket.
+zmq_stats_port	TCP port of the ZeroMQ stats socket. Without it the port of the game server is used, but with TCP.
+# Derived from the names, not from a description: g, gh, mg, sg, gl, rl, lg, rg, pg, bfg, cg, ng, pl and hmg stand for the weapons.
+g_damage_gh	Sets the damage done by the grappling hook.
+g_damage_hmg	Sets the damage done by a heavy machinegun bullet.
+g_knockback_gh	Amount of knock back the grappling hook exerts onto players.
+g_knockback_hmg	Amount of knock back heavy machinegun projectiles exert onto players.
+g_startingAmmo_bfg	Sets the amount of BFG ammo that players spawn with.
+g_startingAmmo_cg	Sets the amount of chaingun ammo that players spawn with.
+g_startingAmmo_g	Sets the amount of gauntlet ammo that players spawn with.
+g_startingAmmo_gh	Sets the amount of grappling hook ammo that players spawn with.
+g_startingAmmo_gl	Sets the amount of grenade launcher ammo that players spawn with.
+g_startingAmmo_hmg	Sets the amount of heavy machinegun ammo that players spawn with.
+g_startingAmmo_lg	Sets the amount of lightning gun ammo that players spawn with.
+g_startingAmmo_ng	Sets the amount of nailgun ammo that players spawn with.
+g_startingAmmo_pg	Sets the amount of plasma gun ammo that players spawn with.
+g_startingAmmo_pl	Sets the amount of proximity mine launcher ammo that players spawn with.
+g_startingAmmo_rg	Sets the amount of railgun ammo that players spawn with.
+g_startingAmmo_rl	Sets the amount of rocket launcher ammo that players spawn with.
+g_startingAmmo_sg	Sets the amount of shotgun ammo that players spawn with.
+g_velocity_gh	Sets the projectile velocity (in units/second) for the grappling hook.
+weapon_gravity_bfg	Sets the gravity that acts on BFG cells.
+weapon_gravity_ng	Sets the gravity that acts on nails.
+weapon_gravity_pg	Sets the gravity that acts on plasma cells.
+weapon_gravity_rl	Sets the gravity that acts on rockets.
+weapon_reload_gh	Controls the weapon reload time (in milliseconds) for the grappling hook.
+weapon_reload_hmg	Controls the weapon reload time (in milliseconds) for the heavy machinegun.
