@@ -233,6 +233,75 @@ mod tests {
     }
 
     #[test]
+    fn copies_a_python_file_that_is_not_utf8_with_a_warning() {
+        let input = tempfile::tempdir().expect("could not create temporary directory");
+        let output = tempfile::tempdir().expect("could not create temporary directory");
+        fs::write(input.path().join("latin.py"), b"# caf\xe9\n").expect("could not write file");
+
+        let reports = run(input.path(), output.path(), false, Some(1)).expect("run failed");
+
+        assert_eq!(reports[0].outcome, Outcome::Copied);
+        assert_eq!(reports[0].warnings.len(), 1);
+        assert_eq!(
+            fs::read(output.path().join("latin.py")).expect("missing output"),
+            b"# caf\xe9\n"
+        );
+    }
+
+    #[test]
+    fn keeps_the_warnings_of_a_plugin_that_needs_no_change() {
+        let input = tempfile::tempdir().expect("could not create temporary directory");
+        let output = tempfile::tempdir().expect("could not create temporary directory");
+        write(
+            input.path(),
+            "p.py",
+            "import shinqlx\n\nclass p(shinqlx.Plugin):\n    def __init__(self):\n        self.add_hook(shinqlx.Events.CHAT, self.inherited)\n",
+        );
+
+        let reports = run(input.path(), output.path(), false, Some(1)).expect("run failed");
+
+        assert_eq!(reports[0].outcome, Outcome::Copied);
+        assert_eq!(reports[0].warnings.len(), 1);
+    }
+
+    #[test]
+    fn refuses_an_input_that_is_missing_or_not_a_folder() {
+        let dir = tempfile::tempdir().expect("could not create temporary directory");
+        let output = tempfile::tempdir().expect("could not create temporary directory");
+        write(dir.path(), "file.py", "");
+
+        assert!(run(&dir.path().join("missing"), output.path(), false, Some(1)).is_err());
+        assert!(run(&dir.path().join("file.py"), output.path(), false, Some(1)).is_err());
+    }
+
+    #[test]
+    fn refuses_an_output_below_a_file() {
+        let input = tempfile::tempdir().expect("could not create temporary directory");
+        let dir = tempfile::tempdir().expect("could not create temporary directory");
+        write(dir.path(), "file", "");
+
+        assert!(run(input.path(), &dir.path().join("file/out"), false, Some(1)).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn reports_an_output_folder_that_cannot_be_written() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let input = tempfile::tempdir().expect("could not create temporary directory");
+        let output = tempfile::tempdir().expect("could not create temporary directory");
+        write(input.path(), "a/p.py", "import minqlx\n");
+        fs::set_permissions(output.path(), fs::Permissions::from_mode(0o500))
+            .expect("could not restrict the folder");
+
+        let result = run(input.path(), output.path(), false, Some(1));
+
+        fs::set_permissions(output.path(), fs::Permissions::from_mode(0o700))
+            .expect("could not restore the folder");
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn refuses_an_output_folder_inside_the_input_folder() {
         let input = tempfile::tempdir().expect("could not create temporary directory");
 

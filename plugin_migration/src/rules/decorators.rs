@@ -1,5 +1,8 @@
+mod registration_order;
+
 use std::collections::HashMap;
 
+use registration_order::{Registration, overtaking_registrations, reordered_decorators};
 use tree_sitter::Node;
 
 use super::{Rule, RuleOutput, Warning};
@@ -33,6 +36,7 @@ struct Conversion<'t> {
     statement: Node<'t>,
     method: &'t str,
     decorator: String,
+    registration: Registration,
 }
 
 struct Context<'a, 't> {
@@ -240,6 +244,7 @@ fn convert<'t>(
             statement,
             method,
             decorator,
+            registration: Registration::of(call.arguments, context.source, kind == "add_hook"),
         })
     });
     Some(result)
@@ -308,13 +313,11 @@ fn convert_class(class: Node<'_>, source: &Source<'_>, module: &str, output: &mu
         .collect::<Vec<_>>();
     let mut conversions = Vec::new();
     let mut remaining = 0;
-    let mut kept = 0;
     for statement in &statements {
         match convert(*statement, &context) {
             Some(Ok(conversion)) => conversions.push(conversion),
             Some(Err(reason)) => {
                 remaining += 1;
-                kept += 1;
                 output.warnings.push(Warning::new(
                     line_of(*statement),
                     format!("the registration was kept as it is: {reason}"),
@@ -365,13 +368,10 @@ fn convert_class(class: Node<'_>, source: &Source<'_>, module: &str, output: &mu
             format!("{indent}{}\n", conversion.decorator),
         ));
     }
-    if kept > 0 {
-        output.warnings.push(Warning::new(
-            line_of(class),
-            "hooks and commands are registered both manually and by decorators, handlers of the \
-             same priority may run in a different order",
-        ));
-    }
+    output.warnings.extend(reordered_decorators(&conversions));
+    output
+        .warnings
+        .extend(overtaking_registrations(init, &conversions, source));
     output.edits.extend(edits);
 }
 
@@ -485,7 +485,240 @@ class p(minqlx.Plugin):
         );
         assert!(output.contains("self.add_command(\"z\", self.inherited)"));
         assert!(output.contains("self.add_command(\"w\", self.cmd_w)"));
-        assert_eq!(warnings, 4);
+        assert_eq!(warnings, 3);
+    }
+
+    fn warnings_of(text: &str) -> Vec<String> {
+        let source = Source::parse(text).expect("the test source is valid python");
+        Decorators
+            .apply(&source)
+            .warnings
+            .into_iter()
+            .map(|warning| warning.message)
+            .collect()
+    }
+
+    const SWAPPED: &str = "\
+import minqlx
+
+class p(minqlx.Plugin):
+    def __init__(self):
+        super().__init__()
+        self.add_hook(\"chat\", self.handle_b)
+        self.add_hook(\"chat\", self.handle_a)
+
+    def handle_a(self, player, msg, channel):
+        pass
+
+    def handle_b(self, player, msg, channel):
+        pass
+";
+
+    #[test]
+    fn warns_when_the_alphabetical_order_swaps_handlers_of_one_event() {
+        let warnings = warnings_of(SWAPPED);
+
+        assert_eq!(warnings.len(), 1);
+        assert!(
+            warnings[0].contains("handle_a now runs before handle_b"),
+            "{warnings:?}"
+        );
+    }
+
+    #[rstest::rstest]
+    #[case::other_event(
+        "self.add_hook(\"chat\", self.handle_b)\n        self.add_hook(\"death\", self.handle_a)"
+    )]
+    #[case::other_priority(
+        "self.add_hook(\"chat\", self.handle_b, priority=minqlx.Priorities.LOW)\n        self.add_hook(\"chat\", self.handle_a)"
+    )]
+    #[case::hook_and_command(
+        "self.add_hook(\"chat\", self.handle_b)\n        self.add_command(\"chat\", self.handle_a)"
+    )]
+    #[case::same_order(
+        "self.add_hook(\"chat\", self.handle_a)\n        self.add_hook(\"chat\", self.handle_b)"
+    )]
+    fn stays_quiet_when_the_order_of_handlers_does_not_matter(#[case] registrations: &str) {
+        let input = SWAPPED.replace(
+            "self.add_hook(\"chat\", self.handle_b)\n        self.add_hook(\"chat\", self.handle_a)",
+            registrations,
+        );
+
+        assert_eq!(warnings_of(&input), Vec::<String>::new());
+    }
+
+    #[test]
+    fn treats_a_member_of_events_like_its_string() {
+        let input = SWAPPED.replace(
+            "self.add_hook(\"chat\", self.handle_b)",
+            "self.add_hook(minqlx.Events.CHAT, self.handle_b)",
+        );
+
+        assert_eq!(warnings_of(&input).len(), 1);
+    }
+
+    const MIXED: &str = "\
+import minqlx
+
+class p(minqlx.Plugin):
+    def __init__(self):
+        super().__init__()
+        self.add_hook(\"chat\", self.handle_chat)
+        self.add_hook(\"chat\", self.inherited)
+
+    def handle_chat(self, player, msg, channel):
+        pass
+";
+
+    #[test]
+    fn warns_about_a_kept_registration_that_now_runs_before_a_converted_one() {
+        let warnings = warnings_of(MIXED);
+
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert!(warnings[1].contains("before the decorated handler handle_chat"));
+    }
+
+    #[test]
+    fn warns_about_a_nested_registration_after_a_converted_one() {
+        let input = MIXED.replace(
+            "        self.add_hook(\"chat\", self.inherited)",
+            "        if self.get_cvar(\"qlx_extra\"):\n            self.add_hook(\"chat\", self.inherited)",
+        );
+
+        let warnings = warnings_of(&input);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].contains("before the decorated handler"));
+    }
+
+    #[test]
+    fn stays_quiet_about_a_kept_registration_that_was_registered_first() {
+        let input = MIXED.replace(
+            "        self.add_hook(\"chat\", self.handle_chat)\n        self.add_hook(\"chat\", self.inherited)",
+            "        self.add_hook(\"chat\", self.inherited)\n        self.add_hook(\"chat\", self.handle_chat)",
+        );
+
+        assert_eq!(warnings_of(&input).len(), 1);
+    }
+
+    #[test]
+    fn converts_arguments_made_of_constants() {
+        let input = "\
+import minqlx
+
+class p(minqlx.Plugin):
+    def __init__(self):
+        super().__init__()
+        self.add_command(\"a\", self.cmd_a, permission=-1, usage=(\"x\"))
+        self.add_command([\"b\", \"c\"], self.cmd_b, priority=minqlx.PRI_LOW | 0)
+        self.add_hook(minqlx.Events.CHAT, self.handle_chat, priority=minqlx.Priorities.LOW)
+
+    def cmd_a(self, player, msg, channel):
+        pass
+
+    def cmd_b(self, player, msg, channel):
+        pass
+
+    def handle_chat(self, player, msg, channel):
+        pass
+";
+
+        let (output, warnings) = run(input);
+
+        assert!(output.contains("@minqlx.command(\"a\", permission=-1, usage=(\"x\"))"));
+        assert!(output.contains("@minqlx.command([\"b\", \"c\"], priority=minqlx.PRI_LOW | 0)"));
+        assert!(
+            output.contains("@minqlx.hook(minqlx.Events.CHAT, priority=minqlx.Priorities.LOW)")
+        );
+        assert_eq!(warnings, 0);
+    }
+
+    #[rstest::rstest]
+    #[case::variable(
+        "self.add_command(\"a\", self.cmd_a, permission=level)",
+        "permission is not a constant"
+    )]
+    #[case::call(
+        "self.add_command(\"a\", self.cmd_a, usage=self.usage())",
+        "usage is not a constant"
+    )]
+    #[case::event_variable("self.add_hook(event, self.cmd_a)", "the event is not a constant")]
+    #[case::name_variable(
+        "self.add_command(name, self.cmd_a)",
+        "the name of the command is not a constant"
+    )]
+    #[case::member_of_something_else(
+        "self.add_command(\"a\", self.cmd_a, permission=other.LEVEL)",
+        "permission is not a constant"
+    )]
+    #[case::unknown_member(
+        "self.add_command(\"a\", self.cmd_a, permission=minqlx.NoSuchThing)",
+        "permission is not a constant"
+    )]
+    #[case::unknown_class_member(
+        "self.add_command(\"a\", self.cmd_a, permission=minqlx.Permissions.NOPE)",
+        "permission is not a constant"
+    )]
+    #[case::too_many_arguments(
+        "self.add_command(\"a\", self.cmd_a, 1, None, None, 2, False, 0, \"\", \"u\", 1)",
+        "not understood"
+    )]
+    #[case::splat("self.add_command(\"a\", self.cmd_a, *args)", "not understood")]
+    #[case::unknown_keyword("self.add_hook(\"chat\", self.cmd_a, nope=1)", "not understood")]
+    #[case::missing_handler("self.add_hook(\"chat\")", "handler is missing")]
+    #[case::handler_not_a_method("self.add_hook(\"chat\", print)", "not a method of this class")]
+    #[case::missing_event("self.add_hook(handler=self.cmd_a)", "the event is missing")]
+    #[case::missing_name("self.add_command(handler=self.cmd_a)", "the name is missing")]
+    fn keeps_a_registration_and_names_the_reason(#[case] registration: &str, #[case] reason: &str) {
+        let input = format!(
+            "\
+import minqlx
+
+class p(minqlx.Plugin):
+    def __init__(self):
+        super().__init__()
+        {registration}
+
+    def cmd_a(self, player, msg, channel):
+        pass
+"
+        );
+
+        let warnings = warnings_of(&input);
+
+        assert!(
+            warnings.iter().any(|warning| warning.contains(reason)),
+            "{registration}: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn leaves_a_class_alone_whose_registration_shares_its_line_with_other_code() {
+        let input = "\
+import minqlx
+
+class p(minqlx.Plugin):
+    def __init__(self):
+        super().__init__()
+        self.add_hook(\"chat\", self.handle_chat); self.x = 1
+
+    def handle_chat(self, player, msg, channel):
+        pass
+";
+
+        let (output, warnings) = run(input);
+
+        assert_eq!(output, input);
+        assert_eq!(warnings, 1);
+    }
+
+    #[test]
+    fn ignores_classes_without_init_and_files_without_the_module() {
+        let without_init = "import minqlx\n\nclass p(minqlx.Plugin):\n    pass\n";
+        let without_module = "class p:\n    def __init__(self):\n        self.add_hook(\"chat\", self.h)\n\n    def h(self):\n        pass\n";
+
+        assert_eq!(run(without_init), (without_init.to_string(), 0));
+        assert_eq!(run(without_module), (without_module.to_string(), 0));
     }
 
     #[test]

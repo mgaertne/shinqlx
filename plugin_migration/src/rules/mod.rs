@@ -69,3 +69,22 @@ pub(crate) fn default_rules() -> Vec<Box<dyn Rule>> {
         Box::new(ModuleRename),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::default_rules;
+
+    #[test]
+    fn every_rule_has_its_own_name_and_a_row_in_the_readme() {
+        let readme = include_str!("../../README.md");
+        let rules = default_rules();
+        let names = rules.iter().map(|rule| rule.name()).collect::<Vec<_>>();
+
+        assert_eq!(names.iter().collect::<HashSet<_>>().len(), names.len());
+        for name in names {
+            assert!(readme.contains(&format!("`{name}`")), "{name}");
+        }
+    }
+}
