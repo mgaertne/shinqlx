@@ -46,6 +46,17 @@ Changes since 0.8.0.
 * **Stubs:** `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`. `CvarFlags` and `DamageFlags` return
   flags from the operators and have `__init__`, `__xor__`, `__invert__`, `__contains__` and `__iter__`.
 
+* **`SIGTERM` and `SIGINT` end the server.** The engine only sets two flags on these signals, and with
+  `zmq_rcon_enable 1` the server kept running, so a supervisor had to wait for its kill timeout. Now the next frame
+  executes `quit`, and if the server does not end within 30 seconds (for example while it loads a map), the process is
+  ended with the signal. Without the ZMQ rcon nothing changes, the server ended on them before.
+
+### plugin_migration
+
+* The `decorators` rule warns where converting a registration can change the order of handlers with the same event or
+  command and priority: shinqlx registers decorated methods after `__init__` in the alphabetical order of their names.
+  The old warning for every class that kept a registration is gone, because it was too general.
+
 ### ql_rcon
 
 * When the server answers a cvar query (`"g_startingWeapons" is:"4100^7" default:...`), a line below names what the
@@ -66,6 +77,12 @@ Changes since 0.8.0.
   command as a grey hint, and server output still appears above the input line. The history files keep their names.
   Ctrl-C with text in the line clears it, with an empty line it ends the session. `ql_stats` has no line editor, so
   there is nothing to switch there.
+* **`ql_rcon` connects to a server without rcon password.** It always asked for the `PLAIN` security with the ZAP
+  domain `rcon`, and libzmq rejects an empty password (`Invalid argument`). Without a password neither is set now, as in
+  `ql_stats`; with a password nothing changes.
+* **A command shows up once in the history.** The history file is cleaned of repeated commands when `ql_rcon` starts
+  and after each sent line; the newest entry stays. Before, the older ones were meant to be deleted, but the file
+  history of `reedline` cannot delete single entries, so repeated commands stayed.
 * **`ql_rcon` shows a `^` that is no color code (such as `^8`) as text** and no longer drops the text up to the next
   color code. `ql_stats` uses the same decoding.
 * **`ql_rcon` no longer keeps a CPU core busy while idle** (about 100 % before, about 0.1 % now). The ZMQ socket is
@@ -123,6 +140,10 @@ Changes since 0.8.0.
 
 ### Internal
 
+* The criterion benchmarks of the event handlers run the dispatchers that the hooks call (`client_command_dispatcher`,
+  `server_command_dispatcher`, `set_configstring_dispatcher`, `console_print_dispatcher`, `damage_dispatcher`,
+  `frame_dispatcher`) instead of the `handle_*` Python functions, so they measure the path of the server. The benchmark
+  names changed accordingly (`event_dispatcher/`, `frame_dispatcher/`).
 * The banner of the chat log, `essentials` (`!seen`, `!time`, `!random`) and the time stamps of bans and silences are computed in
   Rust (`chrono`, `rand`) instead of the Python modules `time`, `datetime` and `random`. The Cargo feature `clock` of
   `chrono` is enabled for the local time.
