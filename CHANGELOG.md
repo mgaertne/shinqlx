@@ -214,6 +214,10 @@ Changes since 0.8.0.
 
 ### ql_stats
 
+* `--format summary` shows `FLAG_STATUS` (`red flag taken by Alice`, `blue flag at base`), which every flag mode sends
+  and which was only printed as json before, and a `PLAYER_DEATH` without killer, for example from `trigger_hurt`, as
+  `Bob <- world (HURT)` instead of falling back to json. The check ran every game mode (ca, tdm, ctf, 1f, har, ad, dom,
+  ft, rr, ffa, duel) in the test rig; all other types it sent were already shown.
 * **`ql_stats` no longer keeps a CPU core busy while idle** (about 100 % before, about 0.1 % now). The ZMQ socket is
   polled every 25 ms, one server frame, the output waits for the next line instead of looking every 100 ms, and the
   tool runs on a single-threaded Tokio runtime without the `RwLock`s and `unsafe impl Send/Sync` around the sockets.

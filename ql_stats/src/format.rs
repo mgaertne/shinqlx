@@ -117,6 +117,7 @@ impl Renderer {
                 number(data, "/ROUND")?,
                 text(data, "/TEAM_WON")?
             ),
+            "FLAG_STATUS" => flag_text(data, self.palette)?,
             "MATCH_STARTED" => format!(
                 "{} on {}",
                 text(data, "/FACTORY_TITLE")?,
@@ -182,6 +183,10 @@ fn name(data: &Value, path: &str, palette: Palette) -> Option<String> {
 fn death_text(data: &Value, palette: Palette) -> Option<String> {
     let victim = name(data, "/VICTIM/NAME", palette)?;
     let cause = text(data, "/MOD")?;
+    let killer = || match data.get("KILLER") {
+        None | Some(Value::Null) => Some("world".to_string()),
+        Some(_) => name(data, "/KILLER/NAME", palette),
+    };
     if data.get("SUICIDE").and_then(Value::as_bool) == Some(true) {
         return Some(format!("{victim} suicide ({cause})"));
     }
@@ -190,10 +195,22 @@ fn death_text(data: &Value, palette: Palette) -> Option<String> {
     } else {
         ""
     };
-    Some(format!(
-        "{victim} <- {} ({cause}{teamkill})",
-        name(data, "/KILLER/NAME", palette)?
-    ))
+    Some(format!("{victim} <- {} ({cause}{teamkill})", killer()?))
+}
+
+/// `red flag taken by Alice`; the name is only there while a player carries or just took the flag.
+fn flag_text(data: &Value, palette: Palette) -> Option<String> {
+    let team = text(data, "/FLAG_TEAM")?.to_lowercase();
+    let status = text(data, "/STATUS")?;
+    let status = status
+        .strip_prefix("FLAG_")
+        .unwrap_or(status)
+        .to_lowercase()
+        .replace("atbase", "at base")
+        .replace('_', " ");
+    let by =
+        name(data, "/NAME", palette).map_or_else(String::new, |player| format!(" by {player}"));
+    Some(format!("{team} flag {status}{by}"))
 }
 
 fn quote(text: &str) -> String {
@@ -452,6 +469,42 @@ mod format_tests {
         assert_eq!(
             line.as_deref(),
             Some("PLAYER_KILL        Bob <- Alice (ROCKET, teamkill)")
+        );
+    }
+
+    #[test]
+    fn a_death_without_a_killer_names_the_world() {
+        let line = renderer(&["--format", "summary"], false).render(
+            r#"{"TYPE":"PLAYER_DEATH","DATA":{"KILLER":null,"MOD":"HURT","SUICIDE":false,"TEAMKILL":false,"VICTIM":{"NAME":"Bob"}}}"#,
+        );
+
+        assert_eq!(
+            line.as_deref(),
+            Some("PLAYER_DEATH       Bob <- world (HURT)")
+        );
+    }
+
+    #[test]
+    fn the_summary_of_a_flag_status() {
+        let summary = renderer(&["--format", "summary"], false);
+
+        assert_eq!(
+            summary
+                .render(r#"{"TYPE":"FLAG_STATUS","DATA":{"FLAG_TEAM":"RED","NAME":"Alice","STATUS":"FLAG_TAKEN","STEAM_ID":"0","TIME":28,"WARMUP":false}}"#)
+                .as_deref(),
+            Some("FLAG_STATUS        red flag taken by Alice")
+        );
+        assert_eq!(
+            summary
+                .render(r#"{"TYPE":"FLAG_STATUS","DATA":{"FLAG_TEAM":"BLUE","STATUS":"FLAG_ATBASE","TIME":0,"WARMUP":true}}"#)
+                .as_deref(),
+            Some("FLAG_STATUS        blue flag at base [warmup]")
+        );
+        assert_eq!(
+            summary
+                .render(r#"{"TYPE":"FLAG_STATUS","DATA":{"FLAG_TEAM":"RED","STATUS":"FLAG_DROPPED","TIME":64,"WARMUP":false}}"#)
+                .as_deref(),
+            Some("FLAG_STATUS        red flag dropped")
         );
     }
 

@@ -41,6 +41,8 @@ this page for the ``TYPE`` of the message.
      - ``MATCH_GUID``, ``NAME``, ``STEAM_ID``, ``TIME``, ``WARMUP``
    * - ``"PLAYER_SWITCHTEAM"``
      - ``KILLER`` (``NAME``, ``OLD_TEAM``, ``STEAM_ID``, ``TEAM``), ``MATCH_GUID``, ``TIME``, ``WARMUP``
+   * - ``"FLAG_STATUS"``
+     - ``FLAG_TEAM`` (``RED`` or ``BLUE``), ``STATUS`` (``FLAG_ATBASE``, ``FLAG_TAKEN``, ``FLAG_DROPPED``), ``TIME``, ``WARMUP``; ``NAME`` and ``STEAM_ID`` of the player when someone took the flag. The test rig saw it in ``ctf``, ``1f``, ``ad`` and ``ca``, not in ``har`` and ``dom``
    * - ``"MATCH_REPORT"``, ``"PLAYER_STATS"``
      - see the stubs of ``MatchReportStats`` and ``PlayerStatsStats``
 
