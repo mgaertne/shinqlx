@@ -21,8 +21,9 @@ Changes since 0.8.0.
   further ones are sent straight through. Everything else, configstrings included, is sent immediately.
   `qlx_reliableGuard 0` switches it off, `qlx_reliableRing` lowers the assumed ring size for test rigs. The console
   command `reliable` shows the counters, `reliable reset` clears them. See the new page "Reliable commands" in the
-  documentation. In the test rig with 48 bots and a ring of 16
-  the guard cut the commands that arrive at a full ring from about 4000 to about 900 without losing any.
+  documentation. Waiting `print` commands of one client are merged into one command of up to 980 characters, so a burst
+  of console lines takes fewer places of the ring (`qlx_reliableMergePrints 0` switches that off). In the test rig with
+  48 bots and a ring of 16 the guard cut the commands that arrive at a full ring from about 4000 to about 900 without losing any.
 * **New cvar `qlx_noDebugEvents`** lists the events that do not write a `debug` line to `shinqlx.log`. It replaces the
   built-in list (`frame`, `set_configstring`, `stats`, `server_command`, `death`, `kill`, `command`, `console_print`,
   `damage`, plus the new `cvar_changed`, `item_touch` and `weapon_fired`); an empty value logs all events.

@@ -35,6 +35,11 @@ pub(crate) const BURST_CVAR: &str = "qlx_reliableBurst";
 pub(crate) const RING_CVAR: &str = "qlx_reliableRing";
 /// The cvar for the most deferrable commands that go out to all clients together in a frame.
 pub(crate) const GLOBAL_BURST_CVAR: &str = "qlx_reliableGlobalBurst";
+/// The cvar that lets held `print` commands of a client be merged into one command.
+pub(crate) const MERGE_PRINTS_CVAR: &str = "qlx_reliableMergePrints";
+
+/// The most characters of text in a merged `print` command; the engine drops a command of 1023 bytes or more.
+const PRINT_PAYLOAD_MAX: usize = 980;
 
 /// The values of the cvars.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +49,7 @@ pub(crate) struct GuardSettings {
     pub(crate) burst: usize,
     pub(crate) ring: i32,
     pub(crate) global_burst: usize,
+    pub(crate) merge_prints: bool,
 }
 
 impl GuardSettings {
@@ -53,7 +59,14 @@ impl GuardSettings {
         burst: 8,
         ring: RELIABLE_RING,
         global_burst: 64,
+        merge_prints: true,
     };
+
+    /// The same settings with the merging of held prints switched on or off.
+    pub(crate) const fn with_merge_prints(mut self, merge_prints: bool) -> Self {
+        self.merge_prints = merge_prints;
+        self
+    }
 
     /// Takes the cvar values and keeps them in the range the ring allows.
     pub(crate) fn from_values(
@@ -70,6 +83,7 @@ impl GuardSettings {
             burst: usize::try_from(burst.clamp(1, 32)).unwrap_or(1),
             ring,
             global_burst: usize::try_from(global_burst.clamp(8, 1024)).unwrap_or(8),
+            merge_prints: true,
         }
     }
 }
@@ -94,6 +108,7 @@ pub(crate) struct GuardStats {
     pub(crate) peak_queue: u64,
     pub(crate) at_ring: u64,
     pub(crate) held_by_global: u64,
+    pub(crate) merged: u64,
 }
 
 #[derive(Debug, Default)]
@@ -106,6 +121,19 @@ struct Counters {
     peak_queue: AtomicU64,
     at_ring: AtomicU64,
     held_by_global: AtomicU64,
+    merged: AtomicU64,
+}
+
+/// The text of a `print` command, `None` for another command or a text that holds a quote.
+fn print_payload(command: &str) -> Option<&str> {
+    let text = command.strip_prefix("print \"")?.strip_suffix('"')?;
+    (!text.contains('"')).then_some(text)
+}
+
+/// Two `print` commands as one, if the text of both fits into a single command.
+fn merge_prints(held: &str, next: &str) -> Option<String> {
+    let (first, second) = (print_payload(held)?, print_payload(next)?);
+    (first.len() + second.len() <= PRINT_PAYLOAD_MAX).then(|| format!("print \"{first}{second}\""))
 }
 
 /// The first word of a command.
@@ -148,6 +176,7 @@ impl ReliableGuard {
                 peak_queue: AtomicU64::new(0),
                 at_ring: AtomicU64::new(0),
                 held_by_global: AtomicU64::new(0),
+                merged: AtomicU64::new(0),
             },
             frame_sent: AtomicUsize::new(0),
             rotation: AtomicUsize::new(0),
@@ -202,6 +231,14 @@ impl ReliableGuard {
             self.counters.held_by_global.fetch_add(1, Ordering::Relaxed);
         }
 
+        if settings.merge_prints
+            && let Some((last, _)) = queue.back_mut()
+            && let Some(merged) = merge_prints(last, command)
+        {
+            *last = merged;
+            self.counters.merged.fetch_add(1, Ordering::Relaxed);
+            return Verdict::Held;
+        }
         if queue.len() >= MAX_QUEUED_PER_CLIENT {
             self.counters.passed_through.fetch_add(1, Ordering::Relaxed);
             return Verdict::SendNow;
@@ -299,6 +336,7 @@ impl ReliableGuard {
             peak_queue: self.counters.peak_queue.load(Ordering::Relaxed),
             at_ring: self.counters.at_ring.load(Ordering::Relaxed),
             held_by_global: self.counters.held_by_global.load(Ordering::Relaxed),
+            merged: self.counters.merged.load(Ordering::Relaxed),
         }
     }
 
@@ -312,6 +350,7 @@ impl ReliableGuard {
             &self.counters.peak_queue,
             &self.counters.at_ring,
             &self.counters.held_by_global,
+            &self.counters.merged,
         ]
         .into_iter()
         .for_each(|counter| counter.store(0, Ordering::Relaxed));
@@ -326,7 +365,9 @@ mod reliable_guard_tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
 
-    use super::{GuardSettings, ReliableGuard, Verdict, command_name, is_deferrable};
+    use super::{
+        GuardSettings, MAX_QUEUED_PER_CLIENT, ReliableGuard, Verdict, command_name, is_deferrable,
+    };
 
     const SETTINGS: GuardSettings = GuardSettings {
         enabled: true,
@@ -334,6 +375,7 @@ mod reliable_guard_tests {
         burst: 3,
         ring: 64,
         global_burst: 1000,
+        merge_prints: true,
     };
 
     #[rstest]
@@ -373,6 +415,85 @@ mod reliable_guard_tests {
 
         assert_eq!(guard.submit(0, "castats 0", 32, SETTINGS), Verdict::Held);
         assert!(guard.has_waiting());
+    }
+
+    #[test]
+    fn held_prints_of_a_client_are_merged_into_one_command() {
+        let guard = ReliableGuard::new();
+        guard.submit(0, "print \"one\n\"", 40, SETTINGS);
+
+        assert_eq!(
+            guard.submit(0, "print \"two\n\"", 40, SETTINGS),
+            Verdict::Held
+        );
+        assert_eq!(
+            guard.submit(0, "print \"three\n\"", 40, SETTINGS),
+            Verdict::Held
+        );
+
+        assert_eq!(
+            guard.release(0, 0, SETTINGS),
+            ["print \"one\ntwo\nthree\n\""]
+        );
+        let stats = guard.stats();
+        assert_eq!((stats.held, stats.released, stats.merged), (1, 1, 2));
+    }
+
+    #[test]
+    fn prints_are_only_merged_with_a_print_directly_before() {
+        let guard = ReliableGuard::new();
+        guard.submit(0, "print \"a\"", 40, SETTINGS);
+        guard.submit(0, "chat \"b\"", 40, SETTINGS);
+        guard.submit(0, "print \"c\"", 40, SETTINGS);
+
+        assert_eq!(
+            guard.release(0, 0, SETTINGS),
+            ["print \"a\"", "chat \"b\"", "print \"c\""]
+        );
+        assert_eq!(guard.stats().merged, 0);
+    }
+
+    #[test]
+    fn prints_are_not_merged_beyond_the_size_of_one_command() {
+        let guard = ReliableGuard::new();
+        let long = format!("print \"{}\"", "x".repeat(600));
+        guard.submit(0, &long, 40, SETTINGS);
+        guard.submit(0, &long, 40, SETTINGS);
+
+        assert_eq!(guard.release(0, 0, SETTINGS), [long.clone(), long]);
+    }
+
+    #[test]
+    fn prints_with_a_quote_inside_are_not_merged() {
+        let guard = ReliableGuard::new();
+        guard.submit(0, "print \"a\"", 40, SETTINGS);
+        guard.submit(0, "print \"say \"hi\"\"", 40, SETTINGS);
+
+        assert_eq!(guard.release(0, 0, SETTINGS).len(), 2);
+    }
+
+    #[test]
+    fn the_merging_can_be_switched_off() {
+        let guard = ReliableGuard::new();
+        let settings = SETTINGS.with_merge_prints(false);
+        guard.submit(0, "print \"a\"", 40, settings);
+        guard.submit(0, "print \"b\"", 40, settings);
+
+        assert_eq!(guard.release(0, 0, settings).len(), 2);
+        assert_eq!(guard.stats().merged, 0);
+    }
+
+    #[test]
+    fn a_full_queue_still_takes_up_prints_by_merging() {
+        let guard = ReliableGuard::new();
+        (0..MAX_QUEUED_PER_CLIENT - 1).for_each(|index| {
+            guard.submit(0, &format!("castats {index}"), 40, SETTINGS);
+        });
+        guard.submit(0, "print \"a\"", 40, SETTINGS);
+
+        assert_eq!(guard.submit(0, "print \"b\"", 40, SETTINGS), Verdict::Held);
+        assert_eq!(guard.stats().passed_through, 0);
+        assert_eq!(guard.stats().merged, 1);
     }
 
     #[test]

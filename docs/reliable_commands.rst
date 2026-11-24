@@ -33,7 +33,13 @@ What the guard does
 * The ``server_command`` event is dispatched when the command is sent by the game, not when the guard hands it out.
   A plugin that changes or stops a command sees it at the same moment as without the guard.
 
-The guard does not change the commands. It cannot pace the commands it does not hold back: a flood of configstrings
+The one change the guard makes: ``print`` commands that wait for the same client one after the other are merged into a
+single ``print`` command as long as the text of both fits into one command (980 characters). A merged command takes one
+slot of the ring instead of several, so a burst of console lines costs the client little. The text arrives as before; a
+plugin that listens to ``server_command`` still sees every ``print`` on its own, because the event comes before the guard.
+``qlx_reliableMergePrints 0`` switches the merging off. A ``print`` that has a quote in its text is never merged.
+
+The guard does not change the other commands. It cannot pace the commands it does not hold back: a flood of configstrings
 or of broadcasts to all clients (``None`` as the client) still fills the ring.
 
 Cvars
@@ -66,6 +72,10 @@ it.
      - ``64``
      - 8 to 1024
      - Deferrable commands that go to all clients together in a frame.
+   * - ``qlx_reliableMergePrints``
+     - ``1``
+     -
+     - ``0`` keeps every held ``print`` as its own command, see below.
    * - ``qlx_reliableRing``
      - ``64``
      - 16 to 64
@@ -77,8 +87,8 @@ Console command ``reliable``
 
 ``reliable`` prints the counters since the start or since the last reset::
 
-    Reliable guard: on (watermark 32, burst 8, global burst 64)
-    held 940, released 940, passed through 0, forced 12, peak backlog 36 of 64, peak queue 20, commands at ring size 0, held by the global limit 0
+    Reliable guard: on (watermark 32, burst 8, global burst 64, merge prints on)
+    held 940, released 940, passed through 0, forced 12, peak backlog 36 of 64, peak queue 20, commands at ring size 0, held by the global limit 0, prints merged 310
 
 ``reliable reset`` sets them to zero. The counters:
 
@@ -90,6 +100,7 @@ Console command ``reliable``
 * ``commands at ring size``: commands that were sent to a client whose backlog had reached ``qlx_reliableRing``.
   With a ring of 64 each of them was close to costing the client its connection.
 * ``held by the global limit``: commands that waited because ``qlx_reliableGlobalBurst`` was used up.
+* ``prints merged``: ``print`` commands that were added to a waiting ``print`` instead of taking a place of their own.
 
 Team scoreboards
 ================

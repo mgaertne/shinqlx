@@ -142,6 +142,14 @@ Quake Live servers can be abused as reflectors by forged server queries. shinqlx
 queries (Cargo feature `steam-query-limit`). How it works, how to configure it, and how to combine it with nftables and
 XDP is described in [DDOS-PROTECTION.md](DDOS-PROTECTION.md).
 
+# Large matches
+
+With about 20 or more players the end of a match can overrun the 64 reliable commands the engine keeps per client
+(*a reliable command was cycled out*), and an overlong team scoreboard is thrown away by the engine. shinqlx spreads
+the burst of `castats`, prints and chat over several frames and cuts overlong scoreboards back, both on by default. The
+page "Reliable commands and scoreboards" of the documentation describes the cvars and the console commands `reliable`
+and `scoreboard`.
+
 # Supervisor configuration
 
 I recommend running your ShiNQlx server through a process monitor like `supervisor`. Unfortunately, due to the nature

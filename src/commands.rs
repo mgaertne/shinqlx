@@ -319,11 +319,12 @@ pub extern "C" fn cmd_reliable_guard() {
         let stats = RELIABLE_GUARD.stats();
         let settings = guard_settings();
         main_engine.com_printf(&format!(
-            "Reliable guard: {} (watermark {}, burst {}, global burst {})\nheld {}, released {}, passed through {}, forced {}, peak backlog {} of {}, peak queue {}, commands at ring size {}, held by the global limit {}\n",
+            "Reliable guard: {} (watermark {}, burst {}, global burst {}, merge prints {})\nheld {}, released {}, passed through {}, forced {}, peak backlog {} of {}, peak queue {}, commands at ring size {}, held by the global limit {}, prints merged {}\n",
             if settings.enabled { "on" } else { "off" },
             settings.watermark,
             settings.burst,
             settings.global_burst,
+            if settings.merge_prints { "on" } else { "off" },
             stats.held,
             stats.released,
             stats.passed_through,
@@ -333,6 +334,7 @@ pub extern "C" fn cmd_reliable_guard() {
             stats.peak_queue,
             stats.at_ring,
             stats.held_by_global,
+            stats.merged,
         ));
     });
 }

@@ -12,6 +12,7 @@
 //! * Event-based plugin system
 //! * Game state manipulation
 //! * Player management and permissions
+//! * Guards for large matches: spreads bursts of reliable commands over several frames and trims overlong scoreboards
 //!
 //! ## Usage
 //!

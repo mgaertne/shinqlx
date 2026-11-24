@@ -30,8 +30,8 @@ use crate::{
         SpawnServer, TouchItem,
     },
     reliable_guard::{
-        BURST_CVAR, GLOBAL_BURST_CVAR, GUARD_CVAR, GuardSettings, RELIABLE_GUARD, RING_CVAR,
-        Verdict, WATERMARK_CVAR,
+        BURST_CVAR, GLOBAL_BURST_CVAR, GUARD_CVAR, GuardSettings, MERGE_PRINTS_CVAR,
+        RELIABLE_GUARD, RING_CVAR, Verdict, WATERMARK_CVAR,
     },
     scoreboard_trim::{
         BUDGET_CVAR, FULL_CVAR, LIGHT_CVAR, MIN_CVAR, TRIM_CVAR, TrimSettings, trim,
@@ -738,6 +738,7 @@ static GUARD_WATERMARK: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.waterm
 static GUARD_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.burst as i32);
 static GUARD_RING: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.ring);
 static GUARD_GLOBAL_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.global_burst as i32);
+static GUARD_MERGE_PRINTS: AtomicBool = AtomicBool::new(GuardSettings::DEFAULT.merge_prints);
 static GUARD_FRAMES: AtomicU32 = AtomicU32::new(1);
 
 static TRIM_ENABLED: AtomicBool = AtomicBool::new(TrimSettings::DEFAULT.enabled);
@@ -791,6 +792,7 @@ pub(crate) fn guard_settings() -> GuardSettings {
         GUARD_RING.load(Ordering::Relaxed),
         GUARD_GLOBAL_BURST.load(Ordering::Relaxed),
     )
+    .with_merge_prints(GUARD_MERGE_PRINTS.load(Ordering::Relaxed))
 }
 
 fn refresh_guard_settings(main_engine: &QuakeLiveEngine) {
@@ -822,6 +824,13 @@ fn refresh_guard_settings(main_engine: &QuakeLiveEngine) {
     GUARD_BURST.store(settings.burst as i32, Ordering::Relaxed);
     GUARD_RING.store(settings.ring, Ordering::Relaxed);
     GUARD_GLOBAL_BURST.store(settings.global_burst as i32, Ordering::Relaxed);
+    GUARD_MERGE_PRINTS.store(
+        value_of(
+            MERGE_PRINTS_CVAR,
+            i32::from(GuardSettings::DEFAULT.merge_prints),
+        ) != 0,
+        Ordering::Relaxed,
+    );
 }
 
 /// Hands the commands that the guard held back to the clients whose ring has room again.
