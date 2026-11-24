@@ -1,10 +1,17 @@
-//! Makes sure that a crashed server ends, so that a process monitor can restart it.
+//! Makes sure that a crashed or terminated server ends, so that a process monitor can restart it.
 //!
-//! The engine installs its own `SIGSEGV` handler during its start and replaces any earlier one, so this has to be
-//! registered afterwards. [`install`] is cheap and does nothing while the handler is in place, so the hooks that run
-//! after the start of the engine call it. The handler arms an alarm and then calls the one of the engine. If that one
-//! does not finish in [`GRACE_SECONDS`], for example because its cleanup waits for a thread, the alarm ends the
-//! process with the signal and a core dump.
+//! The engine installs its own signal handlers during its start and replaces any earlier ones, so the guards have to be
+//! registered afterwards. [`install`] is cheap and does nothing while the guards are in place, so the hooks that run
+//! after the start of the engine call it.
+//!
+//! The guard of `SIGSEGV` arms an alarm and then calls the handler of the engine. If that one does not finish in
+//! [`CRASH_GRACE_SECONDS`], for example because its cleanup waits for a thread, the alarm ends the process with the
+//! signal and a core dump.
+//!
+//! The handler of the engine for `SIGTERM` and `SIGINT` only sets two flags, and with the ZMQ rcon enabled the server
+//! does not end on them. The guard of these signals calls the handler of the engine, asks the frame hook for the `quit`
+//! command through [`take_terminate_request`] and arms an alarm that ends the process after
+//! [`TERMINATE_GRACE_SECONDS`] if the server is still there, for example while it loads a map.
 
 use core::{
     ffi::{c_int, c_void},
@@ -14,58 +21,107 @@ use core::{
 use std::io;
 
 use signal_hook::{
-    consts::{SIGALRM, SIGSEGV},
+    consts::{SIGALRM, SIGINT, SIGSEGV, SIGTERM},
     low_level::emulate_default_handler,
 };
 use signal_hook_registry::register_signal_unchecked;
 
-/// How long the handler of the engine may take before the process is ended.
-const GRACE_SECONDS: libc::c_uint = 10;
+/// How long the handler of the engine may take after a crash before the process is ended.
+const CRASH_GRACE_SECONDS: libc::c_uint = 10;
+/// How long the server may take to end after `SIGTERM` or `SIGINT` before the process is ended.
+const TERMINATE_GRACE_SECONDS: libc::c_uint = 30;
 
 static CRASHING: AtomicBool = AtomicBool::new(false);
+static TERMINATING: AtomicBool = AtomicBool::new(false);
+static TERMINATE_REQUESTED: AtomicBool = AtomicBool::new(false);
 static ALARM_REGISTERED: AtomicBool = AtomicBool::new(false);
-static ENGINE_ADDRESS: AtomicUsize = AtomicUsize::new(libc::SIG_DFL);
-static ENGINE_FLAGS: AtomicUsize = AtomicUsize::new(0);
 
 type SigInfoHandler = extern "C" fn(c_int, *mut libc::siginfo_t, *mut c_void);
 type PlainHandler = extern "C" fn(c_int);
 
-extern "C" fn on_segv(signal: c_int, info: *mut libc::siginfo_t, context: *mut c_void) {
-    CRASHING.store(true, Ordering::Release);
-    // SAFETY: `alarm` is async-signal-safe.
-    unsafe { libc::alarm(GRACE_SECONDS) };
+/// The handler that the engine had registered for a signal before the guard replaced it.
+struct EngineHandler {
+    address: AtomicUsize,
+    flags: AtomicUsize,
+}
 
-    let address = ENGINE_ADDRESS.load(Ordering::Acquire);
-    let flags = ENGINE_FLAGS.load(Ordering::Acquire);
-    if address == libc::SIG_DFL || address == libc::SIG_IGN {
-        let _ = emulate_default_handler(signal);
-    } else if flags & libc::SA_SIGINFO as usize != 0 {
-        // SAFETY: the engine registered this address as a handler with three arguments.
-        unsafe { mem::transmute::<usize, SigInfoHandler>(address)(signal, info, context) };
-    } else {
-        // SAFETY: the engine registered this address as a handler with one argument.
-        unsafe { mem::transmute::<usize, PlainHandler>(address)(signal) };
+impl EngineHandler {
+    const fn new() -> Self {
+        Self {
+            address: AtomicUsize::new(libc::SIG_DFL),
+            flags: AtomicUsize::new(0),
+        }
+    }
+
+    fn remember(&self, action: &libc::sigaction) {
+        self.flags
+            .store(action.sa_flags as usize, Ordering::Release);
+        self.address.store(action.sa_sigaction, Ordering::Release);
+    }
+
+    fn call(&self, signal: c_int, info: *mut libc::siginfo_t, context: *mut c_void) {
+        let address = self.address.load(Ordering::Acquire);
+        let flags = self.flags.load(Ordering::Acquire);
+        if address == libc::SIG_DFL || address == libc::SIG_IGN {
+            let _ = emulate_default_handler(signal);
+        } else if flags & libc::SA_SIGINFO as usize != 0 {
+            // SAFETY: the engine registered this address as a handler with three arguments.
+            unsafe { mem::transmute::<usize, SigInfoHandler>(address)(signal, info, context) };
+        } else {
+            // SAFETY: the engine registered this address as a handler with one argument.
+            unsafe { mem::transmute::<usize, PlainHandler>(address)(signal) };
+        }
     }
 }
 
-fn register_segv_handler() -> io::Result<()> {
+static SEGV_ENGINE: EngineHandler = EngineHandler::new();
+static TERM_ENGINE: EngineHandler = EngineHandler::new();
+static INT_ENGINE: EngineHandler = EngineHandler::new();
+
+fn engine_handler_for(signal: c_int) -> &'static EngineHandler {
+    match signal {
+        SIGSEGV => &SEGV_ENGINE,
+        SIGTERM => &TERM_ENGINE,
+        _ => &INT_ENGINE,
+    }
+}
+
+extern "C" fn on_segv(signal: c_int, info: *mut libc::siginfo_t, context: *mut c_void) {
+    CRASHING.store(true, Ordering::Release);
+    // SAFETY: `alarm` is async-signal-safe.
+    unsafe { libc::alarm(CRASH_GRACE_SECONDS) };
+
+    engine_handler_for(signal).call(signal, info, context);
+}
+
+extern "C" fn on_terminate(signal: c_int, info: *mut libc::siginfo_t, context: *mut c_void) {
+    TERMINATING.store(true, Ordering::Release);
+    TERMINATE_REQUESTED.store(true, Ordering::Release);
+    if !CRASHING.load(Ordering::Acquire) {
+        // SAFETY: `alarm` is async-signal-safe.
+        unsafe { libc::alarm(TERMINATE_GRACE_SECONDS) };
+    }
+
+    engine_handler_for(signal).call(signal, info, context);
+}
+
+fn guard(signal: c_int, handler: SigInfoHandler) -> io::Result<()> {
     // SAFETY: all-zero is a valid `sigaction`, and `sigaction` is called with valid pointers.
     unsafe {
         let mut current: libc::sigaction = mem::zeroed();
-        if libc::sigaction(SIGSEGV, core::ptr::null(), &raw mut current) != 0 {
+        if libc::sigaction(signal, core::ptr::null(), &raw mut current) != 0 {
             return Err(io::Error::last_os_error());
         }
-        if current.sa_sigaction == on_segv as SigInfoHandler as usize {
+        if current.sa_sigaction == handler as usize {
             return Ok(());
         }
-        ENGINE_FLAGS.store(current.sa_flags as usize, Ordering::Release);
-        ENGINE_ADDRESS.store(current.sa_sigaction, Ordering::Release);
+        engine_handler_for(signal).remember(&current);
 
         let mut guard: libc::sigaction = mem::zeroed();
-        guard.sa_sigaction = on_segv as SigInfoHandler as usize;
+        guard.sa_sigaction = handler as usize;
         guard.sa_flags = libc::SA_SIGINFO | libc::SA_NODEFER;
         libc::sigemptyset(&raw mut guard.sa_mask);
-        if libc::sigaction(SIGSEGV, &raw const guard, core::ptr::null_mut()) != 0 {
+        if libc::sigaction(signal, &raw const guard, core::ptr::null_mut()) != 0 {
             return Err(io::Error::last_os_error());
         }
     }
@@ -73,7 +129,7 @@ fn register_segv_handler() -> io::Result<()> {
     Ok(())
 }
 
-/// Puts the guard in front of the current `SIGSEGV` handler, unless it already is.
+/// Puts the guards in front of the current handlers of `SIGSEGV`, `SIGTERM` and `SIGINT`, unless they already are.
 #[cfg_attr(
     test,
     allow(
@@ -82,17 +138,60 @@ fn register_segv_handler() -> io::Result<()> {
     )
 )]
 pub(crate) fn install() -> io::Result<()> {
-    register_segv_handler()?;
+    guard(SIGSEGV, on_segv)?;
+    guard(SIGTERM, on_terminate)?;
+    guard(SIGINT, on_terminate)?;
     if !ALARM_REGISTERED.swap(true, Ordering::AcqRel) {
-        // SAFETY: the action only uses an atomic and `emulate_default_handler`, which are async-signal-safe.
+        // SAFETY: the action only uses atomics and `emulate_default_handler`, which are async-signal-safe.
         unsafe {
             register_signal_unchecked(SIGALRM, || {
                 if CRASHING.load(Ordering::Acquire) {
                     let _ = emulate_default_handler(SIGSEGV);
+                } else if TERMINATING.load(Ordering::Acquire) {
+                    let _ = emulate_default_handler(SIGTERM);
                 }
             })?;
         }
     }
 
     Ok(())
+}
+
+/// Whether the server was asked to end by a signal since the last call. It is meant for the frame hook, which then
+/// executes the `quit` command.
+#[cfg_attr(
+    test,
+    allow(
+        dead_code,
+        reason = "only called from the running game process, not from tests"
+    )
+)]
+pub(crate) fn take_terminate_request() -> bool {
+    TERMINATE_REQUESTED.swap(false, Ordering::AcqRel)
+}
+
+#[cfg(test)]
+mod crash_guard_tests {
+    use core::sync::atomic::Ordering;
+
+    use serial_test::serial;
+
+    use super::{TERMINATE_REQUESTED, take_terminate_request};
+
+    #[test]
+    #[serial]
+    fn a_terminate_request_is_reported_once() {
+        TERMINATE_REQUESTED.store(true, Ordering::Release);
+
+        assert!(take_terminate_request());
+        assert!(!take_terminate_request());
+    }
+
+    #[test]
+    #[serial]
+    fn without_a_signal_there_is_no_terminate_request() {
+        TERMINATE_REQUESTED.store(false, Ordering::Release);
+
+        assert!(!take_terminate_request());
+    }
 }

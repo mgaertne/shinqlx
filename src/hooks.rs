@@ -37,9 +37,9 @@ use crate::{
     ffi::{c::prelude::*, python::prelude::*},
     prelude::*,
     quake_live_engine::{
-        AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ExecuteClientCommand,
-        InitGame, RegisterDamage, RunFrame, SendServerCommand, SetConfigstring, SetModuleOffset,
-        ShutdownGame, SpawnServer,
+        AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ConsoleCommand,
+        ExecuteClientCommand, InitGame, RegisterDamage, RunFrame, SendServerCommand,
+        SetConfigstring, SetModuleOffset, ShutdownGame, SpawnServer,
     },
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
@@ -63,6 +63,17 @@ fn guard_against_hanging_crash(func: &str) {
 
 #[cfg(any(not(unix), test))]
 fn guard_against_hanging_crash(_func: &str) {}
+
+/// With the ZMQ rcon enabled the engine does not end on `SIGTERM` or `SIGINT`, so the frame asks it to quit.
+#[cfg(all(unix, not(test)))]
+fn terminate_requested() -> bool {
+    crate::crash_guard::take_terminate_request()
+}
+
+#[cfg(any(not(unix), test))]
+fn terminate_requested() -> bool {
+    false
+}
 
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
@@ -693,6 +704,11 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
 
 pub(crate) fn shinqlx_g_runframe(time: c_int) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        if terminate_requested() {
+            info!(target: "shinqlx", "Received a termination signal, quitting the server.");
+            main_engine.execute_console_command("quit");
+        }
+
         frame_dispatcher();
 
         main_engine.run_frame(time);
