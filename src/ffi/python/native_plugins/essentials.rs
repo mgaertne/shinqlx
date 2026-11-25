@@ -27,7 +27,9 @@ use crate::ffi::python::{
     handlers::{PrintRedirectorMethods, redirect_print},
     is_vote_active, lock, pause,
     plugin::{PluginMethods, chat},
-    pyshinqlx_force_vote, pyshinqlx_owner, shuffle, unlock, unpause,
+    pyshinqlx_force_vote, pyshinqlx_owner, shuffle,
+    string_enums::VoteType,
+    unlock, unpause,
 };
 
 mod bookkeeping;
@@ -219,9 +221,9 @@ impl Essentials {
         args: &str,
     ) -> PyResult<Option<i32>> {
         let py = slf.py();
-        let vote = vote.to_lowercase();
+        let vote = VoteType::from(vote.to_lowercase().as_str());
 
-        if vote == "teamsize" {
+        if vote == VoteType::Teamsize {
             let Ok(size) = args.trim().parse::<i64>() else {
                 return Ok(None);
             };
@@ -242,7 +244,7 @@ impl Essentials {
         }
 
         if let Some(mappool) = &slf.get().mappool
-            && vote == "map"
+            && vote == VoteType::Map
             && cvar_flag("qlx_enforceMappool")?
         {
             let mut split_args = args.split_whitespace();

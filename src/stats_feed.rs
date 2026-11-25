@@ -208,7 +208,10 @@ mod linux {
     }
 
     extern "C" fn shinqlx_match_report(value: *const c_void) {
-        queue_value("MATCH_REPORT", value);
+        queue_value(
+            crate::ffi::python::string_enums::StatsType::MatchReport.as_str(),
+            value,
+        );
 
         if let Some(detour) = REPORT_DETOUR.get() {
             detour.call(value);
