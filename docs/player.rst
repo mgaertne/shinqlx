@@ -141,6 +141,54 @@ Players
       The holdable of the player as the name of a :class:`Holdable`. Assign a name or a :class:`Holdable` member, or
       ``None`` to take it away.
 
+   .. property:: location
+      :type: Vector3
+
+      .. shinqlx-only::
+
+      Where the player is. Assign a :class:`Vector3` to teleport the player. The method :meth:`position` reads and
+      writes the same value.
+
+   .. property:: speed
+      :type: Vector3
+
+      .. shinqlx-only::
+
+      The velocity of the player. Assign a :class:`Vector3` to change it. The method :meth:`velocity` reads and writes
+      the same value.
+
+   .. property:: weapon_loadout
+      :type: Weapons
+
+      .. shinqlx-only::
+
+      The weapons that the player carries. Assign a :class:`Weapons` object to change them. The method :meth:`weapons`
+      reads and writes the same value.
+
+   .. property:: ammo_counts
+      :type: Weapons
+
+      .. shinqlx-only::
+
+      How much ammunition the player has for each weapon. Assign a :class:`Weapons` object to change it. The method
+      :meth:`ammo` reads and writes the same value.
+
+   .. property:: powerup_times
+      :type: Powerups
+
+      .. shinqlx-only::
+
+      How long each powerup of the player lasts. Assign a :class:`Powerups` object to change it. The method
+      :meth:`powerups` reads and writes the same value.
+
+   .. property:: flight_state
+      :type: Flight
+
+      .. shinqlx-only::
+
+      The flight parameters of the player. Assigning a :class:`Flight` object gives the player the flight holdable first,
+      if they do not have it. The method :meth:`flight` reads and writes the same value.
+
    .. property:: noclip
       :type: bool
 

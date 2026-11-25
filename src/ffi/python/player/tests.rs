@@ -6248,3 +6248,137 @@ fn all_players_for_existing_clients(_pyshinqlx_setup: ()) {
         );
     });
 }
+
+fn state_mock_client() -> MockGameClient {
+    let mut mock_game_client = MockGameClient::new();
+    mock_game_client.expect_is_alive();
+    mock_game_client.expect_get_armor();
+    mock_game_client.expect_get_noclip();
+    mock_game_client
+        .expect_get_weapon()
+        .returning(|| weapon_t::WP_ROCKET_LAUNCHER);
+    mock_game_client.expect_get_weapons();
+    mock_game_client.expect_get_ammos();
+    mock_game_client.expect_get_powerups();
+    mock_game_client.expect_get_holdable();
+    mock_game_client.expect_is_chatting();
+    mock_game_client.expect_is_frozen();
+    mock_game_client
+}
+
+#[rstest]
+#[case::location(true, Vector3(1, 2, 3))]
+#[case::speed(false, Vector3(4, 5, 6))]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn get_location_and_get_speed_return_the_vectors_of_the_state(
+    _pyshinqlx_setup: (),
+    #[case] location: bool,
+    #[case] expected: Vector3,
+) {
+    MockGameEntityBuilder::default()
+        .with_health(0, 1..)
+        .with_game_client(|| {
+            let mut mock_game_client = state_mock_client();
+            mock_game_client
+                .expect_get_position()
+                .returning(|| (1.0, 2.0, 3.0));
+            mock_game_client
+                .expect_get_velocity()
+                .returning(|| (4.0, 5.0, 6.0));
+            mock_game_client.expect_get_current_flight_fuel();
+            mock_game_client.expect_get_max_flight_fuel();
+            mock_game_client.expect_get_flight_thrust();
+            mock_game_client.expect_get_flight_refuel();
+            Ok(mock_game_client)
+        })
+        .run(predicate::always(), || {
+            MockEngineBuilder::default().with_max_clients(16).run(|| {
+                Python::attach(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = if location {
+                        player.get_location()
+                    } else {
+                        player.get_speed()
+                    };
+                    assert_eq!(result.expect("result was not Ok"), expected);
+                });
+            });
+        });
+}
+
+#[rstest]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn get_flight_state_returns_the_flight_of_the_state(_pyshinqlx_setup: ()) {
+    MockGameEntityBuilder::default()
+        .with_health(0, 1..)
+        .with_game_client(|| {
+            let mut mock_game_client = state_mock_client();
+            mock_game_client.expect_get_position();
+            mock_game_client.expect_get_velocity();
+            mock_game_client
+                .expect_get_current_flight_fuel()
+                .returning(|| 1);
+            mock_game_client
+                .expect_get_max_flight_fuel()
+                .returning(|| 2);
+            mock_game_client.expect_get_flight_thrust().returning(|| 3);
+            mock_game_client.expect_get_flight_refuel().returning(|| 4);
+            Ok(mock_game_client)
+        })
+        .run(predicate::always(), || {
+            MockEngineBuilder::default().with_max_clients(16).run(|| {
+                Python::attach(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    assert_eq!(
+                        player.get_flight_state().expect("result was not Ok"),
+                        Flight(1, 2, 3, 4)
+                    );
+                });
+            });
+        });
+}
+
+#[rstest]
+#[case::location(true)]
+#[case::speed(false)]
+#[cfg_attr(miri, ignore)]
+#[serial]
+fn set_location_and_set_speed_write_the_vectors(_pyshinqlx_setup: (), #[case] location: bool) {
+    MockGameEntityBuilder::default()
+        .with_game_client(move || {
+            let mut mock_game_client = MockGameClient::new();
+            if location {
+                mock_game_client
+                    .expect_set_position()
+                    .with(predicate::eq((7.0, 8.0, 9.0)))
+                    .times(1);
+            } else {
+                mock_game_client
+                    .expect_set_velocity()
+                    .with(predicate::eq((7.0, 8.0, 9.0)))
+                    .times(1);
+            }
+            Ok(mock_game_client)
+        })
+        .run(predicate::always(), || {
+            MockEngineBuilder::default().with_max_clients(16).run(|| {
+                Python::attach(|py| {
+                    let player =
+                        Bound::new(py, default_test_player()).expect("this should not happen");
+
+                    let result = if location {
+                        player.set_location(&Vector3(7, 8, 9))
+                    } else {
+                        player.set_speed(&Vector3(7, 8, 9))
+                    };
+                    assert!(result.is_ok_and(|ok| ok));
+                });
+            });
+        });
+}

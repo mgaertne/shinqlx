@@ -9,7 +9,10 @@ use super::{
     super::{prelude::pyshinqlx_setup, pyshinqlx_test_support::default_test_player},
     NonexistentPlayerError, Player,
 };
-use crate::prelude::*;
+use crate::{
+    ffi::python::{Flight, Powerups, Vector3, Weapons},
+    prelude::*,
+};
 
 fn player(py: Python<'_>) -> Bound<'_, Player> {
     Bound::new(py, default_test_player()).expect("this should not happen")
@@ -20,6 +23,24 @@ fn value_for<'py>(py: Python<'py>, property: &str) -> Bound<'py, PyAny> {
         "cvars" => PyDict::new(py).into_any(),
         "colors" => PyTuple::new(py, [1, 2])
             .expect("this should not happen")
+            .into_any(),
+        "location" | "speed" => Py::new(py, Vector3(1, 2, 3))
+            .expect("this should not happen")
+            .into_bound(py)
+            .into_any(),
+        "weapon_loadout" | "ammo_counts" => {
+            Py::new(py, Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+                .expect("this should not happen")
+                .into_bound(py)
+                .into_any()
+        }
+        "powerup_times" => Py::new(py, Powerups(0, 0, 0, 0, 0, 0))
+            .expect("this should not happen")
+            .into_bound(py)
+            .into_any(),
+        "flight_state" => Py::new(py, Flight(0, 0, 0, 0))
+            .expect("this should not happen")
+            .into_bound(py)
             .into_any(),
         "handicap" | "autohop" | "autoaction" | "predictitems" | "health" | "armor" | "score" => {
             PyInt::new(py, 10).into_any()
@@ -106,6 +127,12 @@ fn userinfo_properties_without_the_key_raise_a_key_error(
 #[case("is_frozen")]
 #[case("is_chatting")]
 #[case("score")]
+#[case("location")]
+#[case("speed")]
+#[case("weapon_loadout")]
+#[case("ammo_counts")]
+#[case("powerup_times")]
+#[case("flight_state")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn engine_properties_raise_an_environment_error_without_the_engine(
@@ -143,6 +170,12 @@ fn engine_properties_raise_an_environment_error_without_the_engine(
 #[case("armor")]
 #[case("is_alive")]
 #[case("score")]
+#[case("location")]
+#[case("speed")]
+#[case("weapon_loadout")]
+#[case("ammo_counts")]
+#[case("powerup_times")]
+#[case("flight_state")]
 #[cfg_attr(miri, ignore)]
 #[serial]
 fn writing_properties_raises_an_environment_error_without_the_engine(

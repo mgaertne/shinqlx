@@ -522,6 +522,66 @@ impl Player {
         slf.flight(reset, kwargs)
     }
 
+    #[getter(location)]
+    fn get_location(slf: &Bound<'_, Self>) -> PyResult<Vector3> {
+        slf.get_location()
+    }
+
+    #[setter(location)]
+    fn set_location(slf: &Bound<'_, Self>, value: Vector3) -> PyResult<()> {
+        slf.set_location(&value).map(|_| ())
+    }
+
+    #[getter(speed)]
+    fn get_speed(slf: &Bound<'_, Self>) -> PyResult<Vector3> {
+        slf.get_speed()
+    }
+
+    #[setter(speed)]
+    fn set_speed(slf: &Bound<'_, Self>, value: Vector3) -> PyResult<()> {
+        slf.set_speed(&value).map(|_| ())
+    }
+
+    #[getter(weapon_loadout)]
+    fn get_weapon_loadout(slf: &Bound<'_, Self>) -> PyResult<Weapons> {
+        slf.get_weapon_loadout()
+    }
+
+    #[setter(weapon_loadout)]
+    fn set_weapon_loadout(slf: &Bound<'_, Self>, value: Weapons) -> PyResult<()> {
+        slf.set_weapon_loadout(&value).map(|_| ())
+    }
+
+    #[getter(ammo_counts)]
+    fn get_ammo_counts(slf: &Bound<'_, Self>) -> PyResult<Weapons> {
+        slf.get_ammo_counts()
+    }
+
+    #[setter(ammo_counts)]
+    fn set_ammo_counts(slf: &Bound<'_, Self>, value: Weapons) -> PyResult<()> {
+        slf.set_ammo_counts(&value).map(|_| ())
+    }
+
+    #[getter(powerup_times)]
+    fn get_powerup_times(slf: &Bound<'_, Self>) -> PyResult<Powerups> {
+        slf.get_powerup_times()
+    }
+
+    #[setter(powerup_times)]
+    fn set_powerup_times(slf: &Bound<'_, Self>, value: Powerups) -> PyResult<()> {
+        slf.set_powerup_times(&value).map(|_| ())
+    }
+
+    #[getter(flight_state)]
+    fn get_flight_state(slf: &Bound<'_, Self>) -> PyResult<Flight> {
+        slf.get_flight_state()
+    }
+
+    #[setter(flight_state)]
+    fn set_flight_state(slf: &Bound<'_, Self>, value: Flight) -> PyResult<()> {
+        slf.set_flight_state(&value).map(|_| ())
+    }
+
     #[getter(noclip)]
     fn get_noclip(slf: &Bound<'_, Self>) -> PyResult<bool> {
         slf.get_noclip()
@@ -854,6 +914,18 @@ pub(crate) trait PlayerMethods<'py> {
         reset: bool,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<StateReading<Flight>>;
+    fn get_location(&self) -> PyResult<Vector3>;
+    fn set_location(&self, value: &Vector3) -> PyResult<bool>;
+    fn get_speed(&self) -> PyResult<Vector3>;
+    fn set_speed(&self, value: &Vector3) -> PyResult<bool>;
+    fn get_weapon_loadout(&self) -> PyResult<Weapons>;
+    fn set_weapon_loadout(&self, value: &Weapons) -> PyResult<bool>;
+    fn get_ammo_counts(&self) -> PyResult<Weapons>;
+    fn set_ammo_counts(&self, value: &Weapons) -> PyResult<bool>;
+    fn get_powerup_times(&self) -> PyResult<Powerups>;
+    fn set_powerup_times(&self, value: &Powerups) -> PyResult<bool>;
+    fn get_flight_state(&self) -> PyResult<Flight>;
+    fn set_flight_state(&self, value: &Flight) -> PyResult<bool>;
     fn get_noclip(&self) -> PyResult<bool>;
     fn set_noclip(&self, value: &Bound<'py, PyAny>) -> PyResult<()>;
     fn get_health(&self) -> PyResult<i32>;
@@ -1250,8 +1322,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let pos = if reset {
             Vector3(0, 0, 0)
         } else {
-            pyshinqlx_player_state(self.py(), self.get().id)?
-                .map_or(Vector3(0, 0, 0), |state| state.position)
+            self.get_location()?
         };
 
         let Some(py_kwargs) = kwargs else {
@@ -1263,7 +1334,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             kwarg_or(py_kwargs, "z", pos.2)?,
         );
 
-        pyshinqlx_set_position(self.py(), self.get().id, &vector).map(StateReading::Written)
+        self.set_location(&vector).map(StateReading::Written)
     }
 
     fn velocity(
@@ -1274,8 +1345,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let vel = if reset {
             Vector3(0, 0, 0)
         } else {
-            pyshinqlx_player_state(self.py(), self.get().id)?
-                .map_or(Vector3(0, 0, 0), |state| state.velocity)
+            self.get_speed()?
         };
 
         let Some(py_kwargs) = kwargs else {
@@ -1287,7 +1357,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
             kwarg_or(py_kwargs, "z", vel.2)?,
         );
 
-        pyshinqlx_set_velocity(self.py(), self.get().id, &vector).map(StateReading::Written)
+        self.set_speed(&vector).map(StateReading::Written)
     }
 
     fn weapons(
@@ -1298,10 +1368,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let weaps = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
-            pyshinqlx_player_state(self.py(), self.get().id)?.map_or(
-                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                |state| state.weapons,
-            )
+            self.get_weapon_loadout()?
         };
 
         let Some(py_kwargs) = kwargs else {
@@ -1309,7 +1376,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         };
         let weapons = weapons_from_kwargs(py_kwargs, &weaps)?;
 
-        pyshinqlx_set_weapons(self.py(), self.get().id, &weapons).map(StateReading::Written)
+        self.set_weapon_loadout(&weapons).map(StateReading::Written)
     }
 
     fn weapon(&self, new_weapon: Option<Bound<'py, PyAny>>) -> PyResult<StateReading<i32>> {
@@ -1354,10 +1421,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let ammos = if reset {
             Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         } else {
-            pyshinqlx_player_state(self.py(), self.get().id)?.map_or(
-                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                |state| state.ammo,
-            )
+            self.get_ammo_counts()?
         };
 
         let Some(py_kwargs) = kwargs else {
@@ -1365,7 +1429,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         };
         let weapons = weapons_from_kwargs(py_kwargs, &ammos)?;
 
-        pyshinqlx_set_ammo(self.py(), self.get().id, &weapons).map(StateReading::Written)
+        self.set_ammo_counts(&weapons).map(StateReading::Written)
     }
 
     fn powerups(
@@ -1376,8 +1440,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         let powerups = if reset {
             Powerups(0, 0, 0, 0, 0, 0)
         } else {
-            pyshinqlx_player_state(self.py(), self.get().id)?
-                .map_or(Powerups(0, 0, 0, 0, 0, 0), |state| state.powerups)
+            self.get_powerup_times()?
         };
 
         let Some(py_kwargs) = kwargs else {
@@ -1385,7 +1448,8 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         };
         let new_powerups = powerups_from_kwargs(py_kwargs, &powerups)?;
 
-        pyshinqlx_set_powerups(self.py(), self.get().id, &new_powerups).map(StateReading::Written)
+        self.set_powerup_times(&new_powerups)
+            .map(StateReading::Written)
     }
 
     fn get_holdable(&self) -> PyResult<Option<String>> {
@@ -1448,6 +1512,73 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
         );
 
         pyshinqlx_set_flight(self.py(), self.get().id, &new_flight).map(StateReading::Written)
+    }
+
+    fn get_location(&self) -> PyResult<Vector3> {
+        pyshinqlx_player_state(self.py(), self.get().id)
+            .map(|opt_state| opt_state.map_or(Vector3(0, 0, 0), |state| state.position))
+    }
+
+    fn set_location(&self, value: &Vector3) -> PyResult<bool> {
+        pyshinqlx_set_position(self.py(), self.get().id, value)
+    }
+
+    fn get_speed(&self) -> PyResult<Vector3> {
+        pyshinqlx_player_state(self.py(), self.get().id)
+            .map(|opt_state| opt_state.map_or(Vector3(0, 0, 0), |state| state.velocity))
+    }
+
+    fn set_speed(&self, value: &Vector3) -> PyResult<bool> {
+        pyshinqlx_set_velocity(self.py(), self.get().id, value)
+    }
+
+    fn get_weapon_loadout(&self) -> PyResult<Weapons> {
+        pyshinqlx_player_state(self.py(), self.get().id).map(|opt_state| {
+            opt_state.map_or(
+                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                |state| state.weapons,
+            )
+        })
+    }
+
+    fn set_weapon_loadout(&self, value: &Weapons) -> PyResult<bool> {
+        pyshinqlx_set_weapons(self.py(), self.get().id, value)
+    }
+
+    fn get_ammo_counts(&self) -> PyResult<Weapons> {
+        pyshinqlx_player_state(self.py(), self.get().id).map(|opt_state| {
+            opt_state.map_or(
+                Weapons(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                |state| state.ammo,
+            )
+        })
+    }
+
+    fn set_ammo_counts(&self, value: &Weapons) -> PyResult<bool> {
+        pyshinqlx_set_ammo(self.py(), self.get().id, value)
+    }
+
+    fn get_powerup_times(&self) -> PyResult<Powerups> {
+        pyshinqlx_player_state(self.py(), self.get().id)
+            .map(|opt_state| opt_state.map_or(Powerups(0, 0, 0, 0, 0, 0), |state| state.powerups))
+    }
+
+    fn set_powerup_times(&self, value: &Powerups) -> PyResult<bool> {
+        pyshinqlx_set_powerups(self.py(), self.get().id, value)
+    }
+
+    fn get_flight_state(&self) -> PyResult<Flight> {
+        pyshinqlx_player_state(self.py(), self.get().id)
+            .map(|opt_state| opt_state.map_or(Flight(0, 0, 0, 0), |state| state.flight))
+    }
+
+    fn set_flight_state(&self, value: &Flight) -> PyResult<bool> {
+        let has_flight_holdable = pyshinqlx_player_state(self.py(), self.get().id)?
+            .is_some_and(|state| state.holdable == Holdable::Flight);
+        if !has_flight_holdable {
+            self.set_holdable(Some("flight"))?;
+        }
+        pyshinqlx_set_flight(self.py(), self.get().id, value)
     }
 
     fn get_noclip(&self) -> PyResult<bool> {

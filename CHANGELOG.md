@@ -49,6 +49,11 @@ Changes since 0.8.0.
   moved behind the new Cargo feature `zmq-stats`, which is off by default; `minqlx.StatsListener` and
   `minqlx.stats_listener` are gone without it. With the feature the listener runs when `zmq_stats_enable` is set, and
   the hook stays silent then. The warning "Some events will not work because ZMQ stats is not enabled" is gone.
+* **Properties for the state of a player, after minqlxtended:** `Player.location`, `speed`, `weapon_loadout`,
+  `ammo_counts`, `powerup_times` and `flight_state` read and write what `position()`, `velocity()`, `weapons()`,
+  `ammo()`, `powerups()` and `flight()` handled, as `Vector3`, `Weapons`, `Powerups` and `Flight` objects. The methods
+  of minqlx stay with the same signatures and now run on the properties. Assigning `flight_state` first gives the
+  player the flight holdable.
 * **New event `weapon_fired`, after minqlxtended:** `handle(player, weapon)` goes off for every shot of a player,
   before the game fires the weapon. `weapon` is the number that `Player.weapon()` returns. The event cannot be
   cancelled and is not logged by default (see `qlx_noDebugEvents`). The game function `FireWeapon` is found by byte
