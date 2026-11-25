@@ -592,3 +592,88 @@ Events
           def handle_chat(self, player, msg, channel): ...
 
    There is a member for every event of :ref:`events`, named like the event in upper case.
+
+More string enumerations
+========================
+
+These enumerations are string enumerations like :class:`Events`: a member *is* the string, so ``member == "ca"`` and
+``"ca" == member`` hold, a member hashes like the string, and ``str(member)`` and f-strings give the string. The API
+keeps returning plain strings, so the enumerations are for comparing and for naming values, not for converting them.
+
+GameTypes
+---------
+
+.. class:: GameTypes
+
+   .. shinqlx-only::
+
+   The game types, as the short names that :attr:`Game.type_short` returns.
+
+   .. code-block:: python
+
+      if self.game.type_short == shinqlx.GameTypes.CLAN_ARENA:
+          ...
+
+   The members are ``FREE_FOR_ALL`` (``"ffa"``), ``DUEL`` (``"duel"``), ``RACE`` (``"race"``), ``TEAM_DEATHMATCH``
+   (``"tdm"``), ``CLAN_ARENA`` (``"ca"``), ``CAPTURE_THE_FLAG`` (``"ctf"``), ``ONE_FLAG`` (``"1f"``), ``HARVESTER``
+   (``"har"``), ``FREEZE_TAG`` (``"ft"``), ``DOMINATION`` (``"dom"``), ``ATTACK_AND_DEFEND`` (``"ad"``), ``RED_ROVER``
+   (``"rr"``) and ``UNKNOWN`` (``"N/A"``).
+
+   .. property:: long_name
+      :type: str
+
+      The name that :attr:`Game.type` and :attr:`Game.gametype` return, e.g. ``"Clan Arena"`` for ``CLAN_ARENA``.
+
+VoteTypes
+---------
+
+.. class:: VoteTypes
+
+   .. shinqlx-only::
+
+   The votes of the game itself, as the event ``vote_called`` passes them. Custom votes of plugins are not members and stay
+   plain strings.
+
+   The members are ``MAP``, ``MAP_RESTART``, ``NEXTMAP``, ``KICK``, ``CLIENTKICK``, ``SHUFFLE``, ``TEAMSIZE``,
+   ``TIMELIMIT``, ``FRAGLIMIT``, ``ROUNDLIMIT``, ``SCORELIMIT``, ``CAPTURELIMIT``, ``WEAPRESPAWN``, ``COINTOSS``,
+   ``ALLREADY``, ``ABORT``, ``LOCK``, ``UNLOCK``, ``PAUSE``, ``UNPAUSE`` and ``FORFEIT``, with the lower-case name as value.
+
+   .. code-block:: python
+
+      def handle_vote_called(self, player, vote, args):
+          if vote == shinqlx.VoteTypes.SHUFFLE:
+              ...
+
+StatsTypes
+----------
+
+.. class:: StatsTypes
+
+   .. shinqlx-only::
+
+   The values of ``TYPE`` in the data of the stats events, see :ref:`event_data`: ``FLAG_STATUS``, ``MATCH_REPORT``,
+   ``MATCH_STARTED``, ``PLAYER_CONNECT``, ``PLAYER_DEATH``, ``PLAYER_DISCONNECT``, ``PLAYER_KILL``, ``PLAYER_MEDAL``,
+   ``PLAYER_STATS``, ``PLAYER_SWITCHTEAM`` and ``ROUND_OVER``. The value of a member is its name.
+
+ChatChannels
+------------
+
+.. class:: ChatChannels
+
+   .. shinqlx-only::
+
+   The names of the channels of the framework, as :attr:`AbstractChannel.name` returns them: ``CONSOLE``
+   (``"console"``), ``CHAT`` (``"chat"``), ``TELL`` (``"tell"``), ``RED_TEAM_CHAT`` (``"red_team_chat"``),
+   ``BLUE_TEAM_CHAT`` (``"blue_team_chat"``), ``FREE_CHAT`` (``"free_chat"``) and ``SPECTATOR_CHAT``
+   (``"spectator_chat"``).
+
+EntityTypes
+-----------
+
+.. class:: EntityTypes
+
+   .. shinqlx-only::
+
+   The types of the entities of the game: ``GENERAL``, ``PLAYER``, ``ITEM``, ``MISSILE``, ``MOVER``, ``BEAM``,
+   ``PORTAL``, ``SPEAKER``, ``PUSH_TRIGGER``, ``TELEPORT_TRIGGER``, ``INVISIBLE``, ``GRAPPLE``, ``TEAM`` and ``EVENTS``,
+   with the lower-case name as value. They are the types that the entity API reports.

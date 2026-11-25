@@ -49,6 +49,10 @@ Changes since 0.8.0.
   moved behind the new Cargo feature `zmq-stats`, which is off by default; `minqlx.StatsListener` and
   `minqlx.stats_listener` are gone without it. With the feature the listener runs when `zmq_stats_enable` is set, and
   the hook stays silent then. The warning "Some events will not work because ZMQ stats is not enabled" is gone.
+* **More string enumerations:** `GameTypes` (the short names of `Game.type_short`, with `long_name`), `VoteTypes` (the votes of
+  the game), `StatsTypes` (`TYPE` of the stats data), `ChatChannels` (the names of the channels) and `EntityTypes` (the
+  types of the entities, for the coming entity API). Like `Events` and `Medal` they are `str` enumerations: a member
+  equals and hashes like its string, and the API keeps returning plain strings.
 * **Properties for the state of a player, after minqlxtended:** `Player.location`, `speed`, `weapon_loadout`,
   `ammo_counts`, `powerup_times` and `flight_state` read and write what `position()`, `velocity()`, `weapons()`,
   `ammo()`, `powerups()` and `flight()` handled, as `Vector3`, `Weapons`, `Powerups` and `Flight` objects. The methods

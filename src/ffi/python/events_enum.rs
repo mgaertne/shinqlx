@@ -170,6 +170,149 @@ class FlagStatus(str, enum.Enum):
     AT_BASE = "at_base"
     TAKEN = "taken"
     DROPPED = "dropped"
+
+
+_GAME_TYPE_LONG_NAMES = {{
+    "ffa": "Free for All",
+    "duel": "Duel",
+    "race": "Race",
+    "tdm": "Team Deathmatch",
+    "ca": "Clan Arena",
+    "ctf": "Capture the Flag",
+    "1f": "One Flag",
+    "har": "Harvester",
+    "ft": "Freeze Tag",
+    "dom": "Domination",
+    "ad": "Attack and Defend",
+    "rr": "Red Rover",
+    "N/A": "unknown",
+}}
+
+
+class GameTypes(str, enum.Enum):
+    """The game types, as the short names that ``Game.type_short`` returns; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    @property
+    def long_name(self):
+        """The name that ``Game.type`` and ``Game.gametype`` return, e.g. ``"Clan Arena"``."""
+        return _GAME_TYPE_LONG_NAMES[self.value]
+
+    FREE_FOR_ALL = "ffa"
+    DUEL = "duel"
+    RACE = "race"
+    TEAM_DEATHMATCH = "tdm"
+    CLAN_ARENA = "ca"
+    CAPTURE_THE_FLAG = "ctf"
+    ONE_FLAG = "1f"
+    HARVESTER = "har"
+    FREEZE_TAG = "ft"
+    DOMINATION = "dom"
+    ATTACK_AND_DEFEND = "ad"
+    RED_ROVER = "rr"
+    UNKNOWN = "N/A"
+
+
+class VoteTypes(str, enum.Enum):
+    """The votes of the game itself, as the event ``vote_called`` passes them; custom votes stay plain strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    MAP = "map"
+    MAP_RESTART = "map_restart"
+    NEXTMAP = "nextmap"
+    KICK = "kick"
+    CLIENTKICK = "clientkick"
+    SHUFFLE = "shuffle"
+    TEAMSIZE = "teamsize"
+    TIMELIMIT = "timelimit"
+    FRAGLIMIT = "fraglimit"
+    ROUNDLIMIT = "roundlimit"
+    SCORELIMIT = "scorelimit"
+    CAPTURELIMIT = "capturelimit"
+    WEAPRESPAWN = "weaprespawn"
+    COINTOSS = "cointoss"
+    ALLREADY = "allready"
+    ABORT = "abort"
+    LOCK = "lock"
+    UNLOCK = "unlock"
+    PAUSE = "pause"
+    UNPAUSE = "unpause"
+    FORFEIT = "forfeit"
+
+
+class StatsTypes(str, enum.Enum):
+    """The values of ``TYPE`` in the data of the stats events; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    FLAG_STATUS = "FLAG_STATUS"
+    MATCH_REPORT = "MATCH_REPORT"
+    MATCH_STARTED = "MATCH_STARTED"
+    PLAYER_CONNECT = "PLAYER_CONNECT"
+    PLAYER_DEATH = "PLAYER_DEATH"
+    PLAYER_DISCONNECT = "PLAYER_DISCONNECT"
+    PLAYER_KILL = "PLAYER_KILL"
+    PLAYER_MEDAL = "PLAYER_MEDAL"
+    PLAYER_STATS = "PLAYER_STATS"
+    PLAYER_SWITCHTEAM = "PLAYER_SWITCHTEAM"
+    ROUND_OVER = "ROUND_OVER"
+
+
+class ChatChannels(str, enum.Enum):
+    """The names of the channels of the framework, as ``AbstractChannel.name`` returns them; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    CONSOLE = "console"
+    CHAT = "chat"
+    TELL = "tell"
+    RED_TEAM_CHAT = "red_team_chat"
+    BLUE_TEAM_CHAT = "blue_team_chat"
+    FREE_CHAT = "free_chat"
+    SPECTATOR_CHAT = "spectator_chat"
+
+
+class EntityTypes(str, enum.Enum):
+    """The types of the entities of the game, as ``EntityInfo.etype`` reports them; the members are strings."""
+
+    def __str__(self):
+        return str.__str__(self)
+
+    def __format__(self, format_spec):
+        return str.__format__(str(self), format_spec)
+
+    GENERAL = "general"
+    PLAYER = "player"
+    ITEM = "item"
+    MISSILE = "missile"
+    MOVER = "mover"
+    BEAM = "beam"
+    PORTAL = "portal"
+    SPEAKER = "speaker"
+    PUSH_TRIGGER = "push_trigger"
+    TELEPORT_TRIGGER = "teleport_trigger"
+    INVISIBLE = "invisible"
+    GRAPPLE = "grapple"
+    TEAM = "team"
+    EVENTS = "events"
 "#
     )
 }
@@ -195,14 +338,23 @@ pub(crate) fn register_events_enum(m: &Bound<'_, PyModule>) -> PyResult<()> {
     })?;
     m.add("Objective", objective)?;
 
-    ["FlagTeam", "FlagStatus", "Medal"]
-        .into_iter()
-        .try_for_each(|name| {
-            let member = globals.get_item(name)?.ok_or_else(|| {
-                pyo3::exceptions::PyRuntimeError::new_err(format!("{name} could not be created"))
-            })?;
-            m.add(name, member)
-        })
+    [
+        "FlagTeam",
+        "FlagStatus",
+        "Medal",
+        "GameTypes",
+        "VoteTypes",
+        "StatsTypes",
+        "ChatChannels",
+        "EntityTypes",
+    ]
+    .into_iter()
+    .try_for_each(|name| {
+        let member = globals.get_item(name)?.ok_or_else(|| {
+            pyo3::exceptions::PyRuntimeError::new_err(format!("{name} could not be created"))
+        })?;
+        m.add(name, member)
+    })
 }
 
 #[cfg(test)]
@@ -211,7 +363,10 @@ mod events_enum_tests {
     use rstest::rstest;
 
     use super::{EventName, register_events_enum};
-    use crate::{ffi::python::pyshinqlx_setup_fixture::pyshinqlx_setup, prelude::*};
+    use crate::{
+        ffi::python::{GameTypes, pyshinqlx_setup_fixture::pyshinqlx_setup},
+        prelude::*,
+    };
 
     #[rstest]
     #[cfg_attr(miri, ignore)]
@@ -286,6 +441,78 @@ assert Events.CHAT.value == 'chat'
                 .expect("no member");
 
             assert_eq!(member.extract::<&str>().ok(), Some("player_connect"));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn game_types_match_the_names_of_the_game(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let module = PyModule::new(py, "events_test").expect("could not create module");
+            register_events_enum(&module).expect("could not register events");
+            let game_types = module
+                .getattr(intern!(py, "GameTypes"))
+                .expect("no GameTypes");
+
+            (0..=13).map(GameTypes::from).for_each(|game_type| {
+                let member = game_types
+                    .call1((game_type.type_short(),))
+                    .expect("no member for the short name");
+                assert_eq!(
+                    member
+                        .getattr(intern!(py, "long_name"))
+                        .and_then(|name| name.extract::<String>())
+                        .ok()
+                        .as_deref(),
+                    Some(game_type.type_long()),
+                );
+            });
+        });
+    }
+
+    #[rstest]
+    #[case("VoteTypes", "map", "MAP")]
+    #[case("StatsTypes", "PLAYER_DEATH", "PLAYER_DEATH")]
+    #[case("ChatChannels", "red_team_chat", "RED_TEAM_CHAT")]
+    #[case("EntityTypes", "item", "ITEM")]
+    #[case("GameTypes", "ca", "CLAN_ARENA")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn string_enums_compare_and_format_like_their_strings(
+        _pyshinqlx_setup: (),
+        #[case] class: &str,
+        #[case] value: &str,
+        #[case] member: &str,
+    ) {
+        Python::attach(|py| {
+            let module = PyModule::new(py, "events_test").expect("could not create module");
+            register_events_enum(&module).expect("could not register events");
+            let globals = PyDict::new(py);
+            globals
+                .set_item(
+                    "member",
+                    module
+                        .getattr(class)
+                        .and_then(|enum_class| enum_class.getattr(member))
+                        .expect("no member"),
+                )
+                .expect("could not set item");
+            globals
+                .set_item("value", value)
+                .expect("could not set item");
+
+            let result = py.run(
+                c"
+assert member == value and value == member
+assert str(member) == value
+assert f'{member}' == value
+assert hash(member) == hash(value)
+",
+                Some(&globals),
+                None,
+            );
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 }
