@@ -5,7 +5,7 @@ use tap::TryConv;
 
 use crate::ffi::{
     c::{game_entity::entity_id_limit, prelude::*},
-    python::prelude::*,
+    python::{entity_classes, prelude::*},
 };
 
 /// Snapshots of the entities of the game.
@@ -109,19 +109,28 @@ fn entity_ids_in_use() -> Vec<i32> {
 /// values are turned into strings. Returns the snapshot of the new entity, or ``None`` if the game did not
 /// create one, e.g. because it has no spawn function for ``classname``.
 ///
+/// For a classname of the map editor, ``strict`` (the default) refuses a key that the class does not read, e.g.
+/// a typo. A classname that is not known takes any keys.
+///
 /// Call it from the events of the game, not from another thread.
 #[pyfunction]
-#[pyo3(name = "spawn_entity", signature = (classname, keys = None), text_signature = "(classname, keys=None)")]
+#[pyo3(
+    name = "spawn_entity",
+    signature = (classname, keys = None, *, strict = true),
+    text_signature = "(classname, keys=None, *, strict=True)"
+)]
 pub(crate) fn pyshinqlx_spawn_entity(
     py: Python<'_>,
     classname: &str,
     keys: Option<&Bound<'_, PyDict>>,
+    strict: bool,
 ) -> PyResult<Option<EntityInfo>> {
     if classname.is_empty() {
         cold_path();
         return Err(PyValueError::new_err("classname must not be empty."));
     }
 
+    let class = entity_classes::find(classname).filter(|_| strict);
     let mut vars = vec![("classname".to_string(), classname.to_string())];
     for (key, value) in keys.into_iter().flat_map(|keys| keys.iter()) {
         let key = key.extract::<String>()?;
@@ -130,6 +139,12 @@ pub(crate) fn pyshinqlx_spawn_entity(
             return Err(PyValueError::new_err(
                 "the classname is the first argument, not a key.",
             ));
+        }
+        if class.is_some_and(|class| !entity_classes::knows_key(class, &key)) {
+            cold_path();
+            return Err(PyValueError::new_err(format!(
+                "{classname} does not read the key {key}; strict=False passes it anyway."
+            )));
         }
         vars.push((key, value.str()?.to_string()));
     }
@@ -358,7 +373,7 @@ mod entities_tests {
         let result = Python::attach(|py| {
             let keys = PyDict::new(py);
             keys.set_item("wait", 2).expect("could not set item");
-            pyshinqlx_spawn_entity(py, "entity 200", Some(&keys))
+            pyshinqlx_spawn_entity(py, "entity 200", Some(&keys), true)
         });
 
         assert!(result.is_ok_and(|info| {
@@ -377,7 +392,7 @@ mod entities_tests {
         let spawn_ctx = MockGameEntity::spawn_from_vars_context();
         spawn_ctx.expect().times(1).returning(|_| true);
 
-        let result = Python::attach(|py| pyshinqlx_spawn_entity(py, "no_such_class", None));
+        let result = Python::attach(|py| pyshinqlx_spawn_entity(py, "no_such_class", None, true));
 
         assert!(result.is_ok_and(|info| info.is_none()));
     }
@@ -393,7 +408,7 @@ mod entities_tests {
         let spawn_ctx = MockGameEntity::spawn_from_vars_context();
         spawn_ctx.expect().times(1).returning(|_| false);
 
-        let result = Python::attach(|py| pyshinqlx_spawn_entity(py, "info_null", None));
+        let result = Python::attach(|py| pyshinqlx_spawn_entity(py, "info_null", None, true));
 
         assert!(result.is_ok_and(|info| info.is_none()));
     }
@@ -403,6 +418,7 @@ mod entities_tests {
     #[case("func_door", "classname", "other")]
     #[case("func_door", "wa\0it", "1")]
     #[case("func_door", "wait", "1\0")]
+    #[case("func_door", "no_such_key", "1")]
     #[cfg_attr(miri, ignore)]
     #[serial]
     fn spawn_entity_rejects_invalid_input(
@@ -414,7 +430,7 @@ mod entities_tests {
         Python::attach(|py| {
             let keys = PyDict::new(py);
             keys.set_item(key, value).expect("could not set item");
-            let result = pyshinqlx_spawn_entity(py, classname, Some(&keys));
+            let result = pyshinqlx_spawn_entity(py, classname, Some(&keys), true);
             assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
         });
     }

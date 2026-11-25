@@ -61,7 +61,10 @@ Changes since 0.8.0.
   number 64 on, and `shinqlx.move_entity(entity_id, x, y, z)` puts an entity at a standstill at a new position and
   links it again, through the import table of the game module (rig-verified), and `shinqlx.spawn_entity(classname,
   keys=None)` spawns any entity with any keys like the entity string of a map does, by filling the spawn variables of
-  the game module and calling its spawn function (rig-verified). The classname of a free slot is empty
+  the game module and calling its spawn function (rig-verified). The type stubs know the 107 entity classes of the
+  map editor: `spawn_entity` has one overload per classname with the keys of that class as a `TypedDict` (the stubs are
+  checked against `entity_classes.rs` by a test); other classnames take any keys. At runtime `strict=True` (the default) refuses a key
+  that a known class does not read; `strict=False` passes it. The classname of a free slot is empty
   instead of crashing the read.
 * **Properties for the state of a player, after minqlxtended:** `Player.location`, `speed`, `weapon_loadout`,
   `ammo_counts`, `powerup_times` and `flight_state` read and write what `position()`, `velocity()`, `weapons()`,

@@ -766,7 +766,7 @@ Functions
    :return: ``True`` if an entity in use was moved, ``False`` if the slot was not in use or the engine could not be told.
    :raises ValueError: if ``entity_id`` is not between 64 and 1023, or a coordinate is not a finite number.
 
-.. function:: spawn_entity(classname, keys = None) -> EntityInfo | None
+.. function:: spawn_entity(classname, keys = None, *, strict = True) -> EntityInfo | None
 
    .. shinqlx-only::
 
@@ -777,15 +777,21 @@ Functions
 
       armor = shinqlx.spawn_entity("item_armor_body", {"origin": "100 200 300"})
 
+   The type stubs have one overload per entity class of the map editor, with the keys of the class, so an editor
+   completes the keys; a classname that is not in the list is accepted with any keys.
+
    Call it from the events of the game, not from another thread. Some entities finish their set-up in the next frame:
    an item still has the type ``general`` in the returned snapshot and is an ``item`` after that.
 
    :param str classname: The classname of the entity, e.g. ``"item_health_large"``.
    :param dict keys: The keys of the entity; the values are turned into strings. At most 63 keys fit, with 4000
       characters together.
+   :param bool strict: For a classname of the map editor, refuse a key that the class does not read, e.g. a typo.
+      A classname that is not known takes any keys.
    :return: The snapshot of the new entity, or ``None`` if the game did not create one, e.g. because it has no spawn
       function for ``classname``, the keys do not fit or the entity is not meant for the gametype.
-   :raises ValueError: if ``classname`` is empty, ``classname`` is also a key, or a string has a NUL character.
+   :raises ValueError: if ``classname`` is empty, ``classname`` is also a key, a string has a NUL character, or
+      ``strict`` refuses a key.
 
 .. function:: parse_variables(varstr, ordered = False) -> dict[str, str]
 

@@ -9,6 +9,7 @@ mod deferred;
 mod dispatchers;
 mod embed;
 mod engine_api;
+pub(crate) mod entity_classes;
 mod entity_info;
 mod events;
 mod events_enum;
@@ -1109,7 +1110,7 @@ def missing_members(stub_directory):
                 if not hasattr(shinqlx, node.name):
                     found.append(f"{stub.name}: function {node.name}")
             elif isinstance(node, ast.ClassDef):
-                if TYPING_ONLY & {getattr(base, "id", None) for base in node.bases}:
+                if node.name.startswith("_") or TYPING_ONLY & {getattr(base, "id", None) for base in node.bases}:
                     continue
                 runtime_class = resolve(node.name)
                 if runtime_class is None:
@@ -1527,7 +1528,7 @@ def differences(stub_directory):
                     runtime_shape(getattr(shinqlx, node.name)),
                 )
             elif isinstance(node, ast.ClassDef):
-                if TYPING_ONLY & {getattr(base, "id", None) for base in node.bases}:
+                if node.name.startswith("_") or TYPING_ONLY & {getattr(base, "id", None) for base in node.bases}:
                     continue
                 runtime_class = resolve(node.name)
                 if runtime_class is not None:

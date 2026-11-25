@@ -6,6 +6,7 @@ from typing import (
     ClassVar,
     Literal,
     SupportsIndex,
+    TypedDict,
     final,
     overload,
 )
@@ -799,7 +800,974 @@ def get_targetting_entities(entity_id: int) -> list[int]: ...
 def entities(in_use: bool = True, etype: str | EntityTypes | None = None) -> list[EntityInfo]: ...
 def remove_entity(entity_id: int) -> bool: ...
 def move_entity(entity_id: int, x: float, y: float, z: float) -> bool: ...
-def spawn_entity(classname: str, keys: dict[str, object] | None = None) -> EntityInfo | None: ...
+# BEGIN spawn_entity (generated from entity_classes.rs, see its test)
+_SpawnValue = str | int | float
+
+class _CommonSpawnKeys(TypedDict, total=False):
+    origin: _SpawnValue
+    angle: _SpawnValue
+    angles: _SpawnValue
+    spawnflags: int
+    target: _SpawnValue
+    targetname: _SpawnValue
+    model: _SpawnValue
+    model2: _SpawnValue
+    team: _SpawnValue
+    speed: _SpawnValue
+    message: _SpawnValue
+    wait: _SpawnValue
+    random: _SpawnValue
+    count: _SpawnValue
+    health: _SpawnValue
+    light: _SpawnValue
+    dmg: _SpawnValue
+    gametype: _SpawnValue
+    not_gametype: _SpawnValue
+    notfree: _SpawnValue
+    notteam: _SpawnValue
+    notsingle: _SpawnValue
+    notbot: _SpawnValue
+    nohumans: _SpawnValue
+    nobots: _SpawnValue
+    targetShaderName: _SpawnValue
+    targetShaderNewName: _SpawnValue
+
+class _AdvertisementKeys(_CommonSpawnKeys, total=False):
+    cellId: _SpawnValue
+    color: _SpawnValue
+
+class _FuncBobbingKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+    height: _SpawnValue
+    noise: _SpawnValue
+    phase: _SpawnValue
+
+class _FuncButtonKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+    lip: _SpawnValue
+
+class _FuncDoorKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+    endsound: _SpawnValue
+    lip: _SpawnValue
+    startsound: _SpawnValue
+
+class _FuncPendulumKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+    noise: _SpawnValue
+    phase: _SpawnValue
+
+class _FuncPlatKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+    height: _SpawnValue
+    lip: _SpawnValue
+
+class _FuncRotatingKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+    noise: _SpawnValue
+
+class _FuncStaticKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+
+class _FuncTrainKeys(_CommonSpawnKeys, total=False):
+    color: _SpawnValue
+
+class _InfoCampKeys(_CommonSpawnKeys, total=False):
+    range: _SpawnValue
+    weight: _SpawnValue
+
+class _InfoTourPointKeys(_CommonSpawnKeys, total=False):
+    cvar: _SpawnValue
+    cvarValue: _SpawnValue
+    ignorePlayerLocation: _SpawnValue
+    printChatTextTime: _SpawnValue
+    radius: _SpawnValue
+    tourPointTarget: _SpawnValue
+    tourPointTargetName: _SpawnValue
+
+class _ItemBotroamKeys(_CommonSpawnKeys, total=False):
+    weight: _SpawnValue
+
+class _MiscPortalCameraKeys(_CommonSpawnKeys, total=False):
+    roll: _SpawnValue
+
+class _TargetDelayKeys(_CommonSpawnKeys, total=False):
+    delay: _SpawnValue
+
+class _TargetSpeakerKeys(_CommonSpawnKeys, total=False):
+    noise: _SpawnValue
+
+class _TargetCvarKeys(_CommonSpawnKeys, total=False):
+    cvar: _SpawnValue
+    cvarValue: _SpawnValue
+
+class _TeamDomPointKeys(_CommonSpawnKeys, total=False):
+    identifier: _SpawnValue
+
+@overload
+def spawn_entity(
+    classname: Literal["advertisement"],
+    keys: _AdvertisementKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_pack"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_bfg"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_belt"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_hmg"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_bullets"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_cells"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_grenades"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_lightning"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_nails"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_mines"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_rockets"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_shells"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["ammo_slugs"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_bobbing"],
+    keys: _FuncBobbingKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_button"],
+    keys: _FuncButtonKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_door"],
+    keys: _FuncDoorKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_pendulum"],
+    keys: _FuncPendulumKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_plat"],
+    keys: _FuncPlatKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_rotating"],
+    keys: _FuncRotatingKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_static"],
+    keys: _FuncStaticKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_timer"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["func_train"],
+    keys: _FuncTrainKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["holdable_invulnerability"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["holdable_kamikaze"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["holdable_medkit"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["holdable_teleporter"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_camp"],
+    keys: _InfoCampKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_tour_point"],
+    keys: _InfoTourPointKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_notnull"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_null"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_player_deathmatch"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_player_intermission"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["info_player_start"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_armor_body"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_armor_combat"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_armor_jacket"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_armor_shard"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_botroam"],
+    keys: _ItemBotroamKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_enviro"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_flight"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_haste"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_health"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_health_large"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_health_mega"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_health_small"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_key_silver"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_key_gold"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_key_master"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_invis"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_quad"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_regen"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["misc_portal_camera"],
+    keys: _MiscPortalCameraKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["misc_portal_surface"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["misc_teleporter_dest"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["path_corner"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_scout"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_guard"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_doubler"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["item_ammoregen"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["race_point"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["shooter_grenade"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["shooter_plasma"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["shooter_rocket"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_delay"],
+    keys: _TargetDelayKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_give"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_kill"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_location"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_position"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_print"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_push"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_relay"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_remove_powerups"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_score"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_speaker"],
+    keys: _TargetSpeakerKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_teleporter"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["target_cvar"],
+    keys: _TargetCvarKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_dom_point"],
+    keys: _TeamDomPointKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_blueobelisk"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_blueflag"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_blueplayer"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_bluespawn"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_neutralflag"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_redflag"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_redplayer"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_CTF_redspawn"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_neutralobelisk"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["team_redobelisk"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["trigger_always"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["trigger_hurt"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["trigger_multiple"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["trigger_push"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["trigger_teleport"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_bfg"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_chaingun"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_gauntlet"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_grapplinghook"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_grenadelauncher"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_lightning"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_machinegun"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_nailgun"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_plasmagun"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_prox_launcher"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_railgun"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_rocketlauncher"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_shotgun"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: Literal["weapon_hmg"],
+    keys: _CommonSpawnKeys | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+
+@overload
+def spawn_entity(
+    classname: str,
+    keys: dict[str, _SpawnValue] | None = None,
+    *,
+    strict: bool = True,
+) -> EntityInfo | None: ...
+# END spawn_entity
 def set_cvar_once(name: str, value: str, flags: SupportsIndex = ...) -> bool: ...
 def set_cvar_limit_once(
     name: str,
