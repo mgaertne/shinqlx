@@ -751,6 +751,21 @@ Functions
    :return: ``True`` if an entity in use was freed, ``False`` if the slot was not in use.
    :raises ValueError: if ``entity_id`` is not between 64 and 1023.
 
+.. function:: move_entity(entity_id, x, y, z) -> bool
+
+   .. shinqlx-only::
+
+   Puts an entity of the game at a standstill at a new position, e.g. an item or a trigger, and tells the engine about
+   it, so that the entity is found there. Like :func:`remove_entity`, it leaves the slots of the players alone: they
+   move with :attr:`Player.location`.
+
+   :param int entity_id: The number of the entity, from 64 on.
+   :param float x: The new x coordinate.
+   :param float y: The new y coordinate.
+   :param float z: The new z coordinate.
+   :return: ``True`` if an entity in use was moved, ``False`` if the slot was not in use or the engine could not be told.
+   :raises ValueError: if ``entity_id`` is not between 64 and 1023, or a coordinate is not a finite number.
+
 .. function:: parse_variables(varstr, ordered = False) -> dict[str, str]
 
    Parses strings of key-value pairs delimited by "\\" and puts them into a dictionary.

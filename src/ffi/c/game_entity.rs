@@ -18,7 +18,8 @@ use crate::{
     MAIN_ENGINE,
     prelude::*,
     quake_live_engine::{
-        ComPrintf, FreeEntity, GetConfigstring, RegisterDamage, StartKamikaze, TryLaunchItem,
+        ComPrintf, FreeEntity, GetConfigstring, LinkEntity, RegisterDamage, StartKamikaze,
+        TryLaunchItem,
     },
 };
 
@@ -396,6 +397,25 @@ impl GameEntity {
             .tap_some(|main_engine| main_engine.free_entity(self));
     }
 
+    /// Puts the entity at a standstill at `origin`, like the `G_SetOrigin` of the game.
+    pub(crate) fn set_origin(&mut self, origin: vec3_t) {
+        let position = &mut self.gentity_t.s.pos;
+        position.trType = trType_t::TR_STATIONARY;
+        position.trTime = 0;
+        position.trDuration = 0;
+        position.trBase = origin;
+        position.trDelta = [0.0; 3];
+        self.gentity_t.r.currentOrigin = origin;
+    }
+
+    /// Tells the engine about the position of the entity, so that it is found in the world there.
+    pub(crate) fn link(&mut self) -> bool {
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .is_some_and(|main_engine| main_engine.link_entity(self))
+    }
+
     pub(crate) fn replace_item(&mut self, item_id: i32) {
         MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
             // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
@@ -504,6 +524,8 @@ mockall::mock! {
         pub(crate) fn drop_holdable(&mut self);
         pub(crate) fn is_kamikaze_timer(&self) -> bool;
         pub(crate) fn free_entity(&mut self);
+        pub(crate) fn set_origin(&mut self, origin: vec3_t);
+        pub(crate) fn link(&mut self) -> bool;
         pub(crate) fn replace_item(&mut self, item_id: i32);
         pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32>;
         pub(crate) fn set_next_think(&mut self, next_think: i32);
@@ -1570,6 +1592,68 @@ mod game_entity_tests {
         let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
         assert_eq!(game_entity.get_classname(), "");
+    }
+
+    #[test]
+    fn game_entity_set_origin_stops_the_movement_at_the_origin() {
+        let position = TrajectoryBuilder::default()
+            .trType(trType_t::TR_LINEAR)
+            .trTime(5)
+            .trDuration(7)
+            .trDelta([1.0, 1.0, 1.0])
+            .build()
+            .expect("this should not happen");
+        let entity_state = EntityStateBuilder::default()
+            .pos(position)
+            .build()
+            .expect("this should not happen");
+        let mut gentity = GEntityBuilder::default()
+            .s(entity_state)
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        game_entity.set_origin([4.0, 5.0, 6.0]);
+
+        assert_eq!(game_entity.get_origin(), [4.0, 5.0, 6.0]);
+        assert_eq!(gentity.s.pos.trBase, [4.0, 5.0, 6.0]);
+        assert_eq!(gentity.s.pos.trType, trType_t::TR_STATIONARY);
+        assert_eq!(gentity.s.pos.trDelta, [0.0; 3]);
+        assert_eq!((gentity.s.pos.trTime, gentity.s.pos.trDuration), (0, 0));
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_link_with_no_main_engine() {
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        assert!(!game_entity.link());
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_link_asks_the_engine() {
+        let mut gentity = GEntityBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let mut game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_link_entity()
+                    .times(1)
+                    .returning(|_| true);
+            })
+            .run(|| {
+                assert!(game_entity.link());
+            });
     }
 
     #[test]

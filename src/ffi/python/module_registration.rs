@@ -353,6 +353,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_entities, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_remove_entity, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_move_entity, m)?)?;
 
     Ok(())
 }

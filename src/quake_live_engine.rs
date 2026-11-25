@@ -6133,6 +6133,95 @@ mod free_entity_quake_live_engine_tests {
     }
 }
 
+/// Slot of the import table of the game module that holds the engine function `trap_LinkEntity`.
+const LINK_ENTITY_SLOT: usize = 0x138;
+/// `G_FreeEntity` starts with the load of the pointer to the import table, which it uses for `trap_UnlinkEntity`.
+const FREE_ENTITY_TABLE_LOAD: [u8; 3] = [0x48, 0x8b, 0x05];
+
+pub(crate) trait LinkEntity<T: AsMut<gentity_t>> {
+    /// Tells the engine about the new position and size of the entity; returns whether that was possible.
+    fn link_entity(&self, gentity: T) -> bool;
+}
+
+impl<T: AsMut<gentity_t>> LinkEntity<T> for QuakeLiveEngine {
+    #[cfg(target_os = "linux")]
+    fn link_entity(&self, mut gentity: T) -> bool {
+        let Ok(free_entity) = self.g_free_entity_orig() else {
+            return false;
+        };
+        // SAFETY: the address is that of G_FreeEntity in the loaded game module, whose code is readable.
+        let Some(link_entity) = (unsafe {
+            crate::stats_feed::locate_import_at(
+                free_entity as usize,
+                FREE_ENTITY_TABLE_LOAD,
+                LINK_ENTITY_SLOT,
+            )
+        }) else {
+            return false;
+        };
+        // SAFETY: the slot holds trap_LinkEntity, which takes the entity.
+        let link_entity = unsafe { function_at::<extern "C" fn(*mut gentity_t)>(link_entity) };
+        link_entity(gentity.as_mut());
+        true
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn link_entity(&self, _gentity: T) -> bool {
+        false
+    }
+}
+
+#[cfg(test)]
+mod link_entity_quake_live_engine_tests {
+    use core::{borrow::BorrowMut, sync::atomic::Ordering};
+
+    use super::{
+        LinkEntity, QuakeLiveEngine,
+        mock_quake_functions::{G_FreeEntity, G_FreeEntity_context},
+        quake_live_engine_test_helpers::*,
+    };
+    use crate::{
+        ffi::c::prelude::{GEntityBuilder, MockGameEntity},
+        prelude::serial,
+    };
+
+    #[test]
+    fn link_entity_with_no_original_function_set() {
+        let mock_gentity = MockGameEntity::default();
+
+        let quake_engine = default_quake_engine();
+
+        assert!(!quake_engine.link_entity(mock_gentity));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn link_entity_without_the_table_load_in_the_function() {
+        let mut mock_gentity = MockGameEntity::new();
+        mock_gentity.expect_as_mut().returning(|| {
+            GEntityBuilder::default()
+                .build()
+                .expect("this should not happen")
+        });
+
+        let g_free_entity_ctx = G_FreeEntity_context();
+        g_free_entity_ctx.expect().never();
+
+        let quake_engine = QuakeLiveEngine {
+            static_functions: default_static_functions().into(),
+            static_detours: default_static_detours().into(),
+            ..default_quake_engine()
+        };
+        quake_engine
+            .vm_functions
+            .g_free_entity_orig
+            .store(G_FreeEntity as *const () as usize, Ordering::Release);
+
+        assert!(!quake_engine.link_entity(mock_gentity.borrow_mut()));
+    }
+}
+
 pub(crate) trait TryLaunchItem<T: AsMut<gitem_t>> {
     fn try_launch_item(
         &self,
@@ -6484,6 +6573,9 @@ mockall::mock! {
     }
     impl FreeEntity<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
         fn free_entity(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity);
+    }
+    impl LinkEntity<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
+        fn link_entity(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity) -> bool;
     }
     impl GetConfigstring<u16> for QuakeEngine {
         fn get_configstring(&self, index: u16) -> String;

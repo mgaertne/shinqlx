@@ -51,10 +51,25 @@ pub(crate) fn socket_message(kind: &str, data: &str) -> String {
 /// `builder` must be the address of that function in a loaded game module, so that its code and the memory it
 /// refers to are readable.
 pub(crate) unsafe fn locate_import(builder: usize, slot: usize) -> Option<usize> {
-    let instruction = builder + GLOBAL_LOAD_OFFSET;
+    // SAFETY: the caller guarantees that the code of the function is readable.
+    unsafe { locate_import_at(builder + GLOBAL_LOAD_OFFSET, GLOBAL_LOAD_OPCODE, slot) }
+}
+
+/// Reads a slot of the import table of the game module through the instruction at `instruction`, which loads the
+/// pointer to the table from a global variable and starts with `opcode`.
+///
+/// # Safety
+///
+/// `instruction` must be the address of such an instruction in a loaded game module, so that the code and the
+/// memory it refers to are readable.
+pub(crate) unsafe fn locate_import_at(
+    instruction: usize,
+    load_opcode: [u8; 3],
+    slot: usize,
+) -> Option<usize> {
     // SAFETY: the caller guarantees that the code of the function is readable.
     let opcode = unsafe { core::ptr::read_unaligned(instruction as *const [u8; 3]) };
-    if opcode != GLOBAL_LOAD_OPCODE {
+    if opcode != load_opcode {
         return None;
     }
 

@@ -56,6 +56,43 @@ pub(crate) fn pyshinqlx_remove_entity(py: Python<'_>, entity_id: i32) -> PyResul
     })
 }
 
+/// Puts an entity of the game at a standstill at a new position, e.g. an item or a trigger.
+///
+/// Returns whether an entity in use was moved and the engine was told about it.
+#[pyfunction]
+#[pyo3(name = "move_entity")]
+pub(crate) fn pyshinqlx_move_entity(
+    py: Python<'_>,
+    entity_id: i32,
+    x: f32,
+    y: f32,
+    z: f32,
+) -> PyResult<bool> {
+    if !(MAX_CLIENTS as i32..MAX_GENTITIES as i32).contains(&entity_id) {
+        cold_path();
+        return Err(PyValueError::new_err(format!(
+            "entity_id need to be between {} and {}.",
+            MAX_CLIENTS,
+            MAX_GENTITIES - 1
+        )));
+    }
+    if ![x, y, z].iter().all(|coordinate| coordinate.is_finite()) {
+        cold_path();
+        return Err(PyValueError::new_err("the position needs finite numbers."));
+    }
+
+    py.detach(|| {
+        Ok(entity_id
+            .try_conv::<GameEntity>()
+            .ok()
+            .filter(|game_entity| game_entity.in_use())
+            .is_some_and(|mut game_entity| {
+                game_entity.set_origin([x, y, z]);
+                game_entity.link()
+            }))
+    })
+}
+
 #[cfg(test)]
 mod entities_tests {
     use mockall::predicate;
@@ -180,5 +217,70 @@ mod entities_tests {
         let result = Python::attach(|py| pyshinqlx_remove_entity(py, 100));
 
         assert!(result.is_ok_and(|freed| !freed));
+    }
+
+    #[rstest]
+    #[case(-1, 0.0)]
+    #[case(63, 0.0)]
+    #[case(MAX_GENTITIES as i32, 0.0)]
+    #[case(100, f32::NAN)]
+    #[case(100, f32::INFINITY)]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn move_entity_rejects_player_slots_invalid_ids_and_positions(
+        _pyshinqlx_setup: (),
+        #[case] entity_id: i32,
+        #[case] x: f32,
+    ) {
+        Python::attach(|py| {
+            let result = pyshinqlx_move_entity(py, entity_id, x, 0.0, 0.0);
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn move_entity_sets_the_origin_and_links_an_entity_in_use(_pyshinqlx_setup: ()) {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(100))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| true);
+                mock_game_entity
+                    .expect_set_origin()
+                    .with(predicate::eq([1.0, 2.5, -3.0]))
+                    .times(1)
+                    .return_const(());
+                mock_game_entity.expect_link().times(1).returning(|| true);
+                mock_game_entity
+            });
+
+        let result = Python::attach(|py| pyshinqlx_move_entity(py, 100, 1.0, 2.5, -3.0));
+
+        assert!(result.is_ok_and(|moved| moved));
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn move_entity_leaves_an_unused_slot_alone(_pyshinqlx_setup: ()) {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .with(predicate::eq(100))
+            .returning(|_| {
+                let mut mock_game_entity = MockGameEntity::new();
+                mock_game_entity.expect_in_use().returning(|| false);
+                mock_game_entity.expect_set_origin().never();
+                mock_game_entity.expect_link().never();
+                mock_game_entity
+            });
+
+        let result = Python::attach(|py| pyshinqlx_move_entity(py, 100, 1.0, 2.0, 3.0));
+
+        assert!(result.is_ok_and(|moved| !moved));
     }
 }
