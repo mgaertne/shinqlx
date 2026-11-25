@@ -102,12 +102,13 @@ pub(crate) fn pyshinqlx_factory_info(factory_id: &str) -> Option<FactoryInfo> {
 
 /// Scans the installed maps again in the background and returns at once.
 ///
-/// The information of the last scan stays valid until the new one is complete. Returns whether a scan was started;
-/// it is not when one is already running or the search paths of the game are not known.
+/// The search paths of the game are read anew with the next frame, so workshop items that were installed since the
+/// last scan are included. The information of the last scan stays valid until the new one is complete. Returns
+/// whether the scan was requested; it is not when the search paths of the game are not known yet.
 #[pyfunction]
 #[pyo3(name = "reload_maps")]
 pub(crate) fn pyshinqlx_reload_maps() -> bool {
-    loader::start_scan().is_ok()
+    loader::request_refresh()
 }
 
 #[cfg(test)]
@@ -223,17 +224,15 @@ mod maps_tests {
     #[rstest]
     #[serial]
     #[cfg_attr(miri, ignore)]
-    fn reload_maps_starts_a_scan_only_when_the_search_paths_are_known(_pyshinqlx_setup: ()) {
+    fn reload_maps_requests_a_scan_only_when_the_search_paths_are_known(_pyshinqlx_setup: ()) {
+        loader::clear_refresh_request();
         let configured = loader::is_configured();
 
-        let started = pyshinqlx_reload_maps();
+        let requested = pyshinqlx_reload_maps();
 
-        assert_eq!(started, configured);
-        let deadline = std::time::Instant::now() + core::time::Duration::from_secs(10);
-        while loader::is_running() && std::time::Instant::now() < deadline {
-            std::thread::sleep(core::time::Duration::from_millis(10));
-        }
-        assert!(!loader::is_running());
+        assert_eq!(requested, configured);
+        assert_eq!(loader::refresh_requested(), configured);
+        loader::clear_refresh_request();
     }
 
     #[rstest]

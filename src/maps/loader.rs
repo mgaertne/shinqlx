@@ -36,6 +36,7 @@ struct ScanSetup {
 
 static SETUP: ArcSwapOption<ScanSetup> = ArcSwapOption::const_empty();
 static RUNNING: AtomicBool = AtomicBool::new(false);
+static REFRESH_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 /// Why a scan could not be started.
 #[derive(Debug, Display, PartialEq, Eq)]
@@ -57,6 +58,36 @@ pub(crate) fn configure(index: SourceIndex, homepath: &str) {
         index,
         homepath: homepath.to_owned(),
     })));
+}
+
+/// Replaces the frozen search path list and keeps the home path; returns whether there was a setup to update.
+pub(crate) fn reconfigure(index: SourceIndex) -> bool {
+    let Some(setup) = SETUP.load_full() else {
+        return false;
+    };
+    SETUP.store(Some(Arc::new(ScanSetup {
+        index,
+        homepath: setup.homepath.clone(),
+    })));
+    true
+}
+
+/// Asks for a new scan with a freshly read search path list, which only the main thread can read.
+pub(crate) fn request_refresh() -> bool {
+    if !is_configured() {
+        return false;
+    }
+    REFRESH_REQUESTED.store(true, Ordering::Release);
+    true
+}
+
+/// Whether [`request_refresh`] was called and not answered yet.
+pub(crate) fn refresh_requested() -> bool {
+    REFRESH_REQUESTED.load(Ordering::Acquire)
+}
+
+pub(crate) fn clear_refresh_request() {
+    REFRESH_REQUESTED.store(false, Ordering::Release);
 }
 
 /// Whether [`configure`] has been called.
@@ -203,6 +234,29 @@ mod tests {
 
         assert_eq!(lowered, LOWEST_PRIORITY);
         assert_eq!(own(0), caller);
+    }
+
+    #[test]
+    #[serial]
+    fn a_refresh_is_only_requested_after_the_setup_and_replaces_the_index_but_keeps_the_home_path()
+    {
+        SETUP.store(None);
+        clear_refresh_request();
+        assert!(!request_refresh());
+        assert!(!reconfigure(SourceIndex::default()));
+        assert!(!refresh_requested());
+
+        configure(SourceIndex::default(), "/home/path");
+        assert!(request_refresh());
+        assert!(refresh_requested());
+        assert!(reconfigure(SourceIndex::default()));
+        assert_eq!(
+            SETUP.load().as_ref().map(|setup| setup.homepath.clone()),
+            Some("/home/path".to_owned())
+        );
+
+        clear_refresh_request();
+        assert!(!refresh_requested());
     }
 
     #[test]

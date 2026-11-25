@@ -288,5 +288,5 @@ base game has a member of :class:`Factories` as its id:
    if factory is not None:
        shinqlx.console_print(f"{factory.id} is based on {factory.basegt}")
 
-A running server learns of a workshop item that was added later with :func:`reload_maps`, which starts a new scan in
-the background and returns at once.
+A running server learns of a workshop item that was added later with :func:`reload_maps`, which asks for a new scan in
+the background (with the search paths read anew) and returns at once.

@@ -727,6 +727,12 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
             main_engine.execute_console_command("quit");
         }
 
+        #[cfg(all(target_os = "linux", not(test)))]
+        // SAFETY: the frame hook runs on the main thread, where the engine file system is set up.
+        unsafe {
+            crate::engine_fs::refresh_if_requested();
+        }
+
         report_objectives(main_engine);
         release_held_commands(main_engine);
         stats_feed_dispatcher();

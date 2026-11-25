@@ -853,10 +853,11 @@ change.
 
    .. shinqlx-only::
 
-   Starts a new scan in the background and returns at once; the old information stays valid until the new one is
-   ready.
+   Asks for a new scan in the background and returns at once. The search paths of the game are read anew with the
+   next frame, so workshop items that were installed since the last scan are found; the old information stays valid
+   until the new one is ready. A request while a scan is running is answered when it has finished.
 
-   :return: ``True`` if a scan was started, ``False`` if one is running already or the server could not start one.
+   :return: ``True`` if the scan was requested, ``False`` if the search paths of the game are not known yet.
 
 .. class:: MapInfo
 

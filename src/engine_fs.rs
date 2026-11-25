@@ -447,6 +447,32 @@ pub(crate) unsafe fn start_map_scan(homepath: &str, scan_setting: &str) {
     }
 }
 
+/// Answers a request of `reload_maps()`: reads the search path list anew, because items may have been installed since,
+/// and starts a scan. Called every frame on the main thread; a running scan keeps the request for a later frame.
+///
+/// # Safety
+///
+/// Same as [`EngineFileSystem::locate`].
+#[cfg(target_os = "linux")]
+pub(crate) unsafe fn refresh_if_requested() {
+    use log::warn;
+
+    use crate::maps::loader;
+
+    if !loader::refresh_requested() || loader::is_running() {
+        return;
+    }
+    loader::clear_refresh_request();
+
+    // SAFETY: the caller guarantees the conditions of `locate`.
+    if let Some(index) = unsafe { freeze_search_paths() }
+        && loader::reconfigure(index)
+        && let Err(error) = loader::start_scan()
+    {
+        warn!(target: "shinqlx", func = "refresh_if_requested"; "No map scan: {error}");
+    }
+}
+
 /// Reads the engine's search path list once, for scans that do not go through the engine; `None` when it cannot be
 /// found.
 ///
