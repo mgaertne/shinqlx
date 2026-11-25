@@ -11,6 +11,7 @@ use crate::{
     ffi::python::{
         AbstractChannel, AbstractChannelMethods, Command, Player, PlayerMethods, Plugin,
         clean_text, commands::CommandPriorities, events_enum::EventName, get_cvar,
+        string_enums::ChatChannel,
     },
     logging::{RotationDefaults, open_log_file},
 };
@@ -77,9 +78,10 @@ impl ChatLog {
         msg: &str,
         channel: &Bound<'_, AbstractChannel>,
     ) -> PyResult<()> {
-        let channel_name = match channel.get_name().as_str() {
-            "chat" => String::new(),
-            name => format!("[{}] ", name.to_uppercase()),
+        let name = channel.get_name();
+        let channel_name = match ChatChannel::from_name(&name) {
+            Some(ChatChannel::Chat) => String::new(),
+            _ => format!("[{}] ", name.to_uppercase()),
         };
         let message = format!("{channel_name}<{player}:{}> {msg}", player.get_steam_id());
 

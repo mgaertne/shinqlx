@@ -583,19 +583,17 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
     }
 
     fn get_gametype(&self) -> PyResult<String> {
-        self.cvar("g_gametype")?
-            .parse::<i32>()
-            .map_or(Ok(GameTypes::Unknown.type_long().to_string()), |value| {
-                Ok(GameTypes::from(value).type_long().to_string())
-            })
+        self.cvar("g_gametype")?.parse::<i32>().map_or(
+            Ok(GameTypes::Unknown(-1).type_long().to_string()),
+            |value| Ok(GameTypes::from(value).type_long().to_string()),
+        )
     }
 
     fn get_gametype_short(&self) -> PyResult<String> {
-        self.cvar("g_gametype")?
-            .parse::<i32>()
-            .map_or(Ok(GameTypes::Unknown.type_short().to_string()), |value| {
-                Ok(GameTypes::from(value).type_short().to_string())
-            })
+        self.cvar("g_gametype")?.parse::<i32>().map_or(
+            Ok(GameTypes::Unknown(-1).type_short().to_string()),
+            |value| Ok(GameTypes::from(value).type_short().to_string()),
+        )
     }
 
     fn get_map(&self) -> PyResult<String> {

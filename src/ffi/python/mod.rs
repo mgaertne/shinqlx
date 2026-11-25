@@ -34,6 +34,7 @@ mod plugin_loader;
 mod powerups;
 
 mod stats_listener;
+pub(crate) mod string_enums;
 mod text;
 mod vector3;
 mod weapons;
@@ -441,26 +442,61 @@ mod python_return_codes_tests {
     }
 }
 
-#[derive(Clone, Copy)]
-#[repr(i32)]
+/// The game types of Quake Live; a type that this does not know keeps the number of the engine in `Unknown`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GameTypes {
-    FreeForAll = 0,
-    Duel = 1,
-    Race = 2,
-    TeamDeathmatch = 3,
-    ClanArena = 4,
-    CaptureTheFlag = 5,
-    OneFlag = 6,
-    Harvester = 8,
-    FreezeTag = 9,
-    Domination = 10,
-    AttackAndDefend = 11,
-    RedRover = 12,
-    Unknown,
+    FreeForAll,
+    Duel,
+    Race,
+    TeamDeathmatch,
+    ClanArena,
+    CaptureTheFlag,
+    OneFlag,
+    Harvester,
+    FreezeTag,
+    Domination,
+    AttackAndDefend,
+    RedRover,
+    Unknown(i32),
 }
 
 impl GameTypes {
-    pub(crate) fn type_long(&self) -> &str {
+    /// Every game type that is known, in the order of the game.
+    const ALL: [Self; 12] = [
+        Self::FreeForAll,
+        Self::Duel,
+        Self::Race,
+        Self::TeamDeathmatch,
+        Self::ClanArena,
+        Self::CaptureTheFlag,
+        Self::OneFlag,
+        Self::Harvester,
+        Self::FreezeTag,
+        Self::Domination,
+        Self::AttackAndDefend,
+        Self::RedRover,
+    ];
+
+    /// The number of the engine for this game type.
+    pub(crate) const fn id(self) -> i32 {
+        match self {
+            Self::FreeForAll => 0,
+            Self::Duel => 1,
+            Self::Race => 2,
+            Self::TeamDeathmatch => 3,
+            Self::ClanArena => 4,
+            Self::CaptureTheFlag => 5,
+            Self::OneFlag => 6,
+            Self::Harvester => 8,
+            Self::FreezeTag => 9,
+            Self::Domination => 10,
+            Self::AttackAndDefend => 11,
+            Self::RedRover => 12,
+            Self::Unknown(id) => id,
+        }
+    }
+
+    pub(crate) const fn type_long(&self) -> &'static str {
         match self {
             GameTypes::FreeForAll => "Free for All",
             GameTypes::Duel => "Duel",
@@ -478,7 +514,7 @@ impl GameTypes {
         }
     }
 
-    pub(crate) fn type_short(&self) -> &str {
+    pub(crate) const fn type_short(&self) -> &'static str {
         match self {
             GameTypes::FreeForAll => "ffa",
             GameTypes::Duel => "duel",
@@ -512,7 +548,7 @@ impl From<i32> for GameTypes {
             10 => GameTypes::Domination,
             11 => GameTypes::AttackAndDefend,
             12 => GameTypes::RedRover,
-            _ => GameTypes::Unknown,
+            unknown => GameTypes::Unknown(unknown),
         }
     }
 }

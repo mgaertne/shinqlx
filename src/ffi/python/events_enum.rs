@@ -4,6 +4,11 @@ use pyo3::{
     types::{PyDict, PyModule},
 };
 
+use super::{
+    GameTypes,
+    string_enums::{ChatChannel, EntityType, StatsType, VoteType, python_class_source},
+};
+
 macro_rules! event_names {
     ($($variant:ident => $name:literal),+ $(,)?) => {
         /// The events that plugins can hook, as the dispatchers register them.
@@ -75,7 +80,75 @@ event_names! {
     WeaponFired => "weapon_fired",
 }
 
+/// The Python source of the string enumerations that the Rust enums of `string_enums` stand behind.
+fn generated_classes_source() -> String {
+    let game_type_variants = GameTypes::ALL
+        .iter()
+        .map(|game_type| (format!("{game_type:?}"), game_type.type_short()))
+        .chain([("Unknown".to_string(), GameTypes::Unknown(-1).type_short())])
+        .collect::<Vec<_>>();
+    let game_type_members = game_type_variants
+        .iter()
+        .map(|(variant, value)| (variant.as_str(), *value))
+        .collect::<Vec<_>>();
+    let long_names = GameTypes::ALL
+        .iter()
+        .chain([&GameTypes::Unknown(-1)])
+        .map(|game_type| {
+            format!(
+                "\"{}\": \"{}\"",
+                game_type.type_short(),
+                game_type.type_long()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let long_name_property = format!(
+        "
+    @property
+    def long_name(self):
+        \"\"\"The name that ``Game.type`` and ``Game.gametype`` return, e.g. ``\"Clan Arena\"``.\"\"\"
+        return {{{long_names}}}[self.value]
+"
+    );
+
+    [
+        python_class_source(
+            "GameTypes",
+            "The game types, as the short names that ``Game.type_short`` returns; the members are strings.",
+            &game_type_members,
+            &long_name_property,
+        ),
+        python_class_source(
+            "VoteTypes",
+            "The votes of the game itself, as the event ``vote_called`` passes them; votes of plugins are plain strings.",
+            VoteType::MEMBERS,
+            "",
+        ),
+        python_class_source(
+            "StatsTypes",
+            "The values of ``TYPE`` in the data of the stats events; the members are strings.",
+            StatsType::MEMBERS,
+            "",
+        ),
+        python_class_source(
+            "ChatChannels",
+            "The names of the channels of the framework, as ``AbstractChannel.name`` returns them; the members are strings.",
+            ChatChannel::MEMBERS,
+            "",
+        ),
+        python_class_source(
+            "EntityTypes",
+            "The types of the entities of the game, as ``EntityInfo.etype`` reports them; the members are strings.",
+            EntityType::MEMBERS,
+            "",
+        ),
+    ]
+    .join("\n\n")
+}
+
 fn events_class_source() -> String {
+    let generated = generated_classes_source();
     let members = EventName::ALL
         .iter()
         .map(|event| {
@@ -172,147 +245,7 @@ class FlagStatus(str, enum.Enum):
     DROPPED = "dropped"
 
 
-_GAME_TYPE_LONG_NAMES = {{
-    "ffa": "Free for All",
-    "duel": "Duel",
-    "race": "Race",
-    "tdm": "Team Deathmatch",
-    "ca": "Clan Arena",
-    "ctf": "Capture the Flag",
-    "1f": "One Flag",
-    "har": "Harvester",
-    "ft": "Freeze Tag",
-    "dom": "Domination",
-    "ad": "Attack and Defend",
-    "rr": "Red Rover",
-    "N/A": "unknown",
-}}
-
-
-class GameTypes(str, enum.Enum):
-    """The game types, as the short names that ``Game.type_short`` returns; the members are strings."""
-
-    def __str__(self):
-        return str.__str__(self)
-
-    def __format__(self, format_spec):
-        return str.__format__(str(self), format_spec)
-
-    @property
-    def long_name(self):
-        """The name that ``Game.type`` and ``Game.gametype`` return, e.g. ``"Clan Arena"``."""
-        return _GAME_TYPE_LONG_NAMES[self.value]
-
-    FREE_FOR_ALL = "ffa"
-    DUEL = "duel"
-    RACE = "race"
-    TEAM_DEATHMATCH = "tdm"
-    CLAN_ARENA = "ca"
-    CAPTURE_THE_FLAG = "ctf"
-    ONE_FLAG = "1f"
-    HARVESTER = "har"
-    FREEZE_TAG = "ft"
-    DOMINATION = "dom"
-    ATTACK_AND_DEFEND = "ad"
-    RED_ROVER = "rr"
-    UNKNOWN = "N/A"
-
-
-class VoteTypes(str, enum.Enum):
-    """The votes of the game itself, as the event ``vote_called`` passes them; custom votes stay plain strings."""
-
-    def __str__(self):
-        return str.__str__(self)
-
-    def __format__(self, format_spec):
-        return str.__format__(str(self), format_spec)
-
-    MAP = "map"
-    MAP_RESTART = "map_restart"
-    NEXTMAP = "nextmap"
-    KICK = "kick"
-    CLIENTKICK = "clientkick"
-    SHUFFLE = "shuffle"
-    TEAMSIZE = "teamsize"
-    TIMELIMIT = "timelimit"
-    FRAGLIMIT = "fraglimit"
-    ROUNDLIMIT = "roundlimit"
-    SCORELIMIT = "scorelimit"
-    CAPTURELIMIT = "capturelimit"
-    WEAPRESPAWN = "weaprespawn"
-    COINTOSS = "cointoss"
-    ALLREADY = "allready"
-    ABORT = "abort"
-    LOCK = "lock"
-    UNLOCK = "unlock"
-    PAUSE = "pause"
-    UNPAUSE = "unpause"
-    FORFEIT = "forfeit"
-
-
-class StatsTypes(str, enum.Enum):
-    """The values of ``TYPE`` in the data of the stats events; the members are strings."""
-
-    def __str__(self):
-        return str.__str__(self)
-
-    def __format__(self, format_spec):
-        return str.__format__(str(self), format_spec)
-
-    FLAG_STATUS = "FLAG_STATUS"
-    MATCH_REPORT = "MATCH_REPORT"
-    MATCH_STARTED = "MATCH_STARTED"
-    PLAYER_CONNECT = "PLAYER_CONNECT"
-    PLAYER_DEATH = "PLAYER_DEATH"
-    PLAYER_DISCONNECT = "PLAYER_DISCONNECT"
-    PLAYER_KILL = "PLAYER_KILL"
-    PLAYER_MEDAL = "PLAYER_MEDAL"
-    PLAYER_STATS = "PLAYER_STATS"
-    PLAYER_SWITCHTEAM = "PLAYER_SWITCHTEAM"
-    ROUND_OVER = "ROUND_OVER"
-
-
-class ChatChannels(str, enum.Enum):
-    """The names of the channels of the framework, as ``AbstractChannel.name`` returns them; the members are strings."""
-
-    def __str__(self):
-        return str.__str__(self)
-
-    def __format__(self, format_spec):
-        return str.__format__(str(self), format_spec)
-
-    CONSOLE = "console"
-    CHAT = "chat"
-    TELL = "tell"
-    RED_TEAM_CHAT = "red_team_chat"
-    BLUE_TEAM_CHAT = "blue_team_chat"
-    FREE_CHAT = "free_chat"
-    SPECTATOR_CHAT = "spectator_chat"
-
-
-class EntityTypes(str, enum.Enum):
-    """The types of the entities of the game, as ``EntityInfo.etype`` reports them; the members are strings."""
-
-    def __str__(self):
-        return str.__str__(self)
-
-    def __format__(self, format_spec):
-        return str.__format__(str(self), format_spec)
-
-    GENERAL = "general"
-    PLAYER = "player"
-    ITEM = "item"
-    MISSILE = "missile"
-    MOVER = "mover"
-    BEAM = "beam"
-    PORTAL = "portal"
-    SPEAKER = "speaker"
-    PUSH_TRIGGER = "push_trigger"
-    TELEPORT_TRIGGER = "teleport_trigger"
-    INVISIBLE = "invisible"
-    GRAPPLE = "grapple"
-    TEAM = "team"
-    EVENTS = "events"
+{generated}
 "#
     )
 }

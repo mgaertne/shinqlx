@@ -11,7 +11,7 @@ use tap::TapFallible;
 
 use super::{
     EVENT_DISPATCHERS, defer_next_frame, event_dispatcher, events_enum::EventName, is_false,
-    log_exception, prelude::*,
+    log_exception, prelude::*, string_enums::StatsType,
 };
 fn to_py_json_data<'py>(py: Python<'py>, json_str: &str) -> PyResult<Bound<'py, PyAny>> {
     py.import(intern!(py, "json"))
@@ -983,21 +983,21 @@ fn try_handle_zmq_msg(py: Python<'_>, zmq_msg: &str) -> PyResult<()> {
     })?;
 
     dispatch_stats_event(py, zmq_msg)?;
-    match stats["TYPE"].as_str() {
-        Some("MATCH_STARTED") => {
+    match stats["TYPE"].as_str().and_then(StatsType::from_name) {
+        Some(StatsType::MatchStarted) => {
             IN_PROGRESS.store(true, Ordering::Release);
             dispatch_game_start_event(py, &stats["DATA"])
         }
-        Some("ROUND_OVER") => dispatch_round_end_event(py, &stats["DATA"]),
-        Some("MATCH_REPORT") => {
+        Some(StatsType::RoundOver) => dispatch_round_end_event(py, &stats["DATA"]),
+        Some(StatsType::MatchReport) => {
             if IN_PROGRESS.load(Ordering::Acquire) {
                 dispatch_game_end_event(py, &stats["DATA"])?;
             }
             IN_PROGRESS.store(false, Ordering::Release);
             Ok(())
         }
-        Some("PLAYER_DEATH") => handle_player_death_event(py, stats),
-        Some("PLAYER_SWITCHTEAM") => handle_team_switch_event(py, stats),
+        Some(StatsType::PlayerDeath) => handle_player_death_event(py, stats),
+        Some(StatsType::PlayerSwitchteam) => handle_team_switch_event(py, stats),
         _ => Ok(()),
     }
 }

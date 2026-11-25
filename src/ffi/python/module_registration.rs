@@ -366,41 +366,15 @@ fn register_core_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     )?;
     m.add(
         "GAMETYPES",
-        [
-            &GameTypes::FreeForAll,
-            &GameTypes::Duel,
-            &GameTypes::Race,
-            &GameTypes::TeamDeathmatch,
-            &GameTypes::ClanArena,
-            &GameTypes::CaptureTheFlag,
-            &GameTypes::OneFlag,
-            &GameTypes::Harvester,
-            &GameTypes::FreezeTag,
-            &GameTypes::Domination,
-            &GameTypes::AttackAndDefend,
-            &GameTypes::RedRover,
-        ]
-        .map(|gametype| (*gametype as i32, gametype.type_long()))
-        .into_py_dict(m.py())?,
+        GameTypes::ALL
+            .map(|gametype| (gametype.id(), gametype.type_long()))
+            .into_py_dict(m.py())?,
     )?;
     m.add(
         "GAMETYPES_SHORT",
-        [
-            &GameTypes::FreeForAll,
-            &GameTypes::Duel,
-            &GameTypes::Race,
-            &GameTypes::TeamDeathmatch,
-            &GameTypes::ClanArena,
-            &GameTypes::CaptureTheFlag,
-            &GameTypes::OneFlag,
-            &GameTypes::Harvester,
-            &GameTypes::FreezeTag,
-            &GameTypes::Domination,
-            &GameTypes::AttackAndDefend,
-            &GameTypes::RedRover,
-        ]
-        .map(|gametype| (*gametype as i32, gametype.type_short()))
-        .into_py_dict(m.py())?,
+        GameTypes::ALL
+            .map(|gametype| (gametype.id(), gametype.type_short()))
+            .into_py_dict(m.py())?,
     )?;
     m.add(
         "CONNECTION_STATES",
