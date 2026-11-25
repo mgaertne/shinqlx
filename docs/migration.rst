@@ -238,9 +238,9 @@ Texts
 * :func:`send_server_command` replaces ``%`` with the full width percent sign U+FF05 in the commands that show text
   (``print``, ``chat``, ``tchat`` and ``cp``), because the server takes ``%`` for a placeholder. Plugins which did
   that themselves keep working.
-* A text can no longer start a second console command: :func:`opsay` replaces ``;`` with the full width semicolon
-  U+FF1B and a line break with a space, and :func:`center_print` replaces ``"`` with the full width quotation mark
-  U+FF02. :func:`change_map`, :func:`play_sound` and :func:`play_music` raise a :class:`ValueError` for a map name,
+* A text can no longer start a second console command: :meth:`Plugin.opsay` replaces ``;`` with the full width semicolon
+  U+FF1B and a line break with a space, and :meth:`Plugin.center_print` replaces ``"`` with the full width quotation mark
+  U+FF02. :meth:`Plugin.change_map`, :meth:`Plugin.play_sound` and :meth:`Plugin.play_music` raise a :class:`ValueError` for a map name,
   factory or path with ``;``, ``"`` or a line break. :func:`console_command` is not changed: it runs what it gets.
 * The built-in Rust plugins keep the texts of the Python plugins. The deviations are listed with each plugin in
   :ref:`native_plugins`: ``ban``, ``silence`` and ``essentials`` accept names where the original took only client ids,

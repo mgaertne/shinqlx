@@ -30,6 +30,11 @@ Game
 
       A dictionary of unprocessed cvars. Use attributes whenever possible, but since some cvars might not have attributes on this class, this could be useful. **Read-only**.
 
+   .. property:: gametype
+      :type: str
+
+      The same as :attr:`type`, the (long) gametype of this game. **Read-only**.
+
    .. property:: type
       :type: str
 
