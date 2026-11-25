@@ -116,6 +116,19 @@ pub(super) fn late_init(module: &Bound<'_, PyModule>) -> PyResult<()> {
 
             pyshinqlx_configure_logger(module.py())?;
 
+            #[cfg(all(target_os = "linux", not(test)))]
+            {
+                let homepath = main_engine
+                    .find_cvar("fs_homepath")
+                    .map(|cvar| cvar.get_string().to_string())
+                    .unwrap_or_default();
+                let scan_setting = main_engine
+                    .find_cvar(crate::maps::store::SCAN_CVAR)
+                    .map_or_else(|| "1".to_owned(), |cvar| cvar.get_string().to_string());
+                // SAFETY: late_init runs on the main thread after the engine has started its file system.
+                unsafe { crate::engine_fs::start_map_scan(&homepath, &scan_setting) };
+            }
+
             let handle_exception = module.getattr(intern!(module.py(), "handle_exception"))?;
             sys_module.setattr(intern!(module.py(), "excepthook"), handle_exception)?;
 
@@ -304,6 +317,10 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Weapons>()?;
     m.add_class::<PlayerInfo>()?;
     m.add_class::<EntityInfo>()?;
+    m.add_class::<MapSource>()?;
+    m.add_class::<ArenaInfo>()?;
+    m.add_class::<MapInfo>()?;
+    m.add_class::<FactoryInfo>()?;
     m.add_class::<PlayerState>()?;
     m.add_class::<PlayerStats>()?;
 
@@ -353,6 +370,11 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_entities, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_remove_entity, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_maps, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_map_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_factories, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_factory_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_reload_maps, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_move_entity, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_spawn_entity, m)?)?;
 

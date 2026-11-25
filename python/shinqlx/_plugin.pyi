@@ -1,7 +1,17 @@
 import builtins
 from collections.abc import Iterable, Mapping, Sequence
 from logging import Logger
-from typing import Any, Callable, ClassVar, Generic, Literal, SupportsIndex, TypeVar, final, overload
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Generic,
+    Literal,
+    SupportsIndex,
+    TypeVar,
+    final,
+    overload,
+)
 
 from shinqlx import (
     AbstractChannel,

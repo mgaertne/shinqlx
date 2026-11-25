@@ -6,7 +6,9 @@ use pyo3::{
 
 use super::{
     GameTypes,
-    string_enums::{ChatChannel, EntityType, StatsType, VoteType, python_class_source},
+    string_enums::{
+        ChatChannel, EntityType, Factories, MapSourceKind, StatsType, VoteType, python_class_source,
+    },
 };
 
 macro_rules! event_names {
@@ -141,6 +143,18 @@ fn generated_classes_source() -> String {
             "EntityTypes",
             "The types of the entities of the game, as ``EntityInfo.etype`` reports them; the members are strings.",
             EntityType::MEMBERS,
+            "",
+        ),
+        python_class_source(
+            "Factories",
+            "The ids of the factories of the base game, as ``FactoryInfo.id`` reports them; the members are strings. A factory of a server of its own has an id that is no member.",
+            Factories::MEMBERS,
+            "",
+        ),
+        python_class_source(
+            "MapSourceKind",
+            "Where a file of the map information comes from, as ``MapSource.kind`` reports it; the members are strings.",
+            MapSourceKind::MEMBERS,
             "",
         ),
     ]
@@ -280,6 +294,8 @@ pub(crate) fn register_events_enum(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "StatsTypes",
         "ChatChannels",
         "EntityTypes",
+        "MapSourceKind",
+        "Factories",
     ]
     .into_iter()
     .try_for_each(|name| {

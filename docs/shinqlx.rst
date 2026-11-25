@@ -793,6 +793,255 @@ Functions
    :raises ValueError: if ``classname`` is empty, ``classname`` is also a key, a string has a NUL character, or
       ``strict`` refuses a key.
 
+.. rubric:: Installed maps
+
+.. shinqlx-only::
+
+The server reads the maps that are installed (the base game, the home directory and the workshop items) in a
+background thread with the lowest priority, so the game is not held up, and keeps the result in memory. On a server
+with one core the first scan takes about ten seconds. Until it has finished, :func:`maps` and :func:`factories` return
+an empty tuple and :func:`map_info` and :func:`factory_info` return ``None``. A plugin that needs the data while it
+loads should ask later, e.g. with :func:`delay` or :func:`later`; :func:`reload_maps` scans again, e.g. after a workshop item was
+added. The cvar ``qlx_mapsScan`` (default ``1``) switches the scan at the start of the server: ``0`` turns it off,
+``2`` also compares the result with the one of the engine and logs the differences, which is meant for measurements.
+The server reads the list of the archives once when it starts, so a workshop item that the engine mounts later is
+seen after the next start.
+
+The information is made of what the files say, as the engine reads it: the ``worldspawn`` of the BSP, the arena
+blocks of ``scripts/*.arena`` and ``arenas.txt``, and the ``.factories`` files. It is a snapshot, the objects do not
+change.
+
+.. function:: maps(gametype = None) -> tuple[MapInfo, ...]
+
+   .. shinqlx-only::
+
+   The installed maps, one :class:`MapInfo` per map, sorted by name.
+
+   :param gametype: Limits the list to the maps that run in this game type, a member of :class:`GameTypes` or its
+      short name, e.g. ``"ca"``. A map without an arena block runs in every game type.
+   :return: The tuple of :class:`MapInfo`; empty until the first scan has finished.
+   :raises ValueError: if ``gametype`` is not a short name of :class:`GameTypes`.
+
+.. function:: map_info(name) -> MapInfo | None
+
+   .. shinqlx-only::
+
+   The information about one map. The name is looked up without regard to upper and lower case, and a map has one
+   :class:`MapInfo` however many archives contain it: they are all in :attr:`MapInfo.sources` and
+   :attr:`MapInfo.arenas`.
+
+   :param str name: The name of the map, e.g. ``"campgrounds"``.
+   :return: The :class:`MapInfo`, or ``None`` if no such map is installed or the first scan has not finished.
+
+.. function:: factories() -> tuple[FactoryInfo, ...]
+
+   .. shinqlx-only::
+
+   The factories of all installed ``.factories`` files, the most important first.
+
+   :return: The tuple of :class:`FactoryInfo`; empty until the first scan has finished.
+
+.. function:: factory_info(factory_id) -> FactoryInfo | None
+
+   .. shinqlx-only::
+
+   :param factory_id: The id of the factory, a member of :class:`Factories` or a string, without regard to upper and
+      lower case.
+   :return: The factory; if several files define the id, the most important one. ``None`` if there is none.
+
+.. function:: reload_maps() -> bool
+
+   .. shinqlx-only::
+
+   Starts a new scan in the background and returns at once; the old information stays valid until the new one is
+   ready.
+
+   :return: ``True`` if a scan was started, ``False`` if one is running already or the server could not start one.
+
+.. class:: MapInfo
+
+   .. shinqlx-only::
+
+   Everything known about an installed map. The texts of the BSP are more binding than those of an arena block; the
+   game types come from the first arena block. They can contain colour codes, see :meth:`Plugin.clean_text`.
+
+   .. attribute:: name
+      :type: str
+
+      The name as the archive spells it.
+
+   .. attribute:: longname
+      :type: str
+
+      The long name, e.g. ``"Campgrounds"``; the name of the map if no file has one.
+
+   .. attribute:: author
+      :type: str | None
+
+   .. attribute:: author2
+      :type: str | None
+
+   .. attribute:: gametypes
+      :type: tuple[GameTypes, ...]
+
+      The game types the map runs in: those of the first arena block, every game type for a map without one.
+
+   .. attribute:: type_tokens
+      :type: tuple[str, ...]
+
+      The ``type`` tokens of the first arena block as written, including the ones the game ignores.
+
+   .. attribute:: arenas
+      :type: tuple[ArenaInfo, ...]
+
+      All arena blocks of the map, the most important first. A map without an arena block has an empty tuple, which a
+      plugin tests with ``len(info.arenas) == 0``.
+
+   .. attribute:: sources
+      :type: tuple[MapSource, ...]
+
+      The archives that contain the BSP of the map, the most important first.
+
+   .. attribute:: has_levelshot
+      :type: bool
+
+      Whether a levelshot picture exists for the map.
+
+   .. attribute:: has_preview
+      :type: bool
+
+      Whether a picture for the map-end vote exists for the map.
+
+   .. attribute:: has_aas
+      :type: bool
+
+      Whether the bot file ``maps/<name>.aas`` exists. Without it the map has no bot support.
+
+.. class:: ArenaInfo
+
+   .. shinqlx-only::
+
+   One arena block of a map, as a ``.arena`` file or ``arenas.txt`` has it.
+
+   .. attribute:: map
+      :type: str
+
+      The short name of the map the block is for.
+
+   .. attribute:: longname
+      :type: str | None
+
+   .. attribute:: author
+      :type: str | None
+
+   .. attribute:: author2
+      :type: str | None
+
+   .. attribute:: gametypes
+      :type: tuple[GameTypes, ...]
+
+      The game types the block names that the game understands, without repeats.
+
+   .. attribute:: type_tokens
+      :type: tuple[str, ...]
+
+      All tokens of the ``type`` value as written.
+
+   .. attribute:: fraglimit
+      :type: int | None
+
+   .. attribute:: timelimit
+      :type: int | None
+
+   .. attribute:: capturelimit
+      :type: int | None
+
+   .. attribute:: raw
+      :type: Mapping[str, str]
+
+      Every key of the block as written, as a read-only mapping.
+
+   .. attribute:: source
+      :type: MapSource | None
+
+      The file the block comes from, if known.
+
+.. class:: FactoryInfo
+
+   .. shinqlx-only::
+
+   A factory of a ``.factories`` file: a game type with changed settings.
+
+   .. attribute:: id
+      :type: Factories | str
+
+      The id that ``map <name> <id>`` takes: a member of :class:`Factories` for a factory of the base game, otherwise
+      the string of the file.
+
+   .. attribute:: title
+      :type: str | None
+
+   .. attribute:: author
+      :type: str | None
+
+   .. attribute:: description
+      :type: str | None
+
+   .. attribute:: basegt
+      :type: GameTypes | str | None
+
+      The game type the factory is based on: a member of :class:`GameTypes` if the game knows it, otherwise the string of
+      the file.
+
+   .. attribute:: cvars
+      :type: Mapping[str, str]
+
+      The cvars the factory sets, as a read-only mapping.
+
+   .. attribute:: source
+      :type: MapSource | None
+
+      The file the factory comes from, if known.
+
+.. class:: MapSource
+
+   .. shinqlx-only::
+
+   The archive or directory that a file of the map information comes from. The full path is only in the log, so the
+   server's directory layout does not reach the plugins.
+
+   .. attribute:: kind
+      :type: MapSourceKind
+
+      Where it lies: the base game, the home directory or a workshop item.
+
+   .. attribute:: pk3_path
+      :type: str
+
+      The archive, e.g. ``"pak00.pk3"``, or the directory, e.g. ``"baseq3"``. For a workshop item it is the id and the
+      file name, e.g. ``"123456789/map-charon3dm12.pk3"``.
+
+   .. attribute:: workshop_id
+      :type: int | None
+
+      The id of the workshop item, if the file comes from one.
+
+   .. attribute:: has_aas
+      :type: bool
+
+      Whether the bot file of the map, as the game uses it, comes from here. Only set for the entries of
+      :attr:`MapInfo.sources`.
+
+   .. attribute:: has_levelshot
+      :type: bool
+
+      Whether the levelshot picture of the map comes from here.
+
+   .. attribute:: has_preview
+      :type: bool
+
+      Whether the picture for the map-end vote comes from here.
+
 .. function:: parse_variables(varstr, ordered = False) -> dict[str, str]
 
    Parses strings of key-value pairs delimited by "\\" and puts them into a dictionary.

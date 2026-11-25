@@ -172,6 +172,43 @@ string_enum! {
 }
 
 string_enum! {
+    /// The ids of the factories of the base game, as `map <name> <id>` takes them.
+    closed Factories {
+        Training => "_training",
+        Rj => "_rj",
+        Sj => "_sj",
+        Actf => "actf",
+        AttackAndDefend => "ad",
+        ClanArena => "ca",
+        CaptureTheFlag => "ctf",
+        Domination => "dom",
+        Duel => "duel",
+        OneFlag => "oneflag",
+        FreeForAll => "ffa",
+        FreezeTag => "ft",
+        Harvester => "har",
+        InstagibCtf => "ictf",
+        InstagibFfa => "iffa",
+        InstagibFreezeTag => "ift",
+        Infected => "infected",
+        Quadhog => "quadhog",
+        Race => "race",
+        RedRover => "rr",
+        TeamDeathmatch => "tdm",
+        Vca => "vca",
+    }
+}
+
+string_enum! {
+    /// Where a file of the map information comes from.
+    closed MapSourceKind {
+        Base => "base",
+        Home => "home",
+        Workshop => "workshop",
+    }
+}
+
+string_enum! {
     /// The name of a channel of the framework.
     closed ChatChannel {
         Console => "console",

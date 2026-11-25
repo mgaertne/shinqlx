@@ -1,5 +1,5 @@
 import builtins
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from enum import Enum
 from typing import (
     Callable,
@@ -11,7 +11,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 # Variables with simple values
 RET_NONE: int
@@ -428,6 +428,35 @@ class EntityTypes(str, Enum):
     TEAM = "team"
     EVENTS = "events"
 
+class Factories(str, Enum):
+    TRAINING = "_training"
+    RJ = "_rj"
+    SJ = "_sj"
+    ACTF = "actf"
+    ATTACK_AND_DEFEND = "ad"
+    CLAN_ARENA = "ca"
+    CAPTURE_THE_FLAG = "ctf"
+    DOMINATION = "dom"
+    DUEL = "duel"
+    ONE_FLAG = "oneflag"
+    FREE_FOR_ALL = "ffa"
+    FREEZE_TAG = "ft"
+    HARVESTER = "har"
+    INSTAGIB_CTF = "ictf"
+    INSTAGIB_FFA = "iffa"
+    INSTAGIB_FREEZE_TAG = "ift"
+    INFECTED = "infected"
+    QUADHOG = "quadhog"
+    RACE = "race"
+    RED_ROVER = "rr"
+    TEAM_DEATHMATCH = "tdm"
+    VCA = "vca"
+
+class MapSourceKind(str, Enum):
+    BASE = "base"
+    HOME = "home"
+    WORKSHOP = "workshop"
+
 class Events(str, Enum):
     CHAT = "chat"
     CLIENT_COMMAND = "client_command"
@@ -637,6 +666,88 @@ class EntityInfo:
     def in_use(self) -> bool: ...
 
 @final
+class MapSource:
+    @property
+    def kind(self) -> MapSourceKind: ...
+    @property
+    def pk3_path(self) -> str: ...
+    @property
+    def workshop_id(self) -> int | None: ...
+    @property
+    def has_aas(self) -> bool: ...
+    @property
+    def has_levelshot(self) -> bool: ...
+    @property
+    def has_preview(self) -> bool: ...
+
+@final
+class ArenaInfo:
+    @property
+    def map(self) -> str: ...
+    @property
+    def longname(self) -> str | None: ...
+    @property
+    def author(self) -> str | None: ...
+    @property
+    def author2(self) -> str | None: ...
+    @property
+    def gametypes(self) -> tuple[GameTypes, ...]: ...
+    @property
+    def type_tokens(self) -> tuple[str, ...]: ...
+    @property
+    def fraglimit(self) -> int | None: ...
+    @property
+    def timelimit(self) -> int | None: ...
+    @property
+    def capturelimit(self) -> int | None: ...
+    @property
+    def raw(self) -> Mapping[str, str]: ...
+    @property
+    def source(self) -> MapSource | None: ...
+
+@final
+class MapInfo:
+    @property
+    def name(self) -> str: ...
+    @property
+    def longname(self) -> str: ...
+    @property
+    def author(self) -> str | None: ...
+    @property
+    def author2(self) -> str | None: ...
+    @property
+    def gametypes(self) -> tuple[GameTypes, ...]: ...
+    @property
+    def type_tokens(self) -> tuple[str, ...]: ...
+    @property
+    def arenas(self) -> tuple[ArenaInfo, ...]: ...
+    @property
+    def sources(self) -> tuple[MapSource, ...]: ...
+    @property
+    def has_levelshot(self) -> bool: ...
+    @property
+    def has_preview(self) -> bool: ...
+    @property
+    def has_aas(self) -> bool: ...
+
+@final
+class FactoryInfo:
+    @property
+    def id(self) -> Factories | str: ...
+    @property
+    def title(self) -> str | None: ...
+    @property
+    def author(self) -> str | None: ...
+    @property
+    def description(self) -> str | None: ...
+    @property
+    def basegt(self) -> GameTypes | str | None: ...
+    @property
+    def cvars(self) -> Mapping[str, str]: ...
+    @property
+    def source(self) -> MapSource | None: ...
+
+@final
 class PlayerInfo(tuple):
     def __new__(cls, tuple: builtins.tuple[int, str, int, str, int, int, int]) -> Self: ...
     @property
@@ -740,7 +851,9 @@ def register_handler(
 @overload
 def register_handler(event: Literal["player_spawn"], handler: Callable[[int], bool | None] | None = ...) -> None: ...
 @overload
-def register_handler(event: Literal["objective"], handler: Callable[[int, str, int], bool | None] | None = ...) -> None: ...
+def register_handler(
+    event: Literal["objective"], handler: Callable[[int, str, int], bool | None] | None = ...
+) -> None: ...
 @overload
 def register_handler(event: Literal["medal"], handler: Callable[[int, str, int], bool | None] | None = ...) -> None: ...
 @overload
@@ -748,7 +861,9 @@ def register_handler(
     event: Literal["flag_status"], handler: Callable[[int, int, int | None], bool | None] | None = ...
 ) -> None: ...
 @overload
-def register_handler(event: Literal["weapon_fired"], handler: Callable[[int, int], bool | None] | None = ...) -> None: ...
+def register_handler(
+    event: Literal["weapon_fired"], handler: Callable[[int, int], bool | None] | None = ...
+) -> None: ...
 @overload
 def register_handler(
     event: Literal["cvar_changed"], handler: Callable[[str, str, str], bool | None] | None = ...
@@ -799,9 +914,15 @@ def force_weapon_respawn_time(respawn_time: int) -> bool: ...
 def get_targetting_entities(entity_id: int) -> list[int]: ...
 def entities(in_use: bool = True, etype: str | EntityTypes | None = None) -> list[EntityInfo]: ...
 def remove_entity(entity_id: int) -> bool: ...
+def maps(gametype: str | GameTypes | None = None) -> tuple[MapInfo, ...]: ...
+def map_info(name: str) -> MapInfo | None: ...
+def factories() -> tuple[FactoryInfo, ...]: ...
+def factory_info(factory_id: str | Factories) -> FactoryInfo | None: ...
+def reload_maps() -> bool: ...
 def move_entity(entity_id: int, x: float, y: float, z: float) -> bool: ...
+
 # BEGIN spawn_entity (generated from entity_classes.rs, see its test)
-_SpawnValue = str | int | float
+_SpawnValue: TypeAlias = str | int | float
 
 class _CommonSpawnKeys(TypedDict, total=False):
     origin: _SpawnValue
@@ -911,7 +1032,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_pack"],
@@ -919,7 +1039,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_bfg"],
@@ -927,7 +1046,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_belt"],
@@ -935,7 +1053,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_hmg"],
@@ -943,7 +1060,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_bullets"],
@@ -951,7 +1067,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_cells"],
@@ -959,7 +1074,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_grenades"],
@@ -967,7 +1081,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_lightning"],
@@ -975,7 +1088,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_nails"],
@@ -983,7 +1095,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_mines"],
@@ -991,7 +1102,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_rockets"],
@@ -999,7 +1109,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_shells"],
@@ -1007,7 +1116,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["ammo_slugs"],
@@ -1015,7 +1123,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_bobbing"],
@@ -1023,7 +1130,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_button"],
@@ -1031,7 +1137,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_door"],
@@ -1039,7 +1144,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_pendulum"],
@@ -1047,7 +1151,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_plat"],
@@ -1055,7 +1158,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_rotating"],
@@ -1063,7 +1165,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_static"],
@@ -1071,7 +1172,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_timer"],
@@ -1079,7 +1179,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["func_train"],
@@ -1087,7 +1186,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["holdable_invulnerability"],
@@ -1095,7 +1193,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["holdable_kamikaze"],
@@ -1103,7 +1200,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["holdable_medkit"],
@@ -1111,7 +1207,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["holdable_teleporter"],
@@ -1119,7 +1214,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_camp"],
@@ -1127,7 +1221,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_tour_point"],
@@ -1135,7 +1228,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_notnull"],
@@ -1143,7 +1235,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_null"],
@@ -1151,7 +1242,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_player_deathmatch"],
@@ -1159,7 +1249,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_player_intermission"],
@@ -1167,7 +1256,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["info_player_start"],
@@ -1175,7 +1263,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_armor_body"],
@@ -1183,7 +1270,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_armor_combat"],
@@ -1191,7 +1277,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_armor_jacket"],
@@ -1199,7 +1284,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_armor_shard"],
@@ -1207,7 +1291,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_botroam"],
@@ -1215,7 +1298,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_enviro"],
@@ -1223,7 +1305,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_flight"],
@@ -1231,7 +1312,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_haste"],
@@ -1239,7 +1319,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_health"],
@@ -1247,7 +1326,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_health_large"],
@@ -1255,7 +1333,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_health_mega"],
@@ -1263,7 +1340,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_health_small"],
@@ -1271,7 +1347,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_key_silver"],
@@ -1279,7 +1354,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_key_gold"],
@@ -1287,7 +1361,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_key_master"],
@@ -1295,7 +1368,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_invis"],
@@ -1303,7 +1375,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_quad"],
@@ -1311,7 +1382,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_regen"],
@@ -1319,7 +1389,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["misc_portal_camera"],
@@ -1327,7 +1396,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["misc_portal_surface"],
@@ -1335,7 +1403,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["misc_teleporter_dest"],
@@ -1343,7 +1410,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["path_corner"],
@@ -1351,7 +1417,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_scout"],
@@ -1359,7 +1424,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_guard"],
@@ -1367,7 +1431,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_doubler"],
@@ -1375,7 +1438,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["item_ammoregen"],
@@ -1383,7 +1445,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["race_point"],
@@ -1391,7 +1452,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["shooter_grenade"],
@@ -1399,7 +1459,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["shooter_plasma"],
@@ -1407,7 +1466,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["shooter_rocket"],
@@ -1415,7 +1473,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_delay"],
@@ -1423,7 +1480,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_give"],
@@ -1431,7 +1487,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_kill"],
@@ -1439,7 +1494,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_location"],
@@ -1447,7 +1501,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_position"],
@@ -1455,7 +1508,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_print"],
@@ -1463,7 +1515,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_push"],
@@ -1471,7 +1522,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_relay"],
@@ -1479,7 +1529,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_remove_powerups"],
@@ -1487,7 +1536,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_score"],
@@ -1495,7 +1543,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_speaker"],
@@ -1503,7 +1550,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_teleporter"],
@@ -1511,7 +1557,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["target_cvar"],
@@ -1519,7 +1564,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_dom_point"],
@@ -1527,7 +1571,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_blueobelisk"],
@@ -1535,7 +1578,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_blueflag"],
@@ -1543,7 +1585,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_blueplayer"],
@@ -1551,7 +1592,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_bluespawn"],
@@ -1559,7 +1599,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_neutralflag"],
@@ -1567,7 +1606,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_redflag"],
@@ -1575,7 +1613,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_redplayer"],
@@ -1583,7 +1620,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_CTF_redspawn"],
@@ -1591,7 +1627,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_neutralobelisk"],
@@ -1599,7 +1634,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["team_redobelisk"],
@@ -1607,7 +1641,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["trigger_always"],
@@ -1615,7 +1648,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["trigger_hurt"],
@@ -1623,7 +1655,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["trigger_multiple"],
@@ -1631,7 +1662,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["trigger_push"],
@@ -1639,7 +1669,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["trigger_teleport"],
@@ -1647,7 +1676,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_bfg"],
@@ -1655,7 +1683,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_chaingun"],
@@ -1663,7 +1690,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_gauntlet"],
@@ -1671,7 +1697,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_grapplinghook"],
@@ -1679,7 +1704,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_grenadelauncher"],
@@ -1687,7 +1711,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_lightning"],
@@ -1695,7 +1718,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_machinegun"],
@@ -1703,7 +1725,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_nailgun"],
@@ -1711,7 +1732,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_plasmagun"],
@@ -1719,7 +1739,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_prox_launcher"],
@@ -1727,7 +1746,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_railgun"],
@@ -1735,7 +1753,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_rocketlauncher"],
@@ -1743,7 +1760,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_shotgun"],
@@ -1751,7 +1767,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: Literal["weapon_hmg"],
@@ -1759,7 +1774,6 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
-
 @overload
 def spawn_entity(
     classname: str,
@@ -1767,6 +1781,7 @@ def spawn_entity(
     *,
     strict: bool = True,
 ) -> EntityInfo | None: ...
+
 # END spawn_entity
 def set_cvar_once(name: str, value: str, flags: SupportsIndex = ...) -> bool: ...
 def set_cvar_limit_once(

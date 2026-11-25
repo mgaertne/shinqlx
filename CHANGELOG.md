@@ -66,6 +66,20 @@ Changes since 0.8.0.
   checked against `entity_classes.rs` by a test); other classnames take any keys. At runtime `strict=True` (the default) refuses a key
   that a known class does not read; `strict=False` passes it. The classname of a free slot is empty
   instead of crashing the read.
+* **Installed maps:** `shinqlx.maps(gametype=None)`, `map_info(name)`, `factories()`, `factory_info(factory_id)` and
+  `Game.map_info` tell what the files of the server say about its maps: the `worldspawn` of the BSP, the arena blocks
+  of `scripts/*.arena` and `arenas.txt` (mapped by the short name in the block, like the engine does), and the
+  `.factories` files, from the base game, the home directory and the workshop items. The frozen classes `MapInfo`
+  (`name`, `longname`, `author`, `gametypes`, `arenas`, `sources`, `has_levelshot`, `has_preview`, `has_aas`),
+  `ArenaInfo`, `FactoryInfo` and `MapSource` (`kind`, `pk3_path`, `workshop_id`, and which of the files it holds) carry
+  the result; they never contain a path of the server. The game types are members of `GameTypes`, the kind of a source
+  is the new `MapSourceKind`, and the ids of the factories of the base game are the new string enumeration
+  `Factories`; an id of a server of its own stays a plain string. A thread of its own with the lowest priority reads
+  the archives with the `zip` crate and does not touch the engine's file system (which is not thread-safe); a server
+  with one core needs about ten seconds for 600 maps, and with four workers about three. Until the scan has finished
+  the functions return empty results, so a plugin asks later, e.g. with `delay`. `reload_maps()` scans again in the
+  background. The cvar `qlx_mapsScan` (default `1`) turns the scan off with `0`; `2` compares it with the scan of the
+  engine's file system and logs the differences. The result matched the engine on 604 maps.
 * **Properties for the state of a player, after minqlxtended:** `Player.location`, `speed`, `weapon_loadout`,
   `ammo_counts`, `powerup_times` and `flight_state` read and write what `position()`, `velocity()`, `weapons()`,
   `ammo()`, `powerups()` and `flight()` handled, as `Vector3`, `Weapons`, `Powerups` and `Flight` objects. The methods

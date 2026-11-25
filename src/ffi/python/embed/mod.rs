@@ -15,6 +15,7 @@ mod get_cvar;
 mod get_targetting_entities;
 mod get_userinfo;
 mod kick;
+mod maps;
 mod noclip;
 mod player_info;
 mod player_spawn;
@@ -67,6 +68,10 @@ pub(crate) use get_cvar::pyshinqlx_get_cvar;
 pub(crate) use get_targetting_entities::pyshinqlx_get_entity_targets;
 pub(crate) use get_userinfo::pyshinqlx_get_userinfo;
 pub(crate) use kick::pyshinqlx_kick;
+pub(crate) use maps::{
+    pyshinqlx_factories, pyshinqlx_factory_info, pyshinqlx_map_info, pyshinqlx_maps,
+    pyshinqlx_reload_maps,
+};
 pub(crate) use noclip::pyshinqlx_noclip;
 pub(crate) use player_info::pyshinqlx_player_info;
 pub(crate) use player_spawn::pyshinqlx_player_spawn;

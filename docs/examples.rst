@@ -224,3 +224,69 @@ and the decorated method returns at once. Pass exactly one of ``seconds`` and ``
 
 ``later(frames=1)`` is the same as :func:`next_frame`, and ``later(seconds=3)`` is the same as ``delay(3)``. Whoever sends
 a long text to one player spreads it over several calls with ``later`` instead of sending it in one frame.
+
+Listing the installed maps
+==========================
+
+.. shinqlx-only::
+
+:func:`maps` lists the maps that are installed on the server, and :func:`map_info` tells what the files say about one
+of them. The server reads them in the background, so a plugin must not rely on them while it loads: until the first
+scan has finished, the list is empty. The plugin below asks a few seconds after loading and then answers its commands
+from the list. Names and authors can contain colour codes, which :meth:`Plugin.clean_text` removes. The objects only
+have the name of the archive, never the path on the server.
+
+.. code-block:: python
+
+   import shinqlx
+
+
+   class maplist(shinqlx.Plugin):
+       def __init__(self):
+           super().__init__()
+           self.maps = ()
+           self.add_command("maplist", self.cmd_maplist, usage="[gametype]")
+           self.add_command("mapinfo", self.cmd_mapinfo, usage="<map>")
+           self.load_maps()
+
+       @shinqlx.delay(10)
+       def load_maps(self):
+           self.maps = shinqlx.maps(shinqlx.GameTypes.CLAN_ARENA)
+           if not self.maps:
+               self.load_maps()
+
+       def cmd_maplist(self, player, msg, channel):
+           if not self.maps:
+               player.tell("The maps are not read yet, try again later.")
+               return
+
+           names = ", ".join(info.name for info in self.maps if info.has_aas)
+           player.tell(f"Clan Arena maps with bots: {names}")
+
+       def cmd_mapinfo(self, player, msg, channel):
+           if len(msg) < 2:
+               return shinqlx.ReturnCodes.USAGE
+
+           info = shinqlx.map_info(msg[1])
+           if info is None:
+               player.tell(f"{msg[1]} is not installed.")
+               return
+
+           kinds = ", ".join(source.kind for source in info.sources)
+           text = f"{self.clean_text(info.longname)} ({info.name}): {', '.join(info.gametypes)}; from {kinds}"
+           if not info.arenas:
+               text += "; no arena block, so every game type"
+           player.tell(text)
+
+:attr:`MapInfo.gametypes` contains members of :class:`GameTypes` and :attr:`MapSource.kind` one of
+:class:`MapSourceKind`; both are strings, so they can be joined and compared with their short names. A factory of the
+base game has a member of :class:`Factories` as its id:
+
+.. code-block:: python
+
+   factory = shinqlx.factory_info(shinqlx.Factories.CLAN_ARENA)
+   if factory is not None:
+       shinqlx.console_print(f"{factory.id} is based on {factory.basegt}")
+
+A running server learns of a workshop item that was added later with :func:`reload_maps`, which starts a new scan in
+the background and returns at once.

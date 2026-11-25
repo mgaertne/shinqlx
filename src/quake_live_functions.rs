@@ -106,6 +106,14 @@ pub enum QuakeLiveFunction {
     Zsock_SetRouterMandatory,
     #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
     Rcon_SocketInit,
+    #[cfg(any(target_os = "linux", test))]
+    FS_ReadFile,
+    #[cfg(any(target_os = "linux", test))]
+    FS_FreeFile,
+    #[cfg(any(target_os = "linux", test))]
+    FS_ListFilteredFiles,
+    #[cfg(any(target_os = "linux", test))]
+    FS_FreeFileList,
 }
 
 impl QuakeLiveFunction {
@@ -190,6 +198,14 @@ impl QuakeLiveFunction {
             QuakeLiveFunction::Zsock_SetRouterMandatory => b"\x53\x48\x89\xfb\x48\x83\xec\x10\x48\x85\xff\x89\x74\x24\x0c\x0f\x84\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xf8\x06\x48\x89\xdf\x75\x00\xe8\x00\x00\x00\x00\x48\x8d\x54\x24\x0c\xb9\x04\x00\x00\x00\xbe\x21\x00\x00\x00\x48\x89\xc7\xe8\x00\x00\x00\x00\x85",
             #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
             QuakeLiveFunction::Rcon_SocketInit => b"\xbf\xe5\x20\x51\x00\x31\xc0\xe8\x00\x00\x00\x00\x48\x8b\x3d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x48\x89\x05\x00\x00\x00\x00\x5b\xc3",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_ReadFile => b"\x41\x55\x41\x54\x55\x48\x89\xf5\x53\x48\x89\xfb\x48\x83\xec\x18\x48\x83\x3d\x00\x00\x00\x00\x00\x0f\x84\x00\x00\x00\x00\x48\x85\xdb\x0f\x84\x00\x00\x00\x00",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_FreeFile => b"\x48\x83\x3d\x00\x00\x00\x00\x00\x53\x48\x89\xfb\x74\x00\x48\x85\xdb\x74\x00\x48\x89\xdf\x83\x2d\x00\x00\x00\x00\x01\xe8\x00\x00\x00\x00\x8b\x05\x00\x00\x00\x00\x85\xc0",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_ListFilteredFiles => b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x48\x89\xd5\x53\x48\x81\xec\x68\x81\x00\x00\x64\x48\x8b\x04\x25\x28\x00\x00\x00\x48\x89\x84\x24\x58\x81\x00\x00\x31\xc0\x48\x83\x3d\x00\x00\x00\x00\x00",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_FreeFileList => b"\x55\x48\x89\xfd\x53\x48\x83\xec\x08\x48\x83\x3d\x00\x00\x00\x00\x00\x74\x00\x48\x85\xed\x74\x00\x48\x8b\x7d\x00\x48\x8d\x5d\x08\x48\x85\xff\x74\x00\x0f\x1f\x00\x48\x83\xc3\x08\xe8\x00\x00\x00\x00",
         }
     }
 
@@ -280,6 +296,18 @@ impl QuakeLiveFunction {
             }
             #[cfg(any(all(target_os = "linux", feature = "zmq-rcon-fix"), test))]
             QuakeLiveFunction::Rcon_SocketInit => b"XXXXXXXX----XXX----X----XXX----XX",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_ReadFile => b"XXXXXXXXXXXXXXXXXXX----XXX----XXXXX----",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_FreeFile => b"XXX----XXXXXX-XXXX-XXXXX----XX----XX----XX",
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_ListFilteredFiles => {
+                b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX----X"
+            }
+            #[cfg(any(target_os = "linux", test))]
+            QuakeLiveFunction::FS_FreeFileList => {
+                b"XXXXXXXXXXXX----XX-XXXX-XXXXXXXXXXXX-XXXXXXXX----"
+            }
         }
     }
 }
@@ -435,6 +463,10 @@ mod quake_live_function_tests {
         "Zsock_SetRouterMandatory"
     )]
     #[case(QuakeLiveFunction::Rcon_SocketInit, "Rcon_SocketInit")]
+    #[case(QuakeLiveFunction::FS_ReadFile, "FS_ReadFile")]
+    #[case(QuakeLiveFunction::FS_FreeFile, "FS_FreeFile")]
+    #[case(QuakeLiveFunction::FS_ListFilteredFiles, "FS_ListFilteredFiles")]
+    #[case(QuakeLiveFunction::FS_FreeFileList, "FS_FreeFileList")]
     fn function_can_be_formatted(#[case] func: QuakeLiveFunction, #[case] output: &str) {
         let result = format!("{func}");
         assert_eq!(result, output);
@@ -491,6 +523,10 @@ mod quake_live_function_tests {
     #[case(QuakeLiveFunction::SV_HandleSteamPacket, b"\x8b\x15\x00\x00\x00\x00\x31\xc0\x85\xd2\x75\x00\xc3\x0f\x1f\x00\x41\x54\x55\x48\x89\xf5\x53\x0f\xb6\x57\x04\x48\x89\xfb\x0f\xb6\x47\x05\x0f\xb6\x4f\x07\xc1\xe2\x18\xc1\xe0\x10\x01\xc2\x0f\xb6\x47\x06")]
     #[case(QuakeLiveFunction::Zsock_SetRouterMandatory, b"\x53\x48\x89\xfb\x48\x83\xec\x10\x48\x85\xff\x89\x74\x24\x0c\x0f\x84\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x83\xf8\x06\x48\x89\xdf\x75\x00\xe8\x00\x00\x00\x00\x48\x8d\x54\x24\x0c\xb9\x04\x00\x00\x00\xbe\x21\x00\x00\x00\x48\x89\xc7\xe8\x00\x00\x00\x00\x85")]
     #[case(QuakeLiveFunction::Rcon_SocketInit, b"\xbf\xe5\x20\x51\x00\x31\xc0\xe8\x00\x00\x00\x00\x48\x8b\x3d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\x48\x89\x05\x00\x00\x00\x00\x5b\xc3")]
+    #[case(QuakeLiveFunction::FS_ReadFile, b"\x41\x55\x41\x54\x55\x48\x89\xf5\x53\x48\x89\xfb\x48\x83\xec\x18\x48\x83\x3d\x00\x00\x00\x00\x00\x0f\x84\x00\x00\x00\x00\x48\x85\xdb\x0f\x84\x00\x00\x00\x00")]
+    #[case(QuakeLiveFunction::FS_FreeFile, b"\x48\x83\x3d\x00\x00\x00\x00\x00\x53\x48\x89\xfb\x74\x00\x48\x85\xdb\x74\x00\x48\x89\xdf\x83\x2d\x00\x00\x00\x00\x01\xe8\x00\x00\x00\x00\x8b\x05\x00\x00\x00\x00\x85\xc0")]
+    #[case(QuakeLiveFunction::FS_ListFilteredFiles, b"\x41\x57\x41\x56\x41\x55\x41\x54\x55\x48\x89\xd5\x53\x48\x81\xec\x68\x81\x00\x00\x64\x48\x8b\x04\x25\x28\x00\x00\x00\x48\x89\x84\x24\x58\x81\x00\x00\x31\xc0\x48\x83\x3d\x00\x00\x00\x00\x00")]
+    #[case(QuakeLiveFunction::FS_FreeFileList, b"\x55\x48\x89\xfd\x53\x48\x83\xec\x08\x48\x83\x3d\x00\x00\x00\x00\x00\x74\x00\x48\x85\xed\x74\x00\x48\x8b\x7d\x00\x48\x8d\x5d\x08\x48\x85\xff\x74\x00\x0f\x1f\x00\x48\x83\xc3\x08\xe8\x00\x00\x00\x00")]
     fn function_patterns(#[case] func: QuakeLiveFunction, #[case] expected_pattern: &[u8]) {
         assert_eq!(func.pattern(), expected_pattern);
     }
@@ -653,6 +689,22 @@ mod quake_live_function_tests {
     #[case(
         QuakeLiveFunction::Rcon_SocketInit,
         b"XXXXXXXX----XXX----X----XXX----XX"
+    )]
+    #[case(
+        QuakeLiveFunction::FS_ReadFile,
+        b"XXXXXXXXXXXXXXXXXXX----XXX----XXXXX----"
+    )]
+    #[case(
+        QuakeLiveFunction::FS_FreeFile,
+        b"XXX----XXXXXX-XXXX-XXXXX----XX----XX----XX"
+    )]
+    #[case(
+        QuakeLiveFunction::FS_ListFilteredFiles,
+        b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX----X"
+    )]
+    #[case(
+        QuakeLiveFunction::FS_FreeFileList,
+        b"XXXXXXXXXXXX----XX-XXXX-XXXXXXXXXXXX-XXXXXXXX----"
     )]
     fn function_masks(#[case] func: QuakeLiveFunction, #[case] expected_mask: &[u8]) {
         assert_eq!(func.mask(), expected_mask);

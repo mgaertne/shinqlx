@@ -63,6 +63,14 @@ Game
 
       The map's second subtitle. Usually either empty or has the author's name. **Read-only**.
 
+   .. property:: map_info
+      :type: MapInfo | None
+
+      .. shinqlx-only::
+
+      What the installed files say about the running map, see :func:`map_info`; ``None`` while the maps are still
+      being scanned or if the map is not installed. **Read-only**.
+
    .. property:: red_score
       :type: int
 

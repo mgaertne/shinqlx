@@ -571,7 +571,9 @@ fn common_key_type(key: &str) -> &'static str {
 #[cfg(test)]
 pub(crate) fn stub_block() -> String {
     let mut stubs = String::from(
-        "_SpawnValue = str | int | float\n\nclass _CommonSpawnKeys(TypedDict, total=False):\n",
+        "_SpawnValue: TypeAlias = str | int | float
+
+class _CommonSpawnKeys(TypedDict, total=False):\n",
     );
     for key in COMMON_KEYS {
         stubs.push_str(&format!("    {key}: {}\n", common_key_type(key)));
@@ -594,18 +596,19 @@ pub(crate) fn stub_block() -> String {
         }
     }
 
-    for (name, _, keys) in ENTITY_CLASSES {
+    for (index, (name, _, keys)) in ENTITY_CLASSES.iter().enumerate() {
+        let separator = if index == 0 { "\n" } else { "" };
         let keys_type = if keys.iter().all(|key| COMMON_KEYS.contains(key)) {
             "_CommonSpawnKeys".to_string()
         } else {
             keys_class_name(name)
         };
         stubs.push_str(&format!(
-            "\n@overload\ndef spawn_entity(\n    classname: Literal[\"{name}\"],\n    keys: {keys_type} | None = None,\n    *,\n    strict: bool = True,\n) -> EntityInfo | None: ...\n"
+            "{separator}@overload\ndef spawn_entity(\n    classname: Literal[\"{name}\"],\n    keys: {keys_type} | None = None,\n    *,\n    strict: bool = True,\n) -> EntityInfo | None: ...\n"
         ));
     }
     stubs.push_str(
-        "\n@overload\ndef spawn_entity(\n    classname: str,\n    keys: dict[str, _SpawnValue] | None = None,\n    *,\n    strict: bool = True,\n) -> EntityInfo | None: ...\n",
+        "@overload\ndef spawn_entity(\n    classname: str,\n    keys: dict[str, _SpawnValue] | None = None,\n    *,\n    strict: bool = True,\n) -> EntityInfo | None: ...\n\n",
     );
     stubs
 }

@@ -1,6 +1,15 @@
 from collections.abc import Iterable
 from re import Pattern
-from typing import Any, Callable, Generic, Literal, SupportsIndex, TypeVar, final, overload
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    SupportsIndex,
+    TypeVar,
+    final,
+    overload,
+)
 
 from shinqlx import (
     AbstractChannel,
@@ -129,7 +138,9 @@ class EventDispatcher(Generic[_E]):
     @overload
     def dispatch(self: EventDispatcher[WeaponFiredDispatcher], player: Player, weapon: int) -> bool: ...
     @overload
-    def dispatch(self: EventDispatcher[ItemTouchDispatcher], player: Player, entity_id: int, classname: str) -> bool: ...
+    def dispatch(
+        self: EventDispatcher[ItemTouchDispatcher], player: Player, entity_id: int, classname: str
+    ) -> bool: ...
     @overload
     def dispatch(self: EventDispatcher[KamikazeUseDispatcher], player: Player) -> bool: ...
     @overload

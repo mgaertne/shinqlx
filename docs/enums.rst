@@ -667,6 +667,31 @@ ChatChannels
    ``BLUE_TEAM_CHAT`` (``"blue_team_chat"``), ``FREE_CHAT`` (``"free_chat"``) and ``SPECTATOR_CHAT``
    (``"spectator_chat"``).
 
+MapSourceKind
+-------------
+
+.. class:: MapSourceKind
+
+   .. shinqlx-only::
+
+   Where a file of the map information lies, as :attr:`MapSource.kind` reports it: ``BASE`` (``"base"``, the archives
+   and directories of the game), ``HOME`` (``"home"``, below ``fs_homepath``) and ``WORKSHOP`` (``"workshop"``, a
+   workshop item).
+
+Factories
+---------
+
+.. class:: Factories
+
+   .. shinqlx-only::
+
+   The ids of the factories of the base game, as :attr:`FactoryInfo.id` reports them: ``TRAINING`` (``"_training"``),
+   ``RJ`` (``"_rj"``), ``SJ`` (``"_sj"``), ``ACTF``, ``ATTACK_AND_DEFEND``, ``CLAN_ARENA``, ``CAPTURE_THE_FLAG``,
+   ``DOMINATION``, ``DUEL``, ``ONE_FLAG``, ``FREE_FOR_ALL``, ``FREEZE_TAG``, ``HARVESTER``, ``INSTAGIB_CTF``,
+   ``INSTAGIB_FFA``, ``INSTAGIB_FREEZE_TAG``, ``INFECTED``, ``QUADHOG``, ``RACE``, ``RED_ROVER``, ``TEAM_DEATHMATCH``
+   and ``VCA``, with the id as value. A factory of a server of its own has an id that is no member, and
+   :attr:`FactoryInfo.id` then returns the plain string.
+
 EntityTypes
 -----------
 

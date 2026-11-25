@@ -90,6 +90,7 @@ cfg-if = { version = ">=1.0", default-features = false }
 parking_lot = { version = ">=0.13", default-features = false, features = ["nightly"] }
 git2 = { version = ">=0.21", default-features = false }
 semver = { version = ">=1.0", default-features = false }
+zip = { version = ">=9.8", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 unicode-segmentation = { version = ">=1.13", default-features = false, features = ["no_std"] }
 
 region = { version = ">=4.0", default-features = false, optional = true }
@@ -116,6 +117,7 @@ rstest = { version = ">=0.28", default-features = false }
 mockall = { version = ">=0.15", default-features = false, features = ["nightly"] }
 serial_test = { version = ">=4.0", default-features = false }
 tempfile = { version = ">=3.27", default-features = false }
+proptest = { version = ">=1.8", default-features = false, features = ["std"] }
 # lets the test watchdog report lock cycles; serial_test and log4rs still use parking_lot 0.12
 parking_lot = { version = ">=0.13", default-features = false, features = ["nightly", "deadlock_detection"] }
 parking_lot_012 = { package = "parking_lot", version = "0.12.5", default-features = false, features = ["deadlock_detection"] }

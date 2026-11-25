@@ -69,10 +69,21 @@ cfg_if::cfg_if! {
 mod commands;
 #[cfg(unix)]
 mod crash_guard;
+#[allow(
+    dead_code,
+    reason = "the scan that uses the file system follows in the next steps"
+)]
+mod engine_fs;
 mod ffi;
 mod fixes;
+mod gametypes;
 mod hooks;
 mod logging;
+#[allow(
+    dead_code,
+    reason = "the scan that uses the module follows in the next steps"
+)]
+mod maps;
 #[cfg(feature = "bench-support")]
 #[doc(hidden)]
 pub use ffi::python::bench_support;

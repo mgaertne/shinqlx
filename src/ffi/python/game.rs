@@ -184,6 +184,12 @@ impl Game {
         slf.set_map(value)
     }
 
+    /// The information about the running map, or ``None`` if it is not among the installed maps.
+    #[getter(map_info)]
+    fn get_map_info(slf: &Bound<'_, Self>) -> PyResult<Option<MapInfo>> {
+        slf.get_map_info()
+    }
+
     /// The full name of the map. Ex.: ``Longest Yard``.
     #[getter(map_title)]
     fn get_map_title(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -502,6 +508,7 @@ pub(crate) trait GameMethods<'py> {
     fn get_gametype_short(&self) -> PyResult<String>;
     fn get_map(&self) -> PyResult<String>;
     fn set_map(&self, value: &str) -> PyResult<()>;
+    fn get_map_info(&self) -> PyResult<Option<MapInfo>>;
     fn get_map_title(&self) -> PyResult<String>;
     fn get_map_subtitle1(&self) -> PyResult<String>;
     fn get_map_subtitle2(&self) -> PyResult<String>;
@@ -598,6 +605,11 @@ impl<'py> GameMethods<'py> for Bound<'py, Game> {
 
     fn get_map(&self) -> PyResult<String> {
         self.cvar("mapname")
+    }
+
+    fn get_map_info(&self) -> PyResult<Option<MapInfo>> {
+        let map = self.get_map()?;
+        Ok(pyshinqlx_map_info(&map))
     }
 
     fn set_map(&self, value: &str) -> PyResult<()> {
@@ -1510,6 +1522,41 @@ mod pyshinqlx_game_tests {
 
                     let result = game.get_map();
                     assert_eq!(result.expect("result was not OK"), "thunderstruck");
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn get_map_info_finds_the_running_map_ignoring_case(_pyshinqlx_setup: ()) {
+        let mut snapshot = crate::maps::scan::Snapshot::default();
+        let info =
+            crate::maps::model::MapInfo::assemble("Thunderstruck", None, Vec::new(), Vec::new());
+        snapshot.maps.insert(info.key(), info);
+        crate::maps::store::publish(snapshot);
+
+        MockEngineBuilder::default()
+            .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\THUNDERSTRUCK", 1)
+            .run(|| {
+                Python::attach(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    let found = game.get_map_info().expect("result was not OK");
+                    assert_eq!(
+                        found.map(|info| info.0.name),
+                        Some("Thunderstruck".to_owned())
+                    );
+                });
+            });
+
+        MockEngineBuilder::default()
+            .with_get_configstring(CS_SERVERINFO as u16, r"\mapname\elsewhere", 1)
+            .run(|| {
+                Python::attach(|py| {
+                    let game = Bound::new(py, default_game()).expect("this should not happen");
+
+                    assert!(game.get_map_info().expect("result was not OK").is_none());
                 });
             });
     }
