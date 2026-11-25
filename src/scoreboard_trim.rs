@@ -381,6 +381,7 @@ mod scoreboard_trim_tests {
     };
 
     #[test]
+    #[serial]
     fn a_scoreboard_within_the_budget_is_not_touched() {
         assert_eq!(
             trim(&scoreboard(&two_teams(4)), 0, TrimSettings::DEFAULT),
@@ -389,6 +390,7 @@ mod scoreboard_trim_tests {
     }
 
     #[test]
+    #[serial]
     fn a_disabled_trim_does_nothing() {
         let settings = TrimSettings {
             enabled: false,
@@ -399,6 +401,7 @@ mod scoreboard_trim_tests {
     }
 
     #[test]
+    #[serial]
     fn unknown_commands_and_broken_scoreboards_are_not_touched() {
         let long = format!("print \"{}\"", "x".repeat(2000));
         let broken = format!("{} 7", scoreboard(&two_teams(10)));
@@ -561,6 +564,7 @@ mod scoreboard_trim_tests {
     }
 
     #[test]
+    #[serial]
     fn scoreboards_that_cannot_get_long_are_not_touched() {
         let long = format!("scores_duel {}", "0 ".repeat(600));
 
