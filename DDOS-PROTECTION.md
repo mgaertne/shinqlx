@@ -339,6 +339,46 @@ Not tried: real filter rules, drops under load, behaviour while a match is runni
 `clang` and `libbpf`, and loading a program permanently at boot. Treat everything beyond the steps above as untested on
 your machine until you have checked it.
 
+## Probes that look odd but are harmless
+
+Capturing the traffic of a server for a day shows more than players and server lists. One pattern turned up that looks
+like an attack at first glance and is not:
+
+* A single address sends an `A2S_INFO` request (`FF FF FF FF`, `T`, `Source Engine Query`) that is padded with zero
+  bytes to a UDP payload of 1200 bytes, with the don't-fragment flag set. The packets come in pairs about 1.5 seconds
+  apart, to each game port in turn, roughly one pair per port every ten minutes, around the clock, with changing source
+  ports.
+* The request is larger than any answer the server gives, so it cannot amplify anything, and the rate is far below
+  anything that costs CPU. It looks like a scanner or monitoring tool that checks how a server reacts to large queries
+  or what the path allows. Whose it is, the capture does not tell.
+
+There is no reason to block such a source. The size limit for large packets of an XDP filter counts these packets
+(`limit_large`) and is the right place to shrug them off. They are worth knowing when you read a capture, so that they
+do not hold you up the next time.
+Regular `A2S_INFO`, `A2S_PLAYER` and challenge requests from a handful of addresses every few seconds, around the clock,
+are the same kind of background noise: server list crawlers and monitoring.
+
+A second pattern: individual addresses send a short burst of 48 packets of about 1350 bytes within one second, 24 to
+each game port. The server answers each with a 14 byte packet, so nothing is amplified, and such bursts came only a few
+times a day.
+
+### What 48 hours without any filter looked like
+
+One server was recorded for 48 hours with XDP and nftables switched off, both game ports open, headers only. It is a
+small server and was mostly empty, but it is a useful yardstick for what ordinary internet noise looks like:
+
+* About 430000 packets in both directions, 2.5 per second on average. Nothing was dropped by the kernel.
+* About 4000 distinct sources. The three or four busiest were crawlers and monitoring with 0.1 to 0.2 packets per second
+  each, constant day and night.
+* The highest rate was 125 packets per second for seven minutes, from one address: a player joining and playing. No
+  other address exceeded 53 packets per second in any single second.
+* The server's frame times stayed clean (p99 below 28 ms at a 25 ms frame, no stalls outside the join of a player), and
+  the XDP counters taken beforehand showed no bans and no rate limit hits except `limit_large` and `limit_rules`.
+
+A server like this was not under attack. The counters of your own filter and a day of `tcpdump -w` with a short snap
+length (`-s 96`, a rotating set of files) are enough to tell the difference, as long as you read the per-second rate of
+the busiest source and not just the total.
+
 ## Floods that fill the line
 
 Everything described here acts on the host, after the packets have arrived. If an attack sends more traffic than your
