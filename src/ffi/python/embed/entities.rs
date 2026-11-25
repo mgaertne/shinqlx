@@ -1,6 +1,6 @@
 use core::hint::cold_path;
 
-use pyo3::exceptions::PyValueError;
+use pyo3::{exceptions::PyValueError, types::PyDict};
 use tap::TryConv;
 
 use crate::ffi::{
@@ -93,11 +93,76 @@ pub(crate) fn pyshinqlx_move_entity(
     })
 }
 
+fn entity_ids_in_use() -> Vec<i32> {
+    (MAX_CLIENTS as i32..MAX_GENTITIES as i32)
+        .filter(|&entity_id| {
+            entity_id
+                .try_conv::<GameEntity>()
+                .is_ok_and(|game_entity| game_entity.in_use())
+        })
+        .collect()
+}
+
+/// Spawns an entity of the game like the entity string of a map does.
+///
+/// ``keys`` are the keys of the entity as a map has them, e.g. ``{"origin": "0 0 100", "target": "door"}``; the
+/// values are turned into strings. Returns the snapshot of the new entity, or ``None`` if the game did not
+/// create one, e.g. because it has no spawn function for ``classname``.
+///
+/// Call it from the events of the game, not from another thread.
+#[pyfunction]
+#[pyo3(name = "spawn_entity", signature = (classname, keys = None), text_signature = "(classname, keys=None)")]
+pub(crate) fn pyshinqlx_spawn_entity(
+    py: Python<'_>,
+    classname: &str,
+    keys: Option<&Bound<'_, PyDict>>,
+) -> PyResult<Option<EntityInfo>> {
+    if classname.is_empty() {
+        cold_path();
+        return Err(PyValueError::new_err("classname must not be empty."));
+    }
+
+    let mut vars = vec![("classname".to_string(), classname.to_string())];
+    for (key, value) in keys.into_iter().flat_map(|keys| keys.iter()) {
+        let key = key.extract::<String>()?;
+        if key == "classname" {
+            cold_path();
+            return Err(PyValueError::new_err(
+                "the classname is the first argument, not a key.",
+            ));
+        }
+        vars.push((key, value.str()?.to_string()));
+    }
+    if vars
+        .iter()
+        .any(|(key, value)| key.contains('\0') || value.contains('\0'))
+    {
+        cold_path();
+        return Err(PyValueError::new_err(
+            "keys and values must not contain NUL.",
+        ));
+    }
+
+    py.detach(|| {
+        let before = entity_ids_in_use();
+        if !GameEntity::spawn_from_vars(&vars) {
+            return Ok(None);
+        }
+
+        Ok(entity_ids_in_use()
+            .into_iter()
+            .filter(|entity_id| !before.contains(entity_id))
+            .filter_map(|entity_id| entity_id.try_conv::<GameEntity>().ok())
+            .map(|game_entity| EntityInfo::from(&game_entity))
+            .find(|info| info.classname == classname))
+    })
+}
+
 #[cfg(test)]
 mod entities_tests {
     use mockall::predicate;
     use pretty_assertions::assert_eq;
-    use pyo3::exceptions::PyValueError;
+    use pyo3::{exceptions::PyValueError, types::PyDict};
     use rstest::rstest;
 
     use crate::{
@@ -261,6 +326,97 @@ mod entities_tests {
         let result = Python::attach(|py| pyshinqlx_move_entity(py, 100, 1.0, 2.5, -3.0));
 
         assert!(result.is_ok_and(|moved| moved));
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn spawn_entity_returns_the_new_entity(_pyshinqlx_setup: ()) {
+        let spawned = alloc::sync::Arc::new(core::sync::atomic::AtomicBool::new(false));
+
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        let in_use_after_spawn = spawned.clone();
+        game_entity_from_ctx.expect().returning(move |entity_id| {
+            let spawned = in_use_after_spawn.load(core::sync::atomic::Ordering::SeqCst);
+            mock_entity(entity_id, spawned && entity_id == 200, 4)
+        });
+        let spawn_ctx = MockGameEntity::spawn_from_vars_context();
+        spawn_ctx
+            .expect()
+            .withf(|vars| {
+                vars == [
+                    ("classname".to_string(), "entity 200".to_string()),
+                    ("wait".to_string(), "2".to_string()),
+                ]
+            })
+            .times(1)
+            .returning(move |_| {
+                spawned.store(true, core::sync::atomic::Ordering::SeqCst);
+                true
+            });
+
+        let result = Python::attach(|py| {
+            let keys = PyDict::new(py);
+            keys.set_item("wait", 2).expect("could not set item");
+            pyshinqlx_spawn_entity(py, "entity 200", Some(&keys))
+        });
+
+        assert!(result.is_ok_and(|info| {
+            info.is_some_and(|info| info.id == 200 && info.etype == "mover")
+        }));
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn spawn_entity_without_a_new_entity_gives_none(_pyshinqlx_setup: ()) {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .returning(|entity_id| mock_entity(entity_id, false, 0));
+        let spawn_ctx = MockGameEntity::spawn_from_vars_context();
+        spawn_ctx.expect().times(1).returning(|_| true);
+
+        let result = Python::attach(|py| pyshinqlx_spawn_entity(py, "no_such_class", None));
+
+        assert!(result.is_ok_and(|info| info.is_none()));
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn spawn_entity_without_game_module_gives_none(_pyshinqlx_setup: ()) {
+        let game_entity_from_ctx = MockGameEntity::from_context();
+        game_entity_from_ctx
+            .expect()
+            .returning(|entity_id| mock_entity(entity_id, false, 0));
+        let spawn_ctx = MockGameEntity::spawn_from_vars_context();
+        spawn_ctx.expect().times(1).returning(|_| false);
+
+        let result = Python::attach(|py| pyshinqlx_spawn_entity(py, "info_null", None));
+
+        assert!(result.is_ok_and(|info| info.is_none()));
+    }
+
+    #[rstest]
+    #[case("", "wait", "1")]
+    #[case("func_door", "classname", "other")]
+    #[case("func_door", "wa\0it", "1")]
+    #[case("func_door", "wait", "1\0")]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn spawn_entity_rejects_invalid_input(
+        _pyshinqlx_setup: (),
+        #[case] classname: &str,
+        #[case] key: &str,
+        #[case] value: &str,
+    ) {
+        Python::attach(|py| {
+            let keys = PyDict::new(py);
+            keys.set_item(key, value).expect("could not set item");
+            let result = pyshinqlx_spawn_entity(py, classname, Some(&keys));
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+        });
     }
 
     #[rstest]

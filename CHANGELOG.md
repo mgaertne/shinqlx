@@ -56,7 +56,9 @@ Changes since 0.8.0.
 * **Entities at runtime:** `shinqlx.entities(in_use=True, etype=None)` returns frozen `EntityInfo` snapshots (`id`,
   `classname`, `etype`, `type_id`, `position`, `in_use`), and `shinqlx.remove_entity(entity_id)` frees an entity from
   number 64 on, and `shinqlx.move_entity(entity_id, x, y, z)` puts an entity at a standstill at a new position and
-  links it again, through the import table of the game module (rig-verified). The classname of a free slot is empty
+  links it again, through the import table of the game module (rig-verified), and `shinqlx.spawn_entity(classname,
+  keys=None)` spawns any entity with any keys like the entity string of a map does, by filling the spawn variables of
+  the game module and calling its spawn function (rig-verified). The classname of a free slot is empty
   instead of crashing the read.
 * **Properties for the state of a player, after minqlxtended:** `Player.location`, `speed`, `weapon_loadout`,
   `ammo_counts`, `powerup_times` and `flight_state` read and write what `position()`, `velocity()`, `weapons()`,

@@ -67,6 +67,26 @@ pub(crate) unsafe fn locate_import_at(
     load_opcode: [u8; 3],
     slot: usize,
 ) -> Option<usize> {
+    // SAFETY: the caller guarantees that the code and the memory it refers to are readable.
+    let global = unsafe { locate_global_at(instruction, load_opcode) }?;
+    // SAFETY: the global variable holds the pointer to the import table once the game module is set up.
+    let table = unsafe { core::ptr::read_unaligned(global as *const usize) };
+    if table == 0 {
+        return None;
+    }
+    // SAFETY: the import table has a slot at this offset.
+    let import = unsafe { core::ptr::read_unaligned((table + slot) as *const usize) };
+    (import != 0).then_some(import)
+}
+
+/// The address of the global variable of the game module that the instruction at `instruction` loads from the offset
+/// table of the module. The instruction starts with `load_opcode`, followed by the displacement of the table entry.
+///
+/// # Safety
+///
+/// `instruction` must be the address of such an instruction in a loaded game module, so that the code and the
+/// memory it refers to are readable.
+pub(crate) unsafe fn locate_global_at(instruction: usize, load_opcode: [u8; 3]) -> Option<usize> {
     // SAFETY: the caller guarantees that the code of the function is readable.
     let opcode = unsafe { core::ptr::read_unaligned(instruction as *const [u8; 3]) };
     if opcode != load_opcode {
@@ -78,17 +98,7 @@ pub(crate) unsafe fn locate_import_at(
     let global_slot = (instruction + 7).checked_add_signed(displacement as isize)?;
     // SAFETY: the instruction loads this slot of the offset table of the module, which the loader filled in.
     let global = unsafe { core::ptr::read_unaligned(global_slot as *const usize) };
-    if global == 0 {
-        return None;
-    }
-    // SAFETY: the global variable holds the pointer to the import table once the game module is set up.
-    let table = unsafe { core::ptr::read_unaligned(global as *const usize) };
-    if table == 0 {
-        return None;
-    }
-    // SAFETY: the import table has a slot at this offset.
-    let import = unsafe { core::ptr::read_unaligned((table + slot) as *const usize) };
-    (import != 0).then_some(import)
+    (global != 0).then_some(global)
 }
 
 #[cfg(all(target_os = "linux", not(test)))]

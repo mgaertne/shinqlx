@@ -766,6 +766,27 @@ Functions
    :return: ``True`` if an entity in use was moved, ``False`` if the slot was not in use or the engine could not be told.
    :raises ValueError: if ``entity_id`` is not between 64 and 1023, or a coordinate is not a finite number.
 
+.. function:: spawn_entity(classname, keys = None) -> EntityInfo | None
+
+   .. shinqlx-only::
+
+   Spawns an entity of the game like the entity string of a map does, e.g. an item, a trigger or a ``info_notnull``
+   marker. The game reads the keys as a map has them, so ``origin`` is a string like ``"0 0 100"``.
+
+   .. code-block:: python
+
+      armor = shinqlx.spawn_entity("item_armor_body", {"origin": "100 200 300"})
+
+   Call it from the events of the game, not from another thread. Some entities finish their set-up in the next frame:
+   an item still has the type ``general`` in the returned snapshot and is an ``item`` after that.
+
+   :param str classname: The classname of the entity, e.g. ``"item_health_large"``.
+   :param dict keys: The keys of the entity; the values are turned into strings. At most 63 keys fit, with 4000
+      characters together.
+   :return: The snapshot of the new entity, or ``None`` if the game did not create one, e.g. because it has no spawn
+      function for ``classname``, the keys do not fit or the entity is not meant for the gametype.
+   :raises ValueError: if ``classname`` is empty, ``classname`` is also a key, or a string has a NUL character.
+
 .. function:: parse_variables(varstr, ordered = False) -> dict[str, str]
 
    Parses strings of key-value pairs delimited by "\\" and puts them into a dictionary.

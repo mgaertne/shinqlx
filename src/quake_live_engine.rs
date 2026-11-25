@@ -172,6 +172,7 @@ struct VmFunctions {
     drop_item_orig: AtomicUsize,
     g_start_kamikaze_orig: AtomicUsize,
     g_free_entity_orig: AtomicUsize,
+    spawn_from_vars_orig: AtomicUsize,
     g_init_game_orig: AtomicUsize,
     g_shutdown_game_orig: AtomicUsize,
     g_run_frame_orig: AtomicUsize,
@@ -272,6 +273,10 @@ impl VmFunctions {
                     &self.g_start_kamikaze_orig,
                 ),
                 (QuakeLiveFunction::G_FreeEntity, &self.g_free_entity_orig),
+                (
+                    QuakeLiveFunction::G_SpawnGEntityFromSpawnVars,
+                    &self.spawn_from_vars_orig,
+                ),
                 #[cfg(feature = "clientkick-fix")]
                 (QuakeLiveFunction::Cmd_Callvote_f, &self.cmd_callvote_f_orig),
                 #[cfg(feature = "race-hooks")]
@@ -670,6 +675,7 @@ impl VmFunctions {
             &self.drop_item_orig,
             &self.g_start_kamikaze_orig,
             &self.g_free_entity_orig,
+            &self.spawn_from_vars_orig,
             &self.g_init_game_orig,
             &self.g_run_frame_orig,
             #[cfg(feature = "clientkick-fix")]
@@ -804,6 +810,7 @@ mod vm_functions_tests {
             drop_item_orig: Default::default(),
             g_start_kamikaze_orig: Default::default(),
             g_free_entity_orig: Default::default(),
+            spawn_from_vars_orig: Default::default(),
             g_init_game_orig: Default::default(),
             g_shutdown_game_orig: Default::default(),
             g_run_frame_orig: Default::default(),
@@ -2304,6 +2311,25 @@ impl QuakeLiveEngine {
                     // SAFETY: the address was found in the engine and has the signature of the function type.
                     unsafe { function_at::<extern "C" fn(*mut gentity_t)>(g_free_entity_orig) };
                 Ok(g_free_entity_func)
+            }
+        }
+    }
+
+    pub(crate) fn spawn_from_vars_orig(&self) -> Result<extern "C" fn(), QuakeLiveEngineError> {
+        match self
+            .vm_functions
+            .spawn_from_vars_orig
+            .load(Ordering::Acquire)
+        {
+            0 => {
+                cold_path();
+                Err(QuakeLiveEngineError::VmFunctionNotFound(
+                    QuakeLiveFunction::G_SpawnGEntityFromSpawnVars,
+                ))
+            }
+            spawn_from_vars_orig => {
+                // SAFETY: the address was found in the engine and has the signature of the function type.
+                Ok(unsafe { function_at::<extern "C" fn()>(spawn_from_vars_orig) })
             }
         }
     }
@@ -6133,6 +6159,59 @@ mod free_entity_quake_live_engine_tests {
     }
 }
 
+/// `G_SpawnGEntityFromSpawnVars` loads the pointer to the level data right after it has called `G_Spawn`.
+const SPAWN_LEVEL_LOAD_OFFSET: usize = 0x13;
+const SPAWN_LEVEL_LOAD: [u8; 3] = [0x48, 0x8b, 0x1d];
+
+pub(crate) trait SpawnEntityFromVars {
+    /// Creates the entity that the key/value pairs describe, like the entity string of a map does; the game module
+    /// frees it again when it has no spawn function. Returns whether the game module was asked to spawn it.
+    fn spawn_entity_from_vars(&self, vars: &[(String, String)]) -> bool;
+}
+
+impl SpawnEntityFromVars for QuakeLiveEngine {
+    #[cfg(target_os = "linux")]
+    fn spawn_entity_from_vars(&self, vars: &[(String, String)]) -> bool {
+        let Ok(spawn) = self.spawn_from_vars_orig() else {
+            return false;
+        };
+        // SAFETY: the address is that of the function in the loaded game module, whose code is readable.
+        let Some(level) = (unsafe {
+            crate::stats_feed::locate_global_at(
+                spawn as usize + SPAWN_LEVEL_LOAD_OFFSET,
+                SPAWN_LEVEL_LOAD,
+            )
+        }) else {
+            return false;
+        };
+        // SAFETY: the global is the level data of the game module, which has the table of spawn variables.
+        if unsafe { crate::spawn_vars::write_spawn_vars(level, vars) }.is_err() {
+            return false;
+        }
+        spawn();
+        // SAFETY: as above.
+        unsafe { crate::spawn_vars::clear_spawn_vars(level) };
+        true
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn spawn_entity_from_vars(&self, _vars: &[(String, String)]) -> bool {
+        false
+    }
+}
+
+#[cfg(test)]
+mod spawn_entity_quake_live_engine_tests {
+    use super::{SpawnEntityFromVars, quake_live_engine_test_helpers::*};
+
+    #[test]
+    fn spawn_entity_from_vars_with_no_function_set() {
+        let quake_engine = default_quake_engine();
+
+        assert!(!quake_engine.spawn_entity_from_vars(&[("classname".into(), "info_null".into())]));
+    }
+}
+
 /// Slot of the import table of the game module that holds the engine function `trap_LinkEntity`.
 const LINK_ENTITY_SLOT: usize = 0x138;
 /// `G_FreeEntity` starts with the load of the pointer to the import table, which it uses for `trap_UnlinkEntity`.
@@ -6576,6 +6655,9 @@ mockall::mock! {
     }
     impl LinkEntity<&mut crate::ffi::c::game_entity::GameEntity> for QuakeEngine {
         fn link_entity(&self, mut gentity: &mut crate::ffi::c::game_entity::GameEntity) -> bool;
+    }
+    impl SpawnEntityFromVars for QuakeEngine {
+        fn spawn_entity_from_vars(&self, vars: &[(String, String)]) -> bool;
     }
     impl GetConfigstring<u16> for QuakeEngine {
         fn get_configstring(&self, index: u16) -> String;

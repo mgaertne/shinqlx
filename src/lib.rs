@@ -84,6 +84,7 @@ mod quake_live_engine;
 pub mod quake_live_functions;
 mod reliable_guard;
 mod scoreboard_trim;
+mod spawn_vars;
 mod stats_feed;
 
 pub(crate) mod prelude {

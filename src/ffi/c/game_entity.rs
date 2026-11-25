@@ -18,8 +18,8 @@ use crate::{
     MAIN_ENGINE,
     prelude::*,
     quake_live_engine::{
-        ComPrintf, FreeEntity, GetConfigstring, LinkEntity, RegisterDamage, StartKamikaze,
-        TryLaunchItem,
+        ComPrintf, FreeEntity, GetConfigstring, LinkEntity, RegisterDamage, SpawnEntityFromVars,
+        StartKamikaze, TryLaunchItem,
     },
 };
 
@@ -408,6 +408,15 @@ impl GameEntity {
         self.gentity_t.r.currentOrigin = origin;
     }
 
+    /// Spawns the entity that the pairs of keys and values describe, like a map does; returns whether the game
+    /// module was asked to spawn it.
+    pub(crate) fn spawn_from_vars(vars: &[(String, String)]) -> bool {
+        MAIN_ENGINE
+            .load()
+            .as_ref()
+            .is_some_and(|main_engine| main_engine.spawn_entity_from_vars(vars))
+    }
+
     /// Tells the engine about the position of the entity, so that it is found in the world there.
     pub(crate) fn link(&mut self) -> bool {
         MAIN_ENGINE
@@ -526,6 +535,7 @@ mockall::mock! {
         pub(crate) fn free_entity(&mut self);
         pub(crate) fn set_origin(&mut self, origin: vec3_t);
         pub(crate) fn link(&mut self) -> bool;
+        pub(crate) fn spawn_from_vars(vars: &[(String, String)]) -> bool;
         pub(crate) fn replace_item(&mut self, item_id: i32);
         pub(crate) fn get_targetting_entity_ids(&self) -> Vec<u32>;
         pub(crate) fn set_next_think(&mut self, next_think: i32);
@@ -1621,6 +1631,33 @@ mod game_entity_tests {
         assert_eq!(gentity.s.pos.trType, trType_t::TR_STATIONARY);
         assert_eq!(gentity.s.pos.trDelta, [0.0; 3]);
         assert_eq!((gentity.s.pos.trTime, gentity.s.pos.trDuration), (0, 0));
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_spawn_from_vars_with_no_main_engine() {
+        assert!(!GameEntity::spawn_from_vars(&[(
+            "classname".to_string(),
+            "info_null".to_string()
+        )]));
+    }
+
+    #[test]
+    #[serial]
+    fn game_entity_spawn_from_vars_asks_the_engine() {
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_spawn_entity_from_vars()
+                    .times(1)
+                    .returning(|_| true);
+            })
+            .run(|| {
+                assert!(GameEntity::spawn_from_vars(&[(
+                    "classname".to_string(),
+                    "info_null".to_string()
+                )]));
+            });
     }
 
     #[test]
