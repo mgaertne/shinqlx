@@ -378,6 +378,7 @@ mod command_text_tests {
     #[case("a\nquit", false)]
     #[case("a\rquit", false)]
     #[case("a\"b", false)]
+    #[cfg_attr(miri, ignore)]
     fn console_word_refuses_separators(#[case] word: &str, #[case] accepted: bool) {
         Python::attach(|py| {
             let result = console_word("new_map", word);

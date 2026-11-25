@@ -212,6 +212,7 @@ mod crash_guard_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn the_handler_of_the_engine_is_called_with_the_arguments_it_registered() {
         let plain = EngineHandler::new();
         plain.remember(&registered(plain_handler as *const () as usize, 0));
@@ -230,6 +231,7 @@ mod crash_guard_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn a_guard_replaces_the_handler_once_and_keeps_the_engine_one() {
         // SAFETY: the signal is only used by this test and put back to the default at its end.
         unsafe { libc::signal(libc::SIGUSR2, libc::SIG_DFL) };
@@ -246,6 +248,7 @@ mod crash_guard_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn a_guard_for_an_impossible_signal_is_an_error() {
         assert!(guard(-1, guard_handler).is_err());
     }
