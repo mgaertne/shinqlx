@@ -119,10 +119,10 @@ pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart:
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         guard_against_hanging_crash("shinqlx_g_initgame");
 
-        main_engine.init_game(level_time, random_seed, restart);
-
         #[cfg(all(target_os = "linux", not(test)))]
         main_engine.hook_stats_feed();
+
+        main_engine.init_game(level_time, random_seed, restart);
 
         main_engine.set_tag();
         main_engine.initialize_cvars();

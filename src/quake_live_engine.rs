@@ -1715,6 +1715,8 @@ impl QuakeLiveEngine {
     }
 
     pub(crate) fn unhook_vm(&self, _restart: bool) {
+        #[cfg(all(target_os = "linux", not(test)))]
+        crate::stats_feed::forget_writer();
         self.vm_functions.unhook();
     }
 

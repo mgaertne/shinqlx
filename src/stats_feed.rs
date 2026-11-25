@@ -102,7 +102,7 @@ pub(crate) unsafe fn locate_global_at(instruction: usize, load_opcode: [u8; 3]) 
 }
 
 #[cfg(all(target_os = "linux", not(test)))]
-pub(crate) use linux::install;
+pub(crate) use linux::{forget_writer, install};
 
 #[cfg(all(target_os = "linux", not(test)))]
 mod linux {
@@ -299,6 +299,11 @@ mod linux {
         if cell.set(detour).is_ok() {
             debug!(target: "shinqlx", func = "hook_import"; "Stats import hooked at {import:#X}");
         }
+    }
+
+    /// Drops the functions of the game module that is about to be unloaded; a later event must not call them.
+    pub(crate) fn forget_writer() {
+        WRITER.store(None);
     }
 
     /// Hooks the engine function that publishes the stats events, if it was not hooked before.
