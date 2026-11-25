@@ -97,6 +97,7 @@ mod reliable_guard;
 mod scoreboard_trim;
 mod spawn_vars;
 mod stats_feed;
+mod workshop;
 
 pub(crate) mod prelude {
     pub(crate) use alloc::format;

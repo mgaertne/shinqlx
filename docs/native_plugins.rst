@@ -264,3 +264,41 @@ workshop
 Adds the workshop items from the cvar ``qlx_workshopReferences`` to every map. The cvar takes a comma separated list
 of workshop item ids. The items are also added to the map that is already running when the plugin is loaded, so that
 the first players of a freshly started server get them too. Items that are already referenced are not added twice.
+
+Installing and removing items while the server runs
+---------------------------------------------------
+
+``!workshop add <id>`` lets Steam download the item (the engine command ``steam_downloadugc``), mounts it at once, adds
+it to the list of the server and scans the maps again, so ``map_info`` knows its maps. The reply tells when the item
+has arrived; a large item can take a while. ``!workshop remove <id>`` takes the item out of the list. It stays mounted
+until the next restart of the server. ``!workshop list`` summarises the list and names the items whose files are
+missing; ``!workshop list all`` names every item.
+
+The list is the ``workshop.txt`` of the server (the cvar ``sv_workshopFile`` of the engine). The engine reads the one
+in the home path and only falls back to the base path when there is none; it does not merge them. The plugin therefore
+always writes the list in the home path, and copies the list of the base path into it with the first change, so that
+servers that share a base path keep their own lists. A line holds the item id and a comment, which the plugin writes as
+``<id> # <pk3-name> (<map>, <map>, ...), <pk3-name> (...)``; comments, blank lines and the order are kept.
+
+By default the files of a removed item stay on the disk, because the content directory of Steam is shared by all
+servers of the machine. ``!workshop remove <id> purge`` also deletes the directory of the item and its entries in the
+manifest of Steam (``appworkshop_282440.acf``); ``keep`` forces the default when ``qlx_workshopPurge`` is set to ``1``.
+Steam keeps its state in memory, so an item that was deleted this way can only be downloaded again after a restart of
+the server; the plugin refuses ``add`` for it until then.
+
+What the engine can take is limited by the number of ``.pk3`` files, not by the number of workshop items. Measured on a
+test server with the engine alone, the names and checksums of all ``.pk3`` files go into info strings of 8192
+characters, which takes the length of the name plus about 14 characters per file, and from about 380 ``.pk3`` files
+the engine reports ``Info string length exceeded`` after the start of a game. From about 750 to 790 ``.pk3`` files it
+stops with ``Z_Malloc: failed on allocation ... from the main zone`` when a map is loaded; ``com_zoneMegs 64`` raised
+that limit beyond 990. The values depend on the length of the names and the number of files in the archives. The cvar
+``qlx_workshopWarnPk3`` names the number of ``.pk3`` files of the listed items above which ``add`` and ``list`` warn.
+
+=========================== ============= =========================================================================
+Cvar                        Default       Meaning
+=========================== ============= =========================================================================
+``qlx_workshopFile``        empty         Path of the list to use instead of the ``workshop.txt`` of the home path.
+``qlx_workshopPurge``       ``0``         ``1`` deletes the files with every ``remove``.
+``qlx_workshopWarnPk3``     ``350``       Number of ``.pk3`` files above which to warn; ``0`` does not warn.
+``qlx_workshopPermission``  ``5``         Permission level for ``!workshop``.
+=========================== ============= =========================================================================

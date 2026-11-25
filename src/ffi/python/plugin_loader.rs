@@ -600,8 +600,19 @@ mod native_plugin_loading_tests {
                 0..,
             )
             .with_find_cvar(|cmd| cmd == "qlx_workshopReferences", |_| None, times)
+            .with_find_cvar(
+                |cmd| cmd.starts_with("qlx_workshop") && cmd != "qlx_workshopReferences",
+                |_| None,
+                0..,
+            )
             .with_get_configstring(CS_SERVERINFO as u16, "", 0..)
             .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_cvar()
+                    .withf(|name, _, _| {
+                        name.starts_with("qlx_workshop") && name != "qlx_workshopReferences"
+                    })
+                    .times(0..);
                 mock_engine
                     .expect_get_cvar()
                     .with(

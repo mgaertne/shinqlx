@@ -96,6 +96,14 @@ Changes since 0.8.0.
   processes the touch of an item by a player (map items and dropped items). Stopping the event keeps the player from
   picking the item up. The game touches an item in every frame in which the player overlaps it, also when the player
   cannot pick it up, so the hooks should be cheap.
+* **Workshop items at runtime:** `!workshop add <id>`, `remove <id> [purge|keep]` and `list [all]` of the built-in
+  `workshop` plugin install items through the engine command `steam_downloadugc` while the server runs, mount them at
+  once, keep the `workshop.txt` of the home path (comments and order stay; the engine does not merge it with the one of
+  the base path, so the plugin copies that one into the home path with the first change) and scan the maps again.
+  `purge` also deletes the item directory and its entries in `appworkshop_282440.acf`; without it the shared files stay.
+  New cvars `qlx_workshopFile`, `qlx_workshopPurge`, `qlx_workshopWarnPk3` (default 350: warns above that many `.pk3` files, because the engine overflows its info strings from about 380 and runs out of memory from about 750; `com_zoneMegs 64` helps) and
+  `qlx_workshopPermission`. `reload_maps()` now reads the search paths of the game anew with the next frame, so items
+  installed later are found.
 * **New event `item_pickup`, after minqlxtended:** `handle(player, entity_id, classname)` goes off after a player
   really picked an item up (the item is gone after the touch). It cannot be cancelled; use `item_touch` for that.
   Unlike minqlxtended it also hands over the entity id, and the second argument is the entity's class name.
