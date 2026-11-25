@@ -286,8 +286,22 @@ impl GameEntity {
     }
 
     pub(crate) fn get_classname(&self) -> Cow<'_, str> {
-        // SAFETY: the field is a NUL-terminated C string owned by the engine structure.
+        if self.gentity_t.classname.is_null() {
+            cold_path();
+            return "".into();
+        }
+
+        // SAFETY: the field was checked as non-null and is a NUL-terminated C string owned by the engine structure.
         unsafe { CStr::from_ptr(self.gentity_t.classname) }.to_string_lossy()
+    }
+
+    /// The raw `eType` of the entity, which is `ET_EVENTS` plus a number for events.
+    pub(crate) fn get_entity_type(&self) -> i32 {
+        self.gentity_t.s.eType
+    }
+
+    pub(crate) fn get_origin(&self) -> vec3_t {
+        self.gentity_t.r.currentOrigin
     }
 
     pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool {
@@ -479,6 +493,8 @@ mockall::mock! {
         pub(crate) fn slay_with_mod(&mut self, mean_of_death: meansOfDeath_t);
         pub(crate) fn in_use(&self) -> bool;
         pub(crate) fn get_classname(&self) -> Cow<'_, str>;
+        pub(crate) fn get_entity_type(&self) -> i32;
+        pub(crate) fn get_origin(&self) -> vec3_t;
         pub(crate) fn is_game_item(&self, item_type: entityType_t) -> bool;
         pub(crate) fn is_respawning_weapon(&self) -> bool;
         pub(crate) fn set_respawn_time(&mut self, respawn_time: i32);
@@ -1543,6 +1559,38 @@ mod game_entity_tests {
         let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
         assert_eq!(game_entity.get_classname(), "entity classname");
+    }
+
+    #[test]
+    fn game_entity_get_classname_of_a_free_slot_is_empty() {
+        let mut gentity = GEntityBuilder::default()
+            .classname(ptr::null())
+            .build()
+            .expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+        assert_eq!(game_entity.get_classname(), "");
+    }
+
+    #[test]
+    fn game_entity_get_entity_type_and_origin() {
+        let entity_state = EntityStateBuilder::default()
+            .eType(entityType_t::ET_MOVER as i32)
+            .build()
+            .expect("this should not happen");
+        let entity_shared = EntitySharedBuilder::default()
+            .currentOrigin([1.0, 2.0, 3.0])
+            .build()
+            .expect("this should not happen");
+        let mut gentity = GEntityBuilder::default()
+            .s(entity_state)
+            .r(entity_shared)
+            .build()
+            .expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+        assert_eq!(game_entity.get_entity_type(), entityType_t::ET_MOVER as i32);
+        assert_eq!(game_entity.get_origin(), [1.0, 2.0, 3.0]);
     }
 
     #[test]

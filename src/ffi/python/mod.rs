@@ -9,6 +9,7 @@ mod deferred;
 mod dispatchers;
 mod embed;
 mod engine_api;
+mod entity_info;
 mod events;
 mod events_enum;
 mod flag_enums;
@@ -163,6 +164,7 @@ pub(crate) mod prelude {
         clean_text,
         config_string::ConfigString,
         embed::*,
+        entity_info::EntityInfo,
         events::*,
         events_enum::EventName,
         flag_enums::{CvarFlags, DamageFlags},

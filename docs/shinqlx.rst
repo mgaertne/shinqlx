@@ -694,6 +694,63 @@ Functions
    :param int entity_id: The entity to determine entities targetting it from.
    :return: The list of entity_ids for the entites that target the given ``entity_id``.
 
+.. function:: entities(in_use = True, etype = None) -> list[EntityInfo]
+
+   .. shinqlx-only::
+
+   Snapshots of the entities of the game, in the order of their numbers.
+
+   :param bool in_use: ``True`` lists only the entities in use, ``False`` lists every slot of the entity list too.
+   :param etype: Limits the list to the entities of this type, a member of :class:`EntityTypes` or its string.
+   :return: The list of :class:`EntityInfo`.
+
+.. class:: EntityInfo
+
+   .. shinqlx-only::
+
+   A snapshot of an entity: it does not change when the entity does, so call :func:`entities` again for the current
+   state. Changes go through functions that take the number of the entity, e.g. :func:`remove_entity`.
+
+   .. attribute:: id
+      :type: int
+
+      The number of the entity.
+
+   .. attribute:: classname
+      :type: str
+
+      The classname of the entity, e.g. ``"item_armor_body"``; empty for a slot that is not in use.
+
+   .. attribute:: etype
+      :type: str
+
+      The type of the entity, which equals a member of :class:`EntityTypes`.
+
+   .. attribute:: type_id
+      :type: int
+
+      The number of the type in the engine; for events ``ET_EVENTS`` (13) plus the number of the event.
+
+   .. attribute:: position
+      :type: Vector3
+
+      The position of the entity.
+
+   .. attribute:: in_use
+      :type: bool
+
+      Whether the entity is in use.
+
+.. function:: remove_entity(entity_id) -> bool
+
+   .. shinqlx-only::
+
+   Frees an entity of the game, e.g. an item or a trigger.
+
+   :param int entity_id: The number of the entity, from 64 on: the slots below belong to the players.
+   :return: ``True`` if an entity in use was freed, ``False`` if the slot was not in use.
+   :raises ValueError: if ``entity_id`` is not between 64 and 1023.
+
 .. function:: parse_variables(varstr, ordered = False) -> dict[str, str]
 
    Parses strings of key-value pairs delimited by "\\" and puts them into a dictionary.

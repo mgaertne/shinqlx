@@ -303,6 +303,7 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Powerups>()?;
     m.add_class::<Weapons>()?;
     m.add_class::<PlayerInfo>()?;
+    m.add_class::<EntityInfo>()?;
     m.add_class::<PlayerState>()?;
     m.add_class::<PlayerStats>()?;
 
@@ -350,6 +351,8 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_dev_print_items, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_force_weapon_respawn_time, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_get_entity_targets, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_entities, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_remove_entity, m)?)?;
 
     Ok(())
 }

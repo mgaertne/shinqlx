@@ -53,6 +53,9 @@ Changes since 0.8.0.
   the game), `StatsTypes` (`TYPE` of the stats data), `ChatChannels` (the names of the channels) and `EntityTypes` (the
   types of the entities, for the coming entity API). Like `Events` and `Medal` they are `str` enumerations: a member
   equals and hashes like its string, and the API keeps returning plain strings.
+* **Entities at runtime:** `shinqlx.entities(in_use=True, etype=None)` returns frozen `EntityInfo` snapshots (`id`,
+  `classname`, `etype`, `type_id`, `position`, `in_use`), and `shinqlx.remove_entity(entity_id)` frees an entity from
+  number 64 on. The classname of a free slot is empty instead of crashing the read.
 * **Properties for the state of a player, after minqlxtended:** `Player.location`, `speed`, `weapon_loadout`,
   `ammo_counts`, `powerup_times` and `flight_state` read and write what `position()`, `velocity()`, `weapons()`,
   `ammo()`, `powerups()` and `flight()` handled, as `Vector3`, `Weapons`, `Powerups` and `Flight` objects. The methods
