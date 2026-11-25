@@ -264,6 +264,21 @@ pub(crate) fn cvar_changed_dispatcher(cvar_name: &str, old_value: &str, new_valu
     });
 }
 
+pub(crate) fn item_pickup_dispatcher(client_id: i32, entity_id: i32, classname: &str) {
+    if !event_wanted(EventName::ItemPickup) {
+        return;
+    }
+
+    if !pyshinqlx_is_initialized() {
+        cold_path();
+        return;
+    }
+
+    Python::attach(|py| {
+        let _ = handle_item_pickup(py, client_id, entity_id, classname);
+    });
+}
+
 /// Whether the player may go on touching the item, `false` if a handler stopped the event.
 pub(crate) fn item_touch_dispatcher(client_id: i32, entity_id: i32, classname: &str) -> bool {
     if !event_wanted(EventName::ItemTouch) {
@@ -340,10 +355,10 @@ mod pyshinqlx_dispatcher_tests {
         client_command_dispatcher, client_connect_dispatcher, client_disconnect_dispatcher,
         client_loaded_dispatcher, client_spawn_dispatcher, console_print_dispatcher,
         cvar_changed_dispatcher, damage_dispatcher, flag_status_dispatcher, frame_dispatcher,
-        item_touch_dispatcher, kamikaze_explode_dispatcher, kamikaze_use_dispatcher,
-        medal_dispatcher, new_game_dispatcher, objective_dispatcher, rcon_dispatcher,
-        server_command_dispatcher, set_configstring_dispatcher, stats_feed_dispatcher,
-        weapon_fired_dispatcher,
+        item_pickup_dispatcher, item_touch_dispatcher, kamikaze_explode_dispatcher,
+        kamikaze_use_dispatcher, medal_dispatcher, new_game_dispatcher, objective_dispatcher,
+        rcon_dispatcher, server_command_dispatcher, set_configstring_dispatcher,
+        stats_feed_dispatcher, weapon_fired_dispatcher,
     };
     use crate::{
         ffi::{c::prelude::*, python::prelude::*},
@@ -400,6 +415,37 @@ mod pyshinqlx_dispatcher_tests {
             .times(1);
 
         weapon_fired_dispatcher(123, 5);
+    }
+
+    #[test]
+    #[serial]
+    fn item_pickup_dispatcher_when_python_not_initiailized() {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| false);
+
+        let handle_item_pickup_ctx = handle_item_pickup_context();
+        handle_item_pickup_ctx.expect().times(0);
+
+        item_pickup_dispatcher(123, 42, "item_armor_body");
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn item_pickup_dispatcher_hands_the_item_to_the_handler(_pyshinqlx_setup: ()) {
+        let is_initialized_context = pyshinqlx_is_initialized_context();
+        is_initialized_context.expect().returning(|| true);
+
+        let handle_item_pickup_ctx = handle_item_pickup_context();
+        handle_item_pickup_ctx
+            .expect()
+            .withf(|_, client_id, entity_id, classname| {
+                *client_id == 123 && *entity_id == 42 && classname == "item_armor_body"
+            })
+            .returning(|py, _, _, _| py.None())
+            .times(1);
+
+        item_pickup_dispatcher(123, 42, "item_armor_body");
     }
 
     #[test]

@@ -1185,17 +1185,20 @@ pub(crate) extern "C" fn shinqlx_cvar_set2(
 
 /// The game calls this for every frame in which a player overlaps an item, also when the player
 /// cannot pick the item up. A handler of `item_touch` that stops the event keeps the touch from
-/// reaching the game module.
+/// reaching the game module. When the touch takes the item away, `item_pickup` goes off afterwards.
 pub(crate) extern "C" fn shinqlx_touch_item(
     item: *mut gentity_t,
     toucher: *mut gentity_t,
     trace: *mut trace_t,
 ) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
-        let touch_allowed = GameEntity::try_from(toucher)
+        let player_and_item = GameEntity::try_from(toucher)
             .ok()
             .filter(|toucher_entity| toucher_entity.get_game_client().is_ok())
-            .zip(GameEntity::try_from(item).ok())
+            .zip(GameEntity::try_from(item).ok());
+
+        let touch_allowed = player_and_item
+            .as_ref()
             .is_none_or(|(toucher_entity, item_entity)| {
                 item_touch_dispatcher(
                     toucher_entity.get_entity_id(),
@@ -1203,9 +1206,26 @@ pub(crate) extern "C" fn shinqlx_touch_item(
                     &item_entity.get_classname(),
                 )
             });
+        if !touch_allowed {
+            return;
+        }
 
-        if touch_allowed {
-            main_engine.touch_item(item, toucher, trace);
+        let could_be_picked_up = player_and_item
+            .as_ref()
+            .is_some_and(|(_, item_entity)| item_entity.is_available_item());
+
+        main_engine.touch_item(item, toucher, trace);
+
+        if could_be_picked_up {
+            player_and_item
+                .filter(|(_, item_entity)| !item_entity.is_available_item())
+                .tap_some(|(toucher_entity, item_entity)| {
+                    item_pickup_dispatcher(
+                        toucher_entity.get_entity_id(),
+                        item_entity.get_entity_id(),
+                        &item_entity.get_classname(),
+                    );
+                });
         }
     });
 }
@@ -1543,7 +1563,7 @@ mod touch_item_hook_tests {
         prelude::*,
     };
 
-    fn entities(toucher_is_client: bool) {
+    fn entities(toucher_is_client: bool, item_available: [bool; 2]) {
         let mut toucher = GEntityBuilder::default()
             .build()
             .expect("this should not happen");
@@ -1568,6 +1588,12 @@ mod touch_item_hook_tests {
                 mock_gentity
                     .expect_get_classname()
                     .returning(|| Cow::Borrowed("item_armor_body"));
+                for available in item_available {
+                    mock_gentity
+                        .expect_is_available_item()
+                        .times(..=1)
+                        .return_const(available);
+                }
             }
             Ok(mock_gentity)
         });
@@ -1613,7 +1639,48 @@ mod touch_item_hook_tests {
             .return_const(true)
             .times(1);
 
-        entities(true);
+        entities(true, [true, true]);
+    }
+
+    #[rstest]
+    #[serial]
+    fn touch_item_that_takes_the_item_away_reports_the_pickup() {
+        let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
+        item_touch_dispatcher_ctx.expect().return_const(true);
+        let item_pickup_dispatcher_ctx = item_pickup_dispatcher_context();
+        item_pickup_dispatcher_ctx
+            .expect()
+            .with(
+                predicate::eq(3),
+                predicate::eq(120),
+                predicate::eq("item_armor_body"),
+            )
+            .times(1)
+            .return_const(());
+
+        entities(true, [true, false]);
+    }
+
+    #[rstest]
+    #[serial]
+    fn touch_item_that_leaves_the_item_alone_reports_no_pickup() {
+        let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
+        item_touch_dispatcher_ctx.expect().return_const(true);
+        let item_pickup_dispatcher_ctx = item_pickup_dispatcher_context();
+        item_pickup_dispatcher_ctx.expect().times(0);
+
+        entities(true, [true, true]);
+    }
+
+    #[rstest]
+    #[serial]
+    fn touch_item_of_an_item_that_was_not_available_reports_no_pickup() {
+        let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
+        item_touch_dispatcher_ctx.expect().return_const(true);
+        let item_pickup_dispatcher_ctx = item_pickup_dispatcher_context();
+        item_pickup_dispatcher_ctx.expect().times(0);
+
+        entities(true, [false, false]);
     }
 
     #[rstest]
@@ -1622,7 +1689,7 @@ mod touch_item_hook_tests {
         let item_touch_dispatcher_ctx = item_touch_dispatcher_context();
         item_touch_dispatcher_ctx.expect().times(0);
 
-        entities(false);
+        entities(false, [true, true]);
     }
 
     #[rstest]

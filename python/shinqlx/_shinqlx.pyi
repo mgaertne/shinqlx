@@ -473,6 +473,7 @@ class Events(str, Enum):
     FLAG_STATUS = "flag_status"
     WEAPON_FIRED = "weapon_fired"
     CVAR_CHANGED = "cvar_changed"
+    ITEM_PICKUP = "item_pickup"
     ITEM_TOUCH = "item_touch"
     KAMIKAZE_EXPLODE = "kamikaze_explode"
     KAMIKAZE_USE = "kamikaze_use"
@@ -867,6 +868,10 @@ def register_handler(
 @overload
 def register_handler(
     event: Literal["cvar_changed"], handler: Callable[[str, str, str], bool | None] | None = ...
+) -> None: ...
+@overload
+def register_handler(
+    event: Literal["item_pickup"], handler: Callable[[int, int, str], bool | None] | None = ...
 ) -> None: ...
 @overload
 def register_handler(

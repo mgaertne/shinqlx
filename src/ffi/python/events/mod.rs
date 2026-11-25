@@ -11,6 +11,7 @@ mod frame_event_dispatcher;
 mod game_countdown_dispatcher;
 mod game_end_dispatcher;
 mod game_start_dispatcher;
+mod item_pickup_dispatcher;
 mod item_touch_dispatcher;
 mod kamikaze_explode_dispatcher;
 mod kamikaze_use_dispatcher;
@@ -84,6 +85,7 @@ pub(crate) use game_end_dispatcher::{GameEndDispatcher, GameEndDispatcherMethods
     reason = "re-exported for the prelude, not every build uses every item"
 )]
 pub(crate) use game_start_dispatcher::{GameStartDispatcher, GameStartDispatcherMethods};
+pub(crate) use item_pickup_dispatcher::{ItemPickupDispatcher, ItemPickupDispatcherMethods};
 pub(crate) use item_touch_dispatcher::{ItemTouchDispatcher, ItemTouchDispatcherMethods};
 use itertools::Itertools;
 pub(crate) use kamikaze_explode_dispatcher::{

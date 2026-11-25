@@ -125,6 +125,16 @@ Low-level handlers. These are all called by the Rust-code, not within Python.
    :param str new_value: The value after the change.
    :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
 
+.. function:: handle_item_pickup(client_id, entity_id, classname) -> bool | None
+
+   This will be called whenever a player has picked an item up. The item is gone by then, so the event cannot be
+   cancelled.
+
+   :param int client_id: The client identifier.
+   :param int entity_id: The entity identifier of the item.
+   :param str classname: The class name of the item, for example ``"item_armor_body"``.
+   :return: ``True`` if an exception occurred during handling, ``None`` otherwise.
+
 .. function:: handle_item_touch(client_id, entity_id, classname) -> bool | None
 
    This will be called whenever a player touches an item, before the game decides whether the player picks it up.

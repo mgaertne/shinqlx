@@ -7716,6 +7716,101 @@ mod handle_flag_status_tests {
     }
 }
 
+fn try_handle_item_pickup(
+    py: Python<'_>,
+    client_id: i32,
+    entity_id: i32,
+    classname: &str,
+) -> PyResult<Py<PyAny>> {
+    event_dispatcher(
+        py,
+        intern!(py, EventName::ItemPickup.as_str()),
+        "could not get access to item pickup dispatcher",
+    )
+    .and_then(|item_pickup_dispatcher| {
+        let player = Player::from_client_id(client_id, None);
+
+        ItemPickupDispatcherMethods::dispatch(
+            item_pickup_dispatcher.cast()?,
+            &Bound::new(py, player)?,
+            entity_id,
+            classname,
+        )
+        .map(|value| value.unbind())
+    })
+}
+
+/// This will be called whenever a player has picked an item up. The item is gone by then, so the
+/// event cannot be cancelled.
+#[pyfunction]
+pub(crate) fn handle_item_pickup(
+    py: Python<'_>,
+    client_id: i32,
+    entity_id: i32,
+    classname: &str,
+) -> Py<PyAny> {
+    try_handle_item_pickup(py, client_id, entity_id, classname).unwrap_or_else(|e| {
+        log_exception(py, &e);
+        PyBool::new(py, true).to_owned().into_any().unbind()
+    })
+}
+
+#[cfg(test)]
+mod handle_item_pickup_tests {
+    use pyo3::{exceptions::PyEnvironmentError, prelude::*, types::PyBool};
+    use rstest::*;
+
+    use super::{handle_item_pickup, try_handle_item_pickup};
+    use crate::{
+        ffi::python::{
+            EVENT_DISPATCHERS, events::EventDispatcherManager,
+            pyshinqlx_setup_fixture::pyshinqlx_setup,
+        },
+        prelude::*,
+    };
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn try_handle_item_pickup_with_no_dispatcher(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            let event_dispatcher = EventDispatcherManager::default();
+            EVENT_DISPATCHERS.store(Some(
+                Py::new(py, event_dispatcher)
+                    .expect("could not create event dispatcher manager in python")
+                    .into(),
+            ));
+
+            let result = try_handle_item_pickup(py, 42, 100, "item_armor_body");
+            assert!(result.is_err_and(|err| err.is_instance_of::<PyEnvironmentError>(py)));
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn handle_item_pickup_when_dispatcher_throws_exception(_pyshinqlx_setup: ()) {
+        MockEngineBuilder::default().run(|| {
+            Python::attach(|py| {
+                let event_dispatcher = EventDispatcherManager::default();
+                EVENT_DISPATCHERS.store(Some(
+                    Py::new(py, event_dispatcher)
+                        .expect("could not create event dispatcher manager in python")
+                        .into(),
+                ));
+
+                let result = handle_item_pickup(py, 42, 100, "item_armor_body");
+                assert!(
+                    result
+                        .bind(py)
+                        .cast::<PyBool>()
+                        .is_ok_and(|bool_value| bool_value.is_true())
+                );
+            });
+        });
+    }
+}
+
 fn try_handle_item_touch(
     py: Python<'_>,
     client_id: i32,
@@ -9511,6 +9606,20 @@ pub(crate) mod handlers {
         _cvar_name: &str,
         _old_value: &str,
         _new_value: &str,
+    ) -> Py<PyAny> {
+        py.None()
+    }
+
+    #[allow(
+        clippy::needless_lifetimes,
+        reason = "the mock repeats the lifetimes of the real handler signature"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) fn handle_item_pickup<'a>(
+        py: Python<'a>,
+        _client_id: i32,
+        _entity_id: i32,
+        _classname: &str,
     ) -> Py<PyAny> {
         py.None()
     }

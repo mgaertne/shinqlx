@@ -339,6 +339,14 @@ Plugins
                                        old_value: str,
                                        new_value: str
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"item_pickup"``         .. code-block:: python
+
+                                   def handle_item_pickup(
+                                       self,
+                                       player: Player,
+                                       entity_id: int,
+                                       classname: str
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"item_touch"``          .. code-block:: python
 
                                    def handle_item_touch(

@@ -614,6 +614,21 @@ Concrete Event dispatchers
       :param str new_value: The value after the change.
       :return: Always ``True``.
 
+.. class:: ItemPickupDispatcher
+
+   ``name = "item_pickup"``
+
+   Event that goes off after a player has picked an item up. The game module already took the item away by then, so
+   the event cannot be cancelled; use ``item_touch`` to keep a player from picking an item up. A pickup is
+   recognised by the item being gone right after the touch.
+
+   .. method:: dispatch(player, entity_id, classname) -> bool
+
+      :param Player player: The player that picked the item up.
+      :param int entity_id: The entity identifier of the item.
+      :param str classname: The class name of the item, for example ``"item_armor_body"``.
+      :return: Always ``True``.
+
 .. class:: ItemTouchDispatcher
 
    ``name = "item_touch"``

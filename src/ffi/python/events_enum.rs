@@ -53,6 +53,7 @@ event_names! {
     GameCountdown => "game_countdown",
     GameEnd => "game_end",
     GameStart => "game_start",
+    ItemPickup => "item_pickup",
     ItemTouch => "item_touch",
     KamikazeExplode => "kamikaze_explode",
     KamikazeUse => "kamikaze_use",

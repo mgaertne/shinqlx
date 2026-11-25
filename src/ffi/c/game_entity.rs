@@ -338,6 +338,14 @@ impl GameEntity {
         self.gentity_t.flags & (FL_DROPPED_ITEM as i32) != 0
     }
 
+    /// Whether a player could still pick the entity up: it is in use, solid for touches and drawn. The game module
+    /// clears this when a player takes an item.
+    pub(crate) fn is_available_item(&self) -> bool {
+        self.in_use()
+            && self.gentity_t.r.contents != 0
+            && self.gentity_t.s.eFlags & (EF_NODRAW as i32) == 0
+    }
+
     pub(crate) fn get_client_number(&self) -> i32 {
         self.gentity_t.s.clientNum
     }
@@ -529,6 +537,7 @@ mockall::mock! {
         pub(crate) fn set_respawn_time(&mut self, respawn_time: i32);
         pub(crate) fn has_flags(&self) -> bool;
         pub(crate) fn is_dropped_item(&self) -> bool;
+        pub(crate) fn is_available_item(&self) -> bool;
         pub(crate) fn get_client_number(&self) -> i32;
         pub(crate) fn drop_holdable(&mut self);
         pub(crate) fn is_kamikaze_timer(&self) -> bool;
@@ -1832,6 +1841,38 @@ mod game_entity_tests {
         let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
             .expect("this should not happen");
         assert_eq!(game_entity.has_flags(), true);
+    }
+
+    #[rstest::rstest]
+    #[case(true, 1, 0, true)]
+    #[case(false, 1, 0, false)]
+    #[case(true, 0, 0, false)]
+    #[case(true, 1, EF_NODRAW as i32, false)]
+    #[case(true, 1, EF_NODRAW as i32 | 1, false)]
+    fn game_entity_is_available_item(
+        #[case] in_use: bool,
+        #[case] contents: i32,
+        #[case] e_flags: i32,
+        #[case] expected: bool,
+    ) {
+        let entity_state = EntityStateBuilder::default()
+            .eFlags(e_flags)
+            .build()
+            .expect("this should not happen");
+        let entity_shared = EntitySharedBuilder::default()
+            .contents(contents)
+            .build()
+            .expect("this should not happen");
+        let mut gentity = GEntityBuilder::default()
+            .s(entity_state)
+            .r(entity_shared)
+            .inuse(in_use.into())
+            .build()
+            .expect("this should not happen");
+        let game_entity = GameEntity::try_from(gentity.borrow_mut() as *mut gentity_t)
+            .expect("this should not happen");
+
+        assert_eq!(game_entity.is_available_item(), expected);
     }
 
     #[test]

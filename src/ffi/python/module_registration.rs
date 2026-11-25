@@ -47,6 +47,7 @@ fn register_handlers_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(handlers::handle_player_disconnect, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_player_spawn, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_cvar_changed, m)?)?;
+    m.add_function(wrap_pyfunction!(handlers::handle_item_pickup, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_item_touch, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_weapon_fired, m)?)?;
     m.add_function(wrap_pyfunction!(handlers::handle_objective, m)?)?;
@@ -689,6 +690,7 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ObjectiveDispatcher>()?;
     m.add_class::<MedalDispatcher>()?;
     m.add_class::<FlagStatusDispatcher>()?;
+    m.add_class::<ItemPickupDispatcher>()?;
     m.add_class::<ItemTouchDispatcher>()?;
     m.add_class::<DamageDispatcher>()?;
     m.add_class::<EventDispatcherManager>()?;
@@ -727,6 +729,7 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     event_dispatchers.add_dispatcher(&m.py().get_type::<DeathDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<UserinfoDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<DamageDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<ItemPickupDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<ItemTouchDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<CvarChangedDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<WeaponFiredDispatcher>())?;

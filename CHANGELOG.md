@@ -96,6 +96,9 @@ Changes since 0.8.0.
   processes the touch of an item by a player (map items and dropped items). Stopping the event keeps the player from
   picking the item up. The game touches an item in every frame in which the player overlaps it, also when the player
   cannot pick it up, so the hooks should be cheap.
+* **New event `item_pickup`, after minqlxtended:** `handle(player, entity_id, classname)` goes off after a player
+  really picked an item up (the item is gone after the touch). It cannot be cancelled; use `item_touch` for that.
+  Unlike minqlxtended it also hands over the entity id, and the second argument is the entity's class name.
 * **New in `Redis`, after minqlxtended:** `get_flags(players, flag, default=False)` reads a flag for many players with one
   `MGET`, `close_shared()` closes the connection that the plugins with the default configuration share, and
   `with self.db as db:` connects on entering and closes on leaving.
