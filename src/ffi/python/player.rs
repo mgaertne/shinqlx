@@ -19,7 +19,7 @@ use tap::{TapOptional, TryConv};
 
 use super::{
     ConnectionStates, Teams, addadmin, addmod, addscore, ban, console_command, demote, mute,
-    prelude::*, put, tempban, unmute,
+    prelude::*, put, quoted_text, tempban, unmute,
 };
 use crate::{
     MAIN_ENGINE,
@@ -1684,7 +1684,7 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn center_print(&self, msg: &str) -> PyResult<()> {
-        let cmd = format!(r#"cp "{msg}""#);
+        let cmd = format!(r#"cp "{}""#, quoted_text(msg));
         pyshinqlx_send_server_command(self.py(), Some(self.get().id), &cmd).map(|_| ())
     }
 

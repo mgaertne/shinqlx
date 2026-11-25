@@ -53,6 +53,9 @@ Changes since 0.8.0.
   the game), `StatsTypes` (`TYPE` of the stats data), `ChatChannels` (the names of the channels) and `EntityTypes` (the
   types of the entities, for the coming entity API). Like `Events` and `Medal` they are `str` enumerations: a member
   equals and hashes like its string, and the API keeps returning plain strings.
+* **Text cannot start a second console command:** `opsay` replaces `;` and line breaks, `center_print` replaces `"`,
+  and `change_map`, `play_sound` and `play_music` raise a `ValueError` for a map name, factory or path with `;`, `"` or
+  a line break. `console_command` stays as it is. See "Changes in behaviour" of the migration guide.
 * **Entities at runtime:** `shinqlx.entities(in_use=True, etype=None)` returns frozen `EntityInfo` snapshots (`id`,
   `classname`, `etype`, `type_id`, `position`, `in_use`), and `shinqlx.remove_entity(entity_id)` frees an entity from
   number 64 on, and `shinqlx.move_entity(entity_id, x, y, z)` puts an entity at a standstill at a new position and

@@ -17,9 +17,10 @@ use super::{
     BLUE_TEAM_CHAT_CHANNEL, CHAT_CHANNEL, COMMANDS, CONSOLE_CHANNEL, CommandInvokerMethods,
     EVENT_DISPATCHERS, RED_TEAM_CHAT_CHANNEL, Teams, abort, addadmin, addmod, addscore,
     addteamscore, allready, ban, change_map, client_id, commands::CommandPriorities,
-    console_command, demote, event_dispatcher, is_vote_active, lock, mute, opsay, pause,
-    prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once, pyshinqlx_set_cvar_once,
-    set_teamsize, shuffle, tempban, unban, unlock, unmute, unpause,
+    console_command, console_word, demote, event_dispatcher, is_vote_active, lock, mute, opsay,
+    pause, prelude::*, put, pyshinqlx_get_logger, pyshinqlx_set_cvar_limit_once,
+    pyshinqlx_set_cvar_once, quoted_text, set_teamsize, shuffle, tempban, unban, unlock, unmute,
+    unpause,
 };
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_com_printf;
@@ -802,7 +803,7 @@ impl Plugin {
     ) -> PyResult<()> {
         let client_id = recipient.and_then(|recipient| client_id(cls.py(), &recipient, None));
 
-        let center_printed_cmd = format!(r#"cp "{msg}""#);
+        let center_printed_cmd = format!(r#"cp "{}""#, quoted_text(msg));
         pyshinqlx_send_server_command(cls.py(), client_id, &center_printed_cmd).map(|_| ())
     }
 
@@ -973,7 +974,7 @@ impl Plugin {
             return Ok(false);
         }
 
-        let play_sound_cmd = format!("playSound {sound_path}");
+        let play_sound_cmd = format!("playSound {}", console_word("sound_path", sound_path)?);
         pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_sound_cmd)
             .map(|_| true)
     }
@@ -989,7 +990,7 @@ impl Plugin {
             return Ok(false);
         }
 
-        let play_music_cmd = format!("playMusic {music_path}");
+        let play_music_cmd = format!("playMusic {}", console_word("music_path", music_path)?);
         pyshinqlx_send_server_command(cls.py(), player.map(|player| player.id), &play_music_cmd)
             .map(|_| true)
     }

@@ -139,6 +139,10 @@ pub(crate) fn abort(py: Python<'_>) -> PyResult<()> {
 }
 
 pub(crate) fn change_map(py: Python<'_>, new_map: &str, factory: Option<&str>) -> PyResult<()> {
+    let new_map = console_word("new_map", new_map)?;
+    let factory = factory
+        .map(|game_factory| console_word("factory", game_factory))
+        .transpose()?;
     py.detach(|| {
         let mapchange_command = match factory {
             None => format!("map {new_map}"),
@@ -316,8 +320,77 @@ pub(crate) fn unban(py: Python<'_>, player: &Bound<'_, PyAny>) -> PyResult<()> {
     )
 }
 
+/// The text for a console command, where a `;` or a line break would end the command and start the next one.
+pub(crate) fn console_text(text: &str) -> String {
+    text.chars()
+        .map(|character| match character {
+            ';' => '；',
+            '\n' | '\r' => ' ',
+            other => other,
+        })
+        .collect()
+}
+
+/// The text for a command with a quoted argument, where a `"` would end the quote.
+pub(crate) fn quoted_text(text: &str) -> String {
+    text.replace('"', "＂")
+}
+
+/// An argument of a command that has to be taken as it is, e.g. a map name or the path of a sound.
+pub(crate) fn console_word<'a>(name: &str, value: &'a str) -> PyResult<&'a str> {
+    if value.contains([';', '"', '\n', '\r']) {
+        cold_path();
+        return Err(PyValueError::new_err(format!(
+            "{name} must not contain ';', '\"' or line breaks."
+        )));
+    }
+    Ok(value)
+}
+
+#[cfg(test)]
+mod command_text_tests {
+    use pretty_assertions::assert_eq;
+    use pyo3::exceptions::PyValueError;
+    use rstest::rstest;
+
+    use super::{console_text, console_word, quoted_text};
+    use crate::ffi::python::prelude::*;
+
+    #[rstest]
+    #[case("hello", "hello")]
+    #[case("a; quit", "a； quit")]
+    #[case("a\nquit", "a quit")]
+    #[case("a\r\nquit", "a  quit")]
+    fn console_text_cannot_start_another_command(#[case] text: &str, #[case] expected: &str) {
+        assert_eq!(console_text(text), expected);
+    }
+
+    #[test]
+    fn quoted_text_cannot_end_the_quote() {
+        assert_eq!(quoted_text(r#"say "hi""#), "say ＂hi＂");
+        assert_eq!(quoted_text("plain"), "plain");
+    }
+
+    #[rstest]
+    #[case("campgrounds", true)]
+    #[case("workshop/12345", true)]
+    #[case("a;quit", false)]
+    #[case("a\nquit", false)]
+    #[case("a\rquit", false)]
+    #[case("a\"b", false)]
+    fn console_word_refuses_separators(#[case] word: &str, #[case] accepted: bool) {
+        Python::attach(|py| {
+            let result = console_word("new_map", word);
+            assert_eq!(result.is_ok(), accepted);
+            if !accepted {
+                assert!(result.is_err_and(|err| err.is_instance_of::<PyValueError>(py)));
+            }
+        });
+    }
+}
+
 pub(crate) fn opsay(msg: &str) -> PyResult<()> {
-    let opsay_cmd = format!("opsay {msg}");
+    let opsay_cmd = format!("opsay {}", console_text(msg));
     console_command(&opsay_cmd)
 }
 
