@@ -183,7 +183,9 @@ Changes since 0.8.0.
   as they are typed after `qlx` (with `qlx_commandPrefix` where needed), with plugin, permission and usage; the list ends
   with the count. `plugincmds <plugin>` limits it to one plugin. `ql_rcon` reads the list along when you type it, asks for
   it with `--fetch-completions` and completes the commands after `qlx `. They are kept in the server file as
-  `completions.plugin_commands`.
+  `completions.plugin_commands`. `plugincmds` and `qlx` themselves are completed without a fetch, with a description,
+  and `help plugincmds` and `help qlx` are answered by the console. The server prints the list line by line, so a long
+  list is no longer cut off.
 * When the server answers a cvar query (`"g_startingWeapons" is:"4100^7" default:...`), a line below names what the
   value stands for: the set bits of a bit field (`= Shotgun + Chaingun`) or the label of an enumeration (`= Clan Arena`),
   as far as the console guide lists them. Bits the guide does not know show up as `unknown bits 0x...`.

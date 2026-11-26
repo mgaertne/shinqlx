@@ -415,11 +415,9 @@ pub extern "C" fn cmd_plugin_commands() {
         let command_prefix = main_engine
             .find_cvar("qlx_commandPrefix")
             .map_or_else(|| "!".to_string(), |cvar| cvar.get_string().to_string());
-        main_engine.com_printf(&plugin_commands_listing(
-            &plugin_command_entries(),
-            &command_prefix,
-            plugin,
-        ));
+        plugin_commands_listing(&plugin_command_entries(), &command_prefix, plugin)
+            .split_inclusive('\n')
+            .for_each(|line| main_engine.com_printf(line));
     });
 }
 
@@ -485,8 +483,9 @@ mod commands_tests {
     use rstest::rstest;
 
     use super::{
-        cmd_center_print, cmd_py_command, cmd_py_rcon, cmd_regular_print, cmd_restart_python,
-        cmd_send_server_command, cmd_slap, cmd_slay,
+        cmd_center_print, cmd_plugin_commands, cmd_py_command, cmd_py_rcon, cmd_regular_print,
+        cmd_reliable_guard, cmd_restart_python, cmd_scoreboard_trim, cmd_send_server_command,
+        cmd_slap, cmd_slay,
     };
     use crate::{
         ffi::{
@@ -500,6 +499,80 @@ mod commands_tests {
         },
         prelude::*,
     };
+
+    #[test]
+    #[serial]
+    fn cmd_reliable_guard_with_no_main_engine() {
+        cmd_reliable_guard();
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_reliable_guard_resets_the_counters() {
+        MockEngineBuilder::default()
+            .with_args(Some(" Reset "), 1)
+            .with_com_printf(predicate::eq("Reliable guard counters reset.\n"), 1)
+            .run(|| {
+                cmd_reliable_guard();
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_reliable_guard_prints_the_counters() {
+        MockEngineBuilder::default()
+            .with_args(None, 1)
+            .with_com_printf(predicate::str::starts_with("Reliable guard: "), 1)
+            .run(|| {
+                cmd_reliable_guard();
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_scoreboard_trim_with_no_main_engine() {
+        cmd_scoreboard_trim();
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_scoreboard_trim_resets_the_counters() {
+        MockEngineBuilder::default()
+            .with_args(Some("reset"), 1)
+            .with_com_printf(predicate::eq("Scoreboard trim counters reset.\n"), 1)
+            .run(|| {
+                cmd_scoreboard_trim();
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_scoreboard_trim_prints_the_counters() {
+        MockEngineBuilder::default()
+            .with_args(None, 1)
+            .with_com_printf(predicate::str::starts_with("Scoreboard trim: "), 1)
+            .run(|| {
+                cmd_scoreboard_trim();
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_plugin_commands_with_no_main_engine() {
+        cmd_plugin_commands();
+    }
+
+    #[test]
+    #[serial]
+    fn cmd_plugin_commands_without_plugins_prints_only_the_count() {
+        MockEngineBuilder::default()
+            .with_args(Some(" ban "), 1)
+            .with_find_cvar(|name| name == "qlx_commandPrefix", |_| None, 1)
+            .with_com_printf(predicate::eq("0 plugin commands\n"), 1)
+            .run(|| {
+                cmd_plugin_commands();
+            });
+    }
 
     #[test]
     #[serial]

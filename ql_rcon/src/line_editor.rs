@@ -30,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     cmd_line::CommandLineOptions,
     fetch::Fetched,
-    guide::{flags_for, help_for, value_labels},
+    guide::{flags_for, help_for, shinqlx_command_names, value_labels},
     learn::Learned,
     profile::{ServerFile, config_dir, server_file_in},
 };
@@ -341,6 +341,7 @@ fn completions<'a>(
                 .iter()
                 .map(String::as_str)
                 .chain(COMMANDS.lines())
+                .chain(shinqlx_command_names())
                 .chain(CVARS.lines())
                 .chain(["help"]),
             word,
@@ -1090,6 +1091,17 @@ mod line_editor_tests {
         let found = completions("sta", "sta", 0, [].into_iter(), &UserLists::default());
 
         assert!(found.iter().any(|name| name == "status"), "{found:?}");
+    }
+
+    #[test]
+    fn the_commands_of_shinqlx_complete_without_a_fetch() {
+        let user = UserLists::default();
+
+        let plugin = completions("plugin", "plugin", 0, [].into_iter(), &user);
+        let qlx = completions("ql", "ql", 0, [].into_iter(), &user);
+
+        assert!(plugin.iter().any(|name| name == "plugincmds"), "{plugin:?}");
+        assert!(qlx.iter().any(|name| name == "qlx"), "{qlx:?}");
     }
 
     #[test]

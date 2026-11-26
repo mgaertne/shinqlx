@@ -21,11 +21,58 @@ const CVAR_FLAGS_HELP: [&str; 9] = [
     "  T  temporary   can be set while cheats are disabled, but is not archived",
 ];
 
-/// The answer to a line the console knows without the server, `help cvarflags`.
+/// A command of shinqlx, which the console guide of the game does not know.
+struct ShinqlxCommand {
+    name: &'static str,
+    short: &'static str,
+    help: &'static [&'static str],
+}
+
+const SHINQLX_COMMANDS: [ShinqlxCommand; 2] = [
+    ShinqlxCommand {
+        name: "plugincmds",
+        short: "Lists the commands of the loaded plugins of a shinqlx server, as they are typed after qlx.",
+        help: &[
+            "plugincmds [plugin]",
+            "  Lists the commands of the loaded plugins of a shinqlx server, sorted by plugin and name, with the",
+            "  permission and the usage of each. The commands are written as they are typed after qlx, with the",
+            "  prefix where they need it. The last line is the count.",
+            "  plugincmds ban   lists only the commands of the plugin ban",
+            "  qlx !version     runs one of the listed commands",
+        ],
+    },
+    ShinqlxCommand {
+        name: "qlx",
+        short: "Runs a command of a plugin as if the owner typed it in the console, e.g. qlx !version.",
+        help: &[
+            "qlx <command> [arguments]",
+            "  Runs a command of a plugin of a shinqlx server as if the owner typed it in the console channel.",
+            "  A command that needs the prefix is typed with it, e.g. qlx !version. plugincmds lists them.",
+        ],
+    },
+];
+
+/// The names of the commands of shinqlx, which the console offers like those of the game.
+pub(crate) fn shinqlx_command_names<'a>() -> impl Iterator<Item = &'a str> {
+    SHINQLX_COMMANDS.iter().map(|command| command.name)
+}
+
+/// The answer to a line the console knows without the server:`help cvarflags` and `help` for a shinqlx command.
 pub(crate) fn local_help(line: &str) -> Option<&'static [&'static str]> {
     let words: Vec<String> = line.split_whitespace().map(str::to_lowercase).collect();
-    matches!(words.as_slice(), [help, topic] if help == "help" && matches!(topic.as_str(), "cvarflags" | "flags"))
-        .then_some(CVAR_FLAGS_HELP.as_slice())
+    let [help, topic] = words.as_slice() else {
+        return None;
+    };
+    if help != "help" {
+        return None;
+    }
+    match topic.as_str() {
+        "cvarflags" | "flags" => Some(CVAR_FLAGS_HELP.as_slice()),
+        name => SHINQLX_COMMANDS
+            .iter()
+            .find(|command| command.name == name)
+            .map(|command| command.help),
+    }
 }
 
 /// The values or bits of a cvar with their meaning, in the order of the guide.
@@ -95,11 +142,18 @@ pub(crate) fn flags_for(cvar: &str) -> &'static str {
 
 /// The first line of the description of a command or cvar.
 pub(crate) fn help_for(name: &str) -> Option<&'static str> {
-    HELP.lines().find_map(|line| {
-        line.split_once('\t')
-            .filter(|(known, _)| known.eq_ignore_ascii_case(name))
-            .map(|(_, help)| help)
-    })
+    HELP.lines()
+        .find_map(|line| {
+            line.split_once('\t')
+                .filter(|(known, _)| known.eq_ignore_ascii_case(name))
+                .map(|(_, help)| help)
+        })
+        .or_else(|| {
+            SHINQLX_COMMANDS
+                .iter()
+                .find(|command| command.name.eq_ignore_ascii_case(name))
+                .map(|command| command.short)
+        })
 }
 
 #[cfg(test)]
@@ -216,5 +270,20 @@ mod guide_tests {
             Some("Sets the time limit on your server.")
         );
         assert!(help_for("kick").is_some());
+    }
+
+    #[test]
+    fn the_commands_of_shinqlx_have_a_description_and_a_local_help() {
+        assert!(help_for("plugincmds").is_some_and(|text| text.contains("plugins")));
+        assert!(help_for("QLX").is_some());
+        assert!(super::local_help("help plugincmds").is_some_and(|lines| lines.len() > 2));
+        assert!(super::local_help("Help  qlx").is_some());
+    }
+
+    #[test]
+    fn help_of_other_commands_goes_to_the_server() {
+        assert_eq!(super::local_help("help kick"), None);
+        assert_eq!(super::local_help("help"), None);
+        assert_eq!(super::local_help("plugincmds"), None);
     }
 }
