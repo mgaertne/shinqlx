@@ -3,6 +3,9 @@
 
 use core::ffi::{c_char, c_int};
 
+#[cfg(target_os = "linux")]
+use procfs::process::MemoryMap;
+
 use super::{PythonInitializationError, prelude::*};
 
 /// Replacements and notifications for the engine, grouped like its function tables.
@@ -15,11 +18,22 @@ pub(crate) struct EngineCallbacks {
     pub(crate) game: GameCallbacks,
     pub(crate) entity: EntityCallbacks,
     pub(crate) item: ItemCallbacks,
+    pub(crate) lookup: LookupCallbacks,
     /// The commands that are added to the server console, by name.
     pub(crate) console_commands: &'static [(&'static str, unsafe extern "C" fn())],
     /// Sets a configstring on behalf of the engine and lets plugins see it.
     pub(crate) set_configstring: fn(u32, &str),
     pub(crate) initialize_scripting: fn() -> Result<(), PythonInitializationError>,
+}
+
+/// Told what the engine found, so that others can patch or use it.
+pub(crate) struct LookupCallbacks {
+    /// Called with the memory mappings of the engine once its functions are found.
+    #[cfg(target_os = "linux")]
+    pub(crate) engine_functions_found: fn(&[&MemoryMap]),
+    /// Called once the hooks of the game module are in place, with the address of its callvote
+    /// command if that was looked up.
+    pub(crate) game_module_hooked: fn(Option<usize>),
 }
 
 pub(crate) struct ConsoleCallbacks {

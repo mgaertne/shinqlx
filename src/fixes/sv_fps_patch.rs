@@ -1,9 +1,15 @@
 use alloc::vec::Vec;
 use core::{ffi::CStr, mem::size_of, ops::Range, ptr};
 
+use log::{debug, error};
+use procfs::process::{MMPermissions, MMapPath, Process};
 use region::Protection;
+use tap::TapFallible;
 
-use crate::fixes::{PatchError, PatchOutcome};
+use crate::{
+    engine::QAGAME,
+    fixes::{PatchError, PatchOutcome},
+};
 
 const CVAR_NAME_SV_FPS: &[u8] = b"\0sv_fps\0";
 const STOCK_SV_FPS: &CStr = c"40";
@@ -127,6 +133,34 @@ pub(crate) fn patch_sv_fps(regions: &[ModuleRegion]) -> Result<PatchOutcome, Pat
     // SAFETY: the slot is writable and holds the address of the default value.
     unsafe { ptr::write_unaligned(target, PATCHED_SV_FPS.as_ptr().expose_provenance() as u64) };
     Ok(PatchOutcome::Applied)
+}
+
+/// Patches the default of `sv_fps` in the loaded game module and logs the result.
+pub(crate) fn patch_loaded_module() {
+    let regions = Process::myself()
+        .and_then(|process| process.maps())
+        .map(|maps| {
+            maps.iter()
+                .filter(|mmap| {
+                    matches!(&mmap.pathname, MMapPath::Path(path)
+                        if path.file_name().is_some_and(|name| name.to_string_lossy() == QAGAME))
+                })
+                .filter(|mmap| mmap.perms.contains(MMPermissions::READ))
+                .map(|mmap| ModuleRegion {
+                    range: mmap.address.0 as usize..mmap.address.1 as usize,
+                    writable: mmap.perms.contains(MMPermissions::WRITE),
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let _ = patch_sv_fps(&regions)
+        .tap_ok(|outcome| {
+            debug!(target: "shinqlx", func = "patch_sv_fps"; "sv_fps default value 125: {outcome:?}");
+        })
+        .tap_err(|e| {
+            error!(target: "shinqlx", func = "patch_sv_fps"; "could not set the default value of sv_fps to 125: {e}");
+        });
 }
 
 #[cfg(test)]

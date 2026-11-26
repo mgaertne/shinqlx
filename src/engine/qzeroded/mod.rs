@@ -7,8 +7,6 @@ use procfs::process::{MMapPath, Process};
 
 #[cfg(target_os = "linux")]
 use crate::QZERODED;
-#[cfg(all(target_os = "linux", feature = "zmq-rcon-fix"))]
-use crate::fixes::zmq_rcon::{RconSocket, register_socket as register_rcon_socket};
 use crate::{
     engine::{
         QuakeLiveEngine, QuakeLiveEngineError,
@@ -98,22 +96,7 @@ impl QuakeLiveEngine {
             let cvar = CvarFunctions::locate(&qzeroded_maps)?;
             let module_loader = ModuleLoaderFunctions::locate(&qzeroded_maps)?;
 
-            // Not essential for the game, so a changed engine only costs the send timeout of the RCON socket.
-            #[cfg(all(target_os = "linux", feature = "zmq-rcon-fix"))]
-            match RconSocket::locate(&qzeroded_maps) {
-                Ok(rcon_socket) => {
-                    debug!(target: "shinqlx", func = "search_static_functions"; "RCON socket found in the engine");
-                    register_rcon_socket(rcon_socket);
-                }
-                Err(err) => {
-                    cold_path();
-                    error!(target: "shinqlx", func = "search_static_functions"; "{err:?}");
-                    error!(
-                        target: "shinqlx",
-                        func = "search_static_functions"; "RCON socket not found. The server can stop when several RCON clients die."
-                    );
-                }
-            }
+            (self.callbacks().lookup.engine_functions_found)(&qzeroded_maps);
 
             self.static_functions
                 .set(StaticFunctions {

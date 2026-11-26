@@ -13,12 +13,14 @@
 
 use core::{
     ffi::{c_int, c_void},
-    fmt, ptr,
+    fmt,
+    hint::cold_path,
+    ptr,
     sync::atomic::{AtomicI32, Ordering},
 };
 use std::sync::OnceLock;
 
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 #[cfg(target_os = "linux")]
 use procfs::process::MemoryMap;
 
@@ -174,10 +176,27 @@ impl RconSocket {
 
 static RCON_SOCKET: OnceLock<RconSocket> = OnceLock::new();
 
-/// Remembers the socket found in the engine for the later calls of [`configured_socket`].
+/// Searches the engine for the RCON socket and remembers it for the later calls of
+/// [`configured_socket`].
+///
+/// The socket is not essential for the game, so a changed engine only costs its send timeout.
 #[cfg(target_os = "linux")]
-pub(crate) fn register_socket(socket: RconSocket) {
-    let _ = RCON_SOCKET.set(socket);
+pub(crate) fn register_socket_of(maps: &[&MemoryMap]) {
+    match RconSocket::locate(maps) {
+        Ok(socket) => {
+            debug!(target: "shinqlx", func = "search_static_functions"; "RCON socket found in the engine");
+            let _ = RCON_SOCKET.set(socket);
+        }
+        Err(err) => {
+            cold_path();
+            error!(target: "shinqlx", func = "search_static_functions"; "{err:?}");
+            error!(
+                target: "shinqlx",
+                func = "search_static_functions"; "RCON socket not found. \
+                The server can stop when several RCON clients die."
+            );
+        }
+    }
 }
 
 /// The socket found in the engine, if the search was successful.

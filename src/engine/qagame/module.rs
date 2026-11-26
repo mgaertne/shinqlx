@@ -6,8 +6,6 @@ use core::{
 };
 
 use detour::TypedDetour;
-#[cfg(all(feature = "fps-patch", target_os = "linux"))]
-use procfs::process::MMPermissions;
 #[cfg(target_os = "linux")]
 use procfs::process::MemoryMap;
 #[cfg(target_os = "linux")]
@@ -23,8 +21,6 @@ use crate::engine::qagame::stats_feed;
 use crate::engine::symbols::try_find_static_function;
 #[cfg(test)]
 use crate::engine::{mock_quake_functions, test_helpers};
-#[cfg(all(feature = "fps-patch", target_os = "linux"))]
-use crate::fixes::sv_fps_patch::{ModuleRegion, patch_sv_fps};
 use crate::{
     engine::{
         QuakeLiveEngine, QuakeLiveEngineError,
@@ -237,47 +233,9 @@ impl QuakeLiveEngine {
         self.current_vm.store(module_offset, Ordering::Release);
 
         self.vm_functions.hook(self.callbacks())?;
-        #[cfg(feature = "clientkick-fix")]
-        self.vm_functions.game.patch();
-        #[cfg(all(feature = "fps-patch", target_os = "linux"))]
-        self.patch_sv_fps();
+        (self.callbacks().lookup.game_module_hooked)(self.vm_functions.game.callvote_command());
 
         Ok(())
-    }
-
-    #[cfg(all(feature = "fps-patch", target_os = "linux"))]
-    #[cfg_attr(
-        test,
-        allow(
-            dead_code,
-            reason = "only called from the running game process, not from tests"
-        )
-    )]
-    pub(in crate::engine) fn patch_sv_fps(&self) {
-        let regions = Process::myself()
-            .and_then(|process| process.maps())
-            .map(|maps| {
-                maps.iter()
-                    .filter(|mmap| {
-                        matches!(&mmap.pathname, MMapPath::Path(path)
-                            if path.file_name().is_some_and(|name| name.to_string_lossy() == QAGAME))
-                    })
-                    .filter(|mmap| mmap.perms.contains(MMPermissions::READ))
-                    .map(|mmap| ModuleRegion {
-                        range: mmap.address.0 as usize..mmap.address.1 as usize,
-                        writable: mmap.perms.contains(MMPermissions::WRITE),
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        let _ = patch_sv_fps(&regions)
-            .tap_ok(|outcome| {
-                debug!(target: "shinqlx", func = "patch_sv_fps"; "sv_fps default value 125: {outcome:?}");
-            })
-            .tap_err(|e| {
-                error!(target: "shinqlx", func = "patch_sv_fps"; "could not set the default value of sv_fps to 125: {e}");
-            });
     }
 
     pub(crate) fn unhook_vm(&self, _restart: bool) {

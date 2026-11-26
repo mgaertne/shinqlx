@@ -1,5 +1,7 @@
 //! Wires the engine to the code that reacts to it.
 
+#[cfg(target_os = "linux")]
+use crate::fixes::engine_functions_found;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
 #[cfg(not(test))]
@@ -13,6 +15,7 @@ use crate::{
         cmd_slap, cmd_slay,
     },
     engine::callbacks::*,
+    fixes::game_module_hooked,
     hooks::{
         ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, shinqlx_client_connect,
         shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_cvar_set2, shinqlx_fire_weapon,
@@ -64,6 +67,11 @@ pub(crate) static ENGINE_CALLBACKS: EngineCallbacks = EngineCallbacks {
     },
     item: ItemCallbacks {
         touch_item: shinqlx_touch_item,
+    },
+    lookup: LookupCallbacks {
+        #[cfg(target_os = "linux")]
+        engine_functions_found,
+        game_module_hooked,
     },
     console_commands: &[
         ("cmd", cmd_send_server_command),

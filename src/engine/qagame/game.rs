@@ -10,8 +10,6 @@ use tap::{Conv, TapFallible, TapOptional};
 
 #[cfg(test)]
 use crate::engine::{mock_quake_functions, test_helpers};
-#[cfg(feature = "clientkick-fix")]
-use crate::fixes::clientkick_fix::patch_callvote_f;
 use crate::{
     engine::{
         QuakeLiveEngine, QuakeLiveEngineError, callbacks::GameCallbacks,
@@ -32,6 +30,25 @@ impl<T: Into<c_int>, U: Into<c_int>, V: Into<c_int>> InitGame<T, U, V> for Quake
         let _ = self.g_init_game_orig().tap_ok(|original_func| {
             original_func(level_time_param, random_seed_param, restart_param);
         });
+    }
+}
+
+#[cfg(all(test, feature = "clientkick-fix"))]
+mod callvote_command_tests {
+    use core::sync::atomic::Ordering;
+
+    use pretty_assertions::assert_eq;
+
+    use super::GameFunctions;
+
+    #[test]
+    fn the_callvote_command_is_known_once_it_was_found() {
+        let game = GameFunctions::default();
+        assert_eq!(game.callvote_command(), None);
+
+        game.cmd_callvote_f_orig.store(42, Ordering::Release);
+
+        assert_eq!(game.callvote_command(), Some(42));
     }
 }
 
@@ -482,7 +499,7 @@ impl GameFunctions {
             });
     }
 
-    #[cfg(feature = "clientkick-fix")]
+    /// The address of the callvote command, if it was looked up in the loaded game module.
     #[cfg_attr(
         test,
         allow(
@@ -490,19 +507,12 @@ impl GameFunctions {
             reason = "only called from the running game process, not from tests"
         )
     )]
-    pub(crate) fn patch(&self) {
-        let cmd_callvote_f_orig = self.cmd_callvote_f_orig.load(Ordering::Acquire);
-        if cmd_callvote_f_orig == 0 {
-            return;
-        }
-
-        let _ = patch_callvote_f(cmd_callvote_f_orig)
-            .tap_ok(|outcome| {
-                debug!(target: "shinqlx", func = "patch"; "callvote command patch at {cmd_callvote_f_orig:#x}: {outcome:?}");
-            })
-            .tap_err(|e| {
-                error!(target: "shinqlx", func = "patch"; "could not patch the callvote command at {cmd_callvote_f_orig:#x}: {e}");
-            });
+    pub(crate) fn callvote_command(&self) -> Option<usize> {
+        #[cfg(feature = "clientkick-fix")]
+        return Some(self.cmd_callvote_f_orig.load(Ordering::Acquire))
+            .filter(|&address| address != 0);
+        #[cfg(not(feature = "clientkick-fix"))]
+        None
     }
 }
 

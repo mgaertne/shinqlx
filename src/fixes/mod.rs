@@ -4,6 +4,9 @@
 ))]
 use core::fmt;
 
+#[cfg(target_os = "linux")]
+use procfs::process::MemoryMap;
+
 #[cfg(feature = "clientkick-fix")]
 pub(crate) mod clientkick_fix;
 #[cfg(unix)]
@@ -18,6 +21,27 @@ pub(crate) mod scoreboard_trim;
 pub(crate) mod sv_fps_patch;
 #[cfg(feature = "zmq-rcon-fix")]
 pub(crate) mod zmq_rcon;
+
+/// Looks up what the fixes need in the code of the engine.
+#[cfg(target_os = "linux")]
+pub(crate) fn engine_functions_found(maps: &[&MemoryMap]) {
+    #[cfg(feature = "zmq-rcon-fix")]
+    zmq_rcon::register_socket_of(maps);
+    #[cfg(not(feature = "zmq-rcon-fix"))]
+    let _ = maps;
+}
+
+/// Patches the game module once its hooks are in place.
+pub(crate) fn game_module_hooked(callvote_command: Option<usize>) {
+    #[cfg(feature = "clientkick-fix")]
+    if let Some(address) = callvote_command {
+        clientkick_fix::patch_callvote_command(address);
+    }
+    #[cfg(not(feature = "clientkick-fix"))]
+    let _ = callvote_command;
+    #[cfg(all(feature = "fps-patch", target_os = "linux"))]
+    sv_fps_patch::patch_loaded_module();
+}
 
 /// Why a patch was not applied.
 #[cfg(any(

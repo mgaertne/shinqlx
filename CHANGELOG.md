@@ -344,8 +344,8 @@ Changes since 0.8.0.
   arguments instead of `PyAny`.
 * The engine code is split into `engine/qzeroded` and `engine/qagame`, the Python layer moved from `src/ffi/python` to
   `src/python` and the guards moved to `src/fixes`. The engine gets what it calls back into as a table from
-  `src/composition.rs`, so it no longer imports the hooks, the console commands or the Python layer. The wrappers of
-  engine structures hold a pointer instead of a reference into the memory of the engine.
+  `src/composition.rs`, so it no longer imports the hooks, the console commands, the Python layer or the fixes. The
+  wrappers of engine structures hold a pointer instead of a reference into the memory of the engine.
 * The game module calls `G_InitGame`, `G_RunFrame` and `G_ShutdownGame` of shinqlx through functions with the C calling
   convention; before, it relied on the Rust convention happening to match.
 * An engine error keeps the cause of a failed look-up of the own process or its memory mappings, and the log names why a

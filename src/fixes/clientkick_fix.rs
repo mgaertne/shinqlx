@@ -1,6 +1,8 @@
 use core::ptr;
 
+use log::{debug, error};
 use region::Protection;
+use tap::TapFallible;
 
 use super::{PatchError, PatchOutcome};
 
@@ -96,6 +98,17 @@ pub(crate) fn patch_callvote_f(orig_addr: usize) -> Result<PatchOutcome, PatchEr
         PTRN_VOTE_CLIENTKICK_FIX,
         MASK_VOTE_CLIENTKICK_FIX,
     )
+}
+
+/// Patches the callvote command of the game module and logs the result.
+pub(crate) fn patch_callvote_command(address: usize) {
+    let _ = patch_callvote_f(address)
+        .tap_ok(|outcome| {
+            debug!(target: "shinqlx", func = "patch"; "callvote command patch at {address:#x}: {outcome:?}");
+        })
+        .tap_err(|e| {
+            error!(target: "shinqlx", func = "patch"; "could not patch the callvote command at {address:#x}: {e}");
+        });
 }
 
 #[cfg(test)]
