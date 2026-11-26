@@ -25,7 +25,7 @@ pub(crate) struct ParsedFactories {
     pub(crate) skipped: usize,
 }
 
-/// The file is not a JSON array.
+/// The file is neither a JSON array nor a JSON object.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FactoryFileError(pub(crate) String);
 
@@ -70,12 +70,34 @@ fn cvar_text(value: Value) -> Option<String> {
     }
 }
 
-/// Parses a factory file. Entries without a usable `id` or of the wrong shape are skipped and counted, they do not
-/// discard the rest. Cvar values given as numbers or booleans are written as text.
+fn value_kind(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
+}
+
+/// Parses a factory file: a JSON array of factories, or a single factory as an object like workshop items bring.
+/// Entries without a usable `id` or of the wrong shape are skipped and counted, they do not discard the rest. Cvar
+/// values given as numbers or booleans are written as text.
 pub(crate) fn parse_factories(text: &str) -> Result<ParsedFactories, FactoryFileError> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let entries = serde_json::from_str::<Vec<Value>>(text)
-        .map_err(|error| FactoryFileError(error.to_string()))?;
+    let entries = match serde_json::from_str::<Value>(text)
+        .map_err(|error| FactoryFileError(error.to_string()))?
+    {
+        Value::Array(entries) => entries,
+        object @ Value::Object(_) => vec![object],
+        other => {
+            return Err(FactoryFileError(format!(
+                "invalid type: {}, expected an array or an object",
+                value_kind(&other)
+            )));
+        }
+    };
 
     let mut parsed = ParsedFactories::default();
     for entry in entries {
@@ -186,8 +208,30 @@ mod tests {
     #[test]
     fn empty_array_is_fine_and_other_json_is_an_error() {
         assert_eq!(parse_factories("[]").unwrap(), ParsedFactories::default());
-        assert!(parse_factories(r#"{"id": "x"}"#).is_err());
         assert!(parse_factories("[{").is_err());
         assert!(parse_factories("").is_err());
+        assert!(parse_factories("42").is_err());
+        assert!(parse_factories(r#""x""#).is_err());
+    }
+
+    #[test]
+    fn a_single_object_is_one_factory() {
+        let parsed =
+            parse_factories(r#"{"id": "maido", "basegt": "duel", "cvars": {"timelimit": "3"}}"#)
+                .unwrap();
+
+        assert_eq!(parsed.skipped, 0);
+        assert_eq!(parsed.factories.len(), 1);
+        assert_eq!(parsed.factories[0].id, "maido");
+        assert_eq!(parsed.factories[0].basegt.as_deref(), Some("duel"));
+        assert_eq!(parsed.factories[0].cvars["timelimit"], "3");
+    }
+
+    #[test]
+    fn an_object_without_a_usable_id_is_skipped() {
+        let parsed = parse_factories(r#"{"title": "no id"}"#).unwrap();
+
+        assert!(parsed.factories.is_empty());
+        assert_eq!(parsed.skipped, 1);
     }
 }
