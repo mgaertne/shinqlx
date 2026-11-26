@@ -81,15 +81,13 @@ impl VmFunctions {
         ));
         #[cfg(target_os = "linux")]
         {
-            let myself_process = Process::myself().map_err(|_| {
+            let myself_process = Process::myself().map_err(|err| {
                 cold_path();
-                QuakeLiveEngineError::ProcessNotFound("could not find my own process".to_string())
+                QuakeLiveEngineError::ProcessNotFound(err.to_string())
             })?;
-            let myself_maps = myself_process.maps().map_err(|_| {
+            let myself_maps = myself_process.maps().map_err(|err| {
                 cold_path();
-                QuakeLiveEngineError::NoMemoryMappingInformationFound(
-                    "no memory mapping information found".to_string(),
-                )
+                QuakeLiveEngineError::NoMemoryMappingInformationFound(err.to_string())
             })?;
 
             let qagame_maps = myself_maps

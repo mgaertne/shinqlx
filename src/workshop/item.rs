@@ -213,6 +213,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn lists_the_pk3_files_with_their_maps_sorted() {
         let (_dir, root) = layout();
 
@@ -240,6 +241,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn a_pk3_that_is_no_archive_is_an_error() {
         let (_dir, root) = layout();
         fs::write(root.join("42/broken.pk3"), b"no zip").expect("file");
@@ -248,6 +250,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn purge_removes_the_directory_and_the_manifest_blocks_of_the_item_only() {
         let (dir, root) = layout();
 
@@ -276,6 +279,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn purge_refuses_a_directory_that_is_no_workshop_content_directory() {
         let dir = tempfile::tempdir().expect("temp dir");
         fs::create_dir_all(dir.path().join("precious/42")).expect("dirs");
@@ -287,6 +291,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn content_root_is_the_first_install_directory_that_has_one() {
         let (dir, root) = layout();
         let other = tempfile::tempdir().expect("temp dir");
@@ -296,6 +301,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn the_list_of_the_home_path_wins_and_is_the_one_to_write() {
         let home = tempfile::tempdir().expect("temp dir");
         let base = tempfile::tempdir().expect("temp dir");
@@ -316,6 +322,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn an_override_is_the_only_file() {
         let dir = tempfile::tempdir().expect("temp dir");
         let shared = dir.path().join("shared.txt");

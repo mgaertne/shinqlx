@@ -1,8 +1,12 @@
 use std::{io::IsTerminal, path::PathBuf};
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result};
 use clap::Parser;
-use ql_zmq::{ColorChoice, switch};
+use ql_zmq::{
+    ColorChoice,
+    servers::{existing, path_for, with_scheme},
+    switch,
+};
 
 use crate::profile::{Connection, ServerFile, server_file};
 
@@ -64,14 +68,6 @@ struct Resolved {
     ask_password: bool,
 }
 
-fn with_scheme(host: String) -> String {
-    if host.contains("://") {
-        host
-    } else {
-        format!("tcp://{host}")
-    }
-}
-
 impl Cli {
     /// Options win over the server file, the server file wins over the defaults.
     fn resolve(self, server: Connection) -> Result<Resolved> {
@@ -102,20 +98,11 @@ impl Cli {
 }
 
 fn path_of_server_file(name: &str) -> Result<PathBuf> {
-    server_file(name).ok_or_else(|| {
-        anyhow!("'{name}' is not a valid server name or there is no config directory")
-    })
+    Ok(path_for(name, server_file(name))?)
 }
 
 fn open_existing(name: &str, path: PathBuf) -> Result<ServerFile> {
-    if !path.exists() {
-        bail!(
-            "no server file {}; create it with --save-server {name} and the connection options",
-            path.display()
-        );
-    }
-
-    Ok(ServerFile::new(path))
+    Ok(ServerFile::new(existing(name, path)?))
 }
 
 fn save_server_at(path: PathBuf, options: &CommandLineOptions) -> Result<()> {
@@ -159,11 +146,8 @@ fn options_from(
     let connection = match cli.server.as_deref() {
         Some(name) => {
             let file = open_existing(name, locate(name)?)?;
-            if file.password_is_exposed() {
-                eprintln!(
-                    "Warning: {} holds a password and can be read by other users, restrict it with chmod 600.",
-                    file.path().display()
-                );
+            if let Some(warning) = file.exposure_warning() {
+                eprintln!("{warning}");
             }
             file.connection()
                 .with_context(|| format!("could not read {}", file.path().display()))?

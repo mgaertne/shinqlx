@@ -42,9 +42,7 @@ impl TryFrom<*mut gitem_t> for GameItem {
     fn try_from(game_item: *mut gitem_t) -> Result<Self, Self::Error> {
         NonNull::new(game_item)
             .map(|gitem| Self { gitem })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -61,7 +59,7 @@ impl TryFrom<i32> for GameItem {
         Self::try_from(unsafe { bg_itemlist.offset(item_id as isize) as *mut gitem_t }).map_err(
             |_| {
                 cold_path();
-                QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
+                QuakeLiveEngineError::EntityNotFound
             },
         )
     }
@@ -194,9 +192,7 @@ mod game_item_tests {
     fn game_item_from_null_pointer() {
         assert_eq!(
             GameItem::try_from(ptr::null_mut() as *mut gitem_t),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 

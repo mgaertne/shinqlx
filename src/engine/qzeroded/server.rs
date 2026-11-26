@@ -667,21 +667,15 @@ impl ServerDetours {
                 engine.sv_sendservercommand_orig()? as *const (),
                 engine.callbacks().server.sv_sendservercommand as *const (),
             )
-            .map_err(|_| {
-                cold_path();
-                QuakeLiveEngineError::DetourCouldNotBeCreated(
-                    QuakeLiveFunction::SV_SendServerCommand,
-                )
-            })?
+            .map_err(QuakeLiveEngineError::detour_not_created(
+                QuakeLiveFunction::SV_SendServerCommand,
+            ))?
         };
         // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe {
-            sv_sendservercommand_detour.enable().map_err(|_| {
-                cold_path();
-                QuakeLiveEngineError::DetourCouldNotBeEnabled(
-                    QuakeLiveFunction::SV_SendServerCommand,
-                )
-            })?
+            sv_sendservercommand_detour.enable().map_err(
+                QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::SV_SendServerCommand),
+            )?
         };
 
         let sv_setconfgistring_detour = QuakeLiveFunction::SV_SetConfigstring

@@ -147,11 +147,7 @@ mod try_launch_item_quake_live_engine_tests {
         let gentity_try_from_ctx = MockGameEntity::try_from_context();
         gentity_try_from_ctx
             .expect()
-            .returning(|_| {
-                Err(QuakeLiveEngineError::NullPointerPassed(
-                    "null pointer passed".to_string(),
-                ))
-            })
+            .returning(|_| Err(QuakeLiveEngineError::NullPointerPassed))
             .times(1);
 
         let quake_engine = QuakeLiveEngine {
@@ -167,8 +163,7 @@ mod try_launch_item_quake_live_engine_tests {
 
         let result =
             quake_engine.try_launch_item(mock_item, origin.borrow_mut(), velocity.borrow_mut());
-        assert!(result.is_err_and(|err| err
-            == QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string(),)));
+        assert!(result.is_err_and(|err| err == QuakeLiveEngineError::NullPointerPassed));
     }
 }
 
@@ -206,16 +201,12 @@ impl ItemFunctions {
         // SAFETY: the original and the replacement are functions with the same signature.
         let touch_item_detour =
             unsafe { TouchItemDetourType::new(touch_item_func, callbacks.touch_item) }.map_err(
-                |_| {
-                    cold_path();
-                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::Touch_Item)
-                },
+                QuakeLiveEngineError::detour_not_created(QuakeLiveFunction::Touch_Item),
             )?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { touch_item_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::Touch_Item)
-        })?;
+        unsafe { touch_item_detour.enable() }.map_err(QuakeLiveEngineError::detour_not_enabled(
+            QuakeLiveFunction::Touch_Item,
+        ))?;
 
         self.touch_item_detour
             .swap(Some(touch_item_detour.into()))

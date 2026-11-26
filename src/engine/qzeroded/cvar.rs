@@ -29,9 +29,9 @@ impl TryFrom<*mut cvar_t> for CVar {
     type Error = QuakeLiveEngineError;
 
     fn try_from(cvar: *mut cvar_t) -> Result<Self, Self::Error> {
-        NonNull::new(cvar).map(|cvar| Self { cvar }).ok_or_else(|| {
-            QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-        })
+        NonNull::new(cvar)
+            .map(|cvar| Self { cvar })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -809,9 +809,7 @@ mod cvar_tests {
     fn cvar_try_from_null_results_in_error() {
         assert_eq!(
             CVar::try_from(ptr::null_mut() as *mut cvar_t),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 

@@ -15,9 +15,7 @@ impl TryFrom<*mut gentity_t> for Activator {
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         NonNull::new(game_entity)
             .map(|activator| Self { activator })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -54,9 +52,7 @@ mod activator_tests {
     fn activator_try_from_null_results_in_error() {
         assert_eq!(
             Activator::try_from(ptr::null_mut() as *mut gentity_t),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 

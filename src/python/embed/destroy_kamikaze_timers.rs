@@ -1,4 +1,3 @@
-use arrayvec::ArrayVec;
 use tap::TryConv;
 
 use crate::{
@@ -11,11 +10,9 @@ use crate::{
 #[pyo3(name = "destroy_kamikaze_timers")]
 pub(crate) fn pyshinqlx_destroy_kamikaze_timers(py: Python<'_>) -> PyResult<bool> {
     py.detach(|| {
-        let mut in_use_entities: ArrayVec<Box<GameEntity>, { MAX_GENTITIES as usize }> = (0
-            ..entity_id_limit())
+        let mut in_use_entities: Vec<GameEntity> = (0..entity_id_limit())
             .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
             .filter(|game_entity| game_entity.in_use())
-            .map(Box::new)
             .collect();
 
         in_use_entities

@@ -403,15 +403,11 @@ impl GameFunctions {
         let client_connect_detour =
             // SAFETY: the original and the replacement are functions with the same signature.
             unsafe { ClientConnectDetourType::new(client_connect_func, callbacks.client_connect) }
-                .map_err(|_| {
-                    cold_path();
-                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientConnect)
-                })?;
+                .map_err(QuakeLiveEngineError::detour_not_created(QuakeLiveFunction::ClientConnect))?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { client_connect_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientConnect)
-        })?;
+        unsafe { client_connect_detour.enable() }.map_err(
+            QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::ClientConnect),
+        )?;
 
         self.client_connect_detour
             .swap(Some(client_connect_detour.into()))
@@ -430,17 +426,11 @@ impl GameFunctions {
             unsafe { function_at::<extern "C" fn(*mut gentity_s)>(client_spawn_orig) };
         let client_spawn_detour =
             // SAFETY: the original and the replacement are functions with the same signature.
-            unsafe { ClientSpawnDetourType::new(client_spawn_func, callbacks.client_spawn) }.map_err(
-                |_| {
-                    cold_path();
-                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::ClientSpawn)
-                },
-            )?;
+            unsafe { ClientSpawnDetourType::new(client_spawn_func, callbacks.client_spawn) }.map_err(QuakeLiveEngineError::detour_not_created(QuakeLiveFunction::ClientSpawn))?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { client_spawn_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::ClientSpawn)
-        })?;
+        unsafe { client_spawn_detour.enable() }.map_err(
+            QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::ClientSpawn),
+        )?;
 
         self.client_spawn_detour
             .swap(Some(client_spawn_detour.into()))

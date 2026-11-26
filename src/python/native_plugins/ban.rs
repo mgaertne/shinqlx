@@ -24,6 +24,7 @@ use crate::python::{
     commands::CommandPriorities,
     defer_delay,
     events_enum::EventName,
+    player_key,
     plugin::{PluginMethods, chat},
 };
 
@@ -41,10 +42,6 @@ enum LeaveAction {
 pub(super) struct Ban {
     players_start: Mutex<Vec<(i64, Py<Player>)>>,
     pending_warnings: Mutex<HashMap<i64, f64>>,
-}
-
-fn player_key(steam_id: i64) -> String {
-    format!("minqlx:players:{steam_id}")
 }
 
 fn bans_key(steam_id: i64) -> String {

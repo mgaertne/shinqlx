@@ -13,7 +13,8 @@ use super::{
 };
 use crate::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, commands::CommandPriorities,
-    defer_next_frame, events_enum::EventName, plugin::PluginMethods, pyshinqlx_client_command,
+    defer_next_frame, events_enum::EventName, player_key, plugin::PluginMethods,
+    pyshinqlx_client_command,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -41,7 +42,7 @@ impl Silenced {
 }
 
 fn silences_key(steam_id: i64) -> String {
-    format!("minqlx:players:{steam_id}:silences")
+    format!("{}:silences", player_key(steam_id))
 }
 
 #[pymethods]

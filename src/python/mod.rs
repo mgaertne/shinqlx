@@ -206,6 +206,7 @@ use std::{
 
 use arc_swap::ArcSwapOption;
 use chrono::Utc;
+pub(crate) use database::player_key;
 use decorators::{delay, later, next_frame, thread};
 use deferred::{defer_delay, defer_next_frame};
 use derive_more::Display;
@@ -1633,6 +1634,7 @@ mod try_get_plugins_path_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_cvar_pointing_to_non_existent_directory() {
         let cvar_tempdir_str = c"non-existing-directory";
         let mut raw_cvar = CVarBuilder::default()
@@ -1656,6 +1658,7 @@ mod try_get_plugins_path_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore)]
     fn try_get_plugins_path_with_cvar_pointing_to_existing_directory() {
         let cvar_tempdir_str = CString::new(TEMP_DIR.path().to_string_lossy().to_string())
             .expect("this should not happen");

@@ -7,7 +7,6 @@ use core::{
     ptr::NonNull,
 };
 
-use arrayvec::ArrayVec;
 use tap::{TapFallible, TapOptional, TryConv};
 
 use crate::{
@@ -51,9 +50,7 @@ impl TryFrom<*mut gentity_t> for GameEntity {
     fn try_from(game_entity: *mut gentity_t) -> Result<Self, Self::Error> {
         NonNull::new(game_entity)
             .map(|gentity| Self { gentity })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -70,14 +67,12 @@ impl TryFrom<i32> for GameEntity {
                 let g_entities = GameEntity::get_entities_list();
                 if g_entities.is_null() {
                     cold_path();
-                    Err(QuakeLiveEngineError::EntityNotFound(
-                        "g_entities not initialized".to_string(),
-                    ))
+                    Err(QuakeLiveEngineError::EntitiesNotInitialized)
                 } else {
                     // SAFETY: g_entities was checked as non-null and the index lies within the entity range.
                     Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
                         cold_path();
-                        QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
+                        QuakeLiveEngineError::EntityNotFound
                     })
                 }
             }
@@ -95,15 +90,13 @@ impl TryFrom<u32> for GameEntity {
         let g_entities = GameEntity::get_entities_list();
         if g_entities.is_null() {
             cold_path();
-            return Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".to_string(),
-            ));
+            return Err(QuakeLiveEngineError::EntitiesNotInitialized);
         }
 
         // SAFETY: g_entities was checked as non-null and the index lies within the entity range.
         Self::try_from(unsafe { g_entities.offset(entity_id as isize) }).map_err(|_| {
             cold_path();
-            QuakeLiveEngineError::EntityNotFound("entity not found".to_string())
+            QuakeLiveEngineError::EntityNotFound
         })
     }
 }
@@ -488,8 +481,7 @@ impl GameEntity {
                                 .to_string_lossy()
                 })
             })
-            .collect::<ArrayVec<u32, { MAX_GENTITIES as usize }>>()
-            .to_vec()
+            .collect()
     }
 
     pub(crate) fn set_next_think(&mut self, next_think: i32) {
@@ -1032,9 +1024,7 @@ mod game_entity_tests {
     fn game_entity_try_from_null_results_in_error() {
         assert_eq!(
             GameEntity::try_from(ptr::null_mut() as *mut gentity_t),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 
@@ -1077,9 +1067,7 @@ mod game_entity_tests {
 
         assert_eq!(
             GameEntity::try_from(42i32),
-            Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".to_string()
-            ))
+            Err(QuakeLiveEngineError::EntitiesNotInitialized)
         );
     }
 
@@ -1128,9 +1116,7 @@ mod game_entity_tests {
 
         assert_eq!(
             GameEntity::try_from(42u32),
-            Err(QuakeLiveEngineError::EntityNotFound(
-                "g_entities not initialized".to_string()
-            ))
+            Err(QuakeLiveEngineError::EntitiesNotInitialized)
         );
     }
 

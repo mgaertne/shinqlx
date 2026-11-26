@@ -1,6 +1,5 @@
 #[cfg(target_os = "linux")]
 use core::borrow::Borrow;
-use core::hint::cold_path;
 
 use derive_more::Display;
 use detour::{Function, HookableWith, TypedDetour};
@@ -129,16 +128,13 @@ impl QuakeLiveFunction {
         D: Function,
     {
         // SAFETY: the original and the replacement are functions with the same signature.
-        let Ok(detour) = (unsafe { TypedDetour::new(function, replacement) }) else {
-            cold_path();
-            return Err(QuakeLiveEngineError::DetourCouldNotBeCreated(*self));
-        };
+        let detour = unsafe { TypedDetour::new(function, replacement) }
+            .map_err(QuakeLiveEngineError::detour_not_created(*self))?;
         // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe {
-            detour.enable().map_err(|_| {
-                cold_path();
-                QuakeLiveEngineError::DetourCouldNotBeEnabled(*self)
-            })?
+            detour
+                .enable()
+                .map_err(QuakeLiveEngineError::detour_not_enabled(*self))?
         };
 
         Ok(detour)

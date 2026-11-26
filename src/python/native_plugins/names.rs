@@ -9,7 +9,8 @@ use super::{
 };
 use crate::python::{
     AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
-    commands::CommandPriorities, events_enum::EventName, get_cvar, plugin::PluginMethods,
+    commands::CommandPriorities, events_enum::EventName, get_cvar, player_key,
+    plugin::PluginMethods,
 };
 
 const STOP_ALL: i32 = PythonReturnCodes::RET_STOP_ALL as i32;
@@ -34,7 +35,7 @@ impl Names {
 }
 
 fn name_key(steam_id: i64) -> String {
-    format!("minqlx:players:{steam_id}:colored_name")
+    format!("{}:colored_name", player_key(steam_id))
 }
 
 fn matches_steam_name(name: &str, player: &Bound<'_, Player>) -> bool {

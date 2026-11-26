@@ -134,6 +134,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn the_shipped_configuration_says_what_the_default_says() {
         clear_pending_files();
@@ -148,6 +149,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_broken_configuration_falls_back_to_the_default_and_reports_why() {
         let directory = std::env::temp_dir().join(format!("shinqlx-cfg-{}", std::process::id()));
@@ -164,6 +166,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_valid_configuration_file_is_used_without_a_complaint() {
         let (config, error) = config_from_file_or_default(Path::new(CONFIG_FILE_NAME));
@@ -174,6 +177,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_missing_configuration_file_falls_back_to_the_default_and_reports_why() {
         let path = std::env::temp_dir()
@@ -188,6 +192,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn finishing_the_logging_opens_the_pending_log_file_below_the_directory() {
         let directory =
@@ -210,6 +215,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_log_file_that_cannot_be_opened_is_reported() {
         let directory =

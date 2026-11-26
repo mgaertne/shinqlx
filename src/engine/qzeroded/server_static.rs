@@ -21,9 +21,7 @@ impl TryFrom<*mut serverStatic_t> for ServerStatic {
             .map(|svs| Self {
                 serverStatic_t: svs,
             })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -91,14 +89,12 @@ impl ServerStatic {
 
         if !byte_distance.is_multiple_of(client_size) || index >= MAX_CLIENTS as usize {
             cold_path();
-            return Err(QuakeLiveEngineError::ClientNotFound(
-                "client not found".to_string(),
-            ));
+            return Err(QuakeLiveEngineError::ClientNotFound);
         }
 
         i32::try_from(index).map_err(|_| {
             cold_path();
-            QuakeLiveEngineError::ClientNotFound("client not found".to_string())
+            QuakeLiveEngineError::ClientNotFound
         })
     }
 }
@@ -140,9 +136,7 @@ mod server_static_tests {
     fn server_static_try_from_null_results_in_error() {
         assert_eq!(
             ServerStatic::try_from(ptr::null_mut()),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 
@@ -278,9 +272,7 @@ mod server_static_tests {
                 .expect("this should not happen");
         assert_eq!(
             rust_server_static.try_determine_client_id(&client),
-            Err(QuakeLiveEngineError::ClientNotFound(
-                "client not found".to_string()
-            ))
+            Err(QuakeLiveEngineError::ClientNotFound)
         );
     }
 

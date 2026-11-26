@@ -342,6 +342,20 @@ Changes since 0.8.0.
   of the accessors are read by helpers instead of repeated blocks.
 * The `create()` functions of the native plugins return `Bound<Plugin>`, and their handlers take `Command` and `dict`
   arguments instead of `PyAny`.
+* The engine code is split into `engine/qzeroded` and `engine/qagame`, the Python layer moved from `src/ffi/python` to
+  `src/python` and the guards moved to `src/fixes`. The engine gets what it calls back into as a table from
+  `src/composition.rs`, so it no longer imports the hooks, the console commands or the Python layer. The wrappers of
+  engine structures hold a pointer instead of a reference into the memory of the engine.
+* The game module calls `G_InitGame`, `G_RunFrame` and `G_ShutdownGame` of shinqlx through functions with the C calling
+  convention; before, it relied on the Rust convention happening to match.
+* An engine error keeps the cause of a failed look-up of the own process or its memory mappings, and the log names why a
+  detour could not be created or enabled.
+* `dev_print_items`, `replace_items`, `destroy_kamikaze_timers` and the targetting lookup of an entity collect into a
+  `Vec` instead of reserving room for all 1024 entities on the stack.
+* `ql_rcon` and `ql_stats` share the handling of the server files in `ql_zmq`, and the native plugins build the Redis keys
+  of a player in one place; the keys are unchanged.
+* `rust-toolchain.toml` selects the nightly toolchain. A few more tests run under Miri.
+  The unused dependencies `rustversion` and `derive-new` are gone.
 
 ## 0.8.0 (2026-11-19)
 

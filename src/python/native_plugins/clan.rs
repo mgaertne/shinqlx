@@ -9,7 +9,7 @@ use crate::{
         AbstractChannel, Player, PlayerMethods, Plugin, PythonReturnCodes, clean_text,
         commands::CommandPriorities,
         events_enum::EventName,
-        get_configstring, parse_variables,
+        get_configstring, parse_variables, player_key,
         plugin::{PluginMethods, chat},
         set_configstring,
     },
@@ -23,7 +23,7 @@ const MAX_TAG_LENGTH: usize = 5;
 pub(super) struct Clan;
 
 fn tag_key(steam_id: i64) -> String {
-    format!("minqlx:players:{steam_id}:clantag")
+    format!("{}:clantag", player_key(steam_id))
 }
 
 fn client_id_of(index: u32) -> Option<i64> {

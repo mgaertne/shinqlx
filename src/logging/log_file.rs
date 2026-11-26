@@ -167,6 +167,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn records_written_before_the_attach_end_up_in_the_file_below_the_directory() {
         PENDING_FILES.lock().clear();
@@ -200,6 +201,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn the_file_rotates_like_the_python_rotating_file_handler() {
         PENDING_FILES.lock().clear();
@@ -230,6 +232,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     #[serial]
     fn a_directory_that_cannot_be_written_is_reported() {
         PENDING_FILES.lock().clear();

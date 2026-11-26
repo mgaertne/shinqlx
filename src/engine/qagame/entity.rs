@@ -664,15 +664,13 @@ impl EntityFunctions {
         let g_start_kamikaze_detour = unsafe {
             GStartKamikazeDetourType::new(g_start_kamikaze_func, callbacks.g_startkamikaze)
         }
-        .map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StartKamikaze)
-        })?;
+        .map_err(QuakeLiveEngineError::detour_not_created(
+            QuakeLiveFunction::G_StartKamikaze,
+        ))?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { g_start_kamikaze_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StartKamikaze)
-        })?;
+        unsafe { g_start_kamikaze_detour.enable() }.map_err(
+            QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::G_StartKamikaze),
+        )?;
 
         self.g_start_kamikaze_detour
             .swap(Some(g_start_kamikaze_detour.into()))
@@ -703,15 +701,13 @@ impl EntityFunctions {
         };
         // SAFETY: the original and the replacement are functions with the same signature.
         let g_damage_detour = unsafe { GDamageDetourType::new(g_damage_func, callbacks.g_damage) }
-            .map_err(|_| {
-                cold_path();
-                QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_Damage)
-            })?;
+            .map_err(QuakeLiveEngineError::detour_not_created(
+                QuakeLiveFunction::G_Damage,
+            ))?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { g_damage_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_Damage)
-        })?;
+        unsafe { g_damage_detour.enable() }.map_err(QuakeLiveEngineError::detour_not_enabled(
+            QuakeLiveFunction::G_Damage,
+        ))?;
 
         self.g_damage_detour
             .swap(Some(g_damage_detour.into()))
@@ -731,16 +727,12 @@ impl EntityFunctions {
         // SAFETY: the original and the replacement are functions with the same signature.
         let fire_weapon_detour =
             unsafe { FireWeaponDetourType::new(fire_weapon_func, callbacks.fire_weapon) }.map_err(
-                |_| {
-                    cold_path();
-                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::FireWeapon)
-                },
+                QuakeLiveEngineError::detour_not_created(QuakeLiveFunction::FireWeapon),
             )?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { fire_weapon_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::FireWeapon)
-        })?;
+        unsafe { fire_weapon_detour.enable() }.map_err(
+            QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::FireWeapon),
+        )?;
 
         self.fire_weapon_detour
             .swap(Some(fire_weapon_detour.into()))
@@ -761,16 +753,12 @@ impl EntityFunctions {
         // SAFETY: the original and the replacement are functions with the same signature.
         let stats_medal_detour =
             unsafe { StatsMedalDetourType::new(stats_medal_func, callbacks.stats_medal) }.map_err(
-                |_| {
-                    cold_path();
-                    QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StatsMedal)
-                },
+                QuakeLiveEngineError::detour_not_created(QuakeLiveFunction::G_StatsMedal),
             )?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { stats_medal_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StatsMedal)
-        })?;
+        unsafe { stats_medal_detour.enable() }.map_err(
+            QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::G_StatsMedal),
+        )?;
 
         self.stats_medal_detour
             .swap(Some(stats_medal_detour.into()))
@@ -792,15 +780,13 @@ impl EntityFunctions {
         let stats_flag_status_detour = unsafe {
             StatsFlagStatusDetourType::new(stats_flag_status_func, callbacks.stats_flag_status)
         }
-        .map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::G_StatsFlagStatus)
-        })?;
+        .map_err(QuakeLiveEngineError::detour_not_created(
+            QuakeLiveFunction::G_StatsFlagStatus,
+        ))?;
         // SAFETY: the detour was created from valid function addresses of the engine.
-        unsafe { stats_flag_status_detour.enable() }.map_err(|_| {
-            cold_path();
-            QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::G_StatsFlagStatus)
-        })?;
+        unsafe { stats_flag_status_detour.enable() }.map_err(
+            QuakeLiveEngineError::detour_not_enabled(QuakeLiveFunction::G_StatsFlagStatus),
+        )?;
 
         self.stats_flag_status_detour
             .swap(Some(stats_flag_status_detour.into()))

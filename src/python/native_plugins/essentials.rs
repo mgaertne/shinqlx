@@ -25,7 +25,7 @@ use crate::python::{
     events_enum::EventName,
     get_cvar,
     handlers::{PrintRedirectorMethods, redirect_print},
-    is_vote_active, lock, pause,
+    is_vote_active, lock, pause, player_key,
     plugin::{PluginMethods, chat},
     pyshinqlx_force_vote, pyshinqlx_owner, shuffle,
     string_enums::VoteType,
@@ -65,10 +65,6 @@ pub(super) struct Essentials {
 
 fn plugin_class(py: Python<'_>) -> Bound<'_, pyo3::types::PyType> {
     py.get_type::<Plugin>()
-}
-
-fn player_key(steam_id: i64) -> String {
-    format!("minqlx:players:{steam_id}")
 }
 
 fn command_prefix() -> PyResult<String> {

@@ -17,9 +17,7 @@ impl TryFrom<*mut level_locals_t> for CurrentLevel {
     fn try_from(level_locals: *mut level_locals_t) -> Result<Self, Self::Error> {
         NonNull::new(level_locals)
             .map(|level| Self { level })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -183,9 +181,7 @@ mod current_level_tests {
     fn current_level_from_null() {
         assert_eq!(
             CurrentLevel::try_from(ptr::null_mut()),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            )),
+            Err(QuakeLiveEngineError::NullPointerPassed),
         );
     }
 

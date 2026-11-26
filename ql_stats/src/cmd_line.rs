@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, anyhow, bail};
+use anyhow::{Context, Result};
 use clap::Parser;
 use ql_zmq::{
     ColorChoice,
     servers::{
-        Endpoint, Interface, choice, endpoint, flag, list, password_is_exposed, read_document,
-        save_endpoint, server_file,
+        Endpoint, Interface, choice, endpoint, existing, exposure_warning, flag, list, path_for,
+        read_document, save_endpoint, server_file, with_scheme,
     },
     switch,
 };
@@ -88,39 +88,14 @@ fn read_server_settings(path: &Path) -> Result<ServerSettings> {
     })
 }
 
-fn with_scheme(host: String) -> String {
-    if host.contains("://") {
-        host
-    } else {
-        format!("tcp://{host}")
-    }
-}
-
 type ServerFileLocator<'a> = &'a dyn Fn(&str) -> Option<PathBuf>;
 
-fn path_of_server_file(name: &str, locate: ServerFileLocator) -> Result<PathBuf> {
-    locate(name).ok_or_else(|| {
-        anyhow!("'{name}' is not a valid server name or there is no config directory")
-    })
-}
-
 fn open_server_file(name: &str, locate: ServerFileLocator) -> Result<PathBuf> {
-    open_existing(name, path_of_server_file(name, locate)?)
-}
-
-fn open_existing(name: &str, path: PathBuf) -> Result<PathBuf> {
-    if !path.exists() {
-        bail!(
-            "no server file {}; create it with --save-server {name} and the connection options",
-            path.display()
-        );
-    }
-
-    Ok(path)
+    Ok(existing(name, path_for(name, locate(name))?)?)
 }
 
 fn save_server(name: &str, options: &CommandLineOptions, locate: ServerFileLocator) -> Result<()> {
-    save_server_at(&path_of_server_file(name, locate)?, options)
+    save_server_at(&path_for(name, locate(name))?, options)
 }
 
 fn save_server_at(path: &Path, options: &CommandLineOptions) -> Result<()> {
@@ -147,11 +122,8 @@ fn resolve(cli: CommandLineOptions, locate: ServerFileLocator) -> Result<Command
     let settings = match cli.server.as_deref() {
         Some(name) => {
             let path = open_server_file(name, locate)?;
-            if password_is_exposed(&path) {
-                eprintln!(
-                    "Warning: {} holds a password and can be read by other users, restrict it with chmod 600.",
-                    path.display()
-                );
+            if let Some(warning) = exposure_warning(&path) {
+                eprintln!("{warning}");
             }
             read_server_settings(&path)
                 .with_context(|| format!("could not read {}", path.display()))?
@@ -224,8 +196,8 @@ mod cmd_line_tests {
     };
 
     use super::{
-        CommandLineOptions, ServerSettings, open_existing, open_server_file, read_server_settings,
-        resolve, save_server, save_server_at,
+        CommandLineOptions, ServerSettings, open_server_file, read_server_settings, resolve,
+        save_server, save_server_at,
     };
     use crate::format::OutputFormat;
 
@@ -455,7 +427,7 @@ mod cmd_line_tests {
     fn a_missing_server_file_is_reported_with_the_way_to_create_it() {
         let path = server_file_path("missing");
 
-        let message = open_existing("crimson-arena", path)
+        let message = open_server_file("crimson-arena", &|_| Some(path.clone()))
             .expect_err("the file does not exist")
             .to_string();
 
@@ -468,7 +440,7 @@ mod cmd_line_tests {
         let options = CommandLineOptions::try_parse_from(["ql_stats"]).expect("defaults are valid");
         save_server_at(&path, &options).expect("could not save the server");
 
-        let opened = open_existing("crimson-arena", path.clone());
+        let opened = open_server_file("crimson-arena", &|_| Some(path.clone()));
 
         assert_eq!(opened.expect("the file exists"), path);
         remove_directory_of(&path);

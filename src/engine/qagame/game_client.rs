@@ -20,9 +20,7 @@ impl TryFrom<*mut gclient_t> for GameClient {
     fn try_from(game_client: *mut gclient_t) -> Result<Self, Self::Error> {
         NonNull::new(game_client)
             .map(|gclient| Self { gclient })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -420,9 +418,7 @@ mod game_client_tests {
     fn game_client_try_from_null_results_in_error() {
         assert_eq!(
             GameClient::try_from(ptr::null_mut() as *mut gclient_t),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 

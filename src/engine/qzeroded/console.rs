@@ -508,17 +508,17 @@ impl ConsoleDetours {
                 engine.com_printf_orig()? as *const (),
                 engine.callbacks().console.com_printf as *const (),
             )
-            .map_err(|_| {
-                cold_path();
-                QuakeLiveEngineError::DetourCouldNotBeCreated(QuakeLiveFunction::Com_Printf)
-            })?
+            .map_err(QuakeLiveEngineError::detour_not_created(
+                QuakeLiveFunction::Com_Printf,
+            ))?
         };
         // SAFETY: the detour was created from valid function addresses of the engine.
         unsafe {
-            com_printf_detour.enable().map_err(|_| {
-                cold_path();
-                QuakeLiveEngineError::DetourCouldNotBeEnabled(QuakeLiveFunction::Com_Printf)
-            })?
+            com_printf_detour
+                .enable()
+                .map_err(QuakeLiveEngineError::detour_not_enabled(
+                    QuakeLiveFunction::Com_Printf,
+                ))?
         };
 
         Ok(Self {

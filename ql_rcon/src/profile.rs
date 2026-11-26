@@ -11,7 +11,7 @@ pub(crate) use ql_zmq::servers::{config_dir, server_file, server_file_in};
 use ql_zmq::{
     ColorChoice,
     servers::{
-        Endpoint, Interface, choice, endpoint, flag, password_is_exposed, read_document,
+        Endpoint, Interface, choice, endpoint, exposure_warning, flag, read_document,
         save_settings, text, write_private,
     },
 };
@@ -108,9 +108,9 @@ impl ServerFile {
         write_private(&self.path, &document.to_string())
     }
 
-    /// `true` when other users can read a file that holds a password.
-    pub(crate) fn password_is_exposed(&self) -> bool {
-        password_is_exposed(&self.path)
+    /// What to tell the user when other users can read a password in the file.
+    pub(crate) fn exposure_warning(&self) -> Option<String> {
+        exposure_warning(&self.path)
     }
 
     pub(crate) fn connection(&self) -> io::Result<Connection> {
@@ -381,10 +381,10 @@ mod profile_tests {
         })
         .expect("the file is written");
 
-        assert!(!file.password_is_exposed());
+        assert_eq!(file.exposure_warning(), None);
         fs::set_permissions(file.path(), fs::Permissions::from_mode(0o644))
             .expect("the mode can be changed");
-        assert!(file.password_is_exposed());
+        assert!(file.exposure_warning().is_some());
         cleanup(&file);
     }
 

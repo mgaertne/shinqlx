@@ -188,6 +188,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn reads_entries_that_the_archive_spells_differently_from_the_engine_list() {
         let dir = tempfile::tempdir().expect("temp dir");
         let pack = dir.path().join("workshop.pk3");
@@ -212,6 +213,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn a_packed_entry_over_the_limit_is_refused() {
         let (_dir, fs) = fixture();
 
@@ -222,6 +224,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn a_pack_that_is_no_zip_file_is_an_io_error() {
         let dir = tempfile::tempdir().expect("temp dir");
         let pack = dir.path().join("broken.pk3");
@@ -235,6 +238,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn an_entry_that_the_index_knows_but_the_pack_lacks_is_not_found() {
         let dir = tempfile::tempdir().expect("temp dir");
         let pack = dir.path().join("short.pk3");
@@ -248,6 +252,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn lists_packed_and_loose_files_once() {
         let (_dir, fs) = fixture();
 
@@ -258,6 +263,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn reads_deflated_stored_and_loose_files_in_engine_order() {
         let (_dir, fs) = fixture();
 
@@ -277,6 +283,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn refuses_files_over_the_limit() {
         let (_dir, fs) = fixture();
 
@@ -291,6 +298,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "reads real files")]
     fn names_the_source_the_engine_would_read_from() {
         let (dir, fs) = fixture();
 

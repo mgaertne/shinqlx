@@ -39,6 +39,50 @@ pub fn server_file_in(dir: &Path, name: &str) -> Option<PathBuf> {
     is_server_name(name).then(|| dir.join("servers").join(format!("{name}.toml")))
 }
 
+/// `host` as a ZMQ URI, `tcp://` is assumed when it names no scheme.
+pub fn with_scheme(host: String) -> String {
+    if host.contains("://") {
+        host
+    } else {
+        format!("tcp://{host}")
+    }
+}
+
+/// The path that was looked up for the server `name`, an error when there is none.
+pub fn path_for(name: &str, path: Option<PathBuf>) -> io::Result<PathBuf> {
+    path.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("'{name}' is not a valid server name or there is no config directory"),
+        )
+    })
+}
+
+/// `path` when the server file of `name` exists, otherwise an error that says how to create it.
+pub fn existing(name: &str, path: PathBuf) -> io::Result<PathBuf> {
+    if !path.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "no server file {}; create it with --save-server {name} and the connection options",
+                path.display()
+            ),
+        ));
+    }
+
+    Ok(path)
+}
+
+/// What to tell the user when other users can read a password in the file.
+pub fn exposure_warning(path: &Path) -> Option<String> {
+    password_is_exposed(path).then(|| {
+        format!(
+            "Warning: {} holds a password and can be read by other users, restrict it with chmod 600.",
+            path.display()
+        )
+    })
+}
+
 /// The interface of a server, which has its own table in the server file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Interface {
@@ -272,8 +316,8 @@ mod servers_tests {
     use std::fs;
 
     use super::{
-        Endpoint, Interface, choice, flag, is_server_name, list, password_is_exposed,
-        read_endpoint, save_endpoint, server_file_in, text, with_port,
+        Endpoint, Interface, choice, existing, flag, is_server_name, list, password_is_exposed,
+        path_for, read_endpoint, save_endpoint, server_file_in, text, with_port, with_scheme,
     };
 
     #[test]
@@ -374,6 +418,38 @@ mod servers_tests {
             ))
         );
         assert_eq!(server_file_in(dir, "../crimson-arena"), None);
+    }
+
+    #[test]
+    fn with_scheme_assumes_tcp_only_without_a_scheme() {
+        assert_eq!(
+            with_scheme("192.0.2.1:27961".to_string()),
+            "tcp://192.0.2.1:27961"
+        );
+        assert_eq!(
+            with_scheme("ipc:///tmp/arena".to_string()),
+            "ipc:///tmp/arena"
+        );
+    }
+
+    #[test]
+    fn a_name_without_a_path_is_reported() {
+        let message = path_for("../crimson-arena", None)
+            .expect_err("there is no path")
+            .to_string();
+
+        assert!(message.contains("not a valid server name"), "{message}");
+    }
+
+    #[test]
+    fn a_missing_server_file_is_reported_with_the_way_to_create_it() {
+        let path = std::path::Path::new("/nonexistent/crimson-arena.toml").to_path_buf();
+
+        let message = existing("crimson-arena", path)
+            .expect_err("the file does not exist")
+            .to_string();
+
+        assert!(message.contains("--save-server crimson-arena"), "{message}");
     }
 
     #[test]

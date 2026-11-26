@@ -221,7 +221,10 @@ impl EngineFileSystem {
 
         let maps = Process::myself()
             .and_then(|process| process.maps())
-            .map_err(|_| EngineFsError::FunctionNotFound("memory maps"))?;
+            .map_err(|err| {
+                log::error!(target: "shinqlx", func = "engine_fs"; "reading the memory maps failed: {err}");
+                EngineFsError::FunctionNotFound("memory maps")
+            })?;
         let engine_maps = maps
             .iter()
             .filter(|map| {

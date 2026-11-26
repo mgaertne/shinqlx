@@ -30,9 +30,7 @@ impl TryFrom<*mut client_t> for Client {
     fn try_from(client: *mut client_t) -> Result<Self, Self::Error> {
         NonNull::new(client)
             .map(|client_t| Self { client_t })
-            .ok_or_else(|| {
-                QuakeLiveEngineError::NullPointerPassed("null pointer passed".to_string())
-            })
+            .ok_or(QuakeLiveEngineError::NullPointerPassed)
     }
 }
 
@@ -44,7 +42,7 @@ impl TryFrom<i32> for Client {
         let client = server_static.try_get_client_by_id(client_id)?;
         Self::try_from(client).map_err(|_| {
             cold_path();
-            QuakeLiveEngineError::ClientNotFound("client not found".to_string())
+            QuakeLiveEngineError::ClientNotFound
         })
     }
 }
@@ -187,9 +185,7 @@ mod client_tests {
     fn client_try_from_null_results_in_error() {
         assert_eq!(
             Client::try_from(ptr::null() as *const client_t),
-            Err(QuakeLiveEngineError::NullPointerPassed(
-                "null pointer passed".to_string()
-            ))
+            Err(QuakeLiveEngineError::NullPointerPassed)
         );
     }
 
@@ -254,9 +250,7 @@ mod client_tests {
 
         assert_eq!(
             Client::try_from(2),
-            Err(QuakeLiveEngineError::ClientNotFound(
-                "client not found".to_string()
-            ))
+            Err(QuakeLiveEngineError::ClientNotFound)
         );
     }
 

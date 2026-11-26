@@ -1,6 +1,5 @@
 use core::hint::cold_path;
 
-use arrayvec::ArrayVec;
 use pyo3::exceptions::PyValueError;
 use tap::TryConv;
 
@@ -83,17 +82,13 @@ pub(crate) fn pyshinqlx_replace_items(
         }
         Err(_) => match item1.extract::<String>() {
             Ok(item1_classname) => py.detach(|| {
-                let mut matching_item1_entities: ArrayVec<
-                    Box<GameEntity>,
-                    { MAX_GENTITIES as usize },
-                > = (0..entity_id_limit())
+                let mut matching_item1_entities: Vec<GameEntity> = (0..entity_id_limit())
                     .filter_map(|i| (i as i32).try_conv::<GameEntity>().ok())
                     .filter(|game_entity| {
                         game_entity.in_use()
                             && game_entity.is_game_item(entityType_t::ET_ITEM)
                             && game_entity.get_classname() == item1_classname
                     })
-                    .map(Box::new)
                     .collect();
 
                 matching_item1_entities

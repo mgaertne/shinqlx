@@ -3038,7 +3038,7 @@ mod hooks_tests {
         let client_try_from_ctx = MockClient::try_from_context();
         client_try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::NullPointerPassed("null".to_string())));
+            .return_once_st(|_| Err(QuakeLiveEngineError::NullPointerPassed));
 
         let mut client = ClientBuilder::default()
             .build()
@@ -3674,7 +3674,7 @@ mod hooks_tests {
         let try_from_ctx = MockGameEntity::try_from_context();
         try_from_ctx
             .expect()
-            .return_once_st(|_| Err(QuakeLiveEngineError::NullPointerPassed("null".to_string())));
+            .return_once_st(|_| Err(QuakeLiveEngineError::NullPointerPassed));
         let kamikaze_use_dispatcher_ctx = kamikaze_use_dispatcher_context();
         kamikaze_use_dispatcher_ctx.expect().times(0);
 

@@ -1,4 +1,4 @@
-use core::{cmp::max, hint::cold_path};
+use core::{cmp::max, fmt, hint::cold_path};
 
 use itertools::Itertools;
 use pyo3::{
@@ -784,12 +784,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 
     fn set_permission(&self, player: &Bound<'py, PyAny>, level: i32) -> PyResult<()> {
-        let key = match player.extract::<Player>() {
-            Ok(rust_player) => format!("minqlx:players:{}:permission", rust_player.steam_id),
-            _ => format!("minqlx:players:{}:permission", player.str()?),
-        };
-
-        self.set_item(&key, PyInt::new(self.py(), level))
+        self.set_item(&permission_key(player)?, PyInt::new(self.py(), level))
     }
 
     fn get_permission(&self, player: &Bound<'py, PyAny>) -> PyResult<i32> {
@@ -818,7 +813,7 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
             return Ok(5);
         }
 
-        let key = format!("minqlx:players:{steam_id}:permission");
+        let key = format!("{}:permission", player_key(steam_id));
         if !self.contains(&key)? {
             return Ok(0);
         }
@@ -1037,10 +1032,27 @@ impl<'py> AbstractDatabaseMethods<'py> for Bound<'py, Redis> {
     }
 }
 
+/// The key of a player, under which everything that is stored about them lives.
+pub(crate) fn player_key(steam_id: i64) -> String {
+    key_of_id(steam_id)
+}
+
+fn key_of_id(id: impl fmt::Display) -> String {
+    format!("minqlx:players:{id}")
+}
+
+fn permission_key(player: &Bound<'_, PyAny>) -> PyResult<String> {
+    Ok(format!("{}:permission", key_of(player)?))
+}
+
 fn flag_key(player: &Bound<'_, PyAny>, flag: &str) -> PyResult<String> {
+    Ok(format!("{}:flags:{flag}", key_of(player)?))
+}
+
+fn key_of(player: &Bound<'_, PyAny>) -> PyResult<String> {
     Ok(match player.extract::<Player>() {
-        Ok(rust_player) => format!("minqlx:players:{}:flags:{}", rust_player.steam_id, flag),
-        _ => format!("minqlx:players:{}:flags:{}", player.str()?, flag),
+        Ok(rust_player) => player_key(rust_player.steam_id),
+        _ => key_of_id(player.str()?),
     })
 }
 
