@@ -42,12 +42,32 @@ const GAME_DIR: &str = "baseq3";
 #[pyclass(name = "workshop", module = "shinqlx", extends = Plugin, frozen)]
 pub(super) struct Workshop {
     purged: Mutex<BTreeSet<u64>>,
+    downloading: Mutex<BTreeSet<u64>>,
 }
 
 impl Workshop {
     fn new() -> Self {
         Self {
             purged: Mutex::new(BTreeSet::new()),
+            downloading: Mutex::new(BTreeSet::new()),
+        }
+    }
+
+    fn is_downloading(&self, id: u64) -> bool {
+        self.downloading
+            .lock()
+            .is_ok_and(|downloading| downloading.contains(&id))
+    }
+
+    fn mark_downloading(&self, id: u64) {
+        if let Ok(mut downloading) = self.downloading.lock() {
+            downloading.insert(id);
+        }
+    }
+
+    fn unmark_downloading(&self, id: u64) {
+        if let Ok(mut downloading) = self.downloading.lock() {
+            downloading.remove(&id);
         }
     }
 
@@ -176,6 +196,7 @@ impl Workshop {
         id: u64,
         attempts_left: u32,
     ) -> PyResult<()> {
+        slf.get().unmark_downloading(id);
         let Some(root) = content_root()? else {
             return reply(channel, "The workshop directory was not found.").map(|_| ());
         };
@@ -189,11 +210,7 @@ impl Workshop {
                 )
                 .map(|_| ());
             }
-            return defer_delay(
-                &slf.getattr(intern!(slf.py(), "check_download"))?,
-                POLL_SECONDS,
-                (channel, id, attempts_left - 1),
-            );
+            return wait_for_download(slf, channel, id, attempts_left - 1);
         };
 
         finish_install(channel, id, &root, &pk3s)
@@ -218,6 +235,21 @@ fn finish_install(
     Ok(())
 }
 
+fn wait_for_download(
+    slf: &Bound<'_, Workshop>,
+    channel: &Bound<'_, AbstractChannel>,
+    id: u64,
+    attempts_left: u32,
+) -> PyResult<()> {
+    defer_delay(
+        &slf.getattr(intern!(slf.py(), "check_download"))?,
+        POLL_SECONDS,
+        (channel, id, attempts_left),
+    )?;
+    slf.get().mark_downloading(id);
+    Ok(())
+}
+
 fn add_item(
     slf: &Bound<'_, Workshop>,
     msg: &[String],
@@ -234,6 +266,9 @@ fn add_item(
             ),
         );
     }
+    if slf.get().is_downloading(id) {
+        return reply(channel, &format!("Item {id} is still downloading."));
+    }
     let Some(root) = content_root()? else {
         return reply(channel, "The workshop directory was not found.");
     };
@@ -245,11 +280,7 @@ fn add_item(
 
     console_command(&format!("steam_downloadugc {id}"))?;
     let reply_result = reply(channel, &format!("Downloading item {id}..."));
-    defer_delay(
-        &slf.getattr(intern!(slf.py(), "check_download"))?,
-        POLL_SECONDS,
-        (channel, id, POLL_ATTEMPTS),
-    )?;
+    wait_for_download(slf, channel, id, POLL_ATTEMPTS)?;
     reply_result
 }
 
@@ -805,6 +836,53 @@ mod workshop_tests {
                     command(&plugin, &channel, &["workshop", "add", "99"]);
 
                     assert_eq!(recorded_replies(&channel), vec!["Downloading item 99..."]);
+                    drop_pending_frame_tasks(py);
+                });
+            },
+        );
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_does_not_restart_a_running_download_until_it_is_given_up(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| {
+                engine
+                    .with_execute_console_command("steam_downloadugc 99", 2)
+                    .with_execute_console_command("steam_downloadugc 100", 1)
+            },
+            || {
+                Python::attach(|py| {
+                    let plugin = workshop_plugin(py);
+                    let channel = recording_channel(py);
+
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+                    command(&plugin, &channel, &["workshop", "add", "100"]);
+                    Workshop::check_download(&plugin, &channel, 99, 1).expect("waits");
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+                    Workshop::check_download(&plugin, &channel, 99, 0).expect("gave up");
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+
+                    assert_eq!(
+                        recorded_replies(&channel),
+                        vec![
+                            "Downloading item 99...",
+                            "Item 99 is still downloading.",
+                            "Downloading item 100...",
+                            "Item 99 is still downloading.",
+                            "Item 99 did not arrive, see the server log for the download result.",
+                            "Downloading item 99...",
+                        ]
+                    );
                     drop_pending_frame_tasks(py);
                 });
             },

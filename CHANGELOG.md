@@ -98,7 +98,7 @@ Changes since 0.8.0.
   cannot pick it up, so the hooks should be cheap.
 * **Workshop items at runtime:** `!workshop add <id>`, `remove <id> [purge|keep]` and `list [all]` of the built-in
   `workshop` plugin install items through the engine command `steam_downloadugc` while the server runs, mount them at
-  once, keep the `workshop.txt` of the home path (comments and order stay; the engine does not merge it with the one of
+  once (a second `add` of an item that is still downloading does not start it again), keep the `workshop.txt` of the home path (comments and order stay; the engine does not merge it with the one of
   the base path, so the plugin copies that one into the home path with the first change) and scan the maps again.
   `purge` also deletes the item directory and its entries in `appworkshop_282440.acf`; without it the shared files stay.
   New cvars `qlx_workshopFile`, `qlx_workshopPurge`, `qlx_workshopWarnPk3` (default 350: warns above that many `.pk3` files, because the engine overflows its info strings from about 380 and runs out of memory from about 750; `com_zoneMegs 64` helps) and

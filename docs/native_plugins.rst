@@ -270,7 +270,8 @@ Installing and removing items while the server runs
 
 ``!workshop add <id>`` lets Steam download the item (the engine command ``steam_downloadugc``), mounts it at once, adds
 it to the list of the server and scans the maps again, so ``map_info`` knows its maps. The reply tells when the item
-has arrived; a large item can take a while. ``!workshop remove <id>`` takes the item out of the list. It stays mounted
+has arrived; a large item can take a while. Another ``add`` for an item that is still downloading does not start the
+download again and only says so, other items can be added meanwhile. ``!workshop remove <id>`` takes the item out of the list. It stays mounted
 until the next restart of the server. ``!workshop list`` summarises the list and names the items whose files are
 missing; ``!workshop list all`` names every item.
 
