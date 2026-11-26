@@ -1,0 +1,51 @@
+qlx_owner	SteamID64 of the owner of the server, who has all permissions; -1 means nobody.
+qlx_plugins	Comma separated plugins to load at startup; DEFAULT stands for the plugins that shinqlx brings.
+qlx_pluginsPath	Directory of the Python plugins, relative to the game directory (default shinqlx-plugins).
+qlx_database	Database class used by the plugins (default Redis).
+qlx_commandPrefix	Character in front of the chat commands of the plugins (default !).
+qlx_logs	Number of old shinqlx.log files that are kept when the log rotates (default 2).
+qlx_logsSize	Size in bytes at which shinqlx.log rotates (default 3000000).
+qlx_noDebugEvents	Events that write no debug line to shinqlx.log, separated by commas or spaces.
+qlx_mapsScan	Scan of the installed maps in the background: 0 off, 1 on (default), 2 also compares it with the old scan.
+qlx_redisAddress	Address of the Redis server, host or host:port (default 127.0.0.1).
+qlx_redisDatabase	Number of the Redis database (default 0).
+qlx_redisUnixSocket	1 connects to Redis over the Unix socket named in qlx_redisAddress (default 0).
+qlx_redisPassword	Password for the Redis server; empty for none.
+qlx_reliableGuard	Guard against overflowing reliable command rings of clients: 1 on (default), 0 off.
+qlx_reliableWatermark	Commands wait when the ring of a client holds this many unacknowledged commands (default 32).
+qlx_reliableBurst	Most reliable commands per frame that go to one client (default 8).
+qlx_reliableGlobalBurst	Most reliable commands per frame that go to all clients together (default 64).
+qlx_reliableRing	Assumed ring size of a client; lower it only for test rigs.
+qlx_reliableMergePrints	1 merges console lines into fewer commands (default), 0 keeps them apart.
+qlx_scoreboardTrim	Shortens a scoreboard that would not fit into one command: 1 on (default), 0 off.
+qlx_scoreboardBudget	Bytes a scoreboard command may have before it is trimmed (default 1000).
+qlx_scoreboardFullPerTeam	Ranks per team that keep all their values when trimming.
+qlx_scoreboardLightPerTeam	Ranks per team that stay at all when trimming; the ones beyond are dropped.
+qlx_scoreboardMinPerTeam	Rows per team that trimming never drops.
+qlx_steamQueryRate	Steam queries per second allowed from one address (steam-query-limit feature).
+qlx_steamQueryBurst	Steam queries that one address may send at once (steam-query-limit feature).
+qlx_steamQueryGlobalRate	Steam queries per second allowed from all addresses together (steam-query-limit feature).
+qlx_steamQueryRulesRate	Rules queries per second allowed from one address (steam-query-limit feature).
+qlx_steamQueryRulesBurst	Rules queries that one address may send at once (steam-query-limit feature).
+qlx_steamQueryRulesGlobalRate	Rules queries per second allowed from all addresses together (steam-query-limit feature).
+qlx_steamQueryDropRules	1 drops every Steam rules query (steam-query-limit feature).
+qlx_zmqRconSendTimeout	Milliseconds the engine waits for a zmq rcon client before it gives up (default 25, zmq-rcon-fix feature).
+qlx_votepass	Passes a vote automatically after 29 seconds if it is leading (essentials plugin).
+qlx_votepassThreshold	Share of the players in the teams that has to have voted for it (default 0.33).
+qlx_teamsizeMinimum	Smallest team size that can be voted (default 1).
+qlx_teamsizeMaximum	Largest team size that can be voted (default 8).
+qlx_enforceMappool	1 only allows votes for the maps and factories of the map pool.
+qlx_enforceSteamName	1 requires the colored name to match the Steam name without colors (default 1, names plugin).
+qlx_leaverBan	1 bans players who leave too many games (ban plugin).
+qlx_leaverBanThreshold	Share of completed games below which a player is banned (default 0.63).
+qlx_leaverBanWarnThreshold	Share of completed games below which a player is warned (default 0.78).
+qlx_leaverBanMinimumGames	Number of games before the share is taken into account (default 15).
+qlx_motdHeader	Header shown above the message of the day (motd plugin).
+qlx_motdSound	Sound that is played with the message of the day.
+qlx_chatlogs	Number of chat log files that are kept (default 3, log plugin).
+qlx_chatlogsSize	Maximum size of a chat log file in bytes (default 3000000).
+qlx_workshopReferences	Comma separated workshop items that are added to every map (workshop plugin).
+qlx_workshopFile	Path of the item list to use instead of the workshop.txt of the home path.
+qlx_workshopPurge	1 deletes the files of an item with every !workshop remove (default 0).
+qlx_workshopWarnPk3	Number of pk3 files above which !workshop warns; 0 does not warn (default 350).
+qlx_workshopPermission	Permission level for !workshop (default 5).

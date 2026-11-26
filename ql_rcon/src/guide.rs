@@ -7,6 +7,10 @@ const ENUMS: &str = include_str!("cvar_enums.txt");
 const FLAGS: &str = include_str!("cvar_flags.txt");
 /// `name<TAB>first line of the description`.
 const HELP: &str = include_str!("help.txt");
+/// `name<TAB>description` of the `qlx_` cvars of shinqlx.
+const QLX_CVARS: &str = include_str!("qlx_cvars.txt");
+/// `name<TAB>description` of the commands of the plugins that shinqlx brings, without the command prefix.
+const PLUGIN_COMMANDS: &str = include_str!("plugin_commands.txt");
 
 /// The text of `help cvarflags`, which the console answers itself instead of asking the server.
 const CVAR_FLAGS_HELP: [&str; 9] = [
@@ -140,14 +144,26 @@ pub(crate) fn flags_for(cvar: &str) -> &'static str {
         .unwrap_or_default()
 }
 
+fn description_in(table: &'static str, name: &str) -> Option<&'static str> {
+    table.lines().find_map(|line| {
+        line.split_once('\t')
+            .filter(|(known, _)| known.eq_ignore_ascii_case(name))
+            .map(|(_, help)| help)
+    })
+}
+
+/// What a command of a standard plugin does; `!blue` and `blue` find the same text.
+pub(crate) fn plugin_command_help(name: &str) -> Option<&'static str> {
+    description_in(
+        PLUGIN_COMMANDS,
+        name.trim_start_matches(|c: char| !c.is_alphanumeric()),
+    )
+}
+
 /// The first line of the description of a command or cvar.
 pub(crate) fn help_for(name: &str) -> Option<&'static str> {
-    HELP.lines()
-        .find_map(|line| {
-            line.split_once('\t')
-                .filter(|(known, _)| known.eq_ignore_ascii_case(name))
-                .map(|(_, help)| help)
-        })
+    description_in(HELP, name)
+        .or_else(|| description_in(QLX_CVARS, name))
         .or_else(|| {
             SHINQLX_COMMANDS
                 .iter()
@@ -270,6 +286,35 @@ mod guide_tests {
             Some("Sets the time limit on your server.")
         );
         assert!(help_for("kick").is_some());
+    }
+
+    #[test]
+    fn plugin_commands_are_found_with_and_without_the_prefix() {
+        assert_eq!(
+            super::plugin_command_help("!red"),
+            super::plugin_command_help("red")
+        );
+        assert!(super::plugin_command_help("RED").is_some());
+        assert_eq!(super::plugin_command_help("no_such_command"), None);
+    }
+
+    #[test]
+    fn every_line_of_the_shinqlx_tables_has_a_name_and_a_text() {
+        [super::QLX_CVARS, super::PLUGIN_COMMANDS]
+            .iter()
+            .flat_map(|table| table.lines())
+            .for_each(|line| {
+                assert!(
+                    line.split_once('\t')
+                        .is_some_and(|(name, text)| !name.is_empty() && !text.is_empty()),
+                    "{line}"
+                );
+            });
+        assert!(
+            super::QLX_CVARS
+                .lines()
+                .all(|line| line.starts_with("qlx_"))
+        );
     }
 
     #[test]

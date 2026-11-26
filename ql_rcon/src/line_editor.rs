@@ -30,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     cmd_line::CommandLineOptions,
     fetch::Fetched,
-    guide::{flags_for, help_for, shinqlx_command_names, value_labels},
+    guide::{flags_for, help_for, plugin_command_help, shinqlx_command_names, value_labels},
     learn::Learned,
     profile::{ServerFile, config_dir, server_file_in},
 };
@@ -147,6 +147,8 @@ fn describe(
                 .flatten()
                 .collect();
                 (!parts.is_empty()).then(|| parts.join(" "))
+            } else if matches!(words.as_slice(), [qlx] if qlx.eq_ignore_ascii_case("qlx")) {
+                plugin_command_help(&item).map(str::to_string)
             } else {
                 cvar.and_then(|cvar| {
                     value_label(cvar, &item, user).or_else(|| help_for(cvar).map(str::to_string))
@@ -1312,6 +1314,38 @@ mod line_editor_tests {
             ["!ban"]
         );
         assert!(completions("kick ", "", 5, [].into_iter(), &user).is_empty());
+    }
+
+    #[test]
+    fn qlx_describes_the_commands_of_the_standard_plugins() {
+        let user = UserLists::default();
+        let found = ["!blue".to_string(), "mycmd".to_string()];
+
+        let described = describe(found.to_vec(), "qlx ", 4, &user);
+
+        assert!(
+            described[0]
+                .1
+                .as_deref()
+                .is_some_and(|text| text.contains("blue team")),
+            "{described:?}"
+        );
+        assert_eq!(described[1].1, None);
+    }
+
+    #[test]
+    fn the_qlx_cvars_are_described_by_name() {
+        let user = UserLists::default();
+
+        let described = describe(vec!["qlx_commandPrefix".to_string()], "", 0, &user);
+
+        assert!(
+            described[0]
+                .1
+                .as_deref()
+                .is_some_and(|text| text.contains("chat commands")),
+            "{described:?}"
+        );
     }
 
     #[test]

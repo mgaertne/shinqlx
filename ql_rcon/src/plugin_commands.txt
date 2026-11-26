@@ -1,0 +1,89 @@
+id	Shows the ids of the players whose name contains the given parts, or of all players.
+players	Lists the players with their id, team and Steam ID.
+disconnects	Lists the players who disconnected recently.
+dcs	Lists the players who disconnected recently.
+commands	Lists the commands that the plugins offer to you.
+cmds	Lists the commands that the plugins offer to you.
+shuffle	Shuffles the teams.
+pause	Pauses the game.
+timeout	Pauses the game.
+unpause	Resumes a paused game.
+timein	Resumes a paused game.
+slap	Slaps a player, optionally with damage.
+slay	Kills a player.
+sound	Plays a sound to all players.
+music	Plays a music track to all players.
+stopsound	Stops the sound that is playing.
+stopmusic	Stops the music that is playing.
+kick	Kicks a player.
+kickban	Kicks a player and bans them for the rest of the map.
+tempban	Kicks a player and bans them for the rest of the map.
+yes	Passes the vote that is running.
+no	Vetoes the vote that is running.
+random	Rolls a random number up to the limit.
+switch	Switches the teams of two players.
+red	Moves a player to the red team.
+blue	Moves a player to the blue team.
+spectate	Moves a player to the spectators.
+spec	Moves a player to the spectators.
+spectator	Moves a player to the spectators.
+free	Moves a player to the free team.
+addmod	Gives a player the permission level of a moderator.
+addadmin	Gives a player the permission level of an administrator.
+demote	Takes the permission level of a player away.
+mute	Mutes a player in the chat.
+unmute	Lets a muted player talk again.
+lock	Locks a team or both teams.
+unlock	Unlocks a team or both teams.
+allready	Sets every player to ready.
+abort	Aborts the running game.
+map	Changes the map, optionally with a factory.
+changemap	Changes the map, optionally with a factory.
+teamsize	Sets the team size.
+ts	Sets the team size.
+db	Reads or sets a key of the database.
+seen	Shows when a player was last on the server.
+time	Shows the time of the server, optionally with an offset in hours.
+help	Shows the version and the project of shinqlx.
+about	Shows the version and the project of shinqlx.
+version	Shows the version and the project of shinqlx.
+rcon	Runs a console command of the server.
+sounds	Turns the sounds that the server plays on or off for you.
+mappool	Lists the maps of the map pool.
+maps	Lists the maps of the map pool.
+maplist	Lists the maps of the map pool.
+ban	Bans a player for a time span, with an optional reason.
+unban	Lifts the ban of a player.
+checkban	Shows whether and until when a player is banned.
+forgive	Forgives a player a number of leaves, so they are no longer banned for them.
+silence	Silences a player for a time span, with an optional reason.
+unsilence	Lifts the silence of a player.
+checksilence	Shows whether and until when a player is silenced.
+setmotd	Sets the message of the day of this server.
+newmotd	Sets the message of the day of this server.
+setmotdall	Sets the message of the day of all servers.
+newmotdall	Sets the message of the day of all servers.
+getmotd	Shows the message of the day.
+motd	Shows the message of the day.
+clearmotd	Removes the message of the day of this server.
+removemotd	Removes the message of the day of this server.
+remmmotd	Removes the message of the day of this server.
+clearmotdall	Removes the message of the day of all servers.
+removemotdall	Removes the message of the day of all servers.
+remmmotdall	Removes the message of the day of all servers.
+addmotd	Adds a line to the message of the day of this server.
+addmotdall	Adds a line to the message of the day of all servers.
+name	Sets your colored name.
+setname	Sets your colored name.
+clan	Sets your clan tag.
+setclan	Sets your clan tag.
+setperm	Sets the permission level of a player.
+getperm	Shows the permission level of a player.
+myperm	Shows your own permission level.
+load	Loads a plugin.
+unload	Unloads a plugin.
+reload	Reloads a plugin.
+loadall	Loads all plugins of qlx_plugins.
+unloadall	Unloads all plugins.
+reloadall	Reloads all plugins.
+workshop	Adds, removes or lists the workshop items of the server: add <id>, remove <id> [keep|purge], list [all].

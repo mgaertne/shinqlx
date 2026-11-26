@@ -90,7 +90,8 @@ The lists grow when you type `cmdlist`, `cvarlist`, `plugincmds` or `dir maps .b
 with `--fetch-completions`. `plugincmds` lists the commands of the plugins of a shinqlx server, as they are typed after
 `qlx` (`qlx !version`); after `qlx ` the completion offers them. A server without `plugincmds` is not troubled by the
 request. `plugincmds` and `qlx` are completed without a fetch and have a description in the completion menu;
-`help plugincmds` and `help qlx` answer locally. Without a server file the same data goes into `completions-<host>.txt` and
+`help plugincmds` and `help qlx` answer locally. The commands of the standard plugins (`qlx !bl<TAB>`) and the `qlx_`
+cvars of shinqlx have a description in the menu too; commands of other plugins are listed without one. Without a server file the same data goes into `completions-<host>.txt` and
 `learned-<host>.txt` next to it (the flags only go into a server file).
 
 When you type `cvarlist` yourself, the flag letters of the server are put at the end of their cvar line,
