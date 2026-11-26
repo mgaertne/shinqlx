@@ -58,16 +58,11 @@ fn terminate_requested() -> bool {
 pub(crate) extern "C" fn shinqlx_cmd_addcommand(cmd: *const c_char, func: unsafe extern "C" fn()) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if !main_engine.is_common_initialized() {
-            let _ = main_engine.initialize_static().tap_err(|err| {
-                cold_path();
-                error!(target: "shinqlx", func = "shinqlx_cmd_addcommand"; "{err:?}");
-                error!(target: "shinqlx", func = "shinqlx_cmd_addcommand"; "Static initialization failed. Exiting.");
-                panic!("Static initialization failed. Exiting.");
-            });
+            initialize_static_or_exit(main_engine);
         }
 
         // SAFETY: the engine passes a valid, NUL-terminated C string.
-        let command =unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
+        let command = unsafe { CStr::from_ptr(cmd) }.to_string_lossy();
         if !command.is_empty() {
             main_engine.add_command(&command, func);
         }
@@ -92,11 +87,27 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
 
         main_engine.set_module_offset(&converted_module_name, offset);
 
-        let _ = main_engine.initialize_vm(offset as usize).tap_err(|err| {
-            error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "{err:?}");
-            error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "VM could not be initializied. Exiting.");
-            panic!("VM could not be initializied. Exiting.");
-        });
+        initialize_vm_or_exit(main_engine, offset as usize);
+    });
+}
+
+/// Panics when the engine functions cannot be hooked, because the server must not run without them.
+fn initialize_static_or_exit(main_engine: &QuakeLiveEngine) {
+    let _ = main_engine.initialize_static().tap_err(|err| {
+        cold_path();
+        error!(target: "shinqlx", func = "shinqlx_cmd_addcommand"; "{err:?}");
+        error!(target: "shinqlx", func = "shinqlx_cmd_addcommand"; "Static initialization failed. Exiting.");
+        panic!("Static initialization failed. Exiting.");
+    });
+}
+
+/// Panics when the game module cannot be hooked, because the server must not run without it.
+fn initialize_vm_or_exit(main_engine: &QuakeLiveEngine, module_offset: usize) {
+    let _ = main_engine.initialize_vm(module_offset).tap_err(|err| {
+        cold_path();
+        error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "{err:?}");
+        error!(target: "shinqlx", func = "shinqlx_sys_setmoduleoffset"; "VM could not be initializied. Exiting.");
+        panic!("VM could not be initializied. Exiting.");
     });
 }
 
@@ -1358,13 +1369,13 @@ mod hooks_tests {
 
     use super::{
         RELIABLE_GUARD, ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, grown_objectives,
-        reset_objective_tracking, shinqlx_client_connect, shinqlx_client_spawn,
-        shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf, shinqlx_drop_client,
-        shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
-        shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_send_server_command,
-        shinqlx_set_configstring, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
-        shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket, shinqlx_sv_setconfigstring,
-        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
+        initialize_static_or_exit, initialize_vm_or_exit, reset_objective_tracking,
+        shinqlx_client_connect, shinqlx_client_spawn, shinqlx_clientspawn, shinqlx_cmd_addcommand,
+        shinqlx_com_printf, shinqlx_drop_client, shinqlx_execute_client_command, shinqlx_g_damage,
+        shinqlx_g_initgame, shinqlx_g_runframe, shinqlx_g_shutdowngame, shinqlx_g_startkamikaze,
+        shinqlx_send_server_command, shinqlx_set_configstring, shinqlx_sv_cliententerworld,
+        shinqlx_sv_dropclient, shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket,
+        shinqlx_sv_setconfigstring, shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
     use crate::{
         engine::prelude::*,
@@ -1504,24 +1515,15 @@ mod hooks_tests {
     }
 
     #[test]
-    #[should_panic]
-    #[ignore]
-    #[serial]
-    fn add_command_with_main_engine_already_initiailized_init_returns_err() {
-        let cmd_string = c"slap";
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_is_common_initialized()
-                    .return_const(false);
-                mock_engine
-                    .expect_initialize_static()
-                    .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
-                    .times(1);
-            })
-            .run(|| {
-                shinqlx_cmd_addcommand(cmd_string.as_ptr(), dummy_function);
-            });
+    #[should_panic(expected = "Static initialization failed. Exiting.")]
+    fn a_failed_static_initialization_ends_the_server() {
+        let mut main_engine = QuakeLiveEngine::default();
+        main_engine
+            .expect_initialize_static()
+            .returning(|| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .times(1);
+
+        initialize_static_or_exit(&main_engine);
     }
 
     #[test]
@@ -1555,28 +1557,16 @@ mod hooks_tests {
     }
 
     #[test]
-    #[ignore]
-    #[should_panic]
-    #[serial]
-    fn sys_setmoduleoffset_vm_init_returns_err() {
-        let module_string = c"qagame";
-        MockEngineBuilder::default()
-            .configure(|mock_engine| {
-                mock_engine
-                    .expect_set_module_offset()
-                    .withf_st(|module_name, &offset| {
-                        module_name == "qagame" && is_dummy_function(offset)
-                    })
-                    .times(1);
-                mock_engine
-                    .expect_initialize_vm()
-                    .withf(|&func| is_dummy_address(func))
-                    .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
-                    .times(1);
-            })
-            .run(|| {
-                shinqlx_sys_setmoduleoffset(module_string.as_ptr().cast_mut(), dummy_function);
-            });
+    #[should_panic(expected = "VM could not be initializied. Exiting.")]
+    fn a_failed_vm_initialization_ends_the_server() {
+        let mut main_engine = QuakeLiveEngine::default();
+        main_engine
+            .expect_initialize_vm()
+            .with(predicate::eq(42))
+            .returning(|_offset| Err(QuakeLiveEngineError::MainEngineNotInitialized))
+            .times(1);
+
+        initialize_vm_or_exit(&main_engine, 42);
     }
 
     #[test]
