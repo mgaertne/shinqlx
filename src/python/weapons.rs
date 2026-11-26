@@ -16,7 +16,8 @@ use super::{int_tuple::extract_int_array, prelude::*};
 )]
 #[derive(PartialEq, Eq, Debug, Clone, Display)]
 #[display(
-    "Weapons(g={_0}, mg={_1}, sg={_2}, gl={_3}, rl={_4}, lg={_5}, rg={_6}, pg={_7}, bfg={_8}, gh={_9}, ng={_10}, pl={_11}, cg={_12}, hmg={_13}, hands={_14})"
+    "Weapons(g={_0}, mg={_1}, sg={_2}, gl={_3}, rl={_4}, lg={_5}, rg={_6}, \
+    pg={_7}, bfg={_8}, gh={_9}, ng={_10}, pl={_11}, cg={_12}, hmg={_13}, hands={_14})"
 )]
 pub(crate) struct Weapons(
     #[pyo3(name = "g")] pub(crate) i32,
@@ -333,7 +334,8 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < shi
         let ammo = Weapons(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
         assert_eq!(
             format!("{ammo}"),
-            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=6, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
+            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=6, \
+            pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
         );
     }
 
@@ -342,7 +344,8 @@ assert(shinqlx.Weapons((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)) < shi
         let ammo = Weapons(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
         assert_eq!(
             ammo.__repr__(),
-            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=6, pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
+            "Weapons(g=0, mg=1, sg=2, gl=3, rl=4, lg=5, rg=6, \
+            pg=7, bfg=8, gh=9, ng=10, pl=11, cg=12, hmg=13, hands=14)"
         );
     }
 }

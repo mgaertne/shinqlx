@@ -1909,7 +1909,8 @@ class Redis:
             );
             assert_eq!(
                 calls(&connection),
-                "[('mget', ['minqlx:players:1:flags:mute', 'minqlx:players:2:flags:mute', 'minqlx:players:3:flags:mute'])]"
+                "[('mget', ['minqlx:players:1:flags:mute', \
+                'minqlx:players:2:flags:mute', 'minqlx:players:3:flags:mute'])]"
             );
         });
     }

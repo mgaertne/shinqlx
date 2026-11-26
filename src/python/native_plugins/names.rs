@@ -156,7 +156,8 @@ impl Names {
         let prefix = get_cvar("qlx_commandPrefix")?.unwrap_or_default();
         player.tell(
             &format!(
-                "The name has been registered. To make me forget about it, a simple ^6{prefix}name^7 will do it."
+                "The name has been registered. To make me forget about it, \
+                a simple ^6{prefix}name^7 will do it."
             ),
             None,
         )?;
@@ -643,9 +644,8 @@ class Database:
             assert_eq!(fixtures.requested_name().as_deref(), Some("^7^2A^3d^5a"));
             assert_eq!(
                 fixtures.told(),
-                [
-                    "The name has been registered. To make me forget about it, a simple ^6!name^7 will do it."
-                ]
+                ["The name has been registered. To make me forget about it, \
+                a simple ^6!name^7 will do it."]
             );
         });
     }

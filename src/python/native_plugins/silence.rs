@@ -167,7 +167,8 @@ impl Silence {
             return reply(
                 channel,
                 &format!(
-                    "^6{name}^7 has permission level {MINIMUM_PERMISSION_TO_BE_PROTECTED} or more and cannot be silenced."
+                    "^6{name}^7 has permission level {MINIMUM_PERMISSION_TO_BE_PROTECTED} or more \
+                    and cannot be silenced."
                 ),
             );
         }
@@ -776,7 +777,8 @@ mod silence_tests {
                 ),
                 (
                     "76561198000000051",
-                    "^676561198000000051^7 is silenced until ^62096-10-02 12:00:00^7 for the following reason:^6 spam",
+                    "^676561198000000051^7 is silenced until ^62096-10-02 12:00:00^7 \
+                    for the following reason:^6 spam",
                 ),
             ] {
                 if target.ends_with("50") {

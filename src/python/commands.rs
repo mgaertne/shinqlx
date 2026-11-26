@@ -2144,7 +2144,8 @@ def remove_command(cmd):
                     warn!(
                         target: "shinqlx",
                         func = "handle_input";
-                        "Command '{:?}' with handler '{}' returned an unknown return value: {cmd_result}",
+                        "Command '{:?}' with handler '{}' returned an \
+                        unknown return value: {cmd_result}",
                         bound_cmd.get().name,
                         cmd_handler_name.bind(self.py())
                     );

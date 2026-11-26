@@ -38,8 +38,10 @@ const SHINQLX_COMMANDS: [ShinqlxCommand; 2] = [
         short: "Lists the commands of the loaded plugins of a shinqlx server, as they are typed after qlx.",
         help: &[
             "plugincmds [plugin]",
-            "  Lists the commands of the loaded plugins of a shinqlx server, sorted by plugin and name, with the",
-            "  permission and the usage of each. The commands are written as they are typed after qlx, with the",
+            "  Lists the commands of the loaded plugins of a shinqlx server, \
+            sorted by plugin and name, with the",
+            "  permission and the usage of each. The commands are written \
+            as they are typed after qlx, with the",
             "  prefix where they need it. The last line is the count.",
             "  plugincmds ban   lists only the commands of the plugin ban",
             "  qlx !version     runs one of the listed commands",
@@ -50,8 +52,10 @@ const SHINQLX_COMMANDS: [ShinqlxCommand; 2] = [
         short: "Runs a command of a plugin as if the owner typed it in the console, e.g. qlx !version.",
         help: &[
             "qlx <command> [arguments]",
-            "  Runs a command of a plugin of a shinqlx server as if the owner typed it in the console channel.",
-            "  A command that needs the prefix is typed with it, e.g. qlx !version. plugincmds lists them.",
+            "  Runs a command of a plugin of a shinqlx server as if \
+            the owner typed it in the console channel.",
+            "  A command that needs the prefix is typed with it, \
+            e.g. qlx !version. plugincmds lists them.",
         ],
     },
 ];
@@ -229,7 +233,8 @@ mod guide_tests {
         assert_eq!(
             meaning("g_voteFlags", "14054").as_deref(),
             Some(
-                "map_restart + nextmap + timelimit + fraglimit + shuffle + cointoss/random + loadouts + \
+                "map_restart + nextmap + timelimit + fraglimit + shuffle + cointoss/random + \
+                loadouts + \
                  ammo (global) + timers (item)"
             )
         );

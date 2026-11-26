@@ -311,7 +311,8 @@ mod cmd_line_tests {
     #[test]
     fn the_server_file_sets_the_output() {
         let settings = settings_of(
-            "[stats]\nformat = \"summary\"\ncolor = \"Never\"\ntimestamp = true\ntypes = [\"PLAYER_DEATH\"]\nexclude = [\"PLAYER_STATS\", \"ROUND_OVER\"]\n",
+            "[stats]\nformat = \"summary\"\ncolor = \"Never\"\ntimestamp = true\n\
+            types = [\"PLAYER_DEATH\"]\nexclude = [\"PLAYER_STATS\", \"ROUND_OVER\"]\n",
             "file_output",
         )
         .expect("the settings are valid");
@@ -330,7 +331,8 @@ mod cmd_line_tests {
     #[test]
     fn options_win_over_the_output_of_the_server_file() {
         let settings = settings_of(
-            "[stats]\nformat = \"summary\"\ncolor = \"never\"\ntimestamp = true\ntypes = [\"PLAYER_DEATH\"]\nexclude = [\"PLAYER_STATS\"]\n",
+            "[stats]\nformat = \"summary\"\ncolor = \"never\"\ntimestamp = true\n\
+            types = [\"PLAYER_DEATH\"]\nexclude = [\"PLAYER_STATS\"]\n",
             "file_options",
         )
         .expect("the settings are valid");

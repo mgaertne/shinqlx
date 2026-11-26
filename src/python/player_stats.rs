@@ -14,7 +14,9 @@ use crate::engine::prelude::*;
 )]
 #[derive(Debug, PartialEq, Display)]
 #[display(
-    "PlayerStats(score={score}, kills={kills}, deaths={deaths}, damage_dealt={damage_dealt}, damage_taken={damage_taken}, time={time}, ping={ping})"
+    "PlayerStats(score={score}, kills={kills}, deaths={deaths}, \
+    damage_dealt={damage_dealt}, damage_taken={damage_taken}, \
+    time={time}, ping={ping})"
 )]
 pub(crate) struct PlayerStats {
     /// The player's primary score.
@@ -77,7 +79,8 @@ mod player_stats_tests {
     fn player_stats_to_str() {
         assert_eq!(
             format!("{}", default_player_stats()),
-            "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)"
+            "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, \
+            time=123, ping=9)"
         );
     }
 
@@ -85,7 +88,8 @@ mod player_stats_tests {
     fn player_stats_repr() {
         assert_eq!(
             default_player_stats().__repr__(),
-            "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, time=123, ping=9)"
+            "PlayerStats(score=42, kills=7, deaths=9, damage_dealt=5000, damage_taken=4200, \
+            time=123, ping=9)"
         );
     }
 

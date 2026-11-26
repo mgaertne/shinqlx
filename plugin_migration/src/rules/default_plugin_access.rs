@@ -132,7 +132,8 @@ impl Rule for DefaultPluginAccess {
             {
                 output.warnings.push(Warning::new(
                     line_of(node),
-                    "the stats listener exists in shinqlx only with the Cargo feature zmq-stats, the stats \
+                    "the stats listener exists in shinqlx only with the Cargo feature zmq-stats, \
+                    the stats \
                      events work without the ZMQ socket",
                 ));
                 return;
@@ -160,7 +161,8 @@ impl Rule for DefaultPluginAccess {
                 output.warnings.push(Warning::new(
                     line_of(node),
                     format!(
-                        "the default plugin {name} is written in Rust and does not provide `{member_name}`, \
+                        "the default plugin {name} is written in Rust and does not \
+                        provide `{member_name}`, \
                          keep the Python plugin {name} in the plugins directory",
                         name = plugin.name
                     ),

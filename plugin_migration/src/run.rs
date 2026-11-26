@@ -255,7 +255,10 @@ mod tests {
         write(
             input.path(),
             "p.py",
-            "import shinqlx\n\nclass p(shinqlx.Plugin):\n    def __init__(self):\n        self.add_hook(shinqlx.Events.CHAT, self.inherited)\n",
+            "import shinqlx\n\n\
+            class p(shinqlx.Plugin):\n    def __init__(self):\n        \
+            self.add_hook(shinqlx.Events.CHAT, \
+            self.inherited)\n",
         );
 
         let reports = run(input.path(), output.path(), false, Some(1)).expect("run failed");

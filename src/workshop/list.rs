@@ -72,7 +72,8 @@ mod tests {
 
     use super::*;
 
-    const SAMPLE: &str = "# specify 1 workshop item id per line\n\n542770475 # maido.pk3 (maido)\n547252823\n  552722973   # a.pk3 (a, b), c.pk3 (c)\n";
+    const SAMPLE: &str = "# specify 1 workshop item id per line\n\n\
+    542770475 # maido.pk3 (maido)\n547252823\n  552722973   # a.pk3 (a, b), c.pk3 (c)\n";
 
     #[test]
     fn reads_ids_and_comments_and_skips_the_rest() {
@@ -116,7 +117,8 @@ mod tests {
 
         assert_eq!(
             list.render(),
-            "# specify 1 workshop item id per line\n\n542770475 # maido.pk3 (maido)\n  552722973   # a.pk3 (a, b), c.pk3 (c)\n"
+            "# specify 1 workshop item id per line\n\n\
+    542770475 # maido.pk3 (maido)\n  552722973   # a.pk3 (a, b), c.pk3 (c)\n"
         );
     }
 

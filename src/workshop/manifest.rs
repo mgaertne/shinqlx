@@ -45,7 +45,10 @@ mod tests {
 
     use super::*;
 
-    const MANIFEST: &str = "\"AppWorkshop\"\n{\n\t\"WorkshopItemsInstalled\"\n\t{\n\t\t\"11\"\n\t\t{\n\t\t\t\"size\"\t\t\"1\"\n\t\t}\n\t\t\"22\"\n\t\t{\n\t\t\t\"size\"\t\t\"2\"\n\t\t}\n\t}\n\t\"WorkshopItemDetails\"\n\t{\n\t\t\"22\"\n\t\t{\n\t\t\t\"manifest\"\t\t\"9\"\n\t\t}\n\t\t\"11\"\n\t\t{\n\t\t\t\"manifest\"\t\t\"8\"\n\t\t}\n\t}\n}\n";
+    const MANIFEST: &str = "\"AppWorkshop\"\n{\n\t\"WorkshopItemsInstalled\"\n\t{\n\
+    \t\t\"11\"\n\t\t{\n\t\t\t\"size\"\t\t\"1\"\n\t\t}\n\t\t\"22\"\n\t\t{\n\t\t\t\"size\"\t\t\"2\"\n\t\t}\n\
+    \t}\n\
+    \t\"WorkshopItemDetails\"\n\t{\n\t\t\"22\"\n\t\t{\n\t\t\t\"manifest\"\t\t\"9\"\n\t\t}\n\t\t\"11\"\n\t\t{\n\t\t\t\"manifest\"\t\t\"8\"\n\t\t}\n\t}\n}\n";
 
     #[test]
     fn removes_the_item_from_every_section_and_keeps_the_others() {
@@ -54,7 +57,9 @@ mod tests {
         assert_eq!(removed, 2);
         assert_eq!(
             text,
-            "\"AppWorkshop\"\n{\n\t\"WorkshopItemsInstalled\"\n\t{\n\t\t\"11\"\n\t\t{\n\t\t\t\"size\"\t\t\"1\"\n\t\t}\n\t}\n\t\"WorkshopItemDetails\"\n\t{\n\t\t\"11\"\n\t\t{\n\t\t\t\"manifest\"\t\t\"8\"\n\t\t}\n\t}\n}\n"
+            "\"AppWorkshop\"\n{\n\t\"WorkshopItemsInstalled\"\n\t{\n\
+    \t\t\"11\"\n\t\t{\n\t\t\t\"size\"\t\t\"1\"\n\t\t}\n\t}\n\
+    \t\"WorkshopItemDetails\"\n\t{\n\t\t\"11\"\n\t\t{\n\t\t\t\"manifest\"\t\t\"8\"\n\t\t}\n\t}\n}\n"
         );
     }
 

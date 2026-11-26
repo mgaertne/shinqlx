@@ -14,7 +14,8 @@ use crate::engine::prelude::*;
 )]
 #[derive(Debug, PartialEq, Clone, Display)]
 #[display(
-    "EntityInfo(id={id}, classname={classname}, etype={etype}, type_id={type_id}, position={position}, in_use={in_use})"
+    "EntityInfo(id={id}, classname={classname}, etype={etype}, type_id={type_id}, \
+    position={position}, in_use={in_use})"
 )]
 pub(crate) struct EntityInfo {
     /// The number of the entity.

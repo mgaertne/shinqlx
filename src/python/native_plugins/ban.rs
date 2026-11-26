@@ -404,7 +404,8 @@ impl Ban {
             return reply(
                 channel,
                 &format!(
-                    "^6{name}^7 has permission level {MINIMUM_PERMISSION_TO_BE_PROTECTED} and cannot be banned."
+                    "^6{name}^7 has permission level {MINIMUM_PERMISSION_TO_BE_PROTECTED} \
+                    and cannot be banned."
                 ),
             );
         }
@@ -560,7 +561,8 @@ impl Ban {
         reply(
             channel,
             &format!(
-                "^6{leaves_to_forgive}^7 games have been forgiven, putting ^6{name}^7 at ^6{new_leaves}^7 leaves."
+                "^6{leaves_to_forgive}^7 games have been forgiven, \
+                putting ^6{name}^7 at ^6{new_leaves}^7 leaves."
             ),
         )
     }

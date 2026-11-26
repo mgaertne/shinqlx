@@ -226,16 +226,20 @@ mod tests {
         "from minqlx import Plugin, ReturnCodes\n\ndef f():\n    return ReturnCodes.STOP\n"
     )]
     #[case(
-        "from minqlx import RET_STOP, RET_USAGE\n\ndef f(x):\n    if x:\n        return RET_USAGE\n    return RET_STOP\n",
-        "from minqlx import ReturnCodes\n\ndef f(x):\n    if x:\n        return ReturnCodes.USAGE\n    return ReturnCodes.STOP\n"
+        "from minqlx import RET_STOP, RET_USAGE\n\n\
+        def f(x):\n    if x:\n        return RET_USAGE\n    return RET_STOP\n",
+        "from minqlx import ReturnCodes\n\n\
+        def f(x):\n    if x:\n        return ReturnCodes.USAGE\n    return ReturnCodes.STOP\n"
     )]
     #[case(
         "from shinqlx import RET_STOP, ReturnCodes\n\ndef f():\n    return RET_STOP\n",
         "from shinqlx import ReturnCodes\n\ndef f():\n    return ReturnCodes.STOP\n"
     )]
     #[case(
-        "from minqlx import (RET_STOP_ALL, Plugin)\n\ndef f(res):\n    return res == RET_STOP_ALL\n",
-        "from minqlx import (Plugin, ReturnCodes)\n\ndef f(res):\n    return res == ReturnCodes.STOP_ALL\n"
+        "from minqlx import (RET_STOP_ALL, Plugin)\n\n\
+        def f(res):\n    return res == RET_STOP_ALL\n",
+        "from minqlx import (Plugin, ReturnCodes)\n\n\
+        def f(res):\n    return res == ReturnCodes.STOP_ALL\n"
     )]
     #[case(
         "from minqlx import PRI_LOW\n\nself.add_hook('chat', self.h, priority=PRI_LOW)\n",
@@ -243,7 +247,8 @@ mod tests {
     )]
     #[case(
         "from minqlx import RET_STOP\n\ndef f():\n    return RET_STOP\n\nCODE = RET_STOP\n",
-        "from minqlx import RET_STOP, ReturnCodes\n\ndef f():\n    return ReturnCodes.STOP\n\nCODE = RET_STOP\n"
+        "from minqlx import RET_STOP, ReturnCodes\n\ndef f():\n    return ReturnCodes.STOP\n\n\
+        CODE = RET_STOP\n"
     )]
     fn replaces_the_imported_constant(#[case] input: &str, #[case] expected: &str) {
         assert_eq!(run(input), (expected.to_string(), 0));
@@ -259,10 +264,12 @@ mod tests {
     #[case("from minqlx import RET_STOP\n\ndef f(o):\n    return o.RET_STOP\n")]
     #[case("from minqlx import Plugin, Player\n")]
     #[case(
-        "from minqlx import RET_STOP\nfrom other import ReturnCodes\n\ndef f():\n    return RET_STOP\n"
+        "from minqlx import RET_STOP\nfrom other import ReturnCodes\n\n\
+        def f():\n    return RET_STOP\n"
     )]
     #[case(
-        "from minqlx import RET_STOP\n\nclass ReturnCodes:\n    pass\n\ndef f():\n    return RET_STOP\n"
+        "from minqlx import RET_STOP\n\n\
+        class ReturnCodes:\n    pass\n\ndef f():\n    return RET_STOP\n"
     )]
     #[case("from minqlx import RET_STOP\n\nReturnCodes = {}\n\ndef f():\n    return RET_STOP\n")]
     fn leaves_the_import_alone(#[case] input: &str) {

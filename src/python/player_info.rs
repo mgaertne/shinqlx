@@ -16,7 +16,8 @@ use crate::engine::prelude::*;
 )]
 #[derive(Debug, PartialEq, Clone, Display)]
 #[display(
-    "PlayerInfo(client_id={client_id}, name={name}, connection_state={connection_state}, userinfo={userinfo}, steam_id={steam_id}, team={team}, privileges={privileges})"
+    "PlayerInfo(client_id={client_id}, name={name}, connection_state={connection_state}, \
+    userinfo={userinfo}, steam_id={steam_id}, team={team}, privileges={privileges})"
 )]
 pub(crate) struct PlayerInfo {
     /// The player's client ID.

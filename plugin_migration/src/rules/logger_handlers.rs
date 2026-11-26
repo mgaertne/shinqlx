@@ -30,7 +30,8 @@ impl Rule for LoggerHandlers {
             if uses_logger && matches!(source.text_of(call.name), "addHandler" | "removeHandler") {
                 output.warnings.push(Warning::new(
                     line_of(node),
-                    "shinqlx writes its logs through shinqlx_log.yml: a handler on the logger of shinqlx \
+                    "shinqlx writes its logs through shinqlx_log.yml: \
+                    a handler on the logger of shinqlx \
                      still gets the messages of plugins, but not the debug records of the dispatchers and \
                      the console lines. Configure files and levels in shinqlx_log.yml instead",
                 ));

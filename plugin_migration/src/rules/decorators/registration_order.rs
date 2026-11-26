@@ -93,7 +93,8 @@ pub(super) fn reordered_decorators(conversions: &[Conversion<'_>]) -> Vec<Warnin
                 warnings.push(Warning::new(
                     line_of(later.statement),
                     format!(
-                        "{} and {} share an event or command and its priority; decorated handlers are registered in \
+                        "{} and {} share an event or command and its priority; \
+                        decorated handlers are registered in \
                          the alphabetical order of their methods, so {} now runs before {}",
                         earlier.method, later.method, later.method, earlier.method
                     ),
@@ -137,7 +138,8 @@ pub(super) fn overtaking_registrations(
             warnings.push(Warning::new(
                 line_of(node),
                 format!(
-                    "this registration now runs before the decorated handler {}, which has the same event or command \
+                    "this registration now runs before the decorated handler {}, \
+                    which has the same event or command \
                      and priority and was registered first before",
                     overtaken.method
                 ),

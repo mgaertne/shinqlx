@@ -16,7 +16,8 @@ use super::{int_tuple::extract_int_array, prelude::*};
 )]
 #[derive(PartialEq, Debug, Clone, Display)]
 #[display(
-    "Powerups(quad={_0}, battlesuit={_1}, haste={_2}, invisibility={_3}, regeneration={_4}, invulnerability={_5})"
+    "Powerups(quad={_0}, battlesuit={_1}, haste={_2}, \
+    invisibility={_3}, regeneration={_4}, invulnerability={_5})"
 )]
 pub(crate) struct Powerups(
     #[pyo3(name = "quad")] pub(crate) i32,
@@ -204,7 +205,8 @@ assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < shinqlx.Powerups((5, 4, 3, 2, 1, 0
         let powerups = Powerups(1, 2, 3, 4, 5, 6);
         assert_eq!(
             format!("{powerups}"),
-            "Powerups(quad=1, battlesuit=2, haste=3, invisibility=4, regeneration=5, invulnerability=6)"
+            "Powerups(quad=1, battlesuit=2, haste=3, \
+            invisibility=4, regeneration=5, invulnerability=6)"
         );
     }
 
@@ -213,7 +215,8 @@ assert(shinqlx.Powerups((0, 1, 2, 3, 4, 5)) < shinqlx.Powerups((5, 4, 3, 2, 1, 0
         let powerups = Powerups(1, 2, 3, 4, 5, 6);
         assert_eq!(
             powerups.__repr__(),
-            "Powerups(quad=1, battlesuit=2, haste=3, invisibility=4, regeneration=5, invulnerability=6)"
+            "Powerups(quad=1, battlesuit=2, haste=3, \
+            invisibility=4, regeneration=5, invulnerability=6)"
         );
     }
 }

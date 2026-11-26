@@ -77,7 +77,8 @@ pub fn existing(name: &str, path: PathBuf) -> io::Result<PathBuf> {
 pub fn exposure_warning(path: &Path) -> Option<String> {
     password_is_exposed(path).then(|| {
         format!(
-            "Warning: {} holds a password and can be read by other users, restrict it with chmod 600.",
+            "Warning: {} holds a password and can be read by other users, \
+            restrict it with chmod 600.",
             path.display()
         )
     })
@@ -470,7 +471,8 @@ mod servers_tests {
         let path = dir.join("arena.toml");
         fs::write(
             &path,
-            "[rcon]\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"rcon\"\n[stats]\nhost = \"tcp://192.0.2.1:27961\"\npassword = \"stats\"\n",
+            "[rcon]\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"rcon\"\n\
+            [stats]\nhost = \"tcp://192.0.2.1:27961\"\npassword = \"stats\"\n",
         )
         .expect("the file can be written");
 
@@ -506,7 +508,8 @@ mod servers_tests {
         let path = dir.join("arena.toml");
         fs::write(
             &path,
-            "[rcon]\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"rcon\"\n[stats]\nport = 27962\npassword = \"stats\"\n",
+            "[rcon]\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"rcon\"\n\
+            [stats]\nport = 27962\npassword = \"stats\"\n",
         )
         .expect("the file can be written");
 
@@ -536,7 +539,8 @@ mod servers_tests {
         let path = dir.join("arena.toml");
         fs::write(
             &path,
-            "[rcon]\nhost = \"tcp://192.0.2.1:28960\"\n[stats]\nhost = \"tcp://192.0.2.9:30000\"\nport = 27962\n",
+            "[rcon]\nhost = \"tcp://192.0.2.1:28960\"\n\
+            [stats]\nhost = \"tcp://192.0.2.9:30000\"\nport = 27962\n",
         )
         .expect("the file can be written");
 

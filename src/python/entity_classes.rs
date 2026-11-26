@@ -257,7 +257,8 @@ pub(crate) const ENTITY_CLASSES: &[EntityClassInfo] = &[
     ("info_camp", "", &["range", "weight"]),
     (
         "info_tour_point",
-        "INITIAL LOOK_AT_ME DROP_TO_FLOOR - GOTO_EXACT_ORIGIN SALUTE MUST_HAVE_CTF_FLAG HIDE_ITEM PLAYER_MUST_PICKUP_TARGETED_ITEM",
+        "INITIAL LOOK_AT_ME DROP_TO_FLOOR - GOTO_EXACT_ORIGIN SALUTE MUST_HAVE_CTF_FLAG \
+        HIDE_ITEM PLAYER_MUST_PICKUP_TARGETED_ITEM",
         &[
             "radius",
             "target",
@@ -604,11 +605,17 @@ class _CommonSpawnKeys(TypedDict, total=False):\n",
             keys_class_name(name)
         };
         stubs.push_str(&format!(
-            "{separator}@overload\ndef spawn_entity(\n    classname: Literal[\"{name}\"],\n    keys: {keys_type} | None = None,\n    *,\n    strict: bool = True,\n) -> EntityInfo | None: ...\n"
+            "{separator}@overload\n\
+            def spawn_entity(\n    classname: Literal[\"{name}\"],\n    keys: \
+            {keys_type} | None = None,\n    *,\n    strict: \
+            bool = True,\n) -> EntityInfo | None: ...\n"
         ));
     }
     stubs.push_str(
-        "@overload\ndef spawn_entity(\n    classname: str,\n    keys: dict[str, _SpawnValue] | None = None,\n    *,\n    strict: bool = True,\n) -> EntityInfo | None: ...\n\n",
+        "@overload\n\
+        def spawn_entity(\n    classname: str,\n    keys: \
+        dict[str, _SpawnValue] | None = None,\n    *,\n    strict: \
+        bool = True,\n) -> EntityInfo | None: ...\n\n",
     );
     stubs
 }
@@ -631,7 +638,8 @@ mod entity_classes_tests {
         assert_eq!(
             &STUB_FILE[begin..end],
             stub_block(),
-            "run `cargo test print_entity_stubs -- --ignored --nocapture` and put the output between the markers"
+            "run `cargo test print_entity_stubs -- --ignored --nocapture` and \
+            put the output between the markers"
         );
     }
 

@@ -67,24 +67,34 @@ mod tests {
 
     #[rstest]
     #[case(
-        "import minqlx\nself.add_command('a', self.c, 2)\n",
-        "import minqlx\nself.add_command('a', self.c, minqlx.Permissions.GAME_ADMIN)\n"
+        "import minqlx\n\
+        self.add_command('a', self.c, 2)\n",
+        "import minqlx\n\
+        self.add_command('a', self.c, minqlx.Permissions.GAME_ADMIN)\n"
     )]
     #[case(
-        "import minqlx\nself.add_command('a', self.c, permission=5, usage='x')\n",
-        "import minqlx\nself.add_command('a', self.c, permission=minqlx.Permissions.GOD, usage='x')\n"
+        "import minqlx\n\
+        self.add_command('a', self.c, permission=5, usage='x')\n",
+        "import minqlx\n\
+        self.add_command('a', self.c, permission=minqlx.Permissions.GOD, usage='x')\n"
     )]
     #[case(
-        "import minqlx\nself.add_command('a', self.c)\n",
-        "import minqlx\nself.add_command('a', self.c)\n"
+        "import minqlx\n\
+        self.add_command('a', self.c)\n",
+        "import minqlx\n\
+        self.add_command('a', self.c)\n"
     )]
     #[case(
-        "import minqlx\nself.add_command('a', self.c, 6)\n",
-        "import minqlx\nself.add_command('a', self.c, 6)\n"
+        "import minqlx\n\
+        self.add_command('a', self.c, 6)\n",
+        "import minqlx\n\
+        self.add_command('a', self.c, 6)\n"
     )]
     #[case(
-        "import minqlx\nself.add_command('a', self.c, level)\n",
-        "import minqlx\nself.add_command('a', self.c, level)\n"
+        "import minqlx\n\
+        self.add_command('a', self.c, level)\n",
+        "import minqlx\n\
+        self.add_command('a', self.c, level)\n"
     )]
     #[case(
         "from minqlx import Plugin\nself.add_command('a', self.c, 2)\n",

@@ -359,7 +359,9 @@ mod format_tests {
         assert_eq!(
             line.as_deref(),
             Some(
-                "\x1b[32mPLAYER_MEDAL     \x1b[0m  \x1b[38;2;255;0;0mAl\x1b[0m\x1b[38;2;0;0;255mice\x1b[0m got IMPRESSIVE"
+                "\x1b[32mPLAYER_MEDAL     \x1b[0m  \
+                \x1b[38;2;255;0;0mAl\x1b[0m\x1b[38;2;0;0;255mice\x1b[0m \
+                got IMPRESSIVE"
             )
         );
     }
@@ -556,7 +558,8 @@ mod format_tests {
         assert_eq!(
             line.as_deref(),
             Some(
-                "{\x1b[36m\"a\"\x1b[0m:\x1b[32m\"x\"\x1b[0m,\x1b[36m\"b\"\x1b[0m:\x1b[33m1\x1b[0m,\x1b[36m\"c\"\x1b[0m:\x1b[35mnull\x1b[0m}"
+                "{\x1b[36m\"a\"\x1b[0m:\x1b[32m\"x\"\x1b[0m,\x1b[36m\"b\"\x1b[0m:\x1b[33m1\x1b[0m,\
+                \x1b[36m\"c\"\x1b[0m:\x1b[35mnull\x1b[0m}"
             )
         );
     }

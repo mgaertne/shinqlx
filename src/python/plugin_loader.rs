@@ -111,7 +111,8 @@ pub(super) fn try_load_plugin(py: Python<'_>, plugin: &str, plugins_path: &Path)
     if !module.hasattr(&plugin_pystring)? {
         cold_path();
         return Err(PluginLoadError::new_err(format!(
-            "The plugin '{plugin}' needs to have a class with the exact name as the file, minus the .py."
+            "The plugin '{plugin}' needs to have a class with the exact name as the file, \
+            minus the .py."
         )));
     }
 
@@ -200,7 +201,8 @@ pub(super) fn split_plugin_source(plugin: &str) -> Result<(PluginSource, &str), 
         Some(("p", name)) => Ok((PluginSource::Python, name)),
         Some(("r", name)) => Ok((PluginSource::Native, name)),
         Some((prefix, _)) => Err(format!(
-            "Unknown plugin source '{prefix}!' in '{plugin}', use 'p!' for Python or 'r!' for Rust plugins."
+            "Unknown plugin source '{prefix}!' in '{plugin}', \
+            use 'p!' for Python or 'r!' for Rust plugins."
         )),
     }
 }

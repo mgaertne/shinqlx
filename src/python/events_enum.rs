@@ -118,13 +118,15 @@ fn generated_classes_source() -> String {
     [
         python_class_source(
             "GameTypes",
-            "The game types, as the short names that ``Game.type_short`` returns; the members are strings.",
+            "The game types, as the short names that ``Game.type_short`` returns; \
+            the members are strings.",
             &game_type_members,
             &long_name_property,
         ),
         python_class_source(
             "VoteTypes",
-            "The votes of the game itself, as the event ``vote_called`` passes them; votes of plugins are plain strings.",
+            "The votes of the game itself, as the event ``vote_called`` passes them; \
+            votes of plugins are plain strings.",
             VoteType::MEMBERS,
             "",
         ),
@@ -136,25 +138,30 @@ fn generated_classes_source() -> String {
         ),
         python_class_source(
             "ChatChannels",
-            "The names of the channels of the framework, as ``AbstractChannel.name`` returns them; the members are strings.",
+            "The names of the channels of the framework, as ``AbstractChannel.name`` returns them; \
+            the members are strings.",
             ChatChannel::MEMBERS,
             "",
         ),
         python_class_source(
             "EntityTypes",
-            "The types of the entities of the game, as ``EntityInfo.etype`` reports them; the members are strings.",
+            "The types of the entities of the game, as ``EntityInfo.etype`` reports them; \
+            the members are strings.",
             EntityType::MEMBERS,
             "",
         ),
         python_class_source(
             "Factories",
-            "The ids of the factories of the base game, as ``FactoryInfo.id`` reports them; the members are strings. A factory of a server of its own has an id that is no member.",
+            "The ids of the factories of the base game, as ``FactoryInfo.id`` reports them; \
+            the members are strings. \
+            A factory of a server of its own has an id that is no member.",
             Factories::MEMBERS,
             "",
         ),
         python_class_source(
             "MapSourceKind",
-            "Where a file of the map information comes from, as ``MapSource.kind`` reports it; the members are strings.",
+            "Where a file of the map information comes from, as ``MapSource.kind`` reports it; \
+            the members are strings.",
             MapSourceKind::MEMBERS,
             "",
         ),

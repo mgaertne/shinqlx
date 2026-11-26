@@ -74,7 +74,8 @@ mod tests {
     fn renders_migrated_files_warnings_and_summary() {
         assert_eq!(
             render(&reports(), false),
-            "migrated: a.py (2 edits)\nwarning: a.py:7: check this\n2 files: 1 migrated, 1 copied unchanged, 1 warnings\n"
+            "migrated: a.py (2 edits)\nwarning: a.py:7: check this\n\
+            2 files: 1 migrated, 1 copied unchanged, 1 warnings\n"
         );
     }
 

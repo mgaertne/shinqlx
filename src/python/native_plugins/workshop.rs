@@ -172,7 +172,10 @@ fn pk3_warning(root: &Path, list: &WorkshopList) -> PyResult<Option<String>> {
         .sum::<usize>();
     Ok((limit > 0 && total > limit).then(|| {
         format!(
-            "Warning: the workshop items bring {total} pk3 files, more than {limit}. From about 380 pk3 files the info strings of the engine overflow, from about 750 it runs out of memory when a map loads; a larger com_zoneMegs (64) helps."
+            "Warning: the workshop items bring {total} pk3 files, more than {limit}. \
+            From about 380 pk3 files the info strings of the engine \
+            overflow, from about 750 it runs out of memory when a map loads; \
+            a larger com_zoneMegs (64) helps."
         )
     }))
 }

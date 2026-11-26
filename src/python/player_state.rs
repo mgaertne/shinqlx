@@ -14,7 +14,10 @@ use crate::{engine::prelude::*, prelude::QuakeLiveEngineError};
 )]
 #[derive(Debug, PartialEq, Display)]
 #[display(
-    "PlayerState(is_alive={is_alive}, position={position}, veclocity={velocity}, health={health}, armor={armor}, noclip={noclip}, weapon={weapon}, weapons={weapons}, ammo={ammo}, powerups={powerups}, holdable={holdable}, flight={flight}, is_chatting={is_chatting}, is_frozen={is_frozen})"
+    "PlayerState(is_alive={is_alive}, position={position}, veclocity={velocity}, health={health}, \
+    armor={armor}, noclip={noclip}, weapon={weapon}, weapons={weapons}, \
+    ammo={ammo}, powerups={powerups}, holdable={holdable}, \
+    flight={flight}, is_chatting={is_chatting}, is_frozen={is_frozen})"
 )]
 pub(crate) struct PlayerState {
     /// Whether the player's alive or not.

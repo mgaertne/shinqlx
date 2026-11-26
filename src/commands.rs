@@ -412,7 +412,9 @@ mod plugin_commands_listing_tests {
 
         assert_eq!(
             plugin_commands_listing(&entries, "!", None),
-            "!ban (plugin ban, permission 5)\n!unban (plugin ban, permission 5)  <id>\n!slap (plugin fun, permission 3)  <id> [damage]\n3 plugin commands\n"
+            "!ban (plugin ban, permission 5)\n\
+            !unban (plugin ban, permission 5)  <id>\n\
+            !slap (plugin fun, permission 3)  <id> [damage]\n3 plugin commands\n"
         );
     }
 

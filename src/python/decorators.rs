@@ -1917,7 +1917,9 @@ def run_frame():
             let result = run(
                 py,
                 &format!(
-                    "try:\n    shinqlx.later({arguments})\nexcept {exception}:\n    pass\nelse:\n    raise AssertionError('no {exception}')"
+                    "try:\n    shinqlx.later({arguments})\n\
+                    except {exception}:\n    pass\nelse:\n    \
+                    raise AssertionError('no {exception}')"
                 ),
             );
 
@@ -1934,7 +1936,8 @@ def run_frame():
         Python::attach(|py| {
             let result = run(
                 py,
-                "try:\n    shinqlx.later(frames=2)(5)\nexcept ValueError:\n    pass\nelse:\n    raise AssertionError('no ValueError')",
+                "try:\n    shinqlx.later(frames=2)(5)\n\
+                except ValueError:\n    pass\nelse:\n    raise AssertionError('no ValueError')",
             );
 
             assert!(result.is_ok(), "{result:?}");
@@ -2417,7 +2420,9 @@ mod cvar_declaration_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar('qlx_delay', 5, minimum=0, maximum=60, flags=shinqlx.CvarFlags.ARCHIVE)",
+                        "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar(\
+                        'qlx_delay', 5, minimum=0, maximum=60, \
+                        flags=shinqlx.CvarFlags.ARCHIVE)",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -2456,7 +2461,8 @@ mod cvar_declaration_tests {
                     let plugin_class = plugin_class(
                         py,
                         &format!(
-                            "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar('qlx_value', {default})"
+                            "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar(\
+                            'qlx_value', {default})"
                         ),
                     );
 
@@ -2479,7 +2485,8 @@ mod cvar_declaration_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "class declared_plugin(shinqlx.Plugin):\n    hostname = shinqlx.Cvar('sv_hostname')",
+                        "class declared_plugin(shinqlx.Plugin):\n    hostname = shinqlx.Cvar(\
+                        'sv_hostname')",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -2508,7 +2515,8 @@ mod cvar_declaration_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar('qlx_value', 'default')",
+                        "class declared_plugin(shinqlx.Plugin):\n    unused = shinqlx.Cvar(\
+                        'qlx_value', 'default')",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -2547,7 +2555,8 @@ mod cvar_declaration_tests {
                     let plugin_class = plugin_class(
                         py,
                         &format!(
-                            "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', type={type_name})"
+                            "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar(\
+                            'qlx_value', type={type_name})"
                         ),
                     );
 
@@ -2587,7 +2596,8 @@ mod cvar_declaration_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar('qlx_value', 1.5)",
+                        "class declared_plugin(shinqlx.Plugin):\n    value = shinqlx.Cvar(\
+                        'qlx_value', 1.5)",
                     );
 
                     let read = plugin_class
@@ -2655,7 +2665,9 @@ mod cvar_declaration_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "class base_plugin(shinqlx.Plugin):\n    base = shinqlx.Cvar('qlx_base', 1)\n\nclass declared_plugin(base_plugin):\n    pass",
+                        "class base_plugin(shinqlx.Plugin):\n    base = shinqlx.Cvar(\
+                        'qlx_base', 1)\n\n\
+                        class declared_plugin(base_plugin):\n    pass",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());
@@ -2684,7 +2696,8 @@ mod cvar_declaration_tests {
                 Python::attach(|py| {
                     let plugin_class = plugin_class(
                         py,
-                        "class declared_plugin(shinqlx.Plugin):\n    count = shinqlx.Cvar('qlx_count', 3)",
+                        "class declared_plugin(shinqlx.Plugin):\n    count = shinqlx.Cvar(\
+                        'qlx_count', 3)",
                     );
 
                     assert!(register_declared_cvars(&plugin_class).is_ok());

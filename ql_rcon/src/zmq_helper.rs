@@ -172,7 +172,8 @@ fn store_fetched_names<S: CompletionStore>(
 ) -> Result<()> {
     let message = match store.save_completions(fetched) {
         Ok(file) => format!(
-            "ZMQ fetched {} names for the completion into {}, they are used for the completion now.",
+            "ZMQ fetched {} names for the completion into {}, \
+            they are used for the completion now.",
             fetched.names.len() + fetched.maps.len(),
             file.display()
         ),
@@ -554,7 +555,8 @@ mod zmq_helper_tests {
         assert_eq!(lines[0], "could not keep the fetched names: no space left");
         assert_eq!(
             lines[1],
-            "ZMQ fetched 1 names for the completion into completions.txt, they are used for the completion now."
+            "ZMQ fetched 1 names for the completion into completions.txt, \
+            they are used for the completion now."
         );
     }
 

@@ -18,7 +18,8 @@ fn clean_text_benchmark(c: &mut Criterion) {
         ("colored", "^1Red^7Player^4Name"),
         (
             "long_colored",
-            "^1This ^2is ^3a ^4rather ^5long ^6chat ^7message ^1with ^2many ^3color ^4tags ^5in ^6it",
+            "^1This ^2is ^3a ^4rather ^5long \
+            ^6chat ^7message ^1with ^2many ^3color ^4tags ^5in ^6it",
         ),
     ] {
         group.bench_function(name, |b| {

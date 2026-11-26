@@ -332,7 +332,8 @@ impl PythonCase {
             .collect::<Vec<_>>()
             .join("\n");
         let source = alloc::ffi::CString::new(format!(
-            "import shinqlx\n{setup}\n\ndef run(count):\n    for _ in range(count):\n{indented_body}\n"
+            "import shinqlx\n{setup}\n\n\
+            def run(count):\n    for _ in range(count):\n{indented_body}\n"
         ))
         .expect("the snippet must not contain a nul byte");
 
@@ -406,7 +407,8 @@ impl DeclaredCvarsCase {
             .collect::<Vec<_>>()
             .join("\n");
         let source = alloc::ffi::CString::new(format!(
-            "import shinqlx\n\nclass bench_plugin(shinqlx.Plugin):\n{cvar_lines}\n{method_lines}\n    pass\n"
+            "import shinqlx\n\n\
+            class bench_plugin(shinqlx.Plugin):\n{cvar_lines}\n{method_lines}\n    pass\n"
         ))
         .expect("the class must not contain a nul byte");
 

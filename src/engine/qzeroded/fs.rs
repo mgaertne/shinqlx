@@ -396,7 +396,8 @@ fn log_difference(reference: &Snapshot, other: &Snapshot, workers: usize, millis
         .collect::<BTreeSet<_>>();
     info!(
         target: "shinqlx", func = "compare_with_archive_scan";
-        "Archive scan with {workers} workers: {} maps and {} factories in {millis} ms, {} maps differ, factories {}",
+        "Archive scan with {workers} workers: {} maps and {} factories in {millis} ms, \
+        {} maps differ, factories {}",
         other.maps.len(), other.factories.len(), differing.len(),
         if other.factories == reference.factories { "equal" } else { "differ" }
     );
@@ -533,7 +534,9 @@ pub(crate) unsafe fn scan_installed_maps(
         .splice(0..0, engine_fs.problems.iter().cloned());
     info!(
         target: "shinqlx", func = "scan_installed_maps";
-        "Scanned {} maps and {} factories in {} ms", snapshot.maps.len(), snapshot.factories.len(), started.elapsed().as_millis()
+        "Scanned {} maps and {} factories in {} ms",
+        snapshot.maps.len(),
+        snapshot.factories.len(), started.elapsed().as_millis()
     );
     for problem in snapshot.problems.iter().take(50) {
         warn!(target: "shinqlx", func = "scan_installed_maps"; "{problem}");

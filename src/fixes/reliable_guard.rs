@@ -149,7 +149,10 @@ pub(crate) fn status_report() -> String {
     let stats = RELIABLE_GUARD.stats();
     let settings = current_settings();
     format!(
-        "Reliable guard: {} (watermark {}, burst {}, global burst {}, merge prints {})\nheld {}, released {}, passed through {}, forced {}, peak backlog {} of {}, peak queue {}, commands at ring size {}, held by the global limit {}, prints merged {}\n",
+        "Reliable guard: {} (watermark {}, burst {}, global burst {}, merge prints {})\n\
+        held {}, released {}, passed through {}, forced {}, peak backlog {} of {}, \
+        peak queue {}, commands at ring size {}, held by the global limit {}, \
+        prints merged {}\n",
         if settings.enabled { "on" } else { "off" },
         settings.watermark,
         settings.burst,

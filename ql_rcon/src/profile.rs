@@ -508,7 +508,8 @@ mod profile_tests {
             .expect("the directory is created");
         fs::write(
             &path,
-            "# my server\n[rcon]\nhost = \"tcp://192.0.2.1:28960\"\npassword = \"secret\"\n[stats]\nport = 27961\n",
+            "# my server\n[rcon]\nhost = \"tcp://192.0.2.1:28960\"\n\
+            password = \"secret\"\n[stats]\nport = 27961\n",
         )
         .expect("the file is written");
         let file = ServerFile::new(path);

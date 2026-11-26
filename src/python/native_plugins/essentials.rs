@@ -566,13 +566,17 @@ impl Essentials {
             reply(
                 channel,
                 &format!(
-                    "^7I saw {name} ^6{days}^7 day(s), ^6{hours}^7 hour(s) and ^6{minutes}^7 minute(s) ago."
+                    "^7I saw {name} ^6{days}^7 day(s), ^6{hours}^7 hour(s) \
+                    and ^6{minutes}^7 minute(s) ago."
                 ),
             )
         } else {
             reply(
                 channel,
-                &format!("^7I saw {name} ^6{hours}^7 hour(s) and ^6{minutes}^7 minute(s) ago."),
+                &format!(
+                    "^7I saw {name} ^6{hours}^7 hour(s) \
+                    and ^6{minutes}^7 minute(s) ago."
+                ),
             )
         }
     }

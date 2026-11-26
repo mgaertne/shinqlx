@@ -530,7 +530,8 @@ class p(minqlx.Plugin):
         "self.add_hook(\"chat\", self.handle_b)\n        self.add_hook(\"death\", self.handle_a)"
     )]
     #[case::other_priority(
-        "self.add_hook(\"chat\", self.handle_b, priority=minqlx.Priorities.LOW)\n        self.add_hook(\"chat\", self.handle_a)"
+        "self.add_hook(\"chat\", self.handle_b, \
+        priority=minqlx.Priorities.LOW)\n        self.add_hook(\"chat\", self.handle_a)"
     )]
     #[case::hook_and_command(
         "self.add_hook(\"chat\", self.handle_b)\n        self.add_command(\"chat\", self.handle_a)"
@@ -540,7 +541,8 @@ class p(minqlx.Plugin):
     )]
     fn stays_quiet_when_the_order_of_handlers_does_not_matter(#[case] registrations: &str) {
         let input = SWAPPED.replace(
-            "self.add_hook(\"chat\", self.handle_b)\n        self.add_hook(\"chat\", self.handle_a)",
+            "self.add_hook(\"chat\", self.handle_b)\n        self.add_hook(\"chat\", \
+            self.handle_a)",
             registrations,
         );
 
@@ -582,7 +584,8 @@ class p(minqlx.Plugin):
     fn warns_about_a_nested_registration_after_a_converted_one() {
         let input = MIXED.replace(
             "        self.add_hook(\"chat\", self.inherited)",
-            "        if self.get_cvar(\"qlx_extra\"):\n            self.add_hook(\"chat\", self.inherited)",
+            "        if self.get_cvar(\"qlx_extra\"):\n            self.add_hook(\"chat\", \
+            self.inherited)",
         );
 
         let warnings = warnings_of(&input);
@@ -594,8 +597,10 @@ class p(minqlx.Plugin):
     #[test]
     fn stays_quiet_about_a_kept_registration_that_was_registered_first() {
         let input = MIXED.replace(
-            "        self.add_hook(\"chat\", self.handle_chat)\n        self.add_hook(\"chat\", self.inherited)",
-            "        self.add_hook(\"chat\", self.inherited)\n        self.add_hook(\"chat\", self.handle_chat)",
+            "        self.add_hook(\"chat\", self.handle_chat)\n        self.add_hook(\"chat\", \
+            self.inherited)",
+            "        self.add_hook(\"chat\", self.inherited)\n        self.add_hook(\"chat\", \
+            self.handle_chat)",
         );
 
         assert_eq!(warnings_of(&input).len(), 1);

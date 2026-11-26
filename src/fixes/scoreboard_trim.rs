@@ -285,7 +285,8 @@ pub(crate) fn status_report() -> String {
         .map(|(name, count)| format!("  {count}x {name}\n"))
         .collect::<String>();
     format!(
-        "Scoreboard trim: {} (budget {}, full {}, light {}, minimum {} per team)\nlongest scoreboard {longest} bytes, cut back so far:\n{tiers}",
+        "Scoreboard trim: {} (budget {}, full {}, light {}, minimum {} per team)\n\
+        longest scoreboard {longest} bytes, cut back so far:\n{tiers}",
         if settings.enabled { "on" } else { "off" },
         settings.budget,
         settings.full_per_team,

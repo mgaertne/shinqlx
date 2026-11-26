@@ -573,9 +573,8 @@ def uninstall():
             assert_eq!(result.ok(), Some(None));
             assert_eq!(
                 fixtures.replies(),
-                [
-                    "Plugin ^6r!ban ^7has failed to load: PluginLoadError - Plugin 'ban' is already loaded as a Python plugin. Unload it first."
-                ]
+                ["Plugin ^6r!ban ^7has failed to load: PluginLoadError - \
+                    Plugin 'ban' is already loaded as a Python plugin. Unload it first."]
             );
             let logged = fixtures.logged();
             let count = |text: &str| logged.iter().filter(|line| line.contains(text)).count();
