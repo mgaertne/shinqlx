@@ -375,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
+    #[cfg_attr(miri, ignore = "depends on timing, which Miri runs far too slowly for")]
     fn errors_wait_until_they_are_written() {
         let collecting = Collecting {
             delay: Duration::from_millis(10),

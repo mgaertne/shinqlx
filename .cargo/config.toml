@@ -1,2 +1,2 @@
 [env]
-MIRIFLAGS = "-Zmiri-ignore-leaks"
+MIRIFLAGS = "-Zmiri-ignore-leaks -Zmiri-disable-isolation"

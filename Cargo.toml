@@ -65,7 +65,6 @@ arzmq = { workspace = true, features = ["builder", "futures"], optional = true }
 async-io = { version = ">=2.6", default-features = false, optional = true }
 futures = { version = ">=0.3", default-features = false, features = ["std"], optional = true }
 
-rustversion = { version = ">=1.0", default-features = false }
 ctor = { version = ">=1.0", default-features = false, features = ["proc_macro"] }
 rand = { version = ">=0.10", default-features = false, features = ["thread_rng"] }
 pyo3 = { version = ">=0.30, <0.31", default-features = false, features = ["macros", "extension-module", "nightly"] }
@@ -76,7 +75,6 @@ tap = { version = ">=1.0.1", default-features = false }
 rayon = { version = ">=1.12", default-features = false }
 derive_more = { version = ">=2.1", default-features = false, features = ["display", "try_from"]}
 bitflags = { version = ">=2.6", default-features = false }
-derive-new = { version = ">=0.7", default-features = false }
 anyhow = { version = ">=1.0", default-features = false, features = ["std"] }
 log = { version = ">=0.4", default-features = false, features = ["kv"] }
 log4rs = { version = ">=1.4", default-features = false, features = ["console_appender", "rolling_file_appender", "compound_policy", "size_trigger", "fixed_window_roller", "delete_roller", "threshold_filter", "config_parsing", "yaml_format", "log_kv"] }

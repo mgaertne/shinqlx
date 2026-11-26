@@ -211,7 +211,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn without_the_steam_library_nothing_is_known() {
         assert_eq!(SteamLibrary.state(1), None);
         assert_eq!(SteamLibrary.progress(1), None);

@@ -67,14 +67,8 @@ cfg_if::cfg_if! {
 }
 
 mod commands;
-#[cfg(unix)]
-mod crash_guard;
-#[allow(
-    dead_code,
-    reason = "the scan that uses the file system follows in the next steps"
-)]
-mod engine_fs;
-mod ffi;
+mod composition;
+mod engine;
 mod fixes;
 mod gametypes;
 mod hooks;
@@ -84,19 +78,11 @@ mod logging;
     reason = "the scan that uses the module follows in the next steps"
 )]
 mod maps;
+mod python;
+pub use engine::patterns as quake_live_functions;
 #[cfg(feature = "bench-support")]
 #[doc(hidden)]
-pub use ffi::python::bench_support;
-mod quake_live_engine;
-#[allow(
-    missing_docs,
-    reason = "the variants of the module are the C symbol names of the engine functions"
-)]
-pub mod quake_live_functions;
-mod reliable_guard;
-mod scoreboard_trim;
-mod spawn_vars;
-mod stats_feed;
+pub use python::bench_support;
 mod workshop;
 
 pub(crate) mod prelude {
@@ -108,12 +94,10 @@ pub(crate) mod prelude {
     pub(crate) use serial_test::serial;
 
     #[cfg(not(test))]
-    pub(crate) use crate::quake_live_engine::QuakeLiveEngine;
-    pub(crate) use crate::quake_live_engine::QuakeLiveEngineError;
+    pub(crate) use crate::engine::QuakeLiveEngine;
+    pub(crate) use crate::engine::QuakeLiveEngineError;
     #[cfg(test)]
-    pub(crate) use crate::quake_live_engine::{
-        MockEngineBuilder, MockQuakeEngine as QuakeLiveEngine,
-    };
+    pub(crate) use crate::engine::{MockEngineBuilder, MockQuakeEngine as QuakeLiveEngine};
 }
 
 use core::hint::cold_path;
@@ -160,7 +144,7 @@ fn initialize() {
     }
 
     logging::initialize_logging();
-    let main_engine = QuakeLiveEngine::new();
+    let main_engine = QuakeLiveEngine::with_callbacks(&composition::ENGINE_CALLBACKS);
     let _ = main_engine.search_static_functions().tap_err(|err| {
         error!(target: "shinqlx", func = "initialize"; "{err:?}");
         error!(target: "shinqlx", func = "initialize"; "Static functions could not be initializied. Exiting.");

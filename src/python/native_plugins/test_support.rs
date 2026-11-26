@@ -1,0 +1,321 @@
+use alloc::{ffi::CString, sync::Arc};
+use core::{any::Any, ffi::CStr};
+
+use parking_lot::Mutex;
+use pyo3::{prelude::*, types::PyDict};
+
+use crate::{
+    hooks::mock_hooks::{
+        shinqlx_drop_client_context, shinqlx_execute_client_command_context,
+        shinqlx_send_server_command_context,
+    },
+    python::{
+        AbstractChannel, Player,
+        pyshinqlx_test_support::{
+            default_test_player, drop_pending_frame_tasks, run_all_frame_tasks,
+        },
+    },
+};
+
+pub(super) const REDIS_5: &CStr = c"VERSION = (5, 0, 0)\n";
+pub(super) const REDIS_2: &CStr = c"VERSION = (2, 10, 6)\n";
+
+/// A stand-in for the `redis` module that only knows its `VERSION`, restored on drop.
+pub(super) struct FakeRedis<'py> {
+    modules: Bound<'py, PyDict>,
+    previous: Option<Bound<'py, PyAny>>,
+}
+
+impl<'py> FakeRedis<'py> {
+    pub(super) fn install(py: Python<'py>, code: &CStr) -> Self {
+        let modules = py
+            .import("sys")
+            .and_then(|sys| sys.getattr("modules"))
+            .and_then(|modules| Ok(modules.cast_into::<PyDict>()?))
+            .expect("could not get sys.modules");
+        let previous = modules
+            .get_item("redis")
+            .expect("could not look up the redis module");
+        PyModule::from_code(py, code, c"fake_redis.py", c"redis")
+            .expect("could not create the fake redis module");
+        Self { modules, previous }
+    }
+}
+
+impl Drop for FakeRedis<'_> {
+    fn drop(&mut self) {
+        let _ = match &self.previous {
+            Some(previous) => self.modules.set_item("redis", previous),
+            None => self.modules.del_item("redis"),
+        };
+    }
+}
+
+const DATABASE_FIXTURES: &str = "
+import shinqlx
+
+
+class Pipeline:
+    def __init__(self, database):
+        self.database = database
+        self.queued = []
+
+    def zadd(self, key, *args):
+        members = args[0] if isinstance(args[0], dict) else {args[1]: args[0]}
+        self.queued.append(('zadd', key, members))
+
+    def zincrby(self, key, first, second):
+        import redis
+        value, amount = (first, second) if redis.VERSION < (3,) else (second, first)
+        self.queued.append(('zincrby', key, value, amount))
+
+    def hset(self, key, mapping=None):
+        if not self.database.hset_supports_mapping:
+            raise TypeError('hset() got an unexpected keyword argument')
+        self.queued.append(('hset', key, mapping))
+
+    def hmset(self, key, mapping):
+        self.queued.append(('hset', key, mapping))
+
+    def incr(self, key):
+        self.queued.append(('incr', key))
+
+    def sadd(self, key, *members):
+        self.queued.append(('sadd', key, members))
+
+    def lpush(self, key, *values):
+        self.queued.append(('lpush', key, values))
+
+    def ltrim(self, key, start, stop):
+        self.queued.append(('ltrim', key, start, stop))
+
+    def execute(self):
+        for command, key, *args in self.queued:
+            if command == 'zadd':
+                scores = self.database.zsets.setdefault(key, {})
+                for member, score in args[0].items():
+                    scores[str(member)] = score
+            elif command == 'zincrby':
+                self.database.zsets[key][str(args[0])] += args[1]
+            elif command == 'incr':
+                self.database.strings[key] = str(int(self.database.strings.get(key, 0)) + 1)
+            elif command == 'sadd':
+                self.database.sets.setdefault(key, set()).update(str(m) for m in args[0])
+            elif command == 'lpush':
+                self.database.lists.setdefault(key, [])[0:0] = [str(v) for v in reversed(args[0])]
+            elif command == 'ltrim':
+                self.database.lists[key] = self.database.lists[key][args[0]:args[1] + 1]
+            else:
+                self.database.hashes[key] = {k: str(v) for k, v in args[0].items()}
+        self.queued = []
+
+
+class Database:
+    hset_supports_mapping = True
+
+    def __init__(self, plugin):
+        self.permissions = {}
+        self.zsets = {}
+        self.hashes = {}
+        self.strings = {}
+        self.lists = {}
+        self.sets = {}
+        self.flags = {}
+
+    def get_flag(self, player, flag, default=False):
+        return self.flags.get((player.steam_id, flag), default)
+
+    def set_flag(self, player, flag, value=True):
+        self.flags[(player.steam_id, flag)] = value
+
+    def lrange(self, key, start, stop):
+        items = self.lists.get(key, [])
+        return items[start:] if stop == -1 else items[start:stop + 1]
+
+    def smembers(self, key):
+        return set(self.sets.get(key, set()))
+
+    def zrange(self, key, start, stop, withscores=False):
+        items = sorted(self.zsets.get(key, {}).items(), key=lambda item: item[1])
+        return items if withscores else [member for member, _ in items]
+
+    def type(self, key):
+        for kind, store in (('string', self.strings), ('list', self.lists), ('set', self.sets),
+                            ('zset', self.zsets), ('hash', self.hashes)):
+            if key in store:
+                return kind
+        return 'none'
+
+    def has_permission(self, who, level=5):
+        return self.permissions.get(who, 0) >= level
+
+    def zcard(self, key):
+        return len(self.zsets.get(key, {}))
+
+    def zrangebyscore(self, key, low, high, withscores=False):
+        items = [(member, score) for member, score in self.zsets.get(key, {}).items() if score >= low]
+        return sorted(items, key=lambda item: item[1])
+
+    def hgetall(self, key):
+        return dict(self.hashes.get(key, {}))
+
+    def pipeline(self):
+        return Pipeline(self)
+
+    def __contains__(self, key):
+        return self.type(key) != 'none'
+
+    def __getitem__(self, key):
+        return self.strings[key]
+
+    def __setitem__(self, key, value):
+        self.strings[key] = str(value)
+";
+
+/// Builds a module with a fake `Database` and `Pipeline` and the given further fixtures.
+pub(super) fn fixture_module<'py>(py: Python<'py>, fixtures: &CStr) -> Bound<'py, PyModule> {
+    let code = CString::new(format!(
+        "{DATABASE_FIXTURES}\n{}",
+        fixtures.to_str().expect("the fixtures are valid UTF-8")
+    ))
+    .expect("the fixtures contain no NUL byte");
+    PyModule::from_code(py, &code, c"", c"").expect("could not create the fixtures")
+}
+
+/// Builds a module with the fake `Database` and `Pipeline` only.
+pub(super) fn database_module(py: Python<'_>) -> Bound<'_, PyModule> {
+    fixture_module(py, c"")
+}
+
+/// A real player with the steam id, name and ip. An empty ip leaves the user info empty.
+pub(super) fn real_player<'py>(
+    py: Python<'py>,
+    steam_id: i64,
+    name: &str,
+    ip: &str,
+) -> Bound<'py, Player> {
+    let user_info = if ip.is_empty() {
+        String::new()
+    } else {
+        format!(r"\ip\{ip}")
+    };
+    Bound::new(
+        py,
+        Player {
+            steam_id,
+            name: name.to_owned().into(),
+            user_info,
+            ..default_test_player()
+        },
+    )
+    .expect("could not create the player")
+}
+
+/// A real player in the given client slot, without user info.
+pub(super) fn real_player_with_id<'py>(
+    py: Python<'py>,
+    id: i32,
+    steam_id: i64,
+    name: &str,
+    ip: &str,
+) -> Bound<'py, Player> {
+    Bound::new(
+        py,
+        Player {
+            id,
+            steam_id,
+            name: name.to_owned().into(),
+            user_info: if ip.is_empty() {
+                String::new()
+            } else {
+                format!(r"\ip\{ip}")
+            },
+            ..default_test_player()
+        },
+    )
+    .expect("could not create the player")
+}
+
+/// A channel with the given name.
+pub(super) fn named_channel<'py>(py: Python<'py>, name: &str) -> Bound<'py, AbstractChannel> {
+    py.get_type::<AbstractChannel>()
+        .call1((name,))
+        .and_then(|channel| Ok(channel.cast_into::<AbstractChannel>()?))
+        .expect("could not create the channel")
+}
+
+/// Records the commands that the mocked engine is told to send to the clients.
+pub(super) struct ServerCommands {
+    sent: Arc<Mutex<Vec<String>>>,
+    executed: Arc<Mutex<Vec<String>>>,
+    dropped: Arc<Mutex<Vec<String>>>,
+    _contexts: Vec<Box<dyn Any>>,
+}
+
+impl ServerCommands {
+    pub(super) fn capture() -> Self {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let recorded = sent.clone();
+        let context = shinqlx_send_server_command_context();
+        context.expect().returning(move |_client, command| {
+            recorded.lock().push(command.to_owned());
+        });
+        let executed = Arc::new(Mutex::new(Vec::new()));
+        let recorded = executed.clone();
+        let execute_context = shinqlx_execute_client_command_context();
+        execute_context
+            .expect()
+            .returning(move |_client, command, _client_ok| {
+                recorded.lock().push(command.to_owned());
+            });
+        let dropped = Arc::new(Mutex::new(Vec::new()));
+        let recorded = dropped.clone();
+        let drop_context = shinqlx_drop_client_context();
+        drop_context.expect().returning(move |_client, reason| {
+            recorded.lock().push(reason.to_owned());
+        });
+        Python::attach(drop_pending_frame_tasks);
+        sent.lock().clear();
+        executed.lock().clear();
+        Self {
+            sent,
+            executed,
+            dropped,
+            _contexts: vec![
+                Box::new(context),
+                Box::new(execute_context),
+                Box::new(drop_context),
+            ],
+        }
+    }
+
+    /// The reasons of the clients that were dropped from the server.
+    pub(super) fn dropped(&self) -> Vec<String> {
+        self.dropped.lock().clone()
+    }
+
+    /// All server commands the engine was told to send, in order.
+    pub(super) fn sent(&self) -> Vec<String> {
+        self.sent.lock().clone()
+    }
+
+    /// The client commands the engine was told to execute, e.g. for a changed name.
+    pub(super) fn executed(&self) -> Vec<String> {
+        self.executed.lock().clone()
+    }
+
+    /// The texts of the `print` commands, which is what `tell` and the chat send.
+    pub(super) fn printed(&self, py: Python<'_>) -> Vec<String> {
+        let _ = run_all_frame_tasks(py);
+        self.sent
+            .lock()
+            .iter()
+            .filter_map(|command| {
+                command
+                    .strip_prefix("print \"")
+                    .and_then(|text| text.strip_suffix("\n\"\n"))
+                    .map(str::to_owned)
+            })
+            .collect()
+    }
+}

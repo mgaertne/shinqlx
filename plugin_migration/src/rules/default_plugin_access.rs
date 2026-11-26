@@ -220,7 +220,7 @@ mod tests {
                 plugin.name
             };
             let path = format!(
-                "{}/../src/ffi/python/native_plugins/{file}.rs",
+                "{}/../src/python/native_plugins/{file}.rs",
                 env!("CARGO_MANIFEST_DIR"),
             );
             let rust_source = fs::read_to_string(&path).expect("could not read the rust plugin");

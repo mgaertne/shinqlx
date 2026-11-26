@@ -1,0 +1,214 @@
+use crate::python::events_enum::EventName;
+mod ban;
+mod chat_log;
+mod clan;
+mod essentials;
+mod motd;
+mod names;
+mod permission;
+mod plugin_manager;
+mod silence;
+mod target;
+#[cfg(test)]
+mod test_support;
+mod timed_entries;
+mod workshop;
+
+use std::sync::LazyLock;
+
+use pyo3::{intern, prelude::*, types::PyString};
+use regex_lite::Regex;
+
+use super::{
+    Player, PlayerMethods,
+    commands::CommandPriorities,
+    plugin::{Plugin, PluginMethods, cvar_flag, cvar_float, cvar_int},
+    pyshinqlx_set_cvar_limit_once, set_cvar_once,
+};
+
+type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, Plugin>>;
+
+static NATIVE_PLUGINS: [(&str, Constructor); 10] = [
+    ("ban", ban::create),
+    ("clan", clan::create),
+    ("essentials", essentials::create),
+    ("log", chat_log::create),
+    ("motd", motd::create),
+    ("names", names::create),
+    ("permission", permission::create),
+    ("plugin_manager", plugin_manager::create),
+    ("silence", silence::create),
+    ("workshop", workshop::create),
+];
+
+/// Removes the color reset that `Player.name` appends, so that a reply which ends the name with a
+/// color reset of its own does not repeat it.
+fn without_trailing_color_reset(name: &str) -> &str {
+    name.strip_suffix("^7").unwrap_or(name)
+}
+
+fn register_hook(
+    plugin: &Bound<'_, Plugin>,
+    event: EventName,
+    handler: &str,
+    priority: CommandPriorities,
+) -> PyResult<()> {
+    plugin.add_hook(event.as_str(), &plugin.getattr(handler)?, priority as i32)
+}
+
+static EXCESSIVE_COLORS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:\^.)+(\^.)").expect("the pattern for excessive colors is a valid regex")
+});
+
+/// Removes excessive colors and only keeps the last of a run of color codes.
+fn without_excessive_colors(text: &str) -> String {
+    EXCESSIVE_COLORS.replace_all(text, "$1").into_owned()
+}
+
+fn tell(player: &Bound<'_, Player>, message: &str) -> PyResult<()> {
+    player.tell(message, None)
+}
+
+/// Creates the cvar with the value unless it exists already.
+fn create_cvar(py: Python<'_>, name: &str, value: &str) -> PyResult<()> {
+    set_cvar_once(py, name, value, 0).map(|_| ())
+}
+
+/// Creates the cvar with the value and the limits unless it exists already.
+fn create_cvar_limit(
+    py: Python<'_>,
+    name: &str,
+    value: &str,
+    minimum: &str,
+    maximum: &str,
+) -> PyResult<()> {
+    pyshinqlx_set_cvar_limit_once(py, name, value, minimum, maximum, 0).map(|_| ())
+}
+
+fn register_command(
+    plugin: &Bound<'_, Plugin>,
+    names: &[&str],
+    handler: &str,
+    permission: i32,
+    usage: &str,
+    channels: Option<Bound<'_, PyAny>>,
+) -> PyResult<()> {
+    add_command(plugin, names, handler, permission, 5, usage, channels)
+}
+
+/// Registers a command that everybody may also use as a client command, such as `/name`.
+fn register_client_command(
+    plugin: &Bound<'_, Plugin>,
+    names: &[&str],
+    handler: &str,
+    usage: &str,
+) -> PyResult<()> {
+    add_command(plugin, names, handler, 0, 0, usage, None)
+}
+
+fn add_command(
+    plugin: &Bound<'_, Plugin>,
+    names: &[&str],
+    handler: &str,
+    permission: i32,
+    client_cmd_perm: i32,
+    usage: &str,
+    channels: Option<Bound<'_, PyAny>>,
+) -> PyResult<()> {
+    let py = plugin.py();
+    let name = match names {
+        [single] => PyString::new(py, single).into_any(),
+        several => pyo3::types::PyTuple::new(py, several)?.into_any(),
+    };
+    plugin.add_command(
+        &name,
+        &plugin.getattr(handler)?,
+        permission,
+        channels,
+        None,
+        CommandPriorities::PRI_NORMAL as u32,
+        false,
+        client_cmd_perm,
+        true,
+        usage,
+    )
+}
+
+pub(super) fn has_native_plugin(name: &str) -> bool {
+    NATIVE_PLUGINS.iter().any(|(plugin, _)| *plugin == name)
+}
+
+pub(super) fn create_native_plugin<'py>(
+    py: Python<'py>,
+    name: &str,
+) -> Option<PyResult<Bound<'py, Plugin>>> {
+    NATIVE_PLUGINS
+        .iter()
+        .find(|(plugin, _)| *plugin == name)
+        .map(|(_, constructor)| constructor(py))
+}
+
+pub(super) fn is_native_plugin(plugin: &Bound<'_, PyAny>) -> bool {
+    plugin
+        .get_type()
+        .getattr(intern!(plugin.py(), "__module__"))
+        .and_then(|module| module.extract::<String>())
+        .is_ok_and(|module| module == "shinqlx")
+}
+
+#[cfg(test)]
+mod native_plugins_tests {
+    use pyo3::prelude::*;
+    use rstest::rstest;
+
+    use super::{
+        create_native_plugin, has_native_plugin, without_excessive_colors,
+        without_trailing_color_reset,
+    };
+    use crate::python::pyshinqlx_setup_fixture::pyshinqlx_setup;
+
+    #[rstest]
+    #[case("Ada^7", "Ada")]
+    #[case("^1Ada^7", "^1Ada")]
+    #[case("Ada", "Ada")]
+    #[case("Ada^2", "Ada^2")]
+    #[case("^7", "")]
+    #[case("", "")]
+    fn the_trailing_color_reset_of_a_name_is_removed(#[case] name: &str, #[case] expected: &str) {
+        assert_eq!(without_trailing_color_reset(name), expected);
+    }
+
+    #[rstest]
+    #[case("^1Ada", "^1Ada")]
+    #[case("^1^2^3Ada", "^3Ada")]
+    #[case("^1A^2^3da", "^1A^3da")]
+    #[case("Ada", "Ada")]
+    #[case("^1^2^3", "^3")]
+    #[case("", "")]
+    fn excessive_colors_keep_only_the_last_of_a_run(#[case] text: &str, #[case] expected: &str) {
+        assert_eq!(without_excessive_colors(text), expected);
+    }
+
+    #[rstest]
+    #[case("workshop", true)]
+    #[case("log", true)]
+    #[case("motd", true)]
+    #[case("names", true)]
+    #[case("clan", true)]
+    #[case("silence", true)]
+    #[case("permission", true)]
+    #[case("balance", false)]
+    #[case("r!workshop", false)]
+    #[case("", false)]
+    fn has_native_plugin_knows_the_builtin_plugins(#[case] name: &str, #[case] expected: bool) {
+        assert_eq!(has_native_plugin(name), expected);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    fn create_native_plugin_of_unknown_name_is_none(_pyshinqlx_setup: ()) {
+        Python::attach(|py| {
+            assert!(create_native_plugin(py, "balance").is_none());
+        });
+    }
+}

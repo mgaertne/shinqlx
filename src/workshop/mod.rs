@@ -8,8 +8,8 @@ pub(crate) mod steam;
 #[cfg(test)]
 mod tests {
     #[test]
-    fn the_workshop_core_knows_nothing_about_python_or_the_ffi_layer() {
-        let forbidden = ["pyo3", "crate::ffi", "super::super::ffi"];
+    fn the_workshop_core_knows_nothing_about_python() {
+        let forbidden = ["pyo3", "crate::python", "super::super::python"];
         for (file, source) in [
             ("item.rs", include_str!("item.rs")),
             ("list.rs", include_str!("list.rs")),

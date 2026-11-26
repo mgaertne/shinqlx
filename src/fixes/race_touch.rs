@@ -14,7 +14,7 @@ use tap::TapOptional;
 
 use crate::{
     MAIN_ENGINE,
-    ffi::c::prelude::{
+    engine::prelude::{
         CurrentLevel, GameEntity, gclient_t, gentity_t, playerState_t, statIndex_t, trace_t,
         weapon_t,
     },
@@ -235,7 +235,7 @@ mod race_touch_tests {
     use rstest::rstest;
 
     use super::{MACHINEGUN_BIT, RaceTouch, classify, is_repeated_start, reset_player, text_of};
-    use crate::ffi::c::prelude::*;
+    use crate::engine::prelude::*;
 
     #[rstest]
     #[case(

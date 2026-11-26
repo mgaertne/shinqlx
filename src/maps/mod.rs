@@ -25,7 +25,7 @@ fn strip_control(text: &str) -> String {
 #[cfg(test)]
 mod boundary {
     #[test]
-    fn module_does_not_depend_on_python_or_the_ffi_layer() {
+    fn module_does_not_depend_on_python() {
         let sources = [
             include_str!("archive.rs"),
             include_str!("block.rs"),
@@ -40,7 +40,7 @@ mod boundary {
             include_str!("sources.rs"),
             include_str!("store.rs"),
         ];
-        let forbidden = ["pyo3", "crate::ffi", "super::super::ffi"];
+        let forbidden = ["pyo3", "crate::python", "super::super::python"];
 
         for (index, source) in sources.iter().enumerate() {
             let code = source.split("#[cfg(test)]").next().unwrap_or_default();

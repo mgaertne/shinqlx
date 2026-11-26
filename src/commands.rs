@@ -5,17 +5,15 @@ use tap::{TapOptional, TryConv};
 
 use crate::{
     MAIN_ENGINE,
-    ffi::{
-        c::prelude::*,
-        python::{is_false, prelude::*},
+    engine::{
+        CmdArgc, CmdArgs, CmdArgv, ComPrintf, FindCVar, GameAddEvent, SendServerCommand, prelude::*,
     },
-    hooks::{guard_settings, trim_settings},
+    fixes::{
+        reliable_guard::{self, RELIABLE_GUARD},
+        scoreboard_trim::{self, TRIM_COUNTERS},
+    },
     prelude::*,
-    quake_live_engine::{
-        CmdArgc, CmdArgs, CmdArgv, ComPrintf, FindCVar, GameAddEvent, SendServerCommand,
-    },
-    reliable_guard::RELIABLE_GUARD,
-    scoreboard_trim::{TRIM_COUNTERS, tier_names},
+    python::{is_false, prelude::*},
 };
 
 #[unsafe(no_mangle)]
@@ -316,26 +314,7 @@ pub extern "C" fn cmd_reliable_guard() {
             return;
         }
 
-        let stats = RELIABLE_GUARD.stats();
-        let settings = guard_settings();
-        main_engine.com_printf(&format!(
-            "Reliable guard: {} (watermark {}, burst {}, global burst {}, merge prints {})\nheld {}, released {}, passed through {}, forced {}, peak backlog {} of {}, peak queue {}, commands at ring size {}, held by the global limit {}, prints merged {}\n",
-            if settings.enabled { "on" } else { "off" },
-            settings.watermark,
-            settings.burst,
-            settings.global_burst,
-            if settings.merge_prints { "on" } else { "off" },
-            stats.held,
-            stats.released,
-            stats.passed_through,
-            stats.forced,
-            stats.peak_backlog,
-            settings.ring,
-            stats.peak_queue,
-            stats.at_ring,
-            stats.held_by_global,
-            stats.merged,
-        ));
+        main_engine.com_printf(&reliable_guard::status_report());
     });
 }
 
@@ -352,20 +331,7 @@ pub extern "C" fn cmd_scoreboard_trim() {
             return;
         }
 
-        let settings = trim_settings();
-        let (cut, longest) = TRIM_COUNTERS.snapshot();
-        let tiers = tier_names()
-            .zip(cut)
-            .map(|(name, count)| format!("  {count}x {name}\n"))
-            .collect::<String>();
-        main_engine.com_printf(&format!(
-            "Scoreboard trim: {} (budget {}, full {}, light {}, minimum {} per team)\nlongest scoreboard {longest} bytes, cut back so far:\n{tiers}",
-            if settings.enabled { "on" } else { "off" },
-            settings.budget,
-            settings.full_per_team,
-            settings.light_per_team,
-            settings.min_per_team,
-        ));
+        main_engine.com_printf(&scoreboard_trim::status_report());
     });
 }
 
@@ -424,7 +390,7 @@ pub extern "C" fn cmd_plugin_commands() {
 #[cfg(test)]
 mod plugin_commands_listing_tests {
     use super::plugin_commands_listing;
-    use crate::ffi::python::prelude::PluginCommandEntry;
+    use crate::python::prelude::PluginCommandEntry;
 
     fn entry(name: &str, plugin: &str, permission: i32, usage: &str) -> PluginCommandEntry {
         PluginCommandEntry {
@@ -488,16 +454,14 @@ mod commands_tests {
         cmd_slap, cmd_slay,
     };
     use crate::{
-        ffi::{
-            c::prelude::*,
-            python::{
-                prelude::*,
-                pyshinqlx_test_support::{
-                    python_function_raising_exception, python_function_returning,
-                },
+        engine::{PythonInitializationError, prelude::*},
+        prelude::*,
+        python::{
+            prelude::*,
+            pyshinqlx_test_support::{
+                python_function_raising_exception, python_function_returning,
             },
         },
-        prelude::*,
     };
 
     #[test]

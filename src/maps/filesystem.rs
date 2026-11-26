@@ -211,7 +211,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     fn real_lists_reads_and_names_the_root_as_source() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().to_str().unwrap();

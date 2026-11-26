@@ -14,16 +14,19 @@
 use core::{
     ffi::{c_int, c_void},
     fmt, ptr,
+    sync::atomic::{AtomicI32, Ordering},
 };
 use std::sync::OnceLock;
 
+use log::{debug, info, warn};
 #[cfg(target_os = "linux")]
 use procfs::process::MemoryMap;
 
+use crate::engine::FindCVar;
 #[cfg(target_os = "linux")]
-use crate::quake_live_engine::QuakeLiveEngineError;
+use crate::engine::QuakeLiveEngineError;
 #[cfg(target_os = "linux")]
-use crate::quake_live_functions::{QuakeLiveFunction, pattern_search_module};
+use crate::engine::patterns::{QuakeLiveFunction, pattern_search_module};
 
 const DISCONNECT_NOTICE_PREFIX: &str = "zmq RCON client disconnected: ";
 
@@ -180,6 +183,38 @@ pub(crate) fn register_socket(socket: RconSocket) {
 /// The socket found in the engine, if the search was successful.
 pub(crate) fn configured_socket() -> Option<&'static RconSocket> {
     RCON_SOCKET.get()
+}
+
+static APPLIED_SEND_TIMEOUT: AtomicI32 = AtomicI32::new(i32::MIN);
+
+/// Sets the send timeout of the engine's RCON socket from `qlx_zmqRconSendTimeout`.
+///
+/// The cvar is read at every map load, so a change takes effect with the next map.
+pub(crate) fn apply_send_timeout<T>(main_engine: &T)
+where
+    T: FindCVar<&'static str>,
+{
+    let Some(socket) = configured_socket() else {
+        return;
+    };
+    let timeout = effective_send_timeout(
+        main_engine
+            .find_cvar(SEND_TIMEOUT_CVAR)
+            .map(|cvar| cvar.get_integer()),
+    );
+    match socket.set_send_timeout(timeout) {
+        Ok(()) => {
+            if APPLIED_SEND_TIMEOUT.swap(timeout, Ordering::AcqRel) != timeout {
+                info!(target: "shinqlx", func = "apply_send_timeout"; "ZMQ RCON send timeout: {timeout} ms");
+            }
+        }
+        Err(SendTimeoutError::SocketNotOpen) => {
+            debug!(target: "shinqlx", func = "apply_send_timeout"; "ZMQ RCON is not enabled, no send timeout set");
+        }
+        Err(err) => {
+            warn!(target: "shinqlx", func = "apply_send_timeout"; "Could not set the ZMQ RCON send timeout: {err}");
+        }
+    }
 }
 
 #[cfg(test)]
@@ -350,7 +385,7 @@ mod zmq_rcon_tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn socket_and_option_setter_are_found_through_the_displacements_of_the_engine_code() {
-        use crate::quake_live_functions::QuakeLiveFunction;
+        use crate::engine::patterns::QuakeLiveFunction;
 
         let mut region = Region([0x90; 256]);
         let socket_init = QuakeLiveFunction::Rcon_SocketInit.pattern();
@@ -373,9 +408,7 @@ mod zmq_rcon_tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn missing_pattern_is_reported_as_not_found_function() {
-        use crate::{
-            quake_live_engine::QuakeLiveEngineError, quake_live_functions::QuakeLiveFunction,
-        };
+        use crate::engine::{QuakeLiveEngineError, patterns::QuakeLiveFunction};
 
         let region = Region([0x90; 256]);
         let map = memory_map_of(&region);

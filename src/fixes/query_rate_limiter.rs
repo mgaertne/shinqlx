@@ -7,6 +7,16 @@
 //! The per-source state lives in a fixed table without heap allocation, so a flood from many
 //! spoofed addresses cannot grow the memory of the server.
 
+use core::{
+    ffi::c_int,
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+};
+use std::{sync::LazyLock, time::Instant};
+
+use log::warn;
+
+use crate::engine::{FindCVar, prelude::*};
+
 const TABLE_BITS: u32 = 11;
 const TABLE_SIZE: usize = 1 << TABLE_BITS;
 const SUMMARY_INTERVAL_MS: u64 = 60_000;
@@ -179,6 +189,191 @@ impl QueryRateLimiter {
         self.global
             .try_take(rate, Self::global_capacity(&self.limits), now_ms)
     }
+}
+
+/// A rate limiter whose limits are read from three cvars every few seconds.
+struct QueryGate {
+    limiter: parking_lot::Mutex<QueryRateLimiter>,
+    refreshed_ms: AtomicU64,
+    cvars: [&'static str; 3],
+    defaults: QueryLimits,
+    label: &'static str,
+}
+
+impl QueryGate {
+    const fn new(cvars: [&'static str; 3], defaults: QueryLimits, label: &'static str) -> Self {
+        Self {
+            limiter: parking_lot::Mutex::new(QueryRateLimiter::new(defaults)),
+            refreshed_ms: AtomicU64::new(0),
+            cvars,
+            defaults,
+            label,
+        }
+    }
+
+    fn limits_from_cvars<T>(&self, main_engine: &T) -> QueryLimits
+    where
+        T: FindCVar<&'static str>,
+    {
+        let read = |name: &'static str, default: f64| {
+            main_engine
+                .find_cvar(name)
+                .and_then(|cvar| cvar.get_string().trim().parse::<f64>().ok())
+                .filter(|value| value.is_finite() && *value >= 0.0)
+                .unwrap_or(default)
+        };
+        let [rate, burst, global_rate] = self.cvars;
+        QueryLimits {
+            per_source_rate: read(rate, self.defaults.per_source_rate),
+            burst: read(burst, self.defaults.burst),
+            global_rate: read(global_rate, self.defaults.global_rate),
+        }
+    }
+
+    fn allows<T>(&self, main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
+    where
+        T: FindCVar<&'static str>,
+    {
+        if from.type_ != netadrtype_t::NA_IP {
+            return true;
+        }
+
+        let mut limiter = self.limiter.lock();
+        let refreshed_ms = self.refreshed_ms.load(Ordering::Acquire);
+        if refreshed_ms == 0
+            || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
+        {
+            limiter.set_limits(self.limits_from_cvars(main_engine));
+            self.refreshed_ms.store(now_ms.max(1), Ordering::Release);
+        }
+
+        let allowed = limiter.allow(from.ip, now_ms);
+        if let Some(dropped) = limiter.take_dropped_summary(now_ms) {
+            warn!(
+                target: "shinqlx",
+                func = "allows"; "Dropped {dropped} {} packets that exceeded the rate limit.",
+                self.label
+            );
+        }
+        allowed
+    }
+}
+
+static QUERY_GATE: QueryGate = QueryGate::new(
+    [
+        "qlx_steamQueryRate",
+        "qlx_steamQueryBurst",
+        "qlx_steamQueryGlobalRate",
+    ],
+    QueryLimits::DEFAULT,
+    "Steam query",
+);
+static QUERY_RULES_GATE: QueryGate = QueryGate::new(
+    [
+        "qlx_steamQueryRulesRate",
+        "qlx_steamQueryRulesBurst",
+        "qlx_steamQueryRulesGlobalRate",
+    ],
+    QueryLimits::RULES_DEFAULT,
+    "Steam rules query",
+);
+static QUERY_CLOCK: LazyLock<Instant> = LazyLock::new(Instant::now);
+
+const QUERY_LIMITS_REFRESH_INTERVAL_MS: u64 = 5_000;
+
+const STEAM_QUERY_HEADER: [u8; 4] = [0xFF; 4];
+const STEAM_QUERY_OPCODES: &[u8; 3] = b"TUV";
+const STEAM_RULES_OPCODE: u8 = b'V';
+static QUERY_DROP_RULES: AtomicBool = AtomicBool::new(false);
+static QUERY_DROP_RULES_REFRESHED_MS: AtomicU64 = AtomicU64::new(0);
+
+/// The message buffer as the engine hands it to Steam; it has no `oob` field between the two
+/// flags and `data`, unlike `msg_t`.
+#[repr(C)]
+pub(crate) struct SteamPacketBuffer {
+    pub(crate) allowoverflow: c_int,
+    pub(crate) overflowed: c_int,
+    pub(crate) data: *const u8,
+    pub(crate) maxsize: c_int,
+    pub(crate) cursize: c_int,
+}
+
+fn steam_query_opcode(msg: *const msg_t) -> Option<u8> {
+    // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
+    let msg = unsafe { msg.cast::<SteamPacketBuffer>().as_ref() }?;
+    let size = usize::try_from(msg.cursize).ok()?;
+    let fits_buffer = msg.cursize <= msg.maxsize;
+    if msg.data.is_null() || !fits_buffer || size <= STEAM_QUERY_HEADER.len() {
+        return None;
+    }
+
+    // SAFETY: data was checked as non-null and cursize as non-negative and within maxsize.
+    let packet = unsafe { core::slice::from_raw_parts(msg.data, size) };
+    packet
+        .strip_prefix(&STEAM_QUERY_HEADER)
+        .and_then(|rest| rest.first())
+        .copied()
+        .filter(|opcode| STEAM_QUERY_OPCODES.contains(opcode))
+}
+
+fn steam_rules_dropped<T>(main_engine: &T, now_ms: u64) -> bool
+where
+    T: FindCVar<&'static str>,
+{
+    let refreshed_ms = QUERY_DROP_RULES_REFRESHED_MS.load(Ordering::Acquire);
+    if refreshed_ms == 0 || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
+    {
+        let enabled = main_engine
+            .find_cvar("qlx_steamQueryDropRules")
+            .is_some_and(|cvar| cvar.get_integer() != 0);
+        QUERY_DROP_RULES.store(enabled, Ordering::Release);
+        QUERY_DROP_RULES_REFRESHED_MS.store(now_ms.max(1), Ordering::Release);
+    }
+    QUERY_DROP_RULES.load(Ordering::Acquire)
+}
+
+pub(crate) fn steam_query_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
+where
+    T: FindCVar<&'static str>,
+{
+    QUERY_GATE.allows(main_engine, from, now_ms)
+}
+
+fn steam_rules_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
+where
+    T: FindCVar<&'static str>,
+{
+    QUERY_RULES_GATE.allows(main_engine, from, now_ms)
+}
+/// Whether a packet for Steam is a query that must not be answered.
+pub(crate) fn rejects_steam_packet<T>(
+    main_engine: &T,
+    from: Option<&netadr_t>,
+    msg: *const msg_t,
+) -> bool
+where
+    T: FindCVar<&'static str>,
+{
+    let now_ms = u64::try_from(QUERY_CLOCK.elapsed().as_millis()).unwrap_or(u64::MAX);
+    match (from, steam_query_opcode(msg)) {
+        (Some(_), Some(STEAM_RULES_OPCODE)) if steam_rules_dropped(main_engine, now_ms) => true,
+        (Some(address), Some(STEAM_RULES_OPCODE))
+            if !steam_rules_allowed(main_engine, address, now_ms) =>
+        {
+            true
+        }
+        (Some(address), Some(_)) => !steam_query_allowed(main_engine, address, now_ms),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn reset_query_gates() {
+    *QUERY_GATE.limiter.lock() = QueryRateLimiter::new(QueryLimits::DEFAULT);
+    *QUERY_RULES_GATE.limiter.lock() = QueryRateLimiter::new(QueryLimits::RULES_DEFAULT);
+    QUERY_RULES_GATE.refreshed_ms.store(0, Ordering::Release);
+    QUERY_GATE.refreshed_ms.store(0, Ordering::Release);
+    QUERY_DROP_RULES_REFRESHED_MS.store(0, Ordering::Release);
 }
 
 #[cfg(test)]
@@ -356,5 +551,54 @@ mod query_rate_limiter_tests {
     #[test]
     fn default_limits_are_the_documented_defaults() {
         assert_eq!(QueryLimits::default(), QueryLimits::DEFAULT);
+    }
+}
+
+#[cfg(test)]
+mod query_gate_tests {
+    use super::{QUERY_GATE, reset_query_gates, steam_query_allowed};
+    use crate::{MAIN_ENGINE, engine::prelude::*, prelude::*};
+
+    fn query_address(type_: netadrtype_t) -> netadr_t {
+        NetadrBuilder::default()
+            .type_(type_)
+            .ip([192, 0, 2, 7])
+            .build()
+            .expect("this should not happen")
+    }
+
+    #[test]
+    #[serial]
+    fn steam_query_allowed_reports_the_dropped_packets_once_per_interval() {
+        reset_query_gates();
+        let address = query_address(netadrtype_t::NA_IP);
+        let after_interval_ms = 1_000 + 61_000;
+
+        MockEngineBuilder::default()
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .run(|| {
+                let main_engine = MAIN_ENGINE.load();
+                let main_engine = main_engine
+                    .as_ref()
+                    .expect("the mock engine is registered by run");
+
+                let allowed = (0..12)
+                    .filter(|_| steam_query_allowed(&**main_engine, &address, 1_000))
+                    .count();
+                assert_eq!(allowed, 10);
+
+                assert!(steam_query_allowed(
+                    &**main_engine,
+                    &address,
+                    after_interval_ms
+                ));
+                assert_eq!(
+                    QUERY_GATE
+                        .limiter
+                        .lock()
+                        .take_dropped_summary(after_interval_ms),
+                    None
+                );
+            });
     }
 }

@@ -6,10 +6,14 @@ use core::fmt;
 
 #[cfg(feature = "clientkick-fix")]
 pub(crate) mod clientkick_fix;
+#[cfg(unix)]
+pub(crate) mod crash_guard;
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 pub(crate) mod query_rate_limiter;
 #[cfg(all(target_os = "linux", feature = "race-hooks"))]
 pub(crate) mod race_touch;
+pub(crate) mod reliable_guard;
+pub(crate) mod scoreboard_trim;
 #[cfg(all(feature = "fps-patch", target_os = "linux"))]
 pub(crate) mod sv_fps_patch;
 #[cfg(feature = "zmq-rcon-fix")]

@@ -1,47 +1,32 @@
 use alloc::borrow::Cow;
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-use core::sync::atomic::AtomicU64;
 use core::{
     borrow::BorrowMut,
     ffi::{CStr, VaList, c_char, c_int},
     hint::cold_path,
     sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering},
 };
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-use std::{sync::LazyLock, time::Instant};
 
-#[cfg(feature = "zmq-rcon-fix")]
-use log::info;
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
 #[cfg(feature = "zmq-rcon-fix")]
-use crate::fixes::zmq_rcon::{
-    SEND_TIMEOUT_CVAR, SendTimeoutError, configured_socket, effective_send_timeout,
-    is_disconnect_notice,
-};
+use crate::fixes::zmq_rcon;
 use crate::{
     MAIN_ENGINE,
-    ffi::{c::prelude::*, python::prelude::*},
-    prelude::*,
-    quake_live_engine::{
+    engine::{
         AddCommand, ClientConnect, ClientEnterWorld, ClientSpawn, ComPrintf, ConsoleCommand,
         ExecuteClientCommand, FindCVar, FireWeaponOriginal, InitGame, RegisterDamage, RunFrame,
         SendServerCommand, SetConfigstring, SetCvarUndetected, SetModuleOffset, ShutdownGame,
-        SpawnServer, StatsFlagStatusOriginal, StatsMedalOriginal, TouchItem,
+        SpawnServer, StatsFlagStatusOriginal, StatsMedalOriginal, TouchItem, prelude::*,
     },
-    reliable_guard::{
-        BURST_CVAR, GLOBAL_BURST_CVAR, GUARD_CVAR, GuardSettings, MERGE_PRINTS_CVAR,
-        RELIABLE_GUARD, RING_CVAR, Verdict, WATERMARK_CVAR,
+    fixes::{
+        reliable_guard::{self, RELIABLE_GUARD, Verdict},
+        scoreboard_trim,
     },
-    scoreboard_trim::{
-        BUDGET_CVAR, FULL_CVAR, LIGHT_CVAR, MIN_CVAR, TRIM_CVAR, TrimSettings, trim,
-    },
+    prelude::*,
+    python::prelude::*,
 };
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-use crate::{
-    fixes::query_rate_limiter::{QueryLimits, QueryRateLimiter},
-    quake_live_engine::HandleSteamPacket,
-};
+use crate::{engine::HandleSteamPacket, fixes::query_rate_limiter::rejects_steam_packet};
 
 fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
     CStr::from_bytes_until_nul(buffer)
@@ -51,7 +36,7 @@ fn message_from_buffer(buffer: &[u8]) -> Cow<'_, str> {
 /// The engine sets its crash handler while it starts, so the guard is put in front of it once the hooks run after that.
 #[cfg(all(unix, not(test)))]
 fn guard_against_hanging_crash(func: &str) {
-    let _ = crate::crash_guard::install().tap_err(|err| {
+    let _ = crate::fixes::crash_guard::install().tap_err(|err| {
         error!(target: "shinqlx", func = func; "Could not guard against a hanging crash: {err:?}");
     });
 }
@@ -62,7 +47,7 @@ fn guard_against_hanging_crash(_func: &str) {}
 /// With the ZMQ rcon enabled the engine does not end on `SIGTERM` or `SIGINT`, so the frame asks it to quit.
 #[cfg(all(unix, not(test)))]
 fn terminate_requested() -> bool {
-    crate::crash_guard::take_terminate_request()
+    crate::fixes::crash_guard::take_terminate_request()
 }
 
 #[cfg(any(not(unix), test))]
@@ -115,7 +100,7 @@ pub(crate) extern "C" fn shinqlx_sys_setmoduleoffset(
     });
 }
 
-pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
+pub(crate) extern "C" fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart: c_int) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         guard_against_hanging_crash("shinqlx_g_initgame");
 
@@ -136,7 +121,7 @@ pub(crate) fn shinqlx_g_initgame(level_time: c_int, random_seed: c_int, restart:
     });
 }
 
-pub(crate) fn shinqlx_g_shutdowngame(restart: c_int) {
+pub(crate) extern "C" fn shinqlx_g_shutdowngame(restart: c_int) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.unhook_vm(restart != 0);
         main_engine.shutdown_game(restart);
@@ -192,42 +177,6 @@ where
 }
 
 #[unsafe(no_mangle)]
-#[rustversion::before(1.94)]
-pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
-    client: *mut client_t,
-    fmt: *const c_char,
-    mut fmt_args: ...
-) {
-    unsafe extern "C" {
-        fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
-    }
-
-    let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
-    let result = unsafe {
-        vsnprintf(
-            buffer.as_mut_ptr() as *mut c_char,
-            buffer.len(),
-            fmt,
-            fmt_args.as_va_list(),
-        )
-    };
-    if result < 0 {
-        cold_path();
-        warn!(target: "shinqlx", func = "vsnprintf"; "some formatting problem occurred");
-    }
-
-    let cmd = message_from_buffer(&buffer);
-    if client.is_null() {
-        shinqlx_send_server_command(None, cmd);
-    } else {
-        let _ = client.try_conv::<Client>().map(|safe_client| {
-            shinqlx_send_server_command(Some(safe_client), cmd);
-        });
-    }
-}
-
-#[unsafe(no_mangle)]
-#[rustversion::since(1.94)]
 pub unsafe extern "C" fn ShiNQlx_SV_SendServerCommand(
     client: *mut client_t,
     fmt: *const c_char,
@@ -285,7 +234,11 @@ where
             passed_on_cmd_str = res;
 
             if passed_on_cmd_str.starts_with("scores_")
-                && let Some(trimmed) = trim(&passed_on_cmd_str, client_id, trim_settings())
+                && let Some(trimmed) = scoreboard_trim::trim(
+                    &passed_on_cmd_str,
+                    client_id,
+                    scoreboard_trim::current_settings(),
+                )
             {
                 passed_on_cmd_str = Cow::Owned(trimmed);
             }
@@ -295,7 +248,7 @@ where
                     client_id,
                     &passed_on_cmd_str,
                     safe_client.get_reliable_backlog(),
-                    guard_settings(),
+                    reliable_guard::current_settings(),
                 ) == Verdict::Held
             {
                 return;
@@ -377,177 +330,6 @@ where
     });
 }
 
-/// A rate limiter whose limits are read from three cvars every few seconds.
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-struct QueryGate {
-    limiter: parking_lot::Mutex<QueryRateLimiter>,
-    refreshed_ms: AtomicU64,
-    cvars: [&'static str; 3],
-    defaults: QueryLimits,
-    label: &'static str,
-}
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-impl QueryGate {
-    const fn new(cvars: [&'static str; 3], defaults: QueryLimits, label: &'static str) -> Self {
-        Self {
-            limiter: parking_lot::Mutex::new(QueryRateLimiter::new(defaults)),
-            refreshed_ms: AtomicU64::new(0),
-            cvars,
-            defaults,
-            label,
-        }
-    }
-
-    fn limits_from_cvars<T>(&self, main_engine: &T) -> QueryLimits
-    where
-        T: FindCVar<&'static str>,
-    {
-        let read = |name: &'static str, default: f64| {
-            main_engine
-                .find_cvar(name)
-                .and_then(|cvar| cvar.get_string().trim().parse::<f64>().ok())
-                .filter(|value| value.is_finite() && *value >= 0.0)
-                .unwrap_or(default)
-        };
-        let [rate, burst, global_rate] = self.cvars;
-        QueryLimits {
-            per_source_rate: read(rate, self.defaults.per_source_rate),
-            burst: read(burst, self.defaults.burst),
-            global_rate: read(global_rate, self.defaults.global_rate),
-        }
-    }
-
-    fn allows<T>(&self, main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
-    where
-        T: FindCVar<&'static str>,
-    {
-        if from.type_ != netadrtype_t::NA_IP {
-            return true;
-        }
-
-        let mut limiter = self.limiter.lock();
-        let refreshed_ms = self.refreshed_ms.load(Ordering::Acquire);
-        if refreshed_ms == 0
-            || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
-        {
-            limiter.set_limits(self.limits_from_cvars(main_engine));
-            self.refreshed_ms.store(now_ms.max(1), Ordering::Release);
-        }
-
-        let allowed = limiter.allow(from.ip, now_ms);
-        if let Some(dropped) = limiter.take_dropped_summary(now_ms) {
-            warn!(
-                target: "shinqlx",
-                func = "allows"; "Dropped {dropped} {} packets that exceeded the rate limit.",
-                self.label
-            );
-        }
-        allowed
-    }
-}
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_GATE: QueryGate = QueryGate::new(
-    [
-        "qlx_steamQueryRate",
-        "qlx_steamQueryBurst",
-        "qlx_steamQueryGlobalRate",
-    ],
-    QueryLimits::DEFAULT,
-    "Steam query",
-);
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_RULES_GATE: QueryGate = QueryGate::new(
-    [
-        "qlx_steamQueryRulesRate",
-        "qlx_steamQueryRulesBurst",
-        "qlx_steamQueryRulesGlobalRate",
-    ],
-    QueryLimits::RULES_DEFAULT,
-    "Steam rules query",
-);
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_CLOCK: LazyLock<Instant> = LazyLock::new(Instant::now);
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-const QUERY_LIMITS_REFRESH_INTERVAL_MS: u64 = 5_000;
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-const STEAM_QUERY_HEADER: [u8; 4] = [0xFF; 4];
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-const STEAM_QUERY_OPCODES: &[u8; 3] = b"TUV";
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-const STEAM_RULES_OPCODE: u8 = b'V';
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_DROP_RULES: AtomicBool = AtomicBool::new(false);
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-static QUERY_DROP_RULES_REFRESHED_MS: AtomicU64 = AtomicU64::new(0);
-
-/// The message buffer as the engine hands it to Steam; it has no `oob` field between the two
-/// flags and `data`, unlike `msg_t`.
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-#[repr(C)]
-struct SteamPacketBuffer {
-    allowoverflow: c_int,
-    overflowed: c_int,
-    data: *const u8,
-    maxsize: c_int,
-    cursize: c_int,
-}
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-fn steam_query_opcode(msg: *const msg_t) -> Option<u8> {
-    // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
-    let msg = unsafe { msg.cast::<SteamPacketBuffer>().as_ref() }?;
-    let size = usize::try_from(msg.cursize).ok()?;
-    let fits_buffer = msg.cursize <= msg.maxsize;
-    if msg.data.is_null() || !fits_buffer || size <= STEAM_QUERY_HEADER.len() {
-        return None;
-    }
-
-    // SAFETY: data was checked as non-null and cursize as non-negative and within maxsize.
-    let packet = unsafe { core::slice::from_raw_parts(msg.data, size) };
-    packet
-        .strip_prefix(&STEAM_QUERY_HEADER)
-        .and_then(|rest| rest.first())
-        .copied()
-        .filter(|opcode| STEAM_QUERY_OPCODES.contains(opcode))
-}
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-fn steam_rules_dropped<T>(main_engine: &T, now_ms: u64) -> bool
-where
-    T: FindCVar<&'static str>,
-{
-    let refreshed_ms = QUERY_DROP_RULES_REFRESHED_MS.load(Ordering::Acquire);
-    if refreshed_ms == 0 || now_ms.saturating_sub(refreshed_ms) >= QUERY_LIMITS_REFRESH_INTERVAL_MS
-    {
-        let enabled = main_engine
-            .find_cvar("qlx_steamQueryDropRules")
-            .is_some_and(|cvar| cvar.get_integer() != 0);
-        QUERY_DROP_RULES.store(enabled, Ordering::Release);
-        QUERY_DROP_RULES_REFRESHED_MS.store(now_ms.max(1), Ordering::Release);
-    }
-    QUERY_DROP_RULES.load(Ordering::Acquire)
-}
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-fn steam_query_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
-where
-    T: FindCVar<&'static str>,
-{
-    QUERY_GATE.allows(main_engine, from, now_ms)
-}
-
-#[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
-fn steam_rules_allowed<T>(main_engine: &T, from: &netadr_t, now_ms: u64) -> bool
-where
-    T: FindCVar<&'static str>,
-{
-    QUERY_RULES_GATE.allows(main_engine, from, now_ms)
-}
-
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 /// Hook of the engine function that hands connectionless packets to the Steam game server API.
 ///
@@ -560,17 +342,11 @@ pub(crate) extern "C" fn shinqlx_sv_handlesteampacket(
     msg: *const msg_t,
 ) -> c_int {
     MAIN_ENGINE.load().as_ref().map_or(0, |main_engine| {
-        let now_ms = u64::try_from(QUERY_CLOCK.elapsed().as_millis()).unwrap_or(u64::MAX);
         // SAFETY: a non-null pointer from the engine points to a valid structure, null yields None.
-        match (unsafe { from.as_ref() }, steam_query_opcode(msg)) {
-            (Some(_), Some(STEAM_RULES_OPCODE)) if steam_rules_dropped(&**main_engine, now_ms) => 1,
-            (Some(address), Some(STEAM_RULES_OPCODE))
-                if !steam_rules_allowed(&**main_engine, address, now_ms) =>
-            {
-                1
-            }
-            (Some(address), Some(_)) if !steam_query_allowed(&**main_engine, address, now_ms) => 1,
-            _ => c_int::from(main_engine.handle_steam_packet(from, msg)),
+        if rejects_steam_packet(&**main_engine, unsafe { from.as_ref() }, msg) {
+            1
+        } else {
+            c_int::from(main_engine.handle_steam_packet(from, msg))
         }
     })
 }
@@ -595,34 +371,6 @@ where
 }
 
 #[unsafe(no_mangle)]
-#[rustversion::before(1.94)]
-pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, mut fmt_args: ...) {
-    unsafe extern "C" {
-        fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
-    }
-
-    let mut buffer: [u8; MAX_MSGLEN as usize] = [0; MAX_MSGLEN as usize];
-    let result = unsafe {
-        vsnprintf(
-            buffer.as_mut_ptr() as *mut c_char,
-            buffer.len(),
-            fmt,
-            fmt_args.as_va_list(),
-        )
-    };
-    if result < 0 {
-        cold_path();
-        warn!(target: "shinqlx", func = "vsnprintf"; "some formatting problem occurred");
-    }
-
-    let rust_msg = message_from_buffer(&buffer);
-    if !rust_msg.is_empty() {
-        shinqlx_com_printf(rust_msg);
-    }
-}
-
-#[unsafe(no_mangle)]
-#[rustversion::since(1.94)]
 pub unsafe extern "C" fn ShiNQlx_Com_Printf(fmt: *const c_char, fmt_args: ...) {
     unsafe extern "C" {
         fn vsnprintf(s: *mut c_char, n: usize, format: *const c_char, arg: VaList) -> c_int;
@@ -654,7 +402,7 @@ where
     T: AsRef<str>,
 {
     #[cfg(feature = "zmq-rcon-fix")]
-    if is_disconnect_notice(msg.as_ref()) {
+    if zmq_rcon::is_disconnect_notice(msg.as_ref()) {
         return;
     }
 
@@ -665,40 +413,6 @@ where
 
         main_engine.com_printf(msg.as_ref());
     });
-}
-
-#[cfg(feature = "zmq-rcon-fix")]
-static APPLIED_ZMQ_RCON_SEND_TIMEOUT: AtomicI32 = AtomicI32::new(i32::MIN);
-
-/// Sets the send timeout of the engine's RCON socket from `qlx_zmqRconSendTimeout`.
-///
-/// The cvar is read at every map load, so a change takes effect with the next map.
-#[cfg(feature = "zmq-rcon-fix")]
-fn apply_zmq_rcon_send_timeout<T>(main_engine: &T)
-where
-    T: FindCVar<&'static str>,
-{
-    let Some(socket) = configured_socket() else {
-        return;
-    };
-    let timeout = effective_send_timeout(
-        main_engine
-            .find_cvar(SEND_TIMEOUT_CVAR)
-            .map(|cvar| cvar.get_integer()),
-    );
-    match socket.set_send_timeout(timeout) {
-        Ok(()) => {
-            if APPLIED_ZMQ_RCON_SEND_TIMEOUT.swap(timeout, Ordering::AcqRel) != timeout {
-                info!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON send timeout: {timeout} ms");
-            }
-        }
-        Err(SendTimeoutError::SocketNotOpen) => {
-            debug!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "ZMQ RCON is not enabled, no send timeout set");
-        }
-        Err(err) => {
-            warn!(target: "shinqlx", func = "apply_zmq_rcon_send_timeout"; "Could not set the ZMQ RCON send timeout: {err}");
-        }
-    }
 }
 
 pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: qboolean) {
@@ -714,13 +428,13 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
         main_engine.spawn_server(server_str.as_ref(), kill_bots.conv::<bool>());
 
         #[cfg(feature = "zmq-rcon-fix")]
-        apply_zmq_rcon_send_timeout(&**main_engine);
+        zmq_rcon::apply_send_timeout(&**main_engine);
 
         new_game_dispatcher(false);
     });
 }
 
-pub(crate) fn shinqlx_g_runframe(time: c_int) {
+pub(crate) extern "C" fn shinqlx_g_runframe(time: c_int) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         if terminate_requested() {
             log::info!(target: "shinqlx", "Received a termination signal, quitting the server.");
@@ -730,11 +444,12 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
         #[cfg(all(target_os = "linux", not(test)))]
         // SAFETY: the frame hook runs on the main thread, where the engine file system is set up.
         unsafe {
-            crate::engine_fs::refresh_if_requested();
+            crate::engine::qzeroded::fs::refresh_if_requested();
         }
 
         report_objectives(main_engine);
-        release_held_commands(main_engine);
+        refresh_guard_settings(main_engine);
+        reliable_guard::release_held_commands(main_engine);
         stats_feed_dispatcher();
 
         frame_dispatcher();
@@ -743,67 +458,9 @@ pub(crate) fn shinqlx_g_runframe(time: c_int) {
     });
 }
 
-static GUARD_ENABLED: AtomicBool = AtomicBool::new(GuardSettings::DEFAULT.enabled);
-static GUARD_WATERMARK: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.watermark);
-static GUARD_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.burst as i32);
-static GUARD_RING: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.ring);
-static GUARD_GLOBAL_BURST: AtomicI32 = AtomicI32::new(GuardSettings::DEFAULT.global_burst as i32);
-static GUARD_MERGE_PRINTS: AtomicBool = AtomicBool::new(GuardSettings::DEFAULT.merge_prints);
-static GUARD_FRAMES: AtomicU32 = AtomicU32::new(1);
-
-static TRIM_ENABLED: AtomicBool = AtomicBool::new(TrimSettings::DEFAULT.enabled);
-static TRIM_BUDGET: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.budget as i32);
-static TRIM_FULL: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.full_per_team as i32);
-static TRIM_LIGHT: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.light_per_team as i32);
-static TRIM_MIN: AtomicI32 = AtomicI32::new(TrimSettings::DEFAULT.min_per_team as i32);
-
-pub(crate) fn trim_settings() -> TrimSettings {
-    TrimSettings::from_values(
-        i32::from(TRIM_ENABLED.load(Ordering::Relaxed)),
-        TRIM_BUDGET.load(Ordering::Relaxed),
-        TRIM_FULL.load(Ordering::Relaxed),
-        TRIM_LIGHT.load(Ordering::Relaxed),
-        TRIM_MIN.load(Ordering::Relaxed),
-    )
-}
-
-fn refresh_trim_settings(main_engine: &QuakeLiveEngine) {
-    let value_of = |name: &'static str, default: usize| {
-        main_engine
-            .find_cvar(name)
-            .map_or(default as i32, |cvar| cvar.get_integer())
-    };
-    let settings = TrimSettings::from_values(
-        i32::from(
-            main_engine
-                .find_cvar(TRIM_CVAR)
-                .is_none_or(|cvar| cvar.get_integer() != 0),
-        ),
-        value_of(BUDGET_CVAR, TrimSettings::DEFAULT.budget),
-        value_of(FULL_CVAR, TrimSettings::DEFAULT.full_per_team),
-        value_of(LIGHT_CVAR, TrimSettings::DEFAULT.light_per_team),
-        value_of(MIN_CVAR, TrimSettings::DEFAULT.min_per_team),
-    );
-    TRIM_ENABLED.store(settings.enabled, Ordering::Relaxed);
-    TRIM_BUDGET.store(settings.budget as i32, Ordering::Relaxed);
-    TRIM_FULL.store(settings.full_per_team as i32, Ordering::Relaxed);
-    TRIM_LIGHT.store(settings.light_per_team as i32, Ordering::Relaxed);
-    TRIM_MIN.store(settings.min_per_team as i32, Ordering::Relaxed);
-}
-
-/// The frames between two reads of the cvars of the reliable guard.
+/// The frames between two reads of the cvars of the reliable guard and the scoreboard trim.
 const GUARD_REFRESH_FRAMES: u32 = 40;
-
-pub(crate) fn guard_settings() -> GuardSettings {
-    GuardSettings::from_values(
-        i32::from(GUARD_ENABLED.load(Ordering::Relaxed)),
-        GUARD_WATERMARK.load(Ordering::Relaxed),
-        GUARD_BURST.load(Ordering::Relaxed),
-        GUARD_RING.load(Ordering::Relaxed),
-        GUARD_GLOBAL_BURST.load(Ordering::Relaxed),
-    )
-    .with_merge_prints(GUARD_MERGE_PRINTS.load(Ordering::Relaxed))
-}
+static GUARD_FRAMES: AtomicU32 = AtomicU32::new(1);
 
 fn refresh_guard_settings(main_engine: &QuakeLiveEngine) {
     if !GUARD_FRAMES
@@ -813,74 +470,8 @@ fn refresh_guard_settings(main_engine: &QuakeLiveEngine) {
         return;
     }
 
-    refresh_trim_settings(main_engine);
-    let value_of = |name: &'static str, default: i32| {
-        main_engine
-            .find_cvar(name)
-            .map_or(default, |cvar| cvar.get_integer())
-    };
-    let settings = GuardSettings::from_values(
-        value_of(GUARD_CVAR, i32::from(GuardSettings::DEFAULT.enabled)),
-        value_of(WATERMARK_CVAR, GuardSettings::DEFAULT.watermark),
-        value_of(BURST_CVAR, GuardSettings::DEFAULT.burst as i32),
-        value_of(RING_CVAR, GuardSettings::DEFAULT.ring),
-        value_of(
-            GLOBAL_BURST_CVAR,
-            GuardSettings::DEFAULT.global_burst as i32,
-        ),
-    );
-    GUARD_ENABLED.store(settings.enabled, Ordering::Relaxed);
-    GUARD_WATERMARK.store(settings.watermark, Ordering::Relaxed);
-    GUARD_BURST.store(settings.burst as i32, Ordering::Relaxed);
-    GUARD_RING.store(settings.ring, Ordering::Relaxed);
-    GUARD_GLOBAL_BURST.store(settings.global_burst as i32, Ordering::Relaxed);
-    GUARD_MERGE_PRINTS.store(
-        value_of(
-            MERGE_PRINTS_CVAR,
-            i32::from(GuardSettings::DEFAULT.merge_prints),
-        ) != 0,
-        Ordering::Relaxed,
-    );
-}
-
-/// Hands the commands that the guard held back to the clients whose ring has room again.
-#[cfg_attr(
-    test,
-    allow(
-        irrefutable_let_patterns,
-        clippy::unnecessary_fallible_conversions,
-        reason = "the mocked client converts infallibly"
-    )
-)]
-fn release_held_commands(main_engine: &QuakeLiveEngine) {
-    refresh_guard_settings(main_engine);
-    RELIABLE_GUARD.begin_frame();
-    if !RELIABLE_GUARD.has_waiting() {
-        return;
-    }
-
-    let settings = guard_settings();
-    let clients = main_engine.get_max_clients().min(MAX_CLIENTS as i32);
-    let start = RELIABLE_GUARD.rotation_start(clients);
-    (0..clients)
-        .map(|offset| (start + offset) % clients)
-        .for_each(|client_id| {
-            let active_client = Client::try_from(client_id).ok().filter(|client| {
-                client.has_gentity() && client.get_state() == clientState_t::CS_ACTIVE
-            });
-            let Some(client) = active_client else {
-                RELIABLE_GUARD.clear(client_id);
-                return;
-            };
-
-            let released =
-                RELIABLE_GUARD.release(client_id, client.get_reliable_backlog(), settings);
-            released.iter().for_each(|command| {
-                if let Ok(client) = Client::try_from(client_id) {
-                    main_engine.send_server_command(Some(client), command);
-                }
-            });
-        });
+    scoreboard_trim::refresh_settings(main_engine);
+    reliable_guard::refresh_settings(main_engine);
 }
 
 const OBJECTIVE_KINDS: [&str; 6] = [
@@ -1244,10 +835,7 @@ mod fire_weapon_hook_tests {
     use rstest::*;
 
     use super::shinqlx_fire_weapon;
-    use crate::{
-        ffi::{c::prelude::*, python::prelude::*},
-        prelude::*,
-    };
+    use crate::{engine::prelude::*, prelude::*, python::prelude::*};
 
     #[test]
     #[serial]
@@ -1326,10 +914,7 @@ mod stats_hook_tests {
     use rstest::*;
 
     use super::{shinqlx_stats_flag_status, shinqlx_stats_medal};
-    use crate::{
-        ffi::{c::prelude::*, python::prelude::*},
-        prelude::*,
-    };
+    use crate::{engine::prelude::*, prelude::*, python::prelude::*};
 
     fn player_entity() -> MockGameEntity {
         let mut mock_gentity = MockGameEntity::new();
@@ -1461,10 +1046,7 @@ mod cvar_set2_hook_tests {
     use rstest::*;
 
     use super::shinqlx_cvar_set2;
-    use crate::{
-        ffi::{c::prelude::*, python::prelude::*},
-        prelude::*,
-    };
+    use crate::{engine::prelude::*, prelude::*, python::prelude::*};
 
     fn run_cvar_set2(old_value: &'static core::ffi::CStr, new_value: &'static core::ffi::CStr) {
         let mut old_cvar = CVarBuilder::default()
@@ -1564,10 +1146,7 @@ mod touch_item_hook_tests {
     use rstest::*;
 
     use super::shinqlx_touch_item;
-    use crate::{
-        ffi::{c::prelude::*, python::prelude::*},
-        prelude::*,
-    };
+    use crate::{engine::prelude::*, prelude::*, python::prelude::*};
 
     fn entities(toucher_is_client: bool, item_available: [bool; 2]) {
         let mut toucher = GEntityBuilder::default()
@@ -1778,31 +1357,27 @@ mod hooks_tests {
     use tap::Conv;
 
     use super::{
-        GuardSettings, QUERY_DROP_RULES_REFRESHED_MS, QUERY_GATE, QUERY_RULES_GATE, RELIABLE_GUARD,
-        ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, SteamPacketBuffer, grown_objectives,
+        RELIABLE_GUARD, ShiNQlx_Com_Printf, ShiNQlx_SV_SendServerCommand, grown_objectives,
         reset_objective_tracking, shinqlx_client_connect, shinqlx_client_spawn,
         shinqlx_clientspawn, shinqlx_cmd_addcommand, shinqlx_com_printf, shinqlx_drop_client,
         shinqlx_execute_client_command, shinqlx_g_damage, shinqlx_g_initgame, shinqlx_g_runframe,
         shinqlx_g_shutdowngame, shinqlx_g_startkamikaze, shinqlx_send_server_command,
         shinqlx_set_configstring, shinqlx_sv_cliententerworld, shinqlx_sv_dropclient,
         shinqlx_sv_executeclientcommand, shinqlx_sv_handlesteampacket, shinqlx_sv_setconfigstring,
-        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset, steam_query_allowed,
+        shinqlx_sv_spawnserver, shinqlx_sys_setmoduleoffset,
     };
     use crate::{
-        MAIN_ENGINE,
-        ffi::{
-            c::prelude::*,
-            python::{
-                mock_python_tests::{
-                    __client_command_dispatcher, __client_connect_dispatcher,
-                    __client_loaded_dispatcher, __damage_dispatcher, __new_game_dispatcher,
-                    __server_command_dispatcher, __set_configstring_dispatcher,
-                },
-                prelude::*,
-            },
-        },
-        fixes::query_rate_limiter::{QueryLimits, QueryRateLimiter},
+        engine::prelude::*,
+        fixes::query_rate_limiter::{SteamPacketBuffer, reset_query_gates},
         prelude::*,
+        python::{
+            mock_python_tests::{
+                __client_command_dispatcher, __client_connect_dispatcher,
+                __client_loaded_dispatcher, __damage_dispatcher, __new_game_dispatcher,
+                __server_command_dispatcher, __set_configstring_dispatcher,
+            },
+            prelude::*,
+        },
     };
 
     #[fixture]
@@ -2333,7 +1908,7 @@ mod hooks_tests {
             });
 
         assert_eq!(
-            RELIABLE_GUARD.release(41, 0, GuardSettings::DEFAULT),
+            RELIABLE_GUARD.release(41, 0, crate::fixes::reliable_guard::GuardSettings::DEFAULT),
             ["castats 0"]
         );
     }
@@ -3610,14 +3185,6 @@ mod hooks_tests {
         shinqlx_sv_dropclient(client.borrow_mut(), c"bye".as_ptr());
     }
 
-    fn reset_query_limiter() {
-        *QUERY_GATE.limiter.lock() = QueryRateLimiter::new(QueryLimits::DEFAULT);
-        *QUERY_RULES_GATE.limiter.lock() = QueryRateLimiter::new(QueryLimits::RULES_DEFAULT);
-        QUERY_RULES_GATE.refreshed_ms.store(0, Ordering::Release);
-        QUERY_GATE.refreshed_ms.store(0, Ordering::Release);
-        QUERY_DROP_RULES_REFRESHED_MS.store(0, Ordering::Release);
-    }
-
     fn query_address(type_: netadrtype_t) -> netadr_t {
         NetadrBuilder::default()
             .type_(type_)
@@ -3667,7 +3234,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_forwards_packets_within_the_burst() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3686,7 +3253,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_drops_packets_above_the_burst_without_calling_steam() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3709,7 +3276,7 @@ mod hooks_tests {
     #[case::player(b"\xff\xff\xff\xffU\xff\xff\xff\xff".as_slice())]
     #[serial]
     fn sv_handlesteampacket_limits_every_query_opcode(#[case] payload: &[u8]) {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3735,7 +3302,7 @@ mod hooks_tests {
     #[case::too_short(b"\xff".as_slice())]
     #[serial]
     fn sv_handlesteampacket_forwards_packets_that_are_no_queries_unlimited(#[case] payload: &[u8]) {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3754,7 +3321,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_forwards_packets_without_message_unlimited() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3777,7 +3344,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_does_not_trust_messages_larger_than_their_buffer() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
         let buffer = packet_buffer(A2S_INFO, 4);
 
@@ -3799,7 +3366,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_does_not_count_other_packets_against_the_query_limit() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3820,7 +3387,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_does_not_limit_other_address_types() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_LOOPBACK);
 
         MockEngineBuilder::default()
@@ -3839,7 +3406,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_forwards_packets_without_source_address() {
-        reset_query_limiter();
+        reset_query_gates();
 
         MockEngineBuilder::default()
             .with_find_cvar(|_| true, |_| None, 0..)
@@ -3855,10 +3422,9 @@ mod hooks_tests {
     }
 
     #[test]
-    #[cfg_attr(miri, ignore)]
     #[serial]
     fn sv_handlesteampacket_applies_the_limits_from_the_cvars() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
         let mut burst_cvar = CVarBuilder::default()
             .string(c"2".as_ptr().cast_mut())
@@ -3906,7 +3472,7 @@ mod hooks_tests {
         #[case] expected: Vec<c_int>,
         #[case] forwarded: usize,
     ) {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
         let mut drop_rules = drop_rules_cvar(cvar_value);
 
@@ -3934,7 +3500,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_forwards_info_queries_while_rules_queries_are_dropped() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
         let mut drop_rules = drop_rules_cvar(1);
 
@@ -3962,7 +3528,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_lets_one_complete_rules_query_pass_and_limits_more() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -3981,7 +3547,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_does_not_charge_dropped_rules_queries_to_the_query_limit() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
 
         MockEngineBuilder::default()
@@ -4004,7 +3570,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_applies_the_general_limit_when_the_rules_limits_are_off() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
         let mut zero_cvar = CVarBuilder::default()
             .string(c"0".as_ptr().cast_mut())
@@ -4039,7 +3605,7 @@ mod hooks_tests {
     #[test]
     #[serial]
     fn sv_handlesteampacket_does_not_trust_messages_with_negative_size() {
-        reset_query_limiter();
+        reset_query_gates();
         let address = query_address(netadrtype_t::NA_IP);
         let buffer = SteamPacketBuffer {
             cursize: -1,
@@ -4056,41 +3622,6 @@ mod hooks_tests {
             })
             .run(|| {
                 assert_eq!(send_buffers(&address, &buffer, 30), vec![0; 30]);
-            });
-    }
-
-    #[test]
-    #[serial]
-    fn steam_query_allowed_reports_the_dropped_packets_once_per_interval() {
-        reset_query_limiter();
-        let address = query_address(netadrtype_t::NA_IP);
-        let after_interval_ms = 1_000 + 61_000;
-
-        MockEngineBuilder::default()
-            .with_find_cvar(|_| true, |_| None, 0..)
-            .run(|| {
-                let main_engine = MAIN_ENGINE.load();
-                let main_engine = main_engine
-                    .as_ref()
-                    .expect("the mock engine is registered by run");
-
-                let allowed = (0..12)
-                    .filter(|_| steam_query_allowed(&**main_engine, &address, 1_000))
-                    .count();
-                assert_eq!(allowed, 10);
-
-                assert!(steam_query_allowed(
-                    &**main_engine,
-                    &address,
-                    after_interval_ms
-                ));
-                assert_eq!(
-                    QUERY_GATE
-                        .limiter
-                        .lock()
-                        .take_dropped_summary(after_interval_ms),
-                    None
-                );
             });
     }
 
