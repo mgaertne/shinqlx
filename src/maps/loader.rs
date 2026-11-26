@@ -90,6 +90,12 @@ pub(crate) fn clear_refresh_request() {
     REFRESH_REQUESTED.store(false, Ordering::Release);
 }
 
+#[cfg(test)]
+pub(crate) fn unconfigure() {
+    SETUP.store(None);
+    clear_refresh_request();
+}
+
 /// Whether [`configure`] has been called.
 pub(crate) fn is_configured() -> bool {
     SETUP.load().is_some()

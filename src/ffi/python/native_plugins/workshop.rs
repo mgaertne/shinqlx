@@ -410,7 +410,13 @@ mod workshop_tests {
     use crate::{
         ffi::{
             c::prelude::{CS_SERVERINFO, CS_STEAM_WORKSHOP_IDS, CVar, CVarBuilder, cvar_t},
-            python::{Plugin, PythonReturnCodes, pyshinqlx_setup_fixture::pyshinqlx_setup},
+            python::{
+                AbstractChannel, Plugin, PythonReturnCodes,
+                pyshinqlx_setup_fixture::pyshinqlx_setup,
+                pyshinqlx_test_support::{
+                    drop_pending_frame_tasks, recorded_replies, recording_channel,
+                },
+            },
         },
         prelude::*,
     };
@@ -526,6 +532,14 @@ mod workshop_tests {
     }
 
     fn with_cvars(values: &[(&'static str, String)], test: impl FnOnce()) {
+        with_engine(values, |builder| builder, test);
+    }
+
+    fn with_engine(
+        values: &[(&'static str, String)],
+        configure: impl FnOnce(MockEngineBuilder) -> MockEngineBuilder,
+        test: impl FnOnce(),
+    ) {
         let mut builder = MockEngineBuilder::default();
         for (name, value) in values {
             let (name, cvar) = (*name, leaked_cvar(value));
@@ -535,7 +549,31 @@ mod workshop_tests {
                 0..,
             );
         }
-        builder.with_find_cvar(|_| true, |_| None, 0..).run(test);
+        configure(builder)
+            .with_find_cvar(|_| true, |_| None, 0..)
+            .run(test);
+    }
+
+    fn command(
+        plugin: &Bound<'_, Workshop>,
+        channel: &Bound<'_, AbstractChannel>,
+        words: &[&str],
+    ) -> Option<i32> {
+        let py = plugin.py();
+        Workshop::cmd_workshop(
+            plugin,
+            &py.None().into_bound(py),
+            words.iter().map(|word| (*word).to_owned()).collect(),
+            channel,
+        )
+        .expect("the command runs")
+    }
+
+    fn write_list_file(home: &tempfile::TempDir, content: &str) -> std::path::PathBuf {
+        let path = home.path().join("baseq3/workshop.txt");
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
+        std::fs::write(&path, content).expect("list file");
+        path
     }
 
     fn directory_cvars(
@@ -714,6 +752,240 @@ mod workshop_tests {
     #[case(None, None)]
     fn ids_are_positive_numbers(#[case] text: Option<&str>, #[case] expected: Option<u64>) {
         assert_eq!(parse_id(text.map(str::to_owned).as_ref()), expected);
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_lists_an_item_that_is_already_downloaded(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let channel = recording_channel(py);
+
+                assert_eq!(command(&plugin, &channel, &["workshop", "add", "7"]), None);
+
+                let replies = recorded_replies(&channel);
+                assert!(
+                    replies[0].starts_with("Item 7 is installed: "),
+                    "{replies:?}"
+                );
+                assert_eq!(replies.len(), 1);
+            });
+        });
+
+        let list = std::fs::read_to_string(home.path().join("baseq3/workshop.txt")).expect("list");
+        assert!(list.starts_with("7 # "), "{list}");
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_downloads_an_item_that_is_missing_and_waits_for_it(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| engine.with_execute_console_command("steam_downloadugc 99", 1),
+            || {
+                Python::attach(|py| {
+                    let plugin = workshop_plugin(py);
+                    let channel = recording_channel(py);
+
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+
+                    assert_eq!(recorded_replies(&channel), vec!["Downloading item 99..."]);
+                    drop_pending_frame_tasks(py);
+                });
+            },
+        );
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_says_when_the_workshop_directory_is_missing_or_the_item_was_purged(
+        _pyshinqlx_setup: (),
+    ) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let channel = recording_channel(py);
+
+                command(&plugin, &channel, &["workshop", "add", "5"]);
+                plugin.get().mark_purged(6);
+                command(&plugin, &channel, &["workshop", "add", "6"]);
+
+                let replies = recorded_replies(&channel);
+                assert_eq!(replies[0], "The workshop directory was not found.");
+                assert!(replies[1].contains("deleted in this run"), "{replies:?}");
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_download_that_arrives_is_listed_and_one_that_does_not_is_given_up(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 8, &["a.pk3"]);
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let channel = recording_channel(py);
+
+                Workshop::check_download(&plugin, &channel, 8, 3).expect("arrived");
+                Workshop::check_download(&plugin, &channel, 9, 0).expect("gave up");
+                Workshop::check_download(&plugin, &channel, 9, 2).expect("waits");
+
+                let replies = recorded_replies(&channel);
+                assert!(replies[0].starts_with("Item 8 is installed"), "{replies:?}");
+                assert!(replies[1].contains("Item 9 did not arrive"), "{replies:?}");
+                assert_eq!(replies.len(), 2);
+                drop_pending_frame_tasks(py);
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn remove_takes_an_item_from_the_list_and_purges_only_when_asked(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        let list = write_list_file(&home, "3 # c.pk3\n4 # d.pk3\n5\n");
+        let root = install_item(&base, 4, &["d.pk3"]);
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let channel = recording_channel(py);
+
+                command(&plugin, &channel, &["workshop", "remove", "3"]);
+                command(&plugin, &channel, &["workshop", "remove", "3", "keep"]);
+                command(&plugin, &channel, &["workshop", "remove", "4", "PURGE"]);
+
+                let replies = recorded_replies(&channel);
+                assert!(replies[0].starts_with("Item 3 is removed"), "{replies:?}");
+                assert_eq!(replies[1], "Item 3 is not in the list.");
+                assert!(replies[2].contains("Deleted its files"), "{replies:?}");
+                assert!(plugin.get().was_purged(4));
+            });
+        });
+
+        assert_eq!(std::fs::read_to_string(list).expect("list"), "5\n");
+        assert!(!root.join("4").exists());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn remove_follows_the_cvar_for_purging_and_refuses_unknown_words(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        write_list_file(&home, "3\n");
+        let mut cvars = directory_cvars(&home, &base);
+        cvars.push(("qlx_workshopPurge", "1".to_owned()));
+
+        with_cvars(&cvars, || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let channel = recording_channel(py);
+
+                let unknown = command(&plugin, &channel, &["workshop", "remove", "3", "maybe"]);
+                let no_id = command(&plugin, &channel, &["workshop", "remove"]);
+                command(&plugin, &channel, &["workshop", "remove", "3"]);
+
+                let usage = Some(PythonReturnCodes::RET_USAGE as i32);
+                assert_eq!((unknown, no_id), (usage, usage));
+                let replies = recorded_replies(&channel);
+                assert!(replies[0].contains("no files were deleted"), "{replies:?}");
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn list_counts_the_installed_and_missing_items_and_names_them_on_request(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        write_list_file(&home, "1 # a.pk3\n2 # gone\n");
+        install_item(&base, 1, &["a.pk3", "b.pk3"]);
+        let mut cvars = directory_cvars(&home, &base);
+        cvars.push(("qlx_workshopWarnPk3", "1".to_owned()));
+
+        with_cvars(&cvars, || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let short = recording_channel(py);
+                let full = recording_channel(py);
+
+                command(&plugin, &short, &["workshop", "list"]);
+                command(&plugin, &full, &["workshop", "list", "ALL"]);
+
+                let short = recorded_replies(&short);
+                assert!(
+                    short[0].contains("2 items in")
+                        && short[0].contains("1 installed with 2 pk3 files, 1 missing."),
+                    "{short:?}"
+                );
+                assert_eq!(short[1], "2 (missing) gone");
+                assert!(short[2].contains("2 pk3 files, more than 1"), "{short:?}");
+                let full = recorded_replies(&full);
+                assert_eq!(full[1], "1 a.pk3");
+                assert_eq!(full[2], "2 (missing) gone");
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn list_without_the_workshop_directory_says_so(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let plugin = workshop_plugin(py);
+                let channel = recording_channel(py);
+
+                command(&plugin, &channel, &["workshop", "list"]);
+
+                assert_eq!(
+                    recorded_replies(&channel),
+                    vec!["The workshop directory was not found."]
+                );
+            });
+        });
     }
 
     #[rstest]

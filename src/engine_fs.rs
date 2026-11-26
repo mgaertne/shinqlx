@@ -543,7 +543,10 @@ pub(crate) unsafe fn scan_installed_maps(
 
 #[cfg(test)]
 mod tests {
+    use core::sync::atomic::{AtomicUsize, Ordering};
+
     use pretty_assertions::assert_eq;
+    use serial_test::serial;
 
     use super::*;
 
@@ -711,5 +714,190 @@ mod tests {
         // SAFETY: as above.
         let address = unsafe { searchpaths_address(code.as_ptr() as usize) };
         assert_eq!(address, None);
+    }
+
+    static FREED_FILES: AtomicUsize = AtomicUsize::new(0);
+    static FREED_LISTS: AtomicUsize = AtomicUsize::new(0);
+
+    extern "C" fn fake_read_file(path: *const c_char, buffer: *mut *mut c_void) -> c_int {
+        // SAFETY: the engine file system passes a valid C string.
+        let path = unsafe { CStr::from_ptr(path) }
+            .to_string_lossy()
+            .into_owned();
+        match path.as_str() {
+            "maps/a.bsp" => {
+                let data = Box::leak(Box::new(*b"BSPDATA"));
+                // SAFETY: the engine file system passes a valid pointer for the buffer.
+                unsafe { *buffer = data.as_mut_ptr().cast() };
+                7
+            }
+            "empty.bsp" => 0,
+            _ => -1,
+        }
+    }
+
+    extern "C" fn fake_free_file(_buffer: *mut c_void) {
+        FREED_FILES.fetch_add(1, Ordering::AcqRel);
+    }
+
+    extern "C" fn fake_list_files(
+        dir: *const c_char,
+        _extension: *const c_char,
+        _filter: *const c_char,
+        count: *mut c_int,
+    ) -> *mut *mut c_char {
+        // SAFETY: the engine file system passes a valid C string.
+        let dir = unsafe { CStr::from_ptr(dir) }
+            .to_string_lossy()
+            .into_owned();
+        let names: Vec<*mut c_char> = match dir.as_str() {
+            "maps" => ["b.bsp", "a.bsp", "a.bsp"]
+                .iter()
+                .map(|name| CString::new(*name).unwrap().into_raw())
+                .collect(),
+            "holes" => vec![ptr::null_mut(), CString::new("x.bsp").unwrap().into_raw()],
+            _ => Vec::new(),
+        };
+        // SAFETY: the engine file system passes a valid pointer for the count.
+        unsafe { *count = c_int::try_from(names.len()).unwrap_or_default() };
+        if names.is_empty() {
+            return ptr::null_mut();
+        }
+        Box::leak(names.into_boxed_slice()).as_mut_ptr()
+    }
+
+    extern "C" fn fake_free_file_list(_list: *mut *mut c_char) {
+        FREED_LISTS.fetch_add(1, Ordering::AcqRel);
+    }
+
+    fn fake_engine_fs(engine: &mut FakeEngine) -> EngineFileSystem {
+        let pak = engine.pack("/base/baseq3/pak00.pk3", &["maps/A.bsp"], 1);
+        let head = engine.list(&[(pak, 0)]);
+        FREED_FILES.store(0, Ordering::Release);
+        FREED_LISTS.store(0, Ordering::Release);
+        // SAFETY: the functions have the signatures of the type aliases and `head` is built by `FakeEngine`.
+        unsafe {
+            EngineFileSystem::from_addresses(
+                fake_read_file as *const () as usize,
+                fake_free_file as *const () as usize,
+                fake_list_files as *const () as usize,
+                fake_free_file_list as *const () as usize,
+                head,
+            )
+        }
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
+    fn the_listing_of_the_engine_is_sorted_without_duplicates_and_freed() {
+        let mut engine = FakeEngine::new();
+        let fs = fake_engine_fs(&mut engine);
+
+        assert_eq!(fs.list_files("maps", ".bsp"), vec!["a.bsp", "b.bsp"]);
+        assert_eq!(FREED_LISTS.load(Ordering::Acquire), 1);
+        assert_eq!(fs.list_files("holes", ".bsp"), vec!["x.bsp"]);
+        assert!(fs.list_files("nothing", ".bsp").is_empty());
+        assert!(fs.list_files("ma\0ps", ".bsp").is_empty());
+        assert!(fs.list_files("maps", ".b\0sp").is_empty());
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
+    fn reading_a_file_of_the_engine_returns_the_bytes_and_frees_the_buffer() {
+        let mut engine = FakeEngine::new();
+        let fs = fake_engine_fs(&mut engine);
+
+        assert_eq!(fs.read_file("maps/a.bsp", 100), Ok(b"BSPDATA".to_vec()));
+        assert_eq!(FREED_FILES.load(Ordering::Acquire), 1);
+        assert_eq!(
+            fs.read_file("maps/a.bsp", 3),
+            Err(FsError::TooLarge { limit: 3 })
+        );
+        assert_eq!(FREED_FILES.load(Ordering::Acquire), 2);
+        assert_eq!(fs.read_file("empty.bsp", 100), Ok(Vec::new()));
+        assert_eq!(FREED_FILES.load(Ordering::Acquire), 2);
+        assert_eq!(fs.read_file("missing.bsp", 100), Err(FsError::NotFound));
+        assert_eq!(fs.read_file("a\0b.bsp", 100), Err(FsError::NotFound));
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
+    fn the_source_of_a_file_is_the_archive_that_the_search_path_list_names() {
+        let mut engine = FakeEngine::new();
+        let fs = fake_engine_fs(&mut engine);
+
+        assert_eq!(
+            fs.source_of("maps/a.bsp").as_deref(),
+            Some("/base/baseq3/pak00.pk3")
+        );
+        assert_eq!(fs.source_of("maps/none.bsp"), None);
+        assert_eq!(
+            fs.source_index().source_of("maps/a.bsp", &|_| false),
+            fs.source_of("maps/a.bsp")
+        );
+        assert!(fs.problems.is_empty());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore = "reads the memory maps of the process")]
+    fn without_the_engine_nothing_can_be_located_or_scanned() {
+        crate::maps::loader::unconfigure();
+
+        // SAFETY: the test process has no engine, so nothing is read or called.
+        unsafe {
+            assert_eq!(
+                EngineFileSystem::locate().err(),
+                Some(EngineFsError::FunctionNotFound("FS_ReadFile"))
+            );
+            assert!(freeze_search_paths().is_none());
+            assert!(scan_installed_maps("/nowhere", true).is_none());
+            start_map_scan("/nowhere", "0");
+            start_map_scan("/nowhere", "1");
+            start_map_scan("/nowhere", "2");
+        }
+
+        assert!(!crate::maps::loader::is_configured());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore = "reads the memory maps of the process")]
+    fn a_refresh_request_is_answered_and_cleared_even_when_the_search_paths_cannot_be_read() {
+        use crate::maps::loader;
+
+        loader::unconfigure();
+        // SAFETY: the test process has no engine, so nothing is read or called.
+        unsafe { refresh_if_requested() };
+        assert!(!loader::refresh_requested());
+
+        loader::configure(SourceIndex::default(), "/nowhere");
+        assert!(loader::request_refresh());
+        // SAFETY: as above.
+        unsafe { refresh_if_requested() };
+
+        assert!(!loader::refresh_requested());
+        assert!(!loader::is_running());
+        loader::unconfigure();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore = "starts threads")]
+    fn the_archive_scan_is_compared_with_the_result_of_the_engine() {
+        let reference = Snapshot::default();
+        let other = Snapshot {
+            problems: vec!["only in the archive scan".to_owned()],
+            ..Snapshot::default()
+        };
+
+        log_difference(&reference, &other, 2, 5);
+        compare_with_archive_scan(&reference, SourceIndex::default(), "/nowhere");
     }
 }
