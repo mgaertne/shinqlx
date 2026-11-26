@@ -271,9 +271,19 @@ Installing and removing items while the server runs
 ``!workshop add <id>`` lets Steam download the item (the engine command ``steam_downloadugc``), mounts it at once, adds
 it to the list of the server and scans the maps again, so ``map_info`` knows its maps. The reply tells when the item
 has arrived; a large item can take a while. Another ``add`` for an item that is still downloading does not start the
-download again and only says so, other items can be added meanwhile. ``!workshop remove <id>`` takes the item out of the list. It stays mounted
-until the next restart of the server. ``!workshop list`` summarises the list and names the items whose files are
-missing; ``!workshop list all`` names every item.
+download again and tells how far it is; other items can be added meanwhile, Steam then fetches the latest one first.
+The plugin keeps waiting as long as Steam reports the item as queued or downloading, and reports a failed download at
+once with the ``EResult`` code of Steam (``9``: there is no such item).
+
+For an item that is on the disk already, ``add`` asks Steam for a newer version, which the engine itself never does,
+and installs the item when Steam is done. If that fails, the version on the disk is installed as long as Steam still
+regards it as complete.
+
+``!workshop remove <id>`` takes the item out of the list; it stays mounted until the next restart of the server. It
+refuses an item that is still downloading and one that the running game uses (the running map comes from it, or
+``qlx_workshopReferences`` names it), because players could not connect any more once the files they are checked against
+are gone. ``!workshop list`` summarises the list and names the items whose files are missing; ``!workshop list all``
+names every item.
 
 The list is the ``workshop.txt`` of the server (the cvar ``sv_workshopFile`` of the engine). The engine reads the one
 in the home path and only falls back to the base path when there is none; it does not merge them. The plugin therefore
@@ -282,10 +292,15 @@ servers that share a base path keep their own lists. A line holds the item id an
 ``<id> # <pk3-name> (<map>, <map>, ...), <pk3-name> (...)``; comments, blank lines and the order are kept.
 
 By default the files of a removed item stay on the disk, because the content directory of Steam is shared by all
-servers of the machine. ``!workshop remove <id> purge`` also deletes the directory of the item and its entries in the
-manifest of Steam (``appworkshop_282440.acf``); ``keep`` forces the default when ``qlx_workshopPurge`` is set to ``1``.
-Steam keeps its state in memory, so an item that was deleted this way can only be downloaded again after a restart of
-the server; the plugin refuses ``add`` for it until then.
+servers that use the same installation. ``!workshop remove <id> purge`` also deletes the directory of the item and its
+entries in the manifest of Steam (``appworkshop_282440.acf``) and takes it out of the search path of the server; a later
+``add`` downloads it again, no restart is needed. ``keep`` forces the default when ``qlx_workshopPurge`` is set to
+``1``.
+
+.. warning::
+   The plugin only knows whether its own server uses an item. A server on which another one deletes a mounted item stops
+   when it loads one of its maps, and players cannot connect to it while it uses the item. Only purge where no other
+   server of the installation has the item.
 
 What the engine can take is limited by the number of ``.pk3`` files, not by the number of workshop items. Measured on a
 test server with the engine alone, the names and checksums of all ``.pk3`` files go into info strings of 8192

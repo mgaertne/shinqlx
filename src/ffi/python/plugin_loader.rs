@@ -570,8 +570,8 @@ mod native_plugin_loading_tests {
             c::prelude::{CS_SERVERINFO, CVar, CVarBuilder, cvar_t},
             python::{
                 events::{
-                    EventDispatcherManager, EventDispatcherManagerMethods, MapDispatcher,
-                    UnloadDispatcher,
+                    ConsolePrintDispatcher, EventDispatcherManager, EventDispatcherManagerMethods,
+                    MapDispatcher, UnloadDispatcher,
                 },
                 prelude::*,
                 pyshinqlx_setup_fixture::pyshinqlx_setup,
@@ -639,6 +639,9 @@ mod native_plugin_loading_tests {
                     event_dispatchers
                         .add_dispatcher(&py.get_type::<UnloadDispatcher>())
                         .expect("could not add unload dispatcher");
+                    event_dispatchers
+                        .add_dispatcher(&py.get_type::<ConsolePrintDispatcher>())
+                        .expect("could not add console print dispatcher");
                     EVENT_DISPATCHERS.store(Some(event_dispatchers.unbind().into()));
 
                     test(py);
@@ -663,7 +666,7 @@ mod native_plugin_loading_tests {
     fn load_plugin_loads_native_plugin(_pyshinqlx_setup: (), #[case] plugin: &str) {
         with_native_workshop_engine(1, |py| {
             assert!(load_plugin(py, plugin).is_ok());
-            assert_eq!(loaded_hooks(py, "workshop"), 1);
+            assert_eq!(loaded_hooks(py, "workshop"), 2);
         });
     }
 
@@ -707,7 +710,7 @@ mod native_plugin_loading_tests {
             load_plugin(py, "r!workshop").expect("could not load native plugin");
 
             assert!(reload_plugin(py, "workshop").is_ok());
-            assert_eq!(loaded_hooks(py, "workshop"), 1);
+            assert_eq!(loaded_hooks(py, "workshop"), 2);
         });
     }
 
@@ -719,7 +722,7 @@ mod native_plugin_loading_tests {
             load_plugin(py, "r!workshop").expect("could not load native plugin");
 
             assert!(load_plugin(py, "r!workshop").is_ok());
-            assert_eq!(loaded_hooks(py, "workshop"), 1);
+            assert_eq!(loaded_hooks(py, "workshop"), 2);
         });
     }
 
@@ -737,7 +740,7 @@ mod native_plugin_loading_tests {
                     && err.value(py).to_string()
                         == "Plugin 'workshop' is already loaded as a Rust plugin. Unload it first.")
             );
-            assert_eq!(loaded_hooks(py, "workshop"), 1);
+            assert_eq!(loaded_hooks(py, "workshop"), 2);
         });
     }
 
@@ -751,7 +754,7 @@ mod native_plugin_loading_tests {
             load_plugin(py, "r!workshop").expect("could not load native plugin");
 
             assert!(reload_plugin(py, plugin).is_ok());
-            assert_eq!(loaded_hooks(py, "workshop"), 1);
+            assert_eq!(loaded_hooks(py, "workshop"), 2);
         });
     }
 

@@ -1,4 +1,4 @@
-use alloc::collections::BTreeSet;
+use alloc::collections::BTreeMap;
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -30,6 +30,7 @@ use crate::{
     workshop::{
         item::{self, ListFiles, Pk3Maps},
         list::WorkshopList,
+        steam::{self, SteamLibrary, SteamWorkshop},
     },
 };
 
@@ -41,44 +42,59 @@ const GAME_DIR: &str = "baseq3";
 /// With `!workshop` admins install and remove items while the server runs.
 #[pyclass(name = "workshop", module = "shinqlx", extends = Plugin, frozen)]
 pub(super) struct Workshop {
-    purged: Mutex<BTreeSet<u64>>,
-    downloading: Mutex<BTreeSet<u64>>,
+    /// The items that are being downloaded, with the code of the failure once the engine reported one.
+    downloading: Mutex<BTreeMap<u64, Option<u32>>>,
+    steam: Box<dyn SteamWorkshop>,
 }
 
 impl Workshop {
     fn new() -> Self {
+        Self::with_steam(Box::new(SteamLibrary))
+    }
+
+    fn with_steam(steam: Box<dyn SteamWorkshop>) -> Self {
         Self {
-            purged: Mutex::new(BTreeSet::new()),
-            downloading: Mutex::new(BTreeSet::new()),
+            downloading: Mutex::new(BTreeMap::new()),
+            steam,
         }
     }
 
     fn is_downloading(&self, id: u64) -> bool {
         self.downloading
             .lock()
-            .is_ok_and(|downloading| downloading.contains(&id))
+            .is_ok_and(|downloading| downloading.contains_key(&id))
     }
 
     fn mark_downloading(&self, id: u64) {
         if let Ok(mut downloading) = self.downloading.lock() {
-            downloading.insert(id);
+            downloading.insert(id, None);
         }
     }
 
-    fn unmark_downloading(&self, id: u64) {
-        if let Ok(mut downloading) = self.downloading.lock() {
-            downloading.remove(&id);
+    /// Ends the download of the item and returns the code of the failure, if the engine reported one.
+    fn take_download(&self, id: u64) -> Option<u32> {
+        self.downloading.lock().ok()?.remove(&id).flatten()
+    }
+
+    fn record_failure(&self, id: u64, code: u32) {
+        if let Ok(mut downloading) = self.downloading.lock()
+            && let Some(failure) = downloading.get_mut(&id)
+        {
+            *failure = Some(code);
         }
     }
 
-    fn was_purged(&self, id: u64) -> bool {
-        self.purged.lock().is_ok_and(|purged| purged.contains(&id))
-    }
-
-    fn mark_purged(&self, id: u64) {
-        if let Ok(mut purged) = self.purged.lock() {
-            purged.insert(id);
+    fn still_downloading(&self, id: u64) -> String {
+        if self.steam.state(id).is_some_and(|state| state.is_queued()) {
+            return format!("Item {id} is still downloading, Steam has queued it.");
         }
+        self.steam
+            .progress(id)
+            .and_then(|progress| progress.describe())
+            .map_or_else(
+                || format!("Item {id} is still downloading."),
+                |progress| format!("Item {id} is still downloading: {progress}."),
+            )
     }
 }
 
@@ -190,31 +206,69 @@ impl Workshop {
         }
     }
 
+    fn handle_console_print(&self, text: &str) {
+        if let Some((id, code)) = steam::download_failure(text) {
+            self.record_failure(id, code);
+        }
+    }
+
     fn check_download(
         slf: &Bound<'_, Self>,
         channel: &Bound<'_, AbstractChannel>,
         id: u64,
         attempts_left: u32,
     ) -> PyResult<()> {
-        slf.get().unmark_downloading(id);
+        let failure = slf.get().take_download(id);
         let Some(root) = content_root()? else {
             return reply(channel, "The workshop directory was not found.").map(|_| ());
         };
-        let Some(pk3s) = installed_pk3s(&root, id) else {
-            if attempts_left == 0 {
-                return reply(
-                    channel,
-                    &format!(
-                        "Item {id} did not arrive, see the server log for the download result."
-                    ),
-                )
-                .map(|_| ());
-            }
-            return wait_for_download(slf, channel, id, attempts_left - 1);
-        };
+        let pk3s = installed_pk3s(&root, id);
+        if let Some(code) = failure {
+            let usable = slf
+                .get()
+                .steam
+                .state(id)
+                .is_none_or(|state| state.is_installed());
+            return report_failure(channel, id, code, &root, pk3s.filter(|_| usable).as_deref());
+        }
 
-        finish_install(channel, id, &root, &pk3s)
+        let state = slf.get().steam.state(id).unwrap_or_default();
+        match pk3s {
+            Some(pk3s) if !state.is_busy() && (!state.needs_update() || attempts_left == 0) => {
+                finish_install(channel, id, &root, &pk3s)
+            }
+            None if !state.is_busy() && attempts_left == 0 => reply(
+                channel,
+                &format!("Item {id} did not arrive, see the server log for the download result."),
+            )
+            .map(|_| ()),
+            _ => wait_for_download(slf, channel, id, attempts_left.saturating_sub(1)),
+        }
     }
+}
+
+/// Reports a failed download; an older version that is on the disk gets installed instead.
+fn report_failure(
+    channel: &Bound<'_, AbstractChannel>,
+    id: u64,
+    code: u32,
+    root: &Path,
+    installed: Option<&[Pk3Maps]>,
+) -> PyResult<()> {
+    reply(
+        channel,
+        &format!("The download of item {id} failed with EResult code {code}."),
+    )?;
+    let Some(pk3s) = installed else {
+        return Ok(());
+    };
+    mount(id)?;
+    finish_install(channel, id, root, pk3s)
+}
+
+/// Lets the engine download the item, or mount it when it is on the disk already.
+fn mount(id: u64) -> PyResult<()> {
+    console_command(&format!("steam_downloadugc {id}"))
 }
 
 fn finish_install(
@@ -258,28 +312,29 @@ fn add_item(
     let Some(id) = parse_id(msg.get(2)) else {
         return usage();
     };
-    if slf.get().was_purged(id) {
-        return reply(
-            channel,
-            &format!(
-                "Item {id} was deleted in this run, Steam only fetches it again after a restart of the server."
-            ),
-        );
-    }
     if slf.get().is_downloading(id) {
-        return reply(channel, &format!("Item {id} is still downloading."));
+        return reply(channel, &slf.get().still_downloading(id));
     }
     let Some(root) = content_root()? else {
         return reply(channel, "The workshop directory was not found.");
     };
 
-    if let Some(pk3s) = installed_pk3s(&root, id) {
-        finish_install(channel, id, &root, &pk3s)?;
-        return Ok(None);
+    let cached = installed_pk3s(&root, id);
+    // Steam is asked directly: the engine neither updates an installed item nor fetches a deleted one again
+    if !slf.get().steam.download(id) {
+        mount(id)?;
+        if let Some(pk3s) = &cached {
+            finish_install(channel, id, &root, pk3s)?;
+            return Ok(None);
+        }
     }
+    let text = if cached.is_some() {
+        format!("Item {id} is on the disk, checking for an update...")
+    } else {
+        format!("Downloading item {id}...")
+    };
 
-    console_command(&format!("steam_downloadugc {id}"))?;
-    let reply_result = reply(channel, &format!("Downloading item {id}..."));
+    let reply_result = reply(channel, &text);
     wait_for_download(slf, channel, id, POLL_ATTEMPTS)?;
     reply_result
 }
@@ -298,12 +353,27 @@ fn remove_item(
         Some(_) => return usage(),
         None => cvar_text("qlx_workshopPurge", "0")? == "1",
     };
+    if slf.get().is_downloading(id) {
+        return reply(
+            channel,
+            &format!("Item {id} is still downloading, remove it afterwards."),
+        );
+    }
+    // players could not connect any more once the files they are checked against are gone
+    if is_in_use(slf, id)? {
+        return reply(
+            channel,
+            &format!("Item {id} is in use by the running game and cannot be removed."),
+        );
+    }
 
     let listed = update_list(|list| list.remove(id))?;
-    let mut text = if listed {
-        format!("Item {id} is removed from the list and leaves the server with the next restart.")
-    } else {
-        format!("Item {id} is not in the list.")
+    let mut text = match (listed, purge) {
+        (false, _) => format!("Item {id} is not in the list."),
+        (true, true) => format!("Item {id} is removed from the list."),
+        (true, false) => format!(
+            "Item {id} is removed from the list and leaves the server with the next restart."
+        ),
     };
 
     if purge {
@@ -313,20 +383,37 @@ fn remove_item(
     reply(channel, &text)
 }
 
+/// Whether the running game tells its players to have the item.
+fn is_in_use(plugin: &Bound<'_, Workshop>, id: u64) -> PyResult<bool> {
+    let Some(game) = plugin.as_super().get_game() else {
+        return Ok(false);
+    };
+    Ok(Bound::new(plugin.py(), game)?
+        .get_workshop_items()?
+        .contains(&id))
+}
+
 fn purge_item(plugin: &Workshop, id: u64) -> PyResult<String> {
     let Some(root) = content_root()? else {
         return Ok("The workshop directory was not found, so no files were deleted.".to_owned());
     };
-    Ok(match item::purge(&root, id) {
-        Ok(report) => {
-            plugin.mark_purged(id);
-            format!(
-                "Deleted its files ({} manifest entries); Steam fetches it again only after a restart.",
-                report.manifest_blocks
-            )
-        }
-        Err(error) => format!("The files could not be deleted: {error}"),
-    })
+    let report = match item::purge(&root, id) {
+        Ok(report) => report,
+        Err(error) => return Ok(format!("The files could not be deleted: {error}")),
+    };
+    // a deleted pk3 that stays in the search path stops the server when one of its maps loads
+    if plugin
+        .steam
+        .state(id)
+        .is_some_and(|state| state.is_installed())
+    {
+        mount(id)?;
+    }
+    loader::request_refresh();
+    Ok(format!(
+        "Deleted its files ({} manifest entries).",
+        report.manifest_blocks
+    ))
 }
 
 fn list_items(msg: &[String], channel: &Bound<'_, AbstractChannel>) -> PyResult<Option<i32>> {
@@ -406,6 +493,12 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
         "handle_map",
         CommandPriorities::PRI_NORMAL,
     )?;
+    register_hook(
+        plugin.as_super(),
+        EventName::ConsolePrint,
+        "handle_console_print",
+        CommandPriorities::PRI_NORMAL,
+    )?;
     create_cvar(py, "qlx_workshopReferences", "")?;
     create_cvar(py, "qlx_workshopFile", "")?;
     create_cvar(py, "qlx_workshopPurge", "0")?;
@@ -429,7 +522,11 @@ pub(super) fn create(py: Python<'_>) -> PyResult<Bound<'_, Plugin>> {
 
 #[cfg(test)]
 mod workshop_tests {
-    use core::borrow::BorrowMut;
+    use alloc::sync::Arc;
+    use core::{
+        borrow::BorrowMut,
+        sync::atomic::{AtomicU32, Ordering},
+    };
 
     use mockall::predicate;
     use pyo3::{prelude::*, types::PyTuple};
@@ -450,14 +547,277 @@ mod workshop_tests {
             },
         },
         prelude::*,
+        workshop::steam::{ItemState, Progress, SteamWorkshop},
     };
 
     fn workshop_plugin(py: Python<'_>) -> Bound<'_, Workshop> {
+        plugin_with(py, Workshop::new())
+    }
+
+    fn plugin_with(py: Python<'_>, workshop: Workshop) -> Bound<'_, Workshop> {
         Bound::new(
             py,
-            PyClassInitializer::from(Plugin::py_new(py)).add_subclass(Workshop::new()),
+            PyClassInitializer::from(Plugin::py_new(py)).add_subclass(workshop),
         )
         .expect("could not create plugin")
+    }
+
+    #[derive(Clone, Default)]
+    struct FakeSteam {
+        state: Arc<AtomicU32>,
+        downloads: Arc<AtomicU32>,
+    }
+
+    impl SteamWorkshop for FakeSteam {
+        fn state(&self, _id: u64) -> Option<ItemState> {
+            Some(ItemState(self.state.load(Ordering::Relaxed)))
+        }
+
+        fn progress(&self, _id: u64) -> Option<Progress> {
+            Some(Progress {
+                downloaded: 1024 * 1024,
+                total: 4 * 1024 * 1024,
+            })
+        }
+
+        fn download(&self, _id: u64) -> bool {
+            self.downloads.fetch_add(1, Ordering::Relaxed);
+            true
+        }
+    }
+
+    const INSTALLED: u32 = 4;
+    const NEEDS_UPDATE: u32 = 8;
+    const DOWNLOADING: u32 = 16;
+    const QUEUED: u32 = 32;
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_running_download_is_described_and_not_given_up(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let steam = FakeSteam::default();
+                let plugin = plugin_with(py, Workshop::with_steam(Box::new(steam.clone())));
+                let channel = recording_channel(py);
+
+                command(&plugin, &channel, &["workshop", "add", "99"]);
+                steam.state.store(DOWNLOADING, Ordering::Relaxed);
+                Workshop::check_download(&plugin, &channel, 99, 0).expect("waits");
+                command(&plugin, &channel, &["workshop", "add", "99"]);
+                steam.state.store(QUEUED, Ordering::Relaxed);
+                command(&plugin, &channel, &["workshop", "add", "99"]);
+                command(&plugin, &channel, &["workshop", "remove", "99"]);
+
+                assert_eq!(steam.downloads.load(Ordering::Relaxed), 1);
+                assert_eq!(
+                    recorded_replies(&channel),
+                    vec![
+                        "Downloading item 99...",
+                        "Item 99 is still downloading: 25 % (1 of 4 MB).",
+                        "Item 99 is still downloading, Steam has queued it.",
+                        "Item 99 is still downloading, remove it afterwards.",
+                    ]
+                );
+                drop_pending_frame_tasks(py);
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn remove_refuses_an_item_that_the_running_game_uses(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        let list = write_list_file(&home, "7\n");
+        let root = install_item(&base, 7, &["a.pk3"]);
+
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| {
+                engine
+                    .with_get_configstring(CS_SERVERINFO as u16, "\\mapname\\x", 1..)
+                    .with_get_configstring(CS_STEAM_WORKSHOP_IDS as u16, "5 7", 2)
+            },
+            || {
+                Python::attach(|py| {
+                    let plugin = workshop_plugin(py);
+                    let channel = recording_channel(py);
+
+                    command(&plugin, &channel, &["workshop", "remove", "7"]);
+                    command(&plugin, &channel, &["workshop", "remove", "7", "keep"]);
+
+                    let refusal = "Item 7 is in use by the running game and cannot be removed.";
+                    assert_eq!(recorded_replies(&channel), vec![refusal, refusal]);
+                });
+            },
+        );
+
+        assert_eq!(std::fs::read_to_string(list).expect("list"), "7\n");
+        assert!(root.join("7").exists());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn purging_an_item_that_steam_regards_as_installed_mounts_it_anew(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        let root = install_item(&base, 42, &["a.pk3"]);
+
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| engine.with_execute_console_command("steam_downloadugc 42", 1),
+            || {
+                Python::attach(|py| {
+                    let steam = FakeSteam::default();
+                    steam.state.store(INSTALLED, Ordering::Relaxed);
+                    let plugin = plugin_with(py, Workshop::with_steam(Box::new(steam)));
+
+                    purge_item(plugin.get(), 42).expect("answer");
+                });
+            },
+        );
+
+        assert!(!root.join("42").exists());
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn a_failure_line_of_the_engine_ends_the_download_with_its_code(_pyshinqlx_setup: ()) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| engine.with_execute_console_command("steam_downloadugc 99", 2),
+            || {
+                Python::attach(|py| {
+                    let plugin = workshop_plugin(py);
+                    let channel = recording_channel(py);
+
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+                    plugin
+                        .get()
+                        .handle_console_print("Download item 99 failed with EResult code 9\n");
+                    Workshop::check_download(&plugin, &channel, 99, 100).expect("failed");
+                    command(&plugin, &channel, &["workshop", "add", "99"]);
+
+                    assert_eq!(
+                        recorded_replies(&channel),
+                        vec![
+                            "Downloading item 99...",
+                            "The download of item 99 failed with EResult code 9.",
+                            "Downloading item 99...",
+                        ]
+                    );
+                    drop_pending_frame_tasks(py);
+                });
+            },
+        );
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn add_checks_an_item_on_the_disk_for_an_update_and_installs_it_afterwards(
+        _pyshinqlx_setup: (),
+    ) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_cvars(&directory_cvars(&home, &base), || {
+            Python::attach(|py| {
+                let steam = FakeSteam::default();
+                steam.state.store(INSTALLED | QUEUED, Ordering::Relaxed);
+                let plugin = plugin_with(py, Workshop::with_steam(Box::new(steam.clone())));
+                let channel = recording_channel(py);
+
+                command(&plugin, &channel, &["workshop", "add", "7"]);
+                Workshop::check_download(&plugin, &channel, 7, 3).expect("waits");
+                assert_eq!(
+                    recorded_replies(&channel),
+                    vec!["Item 7 is on the disk, checking for an update..."]
+                );
+
+                steam.state.store(INSTALLED, Ordering::Relaxed);
+                Workshop::check_download(&plugin, &channel, 7, 2).expect("done");
+
+                assert_eq!(steam.downloads.load(Ordering::Relaxed), 1);
+                let replies = recorded_replies(&channel);
+                assert!(replies[1].starts_with("Item 7 is installed"), "{replies:?}");
+                drop_pending_frame_tasks(py);
+            });
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[case::the_old_version_is_complete(INSTALLED, 1, 2)]
+    #[case::steam_dropped_the_old_version(NEEDS_UPDATE, 0, 1)]
+    #[serial]
+    fn a_failed_update_installs_only_a_complete_version(
+        _pyshinqlx_setup: (),
+        #[case] state: u32,
+        #[case] mounts: usize,
+        #[case] expected_replies: usize,
+    ) {
+        let (home, base) = (
+            tempfile::tempdir().expect("temp dir"),
+            tempfile::tempdir().expect("temp dir"),
+        );
+        install_item(&base, 7, &["a.pk3"]);
+
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| engine.with_execute_console_command("steam_downloadugc 7", mounts),
+            || {
+                Python::attach(|py| {
+                    let steam = FakeSteam::default();
+                    steam.state.store(state, Ordering::Relaxed);
+                    let plugin = plugin_with(py, Workshop::with_steam(Box::new(steam)));
+                    let channel = recording_channel(py);
+
+                    command(&plugin, &channel, &["workshop", "add", "7"]);
+                    plugin
+                        .get()
+                        .handle_console_print("Download item 7 failed with EResult code 2");
+                    Workshop::check_download(&plugin, &channel, 7, 3).expect("failed");
+
+                    let replies = recorded_replies(&channel);
+                    assert_eq!(
+                        replies[1],
+                        "The download of item 7 failed with EResult code 2."
+                    );
+                    assert_eq!(replies.len(), expected_replies + 1, "{replies:?}");
+                    assert!(
+                        replies[2..]
+                            .iter()
+                            .all(|reply| reply.starts_with("Item 7 is installed")),
+                        "{replies:?}"
+                    );
+                    drop_pending_frame_tasks(py);
+                });
+            },
+        );
     }
 
     #[rstest]
@@ -560,6 +920,14 @@ mod workshop_tests {
                 .expect("this should not happen"),
         ));
         ptr::from_mut(raw)
+    }
+
+    fn without_a_game(values: &[(&'static str, String)], test: impl FnOnce()) {
+        with_engine(
+            values,
+            |engine| engine.with_get_configstring(CS_SERVERINFO as u16, "", 1..),
+            test,
+        );
     }
 
     fn with_cvars(values: &[(&'static str, String)], test: impl FnOnce()) {
@@ -733,7 +1101,7 @@ mod workshop_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn purge_item_deletes_the_files_and_remembers_the_id(_pyshinqlx_setup: ()) {
+    fn purge_item_deletes_the_files(_pyshinqlx_setup: ()) {
         let (home, base) = (
             tempfile::tempdir().expect("temp dir"),
             tempfile::tempdir().expect("temp dir"),
@@ -743,12 +1111,9 @@ mod workshop_tests {
         with_cvars(&directory_cvars(&home, &base), || {
             Python::attach(|py| {
                 let plugin = workshop_plugin(py);
-                assert!(!plugin.get().was_purged(42));
-
                 let text = purge_item(plugin.get(), 42).expect("answer");
 
                 assert!(text.starts_with("Deleted its files"), "{text}");
-                assert!(plugin.get().was_purged(42));
             });
         });
 
@@ -770,7 +1135,6 @@ mod workshop_tests {
                 let text = purge_item(plugin.get(), 42).expect("answer");
 
                 assert!(text.contains("no files were deleted"), "{text}");
-                assert!(!plugin.get().was_purged(42));
             });
         });
     }
@@ -788,28 +1152,32 @@ mod workshop_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_lists_an_item_that_is_already_downloaded(_pyshinqlx_setup: ()) {
+    fn add_mounts_and_lists_an_item_that_is_already_downloaded(_pyshinqlx_setup: ()) {
         let (home, base) = (
             tempfile::tempdir().expect("temp dir"),
             tempfile::tempdir().expect("temp dir"),
         );
         install_item(&base, 7, &["a.pk3"]);
 
-        with_cvars(&directory_cvars(&home, &base), || {
-            Python::attach(|py| {
-                let plugin = workshop_plugin(py);
-                let channel = recording_channel(py);
+        with_engine(
+            &directory_cvars(&home, &base),
+            |engine| engine.with_execute_console_command("steam_downloadugc 7", 1),
+            || {
+                Python::attach(|py| {
+                    let plugin = workshop_plugin(py);
+                    let channel = recording_channel(py);
 
-                assert_eq!(command(&plugin, &channel, &["workshop", "add", "7"]), None);
+                    assert_eq!(command(&plugin, &channel, &["workshop", "add", "7"]), None);
 
-                let replies = recorded_replies(&channel);
-                assert!(
-                    replies[0].starts_with("Item 7 is installed: "),
-                    "{replies:?}"
-                );
-                assert_eq!(replies.len(), 1);
-            });
-        });
+                    let replies = recorded_replies(&channel);
+                    assert!(
+                        replies[0].starts_with("Item 7 is installed: "),
+                        "{replies:?}"
+                    );
+                    assert_eq!(replies.len(), 1);
+                });
+            },
+        );
 
         let list = std::fs::read_to_string(home.path().join("baseq3/workshop.txt")).expect("list");
         assert!(list.starts_with("7 # "), "{list}");
@@ -892,9 +1260,7 @@ mod workshop_tests {
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
-    fn add_says_when_the_workshop_directory_is_missing_or_the_item_was_purged(
-        _pyshinqlx_setup: (),
-    ) {
+    fn add_says_when_the_workshop_directory_is_missing(_pyshinqlx_setup: ()) {
         let (home, base) = (
             tempfile::tempdir().expect("temp dir"),
             tempfile::tempdir().expect("temp dir"),
@@ -906,12 +1272,11 @@ mod workshop_tests {
                 let channel = recording_channel(py);
 
                 command(&plugin, &channel, &["workshop", "add", "5"]);
-                plugin.get().mark_purged(6);
-                command(&plugin, &channel, &["workshop", "add", "6"]);
 
-                let replies = recorded_replies(&channel);
-                assert_eq!(replies[0], "The workshop directory was not found.");
-                assert!(replies[1].contains("deleted in this run"), "{replies:?}");
+                assert_eq!(
+                    recorded_replies(&channel),
+                    vec!["The workshop directory was not found."]
+                );
             });
         });
     }
@@ -955,7 +1320,7 @@ mod workshop_tests {
         let list = write_list_file(&home, "3 # c.pk3\n4 # d.pk3\n5\n");
         let root = install_item(&base, 4, &["d.pk3"]);
 
-        with_cvars(&directory_cvars(&home, &base), || {
+        without_a_game(&directory_cvars(&home, &base), || {
             Python::attach(|py| {
                 let plugin = workshop_plugin(py);
                 let channel = recording_channel(py);
@@ -968,7 +1333,6 @@ mod workshop_tests {
                 assert!(replies[0].starts_with("Item 3 is removed"), "{replies:?}");
                 assert_eq!(replies[1], "Item 3 is not in the list.");
                 assert!(replies[2].contains("Deleted its files"), "{replies:?}");
-                assert!(plugin.get().was_purged(4));
             });
         });
 
@@ -985,10 +1349,11 @@ mod workshop_tests {
             tempfile::tempdir().expect("temp dir"),
         );
         write_list_file(&home, "3\n");
+        let root = install_item(&base, 3, &["c.pk3"]);
         let mut cvars = directory_cvars(&home, &base);
         cvars.push(("qlx_workshopPurge", "1".to_owned()));
 
-        with_cvars(&cvars, || {
+        without_a_game(&cvars, || {
             Python::attach(|py| {
                 let plugin = workshop_plugin(py);
                 let channel = recording_channel(py);
@@ -1000,9 +1365,11 @@ mod workshop_tests {
                 let usage = Some(PythonReturnCodes::RET_USAGE as i32);
                 assert_eq!((unknown, no_id), (usage, usage));
                 let replies = recorded_replies(&channel);
-                assert!(replies[0].contains("no files were deleted"), "{replies:?}");
+                assert!(replies[0].contains("Deleted its files"), "{replies:?}");
             });
         });
+
+        assert!(!root.join("3").exists());
     }
 
     #[rstest]

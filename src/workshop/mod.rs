@@ -3,6 +3,7 @@
 pub(crate) mod item;
 pub(crate) mod list;
 pub(crate) mod manifest;
+pub(crate) mod steam;
 
 #[cfg(test)]
 mod tests {
@@ -13,6 +14,7 @@ mod tests {
             ("item.rs", include_str!("item.rs")),
             ("list.rs", include_str!("list.rs")),
             ("manifest.rs", include_str!("manifest.rs")),
+            ("steam.rs", include_str!("steam.rs")),
         ] {
             let code = source.split("#[cfg(test)]").next().unwrap_or_default();
             for word in forbidden {
