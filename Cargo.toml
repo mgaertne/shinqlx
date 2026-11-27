@@ -135,7 +135,7 @@ alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 steam-query-limit = []
 # patch the callvote clientkick lookup in qagame, experimental
 clientkick-fix = ["dep:region"]
-# register sv_fps with 125 instead of the read-only default 40, experimental
+# let sv_fps be set from 10 to 250 with the default 125 instead of the read-only 40, experimental
 fps-patch = []
 # drop the engine's report about a disconnected ZMQ RCON client, which crashes the server when several clients die at once
 zmq-rcon-fix = []
@@ -143,8 +143,8 @@ zmq-rcon-fix = []
 zmq-stats = ["dep:arzmq", "dep:async-io", "dep:futures"]
 # race maps: keep the run time on repeated touches and let target_init triggers honour their KEEP* spawnflags, experimental
 race-hooks = []
-# all patches and fixes
-patches = ["clientkick-fix", "fps-patch", "zmq-rcon-fix", "steam-query-limit"]
+# the patches and fixes except fps-patch
+patches = ["clientkick-fix", "zmq-rcon-fix", "steam-query-limit"]
 # server side recording of demos, in development
 demo-recording = ["dep:ql_sqx"]
 # expose internals to the benchmarks, not meant for production builds

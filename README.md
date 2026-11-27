@@ -123,10 +123,10 @@ exec $basepath/run_server_shinqlx.sh \
 |---------------------|---------|-----------------------------------------------------------------------------------|
 | `alloc`             | yes     | jemalloc (mimalloc on Windows) as global allocator                                |
 | `steam-query-limit` | yes     | rate limit for server queries against reflection and floods                       |
-| `patches`           | no      | enables `clientkick-fix`, `fps-patch`, `zmq-rcon-fix` and `steam-query-limit` |
+| `patches`           | no      | enables `clientkick-fix`, `zmq-rcon-fix` and `steam-query-limit`                |
 | `race-hooks`        | no      | race maps: touching a start point again keeps the run time, `target_init` triggers honour their KEEP* spawnflags, experimental |
 | `clientkick-fix`    | no      | patch for the callvote clientkick lookup in `qagame`, experimental                |
-| `fps-patch`         | no      | `sv_fps` is registered with 125 instead of the read-only 40           |
+| `fps-patch`         | no      | `sv_fps` can be set from 10 to 250, default 125, see [Server frame rate](#server-frame-rate), experimental |
 | `zmq-stats`         | no      | reads the stats from the ZMQ socket (`zmq_stats_enable`) with the `StatsListener`; the stats events work without it, through a hook |
 | `zmq-rcon-fix`      | yes     | protects against dead RCON clients: drops the engine's "zmq RCON client disconnected" report and limits how long the engine waits for a client (`qlx_zmqRconSendTimeout`) |
 | `demo-recording`    | no      | records matches with the view of every player, to be converted to demos with `ql_demo`, experimental, see [Recording matches](https://shinqlx.readthedocs.io/en/latest/demos.html) |
@@ -152,6 +152,22 @@ With about 20 or more players the end of a match can overrun the 64 reliable com
 the burst of `castats`, prints and chat over several frames and cuts overlong scoreboards back, both on by default. The
 page "Reliable commands and scoreboards" of the documentation describes the cvars and the console commands `reliable`
 and `scoreboard`.
+
+# Server frame rate
+
+With the Cargo feature `fps-patch` the server runs with `sv_fps` 125 instead of the read-only 40, and other rates from
+10 to 250 can be set in `server.cfg`, with `+set sv_fps` on the command line (which wins over `server.cfg`) or in the
+console. Experimental.
+
+* The `server.cfg` that comes with the server contains `set sv_fps "40"`. Remove or change that line, or the server
+  keeps running at 40.
+* A change takes effect with the next map or `map_restart`, never in the middle of a match. Only a plugin that forces
+  the value (`shinqlx.set_cvar` with the flags `-1`) changes it at once.
+* Other values are rejected, because the engine does not check them and crashes with 0. A rejected value at the start
+  leaves the server at 125.
+* The engine counts whole milliseconds for each frame, so the rate is 1000 divided by those: 40, 50, 100, 125, 200 and
+  250 are exact, 60 runs at 62.5 and 80 at 83.3. The log shows the effective rate.
+* The limits of the reliable guard count frames and pass faster at higher rates.
 
 # Supervisor configuration
 

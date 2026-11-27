@@ -847,6 +847,12 @@ pub(crate) extern "C" fn shinqlx_cvar_set2(
         .load()
         .as_ref()
         .map_or(ptr::null_mut(), |main_engine| {
+            #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+            let value = match allowed_value(main_engine, name, value) {
+                Ok(allowed) => allowed,
+                Err(unchanged) => return unchanged,
+            };
+
             let old = (!name.is_null())
                 .then(|| {
                     // SAFETY: the engine passes a valid, NUL-terminated C string.
@@ -874,7 +880,34 @@ pub(crate) extern "C" fn shinqlx_cvar_set2(
         })
 }
 
-/// Passes every `Cvar_Get` on to the engine, with 125 as the read-only default of `sv_fps`.
+/// The value `Cvar_Set2` may pass on. A rejected value leaves an existing cvar as it is, which is
+/// returned as the error; a cvar that does not exist yet starts with the default instead.
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+fn allowed_value(
+    main_engine: &QuakeLiveEngine,
+    name: *const c_char,
+    value: *const c_char,
+) -> Result<*const c_char, *mut cvar_t> {
+    let rejection = (!name.is_null() && !value.is_null())
+        .then(|| {
+            // SAFETY: the engine passes valid, NUL-terminated C strings.
+            unsafe { (CStr::from_ptr(name), CStr::from_ptr(value)) }
+        })
+        .and_then(|(name, value)| sv_fps_patch::rejection(name, value));
+    let Some(message) = rejection else {
+        return Ok(value);
+    };
+
+    main_engine.com_printf(&message);
+    main_engine
+        .find_cvar("sv_fps")
+        .map_or(Ok(sv_fps_patch::DEFAULT_SV_FPS.as_ptr()), |cvar| {
+            Err(cvar.as_ptr())
+        })
+}
+
+/// Passes every `Cvar_Get` on to the engine, with `sv_fps` latched and 125 as its default instead
+/// of read-only and 40.
 #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
 pub(crate) extern "C" fn shinqlx_cvar_get(
     name: *const c_char,
@@ -886,13 +919,23 @@ pub(crate) extern "C" fn shinqlx_cvar_get(
             // SAFETY: the engine passes valid, NUL-terminated C strings.
             unsafe { (CStr::from_ptr(name), CStr::from_ptr(value)) }
         })
-        .and_then(|(name, value)| sv_fps_patch::replaced_default(name, value, flags));
+        .and_then(|(name, value)| sv_fps_patch::replaced_registration(name, value, flags));
 
     MAIN_ENGINE
         .load()
         .as_ref()
         .map_or(ptr::null_mut(), |main_engine| {
-            main_engine.get_cvar_undetected(name, replacement.map_or(value, CStr::as_ptr), flags)
+            let Some((default, flags)) = replacement else {
+                return main_engine.get_cvar_undetected(name, value, flags);
+            };
+            let result = main_engine.get_cvar_undetected(name, default.as_ptr(), flags);
+            if let Some(rate) = CVar::try_from(result)
+                .ok()
+                .and_then(|cvar| sv_fps_patch::effective_rate(&cvar.get_string()))
+            {
+                log::info!(target: "shinqlx", "{rate}");
+            }
+            result
         })
 }
 
@@ -1227,6 +1270,53 @@ mod cvar_set2_hook_tests {
         run_cvar_set2(c"same", c"same");
     }
 
+    #[test]
+    #[serial]
+    fn cvar_set2_keeps_sv_fps_when_the_value_is_rejected() {
+        let mut cvar = CVarBuilder::default()
+            .string(c"125".as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+        let pointer = ptr::from_mut(cvar.borrow_mut());
+
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::str::contains("\"0\" is rejected"), 1)
+            .with_find_cvar(
+                |name| name == "sv_fps",
+                move |_| CVar::try_from(pointer).ok(),
+                1,
+            )
+            .configure(|mock_engine| {
+                mock_engine.expect_set_cvar_undetected().times(0);
+            })
+            .run(|| {
+                let result = shinqlx_cvar_set2(c"sv_fps".as_ptr(), c"0".as_ptr(), qboolean::qtrue);
+                assert_eq!(result, pointer);
+            });
+    }
+
+    #[test]
+    #[serial]
+    fn cvar_set2_starts_sv_fps_with_the_default_instead_of_a_rejected_value() {
+        MockEngineBuilder::default()
+            .with_com_printf(predicate::always(), 1)
+            .with_find_cvar(|name| name == "sv_fps", |_| None, 2)
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_set_cvar_undetected()
+                    .withf_st(|_, &value, _| {
+                        // SAFETY: the hook passes a valid, NUL-terminated C string.
+                        let passed = unsafe { core::ffi::CStr::from_ptr(value) };
+                        passed == c"125"
+                    })
+                    .returning_st(|_, _, _| ptr::null_mut())
+                    .times(1);
+            })
+            .run(|| {
+                shinqlx_cvar_set2(c"sv_fps".as_ptr(), c"1000".as_ptr(), qboolean::qfalse);
+            });
+    }
+
     #[rstest]
     #[serial]
     fn cvar_set2_does_not_report_a_cvar_that_did_not_exist() {
@@ -1270,14 +1360,15 @@ mod cvar_get_hook_tests {
     }
 
     #[rstest]
-    #[case(c"sv_fps", cvar_flags::CVAR_ROM as i32, c"125")]
-    #[case(c"sv_fps", 0, c"40")]
-    #[case(c"sv_maxclients", cvar_flags::CVAR_ROM as i32, c"40")]
+    #[case(c"sv_fps", cvar_flags::CVAR_ROM as i32, c"125", cvar_flags::CVAR_LATCH as i32)]
+    #[case(c"sv_fps", 0, c"40", 0)]
+    #[case(c"sv_maxclients", cvar_flags::CVAR_ROM as i32, c"40", cvar_flags::CVAR_ROM as i32)]
     #[serial]
-    fn cvar_get_passes_the_default_on(
+    fn cvar_get_registers_sv_fps_latched_with_125(
         #[case] name: &'static CStr,
         #[case] flags: i32,
         #[case] expected: &'static CStr,
+        #[case] expected_flags: i32,
     ) {
         let mut cvar = CVarBuilder::default()
             .build()
@@ -1292,7 +1383,7 @@ mod cvar_get_hook_tests {
                         passed_name == name.as_ptr()
                             // SAFETY: the hook passes a valid, NUL-terminated C string.
                             && unsafe { CStr::from_ptr(passed_value) } == expected
-                            && passed_flags == flags
+                            && passed_flags == expected_flags
                     })
                     .returning_st(move |_, _, _| pointer)
                     .times(1);

@@ -133,8 +133,8 @@ clients may send more inputs than bots do. When a recording ends, the log shows 
 Recommendations for ``sv_fps`` 125
 ----------------------------------
 
-The feature ``fps-patch`` raises the default of ``sv_fps`` to 125. Recording at the full rate is no problem for the
-processor, but plan the disk space:
+The feature ``fps-patch`` raises the default of ``sv_fps`` to 125 and accepts rates up to 250. Recording at 125 is no
+problem for the processor, but plan the disk space:
 
 * The default of ``qlx_demoMaxTotalMB`` holds only about 9 hours of recordings of 32 players, compared to 22 hours at
   40. Raise it to what you want to keep (20480 holds about 37 hours) or lower ``qlx_demoKeepUnrequestedHours``.

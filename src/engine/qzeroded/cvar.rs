@@ -51,6 +51,11 @@ impl CVar {
             .to_string()
     }
 
+    #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+    pub(crate) fn as_ptr(&self) -> *mut cvar_t {
+        self.cvar.as_ptr()
+    }
+
     pub(crate) fn get_integer(&self) -> i32 {
         self.cvar().integer
     }

@@ -6,9 +6,12 @@ Changes since 0.8.0.
 
 ### shinqlx
 
-* **Fixed: `fps-patch` stayed at `sv_fps 40` with `+set sv_fps` on the command line.** The engine registers `sv_fps`
-  itself and then took its own default of 40. The default of 125 is now set where the engine registers cvars, for the
-  engine and the game alike, instead of patching the memory of the game module.
+* **`fps-patch` allows other frame rates:** `sv_fps` is no longer read-only but latched. Values from 10 to 250 can be
+  set in `server.cfg`, on the command line or in the console and take effect with the next map, the default stays 125.
+  Other values are rejected. Note that the `server.cfg` that comes with the server sets 40, which now applies. It also
+  fixes that the server stayed at 40 with `+set sv_fps` on the command line: the cvar is changed where the engine
+  registers it, for the engine and the game alike, instead of patching the memory of the game module.
+* **The feature `patches` no longer enables `fps-patch`.** Name `fps-patch` itself to keep it.
 
 * **Scoreboard trim for `scores_ca`, `scores_tdm`, `scores_ctf`, `scores_ft`, `scores_ffa` and `scores_rr`:** the engine throws away a server command of 1023 bytes or more, and the game then
   sends a stub without players. With many players the trim cuts the scoreboard back in steps (values of spectators and
