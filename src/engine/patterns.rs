@@ -21,29 +21,34 @@ where
                 .contains(MMPermissions::READ | MMPermissions::EXECUTE)
         })
         .filter_map(|memory_map| {
-            pattern_search(
-                memory_map.address.0 as usize,
-                memory_map.address.1 as usize,
-                ql_func.borrow(),
-            )
+            let (start, end) = (memory_map.address.0 as usize, memory_map.address.1 as usize);
+            let code = ptr::with_exposed_provenance::<u8>(start);
+            // SAFETY: the memory map lists the region as readable code of the engine.
+            unsafe { pattern_search(code, end - start, ql_func.borrow()) }
+                .map(|offset| start + offset)
         })
         .take(1)
         .next()
 }
 
 #[cfg(target_os = "linux")]
-fn pattern_search<T>(start: usize, end: usize, ql_func: T) -> Option<usize>
+/// The offset of the first match in the `length` bytes at `code`.
+///
+/// # Safety
+///
+/// `code` must be readable for `length` bytes.
+unsafe fn pattern_search<T>(code: *const u8, length: usize, ql_func: T) -> Option<usize>
 where
     T: Borrow<QuakeLiveFunction>,
 {
     let pattern = ql_func.borrow().pattern();
     let mask = ql_func.borrow().mask();
-    let last_start = (end + 1).saturating_sub(pattern.len());
-    (start..last_start).find(|i| {
+    let starts = (length + 1).saturating_sub(pattern.len());
+    (0..starts).find(|i| {
         (0..pattern.len())
             .filter(|j| mask[*j] == b'X')
-            // SAFETY: the scanned range lies in the mapped code of the engine.
-            .all(|j| pattern[j] == unsafe { ptr::read((*i + j) as *const u8) })
+            // SAFETY: the pattern ends within the `length` bytes the caller guarantees.
+            .all(|j| pattern[j] == unsafe { code.add(*i + j).read() })
     })
 }
 
@@ -323,51 +328,41 @@ mod quake_live_function_tests {
         (start, start + bytes.len())
     }
 
+    fn search(bytes: &[u8], length: usize) -> Option<usize> {
+        assert!(length <= bytes.len());
+        // SAFETY: the slice is readable for `length` bytes.
+        unsafe { pattern_search(bytes.as_ptr(), length, QuakeLiveFunction::Cmd_Argc) }
+    }
+
     #[test]
     fn pattern_search_finds_a_pattern_in_the_middle_of_the_region() {
         let mut bytes = vec![0x90; 16];
         bytes[5..12].copy_from_slice(&CMD_ARGC_BYTES);
-        let (start, end) = region_bounds(&bytes);
 
-        assert_eq!(
-            pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
-            Some(start + 5)
-        );
+        assert_eq!(search(&bytes, bytes.len()), Some(5));
     }
 
     #[test]
     fn pattern_search_finds_a_pattern_at_the_very_end_of_the_region() {
         let mut bytes = vec![0x90; 16];
         bytes[9..].copy_from_slice(&CMD_ARGC_BYTES);
-        let (start, end) = region_bounds(&bytes);
 
-        assert_eq!(
-            pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
-            Some(start + 9)
-        );
+        assert_eq!(search(&bytes, bytes.len()), Some(9));
     }
 
     #[test]
     fn pattern_search_does_not_match_a_pattern_reaching_beyond_the_region() {
         let mut bytes = vec![0x90; 16];
         bytes[9..].copy_from_slice(&CMD_ARGC_BYTES);
-        let (start, end) = region_bounds(&bytes);
 
-        assert_eq!(
-            pattern_search(start, end - 1, QuakeLiveFunction::Cmd_Argc),
-            None
-        );
+        assert_eq!(search(&bytes, bytes.len() - 1), None);
     }
 
     #[test]
     fn pattern_search_in_a_region_shorter_than_the_pattern_finds_nothing() {
         let bytes = [0x8b, 0x05, 0x01];
-        let (start, end) = region_bounds(&bytes);
 
-        assert_eq!(
-            pattern_search(start, end, QuakeLiveFunction::Cmd_Argc),
-            None
-        );
+        assert_eq!(search(&bytes, bytes.len()), None);
     }
 
     fn memory_map_of(bytes: &[u8], perms: MMPermissions) -> MemoryMap {
@@ -384,6 +379,7 @@ mod quake_live_function_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "turns the addresses of a memory map into pointers")]
     fn pattern_search_module_skips_regions_that_are_not_executable() {
         let mut bytes = vec![0x90; 16];
         bytes[5..12].copy_from_slice(&CMD_ARGC_BYTES);
@@ -396,6 +392,7 @@ mod quake_live_function_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "turns the addresses of a memory map into pointers")]
     fn pattern_search_module_searches_readable_executable_regions() {
         let mut bytes = vec![0x90; 16];
         bytes[5..12].copy_from_slice(&CMD_ARGC_BYTES);

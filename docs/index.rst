@@ -17,6 +17,7 @@ High-level classes and functions
 * :ref:`Channels <channels>`
 * :ref:`Database <database>`
 * :ref:`Built-in Rust plugins <native_plugins>`
+* :ref:`Recording matches <demos>`
 * :ref:`Plugin examples <examples>`
 * :ref:`Logging <logging>`
 * :ref:`Migration from minqlx <migration>`
@@ -61,6 +62,7 @@ Indices and tables
    channels
    database
    native_plugins
+   demos
    examples
    logging
    reliable_commands

@@ -99,17 +99,22 @@ unsafe impl Send for RconSocket {}
 // SAFETY: see `Send`; sharing the reference gives no access beyond reading the slot.
 unsafe impl Sync for RconSocket {}
 
-/// The address an instruction with a 32-bit displacement relative to its end refers to.
+/// What an instruction with a 32-bit displacement relative to its end refers to.
 ///
 /// # Safety
 ///
 /// `code + disp_offset` must be readable for four bytes.
 #[cfg(any(target_os = "linux", test))]
-unsafe fn relative_target(code: usize, disp_offset: usize, instruction_end: usize) -> usize {
+unsafe fn relative_target(
+    code: *const u8,
+    disp_offset: usize,
+    instruction_end: usize,
+) -> *const u8 {
     // SAFETY: guaranteed by the caller.
-    let displacement = unsafe { ptr::read_unaligned((code + disp_offset) as *const i32) };
+    let displacement = unsafe { code.add(disp_offset).cast::<i32>().read_unaligned() };
     let displacement = isize::try_from(displacement).unwrap_or_default();
-    (code + instruction_end).wrapping_add_signed(displacement)
+    code.wrapping_add(instruction_end)
+        .wrapping_offset(displacement)
 }
 
 impl RconSocket {
@@ -131,12 +136,12 @@ impl RconSocket {
         let (handle_slot, set_option) = unsafe {
             (
                 relative_target(
-                    socket_init,
+                    ptr::with_exposed_provenance(socket_init),
                     SOCKET_SLOT_DISPLACEMENT_OFFSET,
                     SOCKET_SLOT_INSTRUCTION_END,
                 ),
                 relative_target(
-                    set_mandatory,
+                    ptr::with_exposed_provenance(set_mandatory),
                     SET_OPTION_DISPLACEMENT_OFFSET,
                     SET_OPTION_INSTRUCTION_END,
                 ),
@@ -144,8 +149,8 @@ impl RconSocket {
         };
         Ok(Self {
             // SAFETY: the target of the call is the option setter of the ZMQ library.
-            set_option: unsafe { core::mem::transmute::<usize, SetSocketOption>(set_option) },
-            handle_slot: handle_slot as *const *mut c_void,
+            set_option: unsafe { core::mem::transmute::<*const u8, SetSocketOption>(set_option) },
+            handle_slot: handle_slot.cast::<*mut c_void>(),
         })
     }
 
@@ -287,24 +292,24 @@ mod zmq_rcon_tests {
     fn relative_target_follows_a_forward_displacement() {
         let mut code = [0u8; 32];
         code[2..6].copy_from_slice(&20i32.to_le_bytes());
-        let start = code.as_ptr() as usize;
+        let start = code.as_ptr();
 
         // SAFETY: the displacement lies inside the array.
         let target = unsafe { relative_target(start, 2, 6) };
 
-        assert_eq!(target, start + 26);
+        assert_eq!(target, start.wrapping_add(26));
     }
 
     #[test]
     fn relative_target_follows_a_backward_displacement() {
         let mut code = [0u8; 32];
         code[20..24].copy_from_slice(&(-20i32).to_le_bytes());
-        let start = code.as_ptr() as usize;
+        let start = code.as_ptr();
 
         // SAFETY: the displacement lies inside the array.
         let target = unsafe { relative_target(start, 20, 24) };
 
-        assert_eq!(target, start + 4);
+        assert_eq!(target, start.wrapping_add(4));
     }
 
     static ACCEPTED_OPTION: AtomicI32 = AtomicI32::new(0);
@@ -337,7 +342,7 @@ mod zmq_rcon_tests {
 
     #[test]
     fn send_timeout_is_set_as_zmq_sndtimeo_on_the_socket_of_the_slot() {
-        let socket_marker = 0x1234usize as *mut c_void;
+        let socket_marker = ptr::without_provenance_mut::<c_void>(0x1234);
         let slot: *mut c_void = socket_marker;
         let rcon_socket = RconSocket {
             set_option: accepting_setter,

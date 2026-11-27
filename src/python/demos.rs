@@ -629,6 +629,106 @@ else:
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn the_running_recording_and_its_people_are_described(_pyshinqlx_setup: ()) {
+        use crate::demo_capture::{
+            catalog::catalog,
+            sidecar::{PlayerEntry, Request, Sidecar},
+        };
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let path = directory.path().join("20260101_100000_aerowalk.dm_sqx");
+        std::fs::write(&path, b"abc").expect("written");
+        let sidecar = Sidecar {
+            map: "aerowalk".into(),
+            factory: "duel".into(),
+            started: 100,
+            match_played: true,
+            players: vec![PlayerEntry {
+                steam_id: 5,
+                name: "Someone".into(),
+                client_id: 2,
+            }],
+            requests: vec![Request {
+                requested_by: None,
+                reason: "check".into(),
+                time: 7,
+            }],
+            ..Sidecar::default()
+        };
+        catalog().configure(directory.path(), true, true);
+        catalog().begin(path, sidecar).expect("described");
+
+        Python::attach(|py| {
+            run(
+                py,
+                c_str!(
+                    r#"
+status = shinqlx.demo_status()
+recording = status.current
+assert status.state == shinqlx.DemoStates.RECORDING
+assert (recording.factory, recording.started, recording.size) == ("duel", 100, 3)
+assert recording.match_played and recording.path.endswith("aerowalk.dm_sqx")
+((player,), (request,)) = (recording.players, recording.requests)
+assert repr(player) == 'DemoPlayer(steam_id=5, name="Someone", client_id=2)'
+assert repr(request) == 'DemoRequest(requested_by=None, reason="check", time=7)'
+assert repr(recording) == 'Recording(name="20260101_100000_aerowalk", map="aerowalk", started=100, ended=None, size=3)'
+assert repr(status) == 'DemoStatus(state="recording", current="20260101_100000_aerowalk")', repr(status)
+"#
+                ),
+                "",
+            );
+        });
+        catalog().end(200).expect("ended");
+    }
+
+    #[cfg(feature = "demo-recording")]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn the_state_of_the_recorder_and_unusable_folders_are_reported(_pyshinqlx_setup: ()) {
+        use crate::demo_capture::catalog::catalog;
+
+        let file = tempfile::NamedTempFile::new().expect("a file");
+        let blocked = file.path().to_str().expect("utf-8");
+
+        Python::attach(|py| {
+            for (enabled, has_room, code) in [
+                (
+                    false,
+                    true,
+                    c"assert shinqlx.demo_status().state == shinqlx.DemoStates.DISABLED",
+                ),
+                (
+                    true,
+                    false,
+                    c"assert shinqlx.demo_status().state == shinqlx.DemoStates.DISK_FULL",
+                ),
+            ] {
+                catalog().configure(file.path(), enabled, has_room);
+                run(py, code, blocked);
+            }
+            run(
+                py,
+                c_str!(
+                    r#"
+for failing in (shinqlx.recordings, lambda: shinqlx.request_demo()):
+    try:
+        failing()
+    except OSError:
+        pass
+    else:
+        raise AssertionError("listed")
+"#
+                ),
+                blocked,
+            );
+        });
+    }
+
+    #[cfg(feature = "demo-recording")]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn recordings_are_listed_requested_and_exported(_pyshinqlx_setup: ()) {
         use ql_sqx::{ArchiveWriter, Event, Frame, PlayerState};
 
@@ -660,6 +760,12 @@ assert recording == shinqlx.recording(name)
 assert (recording.name, recording.map, recording.ended) == (name, "aerowalk", None)
 assert recording.players == () and recording.requests == ()
 assert shinqlx.recording("unknown") is None
+try:
+    shinqlx.export_demo(name, recording.path)
+except OSError:
+    pass
+else:
+    raise AssertionError("exported into a file")
 
 requested = shinqlx.request_demo(name, requested_by=7, reason="check")
 ((request,),) = (requested.requests,)
@@ -668,6 +774,7 @@ assert shinqlx.request_demo("unknown") is None
 
 (demo,) = shinqlx.export_demo(name, directory + "/demos", include_private=False)
 assert demo.path.endswith("_client00.dm_91") and demo.player.client_id == 0
+assert repr(demo).startswith("ExportedDemo(path=") and "player=DemoPlayer(" in repr(demo)
 assert shinqlx.export_demo(name, directory + "/other", steam_ids={5}) == ()
 for failing, error in (
     (lambda: shinqlx.export_demo(name, directory + "/demos"), FileExistsError),

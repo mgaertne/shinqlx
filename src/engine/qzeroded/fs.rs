@@ -56,19 +56,19 @@ pub(crate) enum EngineFsError {
 
 /// # Safety
 ///
-/// `address` must be readable memory.
-unsafe fn read<T: Copy>(address: usize) -> T {
+/// `address` must point to readable memory.
+unsafe fn read<T: Copy>(address: *const u8) -> T {
     // SAFETY: the caller guarantees that the address is readable.
-    unsafe { ptr::read_unaligned(ptr::with_exposed_provenance::<T>(address)) }
+    unsafe { address.cast::<T>().read_unaligned() }
 }
 
 /// # Safety
 ///
 /// `address` must point at readable memory up to a NUL byte or [`MAX_STRING`] bytes.
-unsafe fn c_string(address: usize) -> Option<String> {
+unsafe fn c_string(address: *const u8) -> Option<String> {
     let bytes = (0..MAX_STRING)
         // SAFETY: the caller guarantees the memory up to the NUL byte.
-        .map(|offset| unsafe { read::<u8>(address + offset) })
+        .map(|offset| unsafe { read::<u8>(address.add(offset)) })
         .take_while(|byte| *byte != 0)
         .collect::<Vec<_>>();
     (bytes.len() < MAX_STRING).then(|| String::from_utf8_lossy(&bytes).into_owned())
@@ -78,17 +78,23 @@ unsafe fn c_string(address: usize) -> Option<String> {
 ///
 /// # Safety
 ///
-/// `function` must be the address of the engine's `FS_ReadFile`, or of readable memory of at least 0x18 bytes.
-unsafe fn searchpaths_address(function: usize) -> Option<usize> {
-    let instruction = function + SEARCHPATHS_CHECK_OFFSET;
+/// `function` must point to the engine's `FS_ReadFile`, or to readable memory of at least 0x18 bytes.
+unsafe fn searchpaths_address(function: *const u8) -> Option<*const u8> {
     // SAFETY: the caller guarantees readable memory at the function.
-    let opcode = unsafe { read::<[u8; 3]>(instruction) };
+    let (instruction, opcode) = unsafe {
+        let instruction = function.add(SEARCHPATHS_CHECK_OFFSET);
+        (instruction, read::<[u8; 3]>(instruction))
+    };
     if opcode != SEARCHPATHS_CHECK_OPCODE {
         return None;
     }
     // SAFETY: as above.
-    let displacement = unsafe { read::<i32>(instruction + 3) };
-    (instruction + SEARCHPATHS_CHECK_LENGTH).checked_add_signed(isize::try_from(displacement).ok()?)
+    let displacement = unsafe { read::<i32>(instruction.add(3)) };
+    Some(
+        instruction
+            .wrapping_add(SEARCHPATHS_CHECK_LENGTH)
+            .wrapping_offset(isize::try_from(displacement).ok()?),
+    )
 }
 
 /// The search path list that starts at the node pointer stored at `head_address`, in the engine's order. Archives
@@ -96,61 +102,61 @@ unsafe fn searchpaths_address(function: usize) -> Option<usize> {
 ///
 /// # Safety
 ///
-/// `head_address` must be the address of the engine's `fs_searchpaths` or a structure of the same layout.
-unsafe fn read_search_paths(head_address: usize) -> (Vec<SearchEntry>, Vec<String>) {
+/// `head_address` must point to the engine's `fs_searchpaths` or a structure of the same layout.
+unsafe fn read_search_paths(head_address: *const u8) -> (Vec<SearchEntry>, Vec<String>) {
     let mut entries = Vec::new();
     let mut problems = Vec::new();
     // SAFETY: the caller guarantees the layout; every pointer is read before it is followed.
-    let mut node = unsafe { read::<usize>(head_address) };
+    let mut node = unsafe { read::<*const u8>(head_address) };
     for _ in 0..MAX_NODES {
-        if node == 0 {
+        if node.is_null() {
             break;
         }
         // SAFETY: `node` is a search path node of the list.
         let (pack, dir) = unsafe {
             (
-                read::<usize>(node + NODE_PACK),
-                read::<usize>(node + NODE_DIR),
+                read::<*const u8>(node.add(NODE_PACK)),
+                read::<*const u8>(node.add(NODE_DIR)),
             )
         };
-        if pack != 0 {
+        if !pack.is_null() {
             // SAFETY: `pack` is the pack of a node.
             match unsafe { read_pack(pack) } {
                 Ok(entry) => entries.push(entry),
                 Err(problem) => problems.push(problem),
             }
-        } else if dir != 0 {
+        } else if !dir.is_null() {
             // SAFETY: `dir` is the directory of a node.
             let (path, gamedir) =
-                unsafe { (c_string(dir + DIR_PATH), c_string(dir + DIR_GAMEDIR)) };
+                unsafe { (c_string(dir.add(DIR_PATH)), c_string(dir.add(DIR_GAMEDIR))) };
             if let Some((path, gamedir)) = path.zip(gamedir) {
                 entries.push(SearchEntry::Directory { path, gamedir });
             }
         }
         // SAFETY: as above.
-        node = unsafe { read::<usize>(node + NODE_NEXT) };
+        node = unsafe { read::<*const u8>(node.add(NODE_NEXT)) };
     }
     (entries, problems)
 }
 
 /// # Safety
 ///
-/// `pack` must be the address of a pack structure of the engine.
-unsafe fn read_pack(pack: usize) -> Result<SearchEntry, String> {
+/// `pack` must point to a pack structure of the engine.
+unsafe fn read_pack(pack: *const u8) -> Result<SearchEntry, String> {
     // SAFETY: the caller guarantees the pack structure.
     let (path, numfiles, hash_size, table) = unsafe {
         (
-            c_string(pack + PACK_FILENAME),
-            usize::try_from(read::<i32>(pack + PACK_NUMFILES)),
-            usize::try_from(read::<i32>(pack + PACK_HASHSIZE)),
-            read::<usize>(pack + PACK_HASHTABLE),
+            c_string(pack.add(PACK_FILENAME)),
+            usize::try_from(read::<i32>(pack.add(PACK_NUMFILES))),
+            usize::try_from(read::<i32>(pack.add(PACK_HASHSIZE))),
+            read::<*const u8>(pack.add(PACK_HASHTABLE)),
         )
     };
     let path = path.ok_or_else(|| "archive without a readable name".to_owned())?;
     let (Ok(numfiles), Ok(hash_size)) = (numfiles, hash_size) else {
         return Err(format!("{path}: implausible header"));
     };
-    if numfiles > MAX_PACK_FILES || hash_size == 0 || hash_size > MAX_HASH_SIZE || table == 0 {
+    if numfiles > MAX_PACK_FILES || hash_size == 0 || hash_size > MAX_HASH_SIZE || table.is_null() {
         return Err(format!("{path}: implausible header"));
     }
 
@@ -158,20 +164,20 @@ unsafe fn read_pack(pack: usize) -> Result<SearchEntry, String> {
     let mut counted = 0_usize;
     for bucket in 0..hash_size {
         // SAFETY: `bucket` lies inside the hash table of `hash_size` pointers.
-        let mut entry = unsafe { read::<usize>(table + bucket * size_of::<usize>()) };
-        while entry != 0 {
+        let mut entry = unsafe { read::<*const u8>(table.add(bucket * size_of::<usize>())) };
+        while !entry.is_null() {
             counted += 1;
             if counted > numfiles {
                 return Err(format!("{path}: more entries than numfiles"));
             }
             // SAFETY: `entry` is a file entry of the pack.
-            let name = unsafe { read::<usize>(entry + ENTRY_NAME) };
+            let name = unsafe { read::<*const u8>(entry.add(ENTRY_NAME)) };
             // SAFETY: as above.
             if let Some(name) = unsafe { c_string(name) } {
                 names.insert(name.to_ascii_lowercase(), name.to_owned());
             }
             // SAFETY: as above.
-            entry = unsafe { read::<usize>(entry + ENTRY_NEXT) };
+            entry = unsafe { read::<*const u8>(entry.add(ENTRY_NEXT)) };
         }
     }
     if counted == numfiles {
@@ -244,8 +250,8 @@ impl EngineFileSystem {
         )?;
         let free_file_list = find(QuakeLiveFunction::FS_FreeFileList, "FS_FreeFileList")?;
         // SAFETY: `read_file` is the address of FS_ReadFile in the mapped engine.
-        let head =
-            unsafe { searchpaths_address(read_file) }.ok_or(EngineFsError::SearchPathsNotFound)?;
+        let head = unsafe { searchpaths_address(ptr::with_exposed_provenance(read_file)) }
+            .ok_or(EngineFsError::SearchPathsNotFound)?;
         // SAFETY: `head` is the address of fs_searchpaths; the functions have the signatures of the typedefs.
         unsafe {
             Ok(Self::from_addresses(
@@ -261,13 +267,13 @@ impl EngineFileSystem {
     /// # Safety
     ///
     /// The addresses must be those of the engine's functions with the signatures of the type aliases, and `head`
-    /// that of its `fs_searchpaths`.
+    /// must point to its `fs_searchpaths`.
     unsafe fn from_addresses(
         read_file: usize,
         free_file: usize,
         list_files: usize,
         free_file_list: usize,
-        head: usize,
+        head: *const u8,
     ) -> Self {
         // SAFETY: the caller guarantees the layout at `head`.
         let (entries, problems) = unsafe { read_search_paths(head) };
@@ -556,9 +562,20 @@ mod tests {
 
     use super::*;
 
+    const NOTHING: *const u8 = ptr::null();
+
     /// Memory laid out like the engine's structures, owned by the test.
     struct FakeEngine {
-        blocks: Vec<Vec<u8>>,
+        blocks: Vec<*mut [u8]>,
+    }
+
+    impl Drop for FakeEngine {
+        fn drop(&mut self) {
+            for block in self.blocks.drain(..) {
+                // SAFETY: every block comes from `Box::into_raw` and is freed only here.
+                drop(unsafe { Box::from_raw(block) });
+            }
+        }
     }
 
     impl FakeEngine {
@@ -566,78 +583,74 @@ mod tests {
             Self { blocks: Vec::new() }
         }
 
-        fn alloc(&mut self, size: usize) -> usize {
-            self.blocks.push(vec![0; size]);
-            self.blocks
-                .last()
-                .map(|block| block.as_ptr() as usize)
-                .unwrap_or_default()
+        fn alloc(&mut self, size: usize) -> *mut u8 {
+            let block = Box::into_raw(vec![0_u8; size].into_boxed_slice());
+            self.blocks.push(block);
+            block.cast()
         }
 
-        fn write(&mut self, address: usize, bytes: &[u8]) {
-            let block = self
-                .blocks
-                .iter_mut()
-                .find(|block| {
-                    let start = block.as_ptr() as usize;
-                    (start..start + block.len()).contains(&address)
-                })
-                .expect("address of a fake block");
-            let offset = address - block.as_ptr() as usize;
-            block[offset..offset + bytes.len()].copy_from_slice(bytes);
+        fn write<T: Copy>(address: *mut u8, offset: usize, value: T) {
+            // SAFETY: the tests write only inside the blocks they allocated.
+            unsafe { address.add(offset).cast::<T>().write_unaligned(value) };
         }
 
-        fn text(&mut self, text: &str) -> usize {
+        fn write_text(address: *mut u8, offset: usize, text: &str) {
+            // SAFETY: as above.
+            unsafe {
+                address
+                    .add(offset)
+                    .copy_from_nonoverlapping(text.as_ptr(), text.len());
+            }
+        }
+
+        fn text(&mut self, text: &str) -> *mut u8 {
             let address = self.alloc(text.len() + 1);
-            self.write(address, text.as_bytes());
+            Self::write_text(address, 0, text);
             address
         }
 
-        fn directory(&mut self, path: &str, gamedir: &str) -> usize {
+        fn directory(&mut self, path: &str, gamedir: &str) -> *const u8 {
             let dir = self.alloc(0x3000);
-            self.write(dir + DIR_PATH, path.as_bytes());
-            self.write(dir + DIR_GAMEDIR, gamedir.as_bytes());
+            Self::write_text(dir, DIR_PATH, path);
+            Self::write_text(dir, DIR_GAMEDIR, gamedir);
             dir
         }
 
-        fn pack(&mut self, path: &str, names: &[&str], numfiles: i32) -> usize {
+        fn pack(&mut self, path: &str, names: &[&str], numfiles: i32) -> *const u8 {
             let pack = self.alloc(0x3030);
-            self.write(pack + PACK_FILENAME, path.as_bytes());
+            Self::write_text(pack, PACK_FILENAME, path);
             let hash_size = 4_usize;
             let table = self.alloc(hash_size * 8);
-            let mut heads = vec![0_usize; hash_size];
+            let mut heads = vec![ptr::null_mut::<u8>(); hash_size];
             for name in names {
                 let entry = self.alloc(24);
                 let name_address = self.text(name);
                 let bucket = name.len() % hash_size;
-                self.write(entry + ENTRY_NAME, &name_address.to_le_bytes());
-                self.write(entry + ENTRY_NEXT, &heads[bucket].to_le_bytes());
+                Self::write(entry, ENTRY_NAME, name_address);
+                Self::write(entry, ENTRY_NEXT, heads[bucket]);
                 heads[bucket] = entry;
             }
-            for (bucket, head) in heads.iter().enumerate() {
-                self.write(table + bucket * 8, &head.to_le_bytes());
+            for (bucket, head) in heads.into_iter().enumerate() {
+                Self::write(table, bucket * 8, head);
             }
-            self.write(pack + PACK_NUMFILES, &numfiles.to_le_bytes());
-            self.write(
-                pack + PACK_HASHSIZE,
-                &i32::try_from(hash_size).unwrap().to_le_bytes(),
-            );
-            self.write(pack + PACK_HASHTABLE, &table.to_le_bytes());
+            Self::write(pack, PACK_NUMFILES, numfiles);
+            Self::write(pack, PACK_HASHSIZE, i32::try_from(hash_size).unwrap());
+            Self::write(pack, PACK_HASHTABLE, table);
             pack
         }
 
         /// Links the nodes `(pack, dir)` in order and returns the address of the head pointer.
-        fn list(&mut self, nodes: &[(usize, usize)]) -> usize {
+        fn list(&mut self, nodes: &[(*const u8, *const u8)]) -> *const u8 {
             let head = self.alloc(8);
-            let mut next = 0_usize;
-            for (pack, dir) in nodes.iter().rev() {
+            let mut next = ptr::null_mut::<u8>();
+            for &(pack, dir) in nodes.iter().rev() {
                 let node = self.alloc(24);
-                self.write(node + NODE_NEXT, &next.to_le_bytes());
-                self.write(node + NODE_PACK, &pack.to_le_bytes());
-                self.write(node + NODE_DIR, &dir.to_le_bytes());
+                Self::write(node, NODE_NEXT, next);
+                Self::write(node, NODE_PACK, pack);
+                Self::write(node, NODE_DIR, dir);
                 next = node;
             }
-            self.write(head, &next.to_le_bytes());
+            Self::write(head, 0, next);
             head
         }
     }
@@ -651,7 +664,7 @@ mod tests {
             &["maps/A.bsp", "scripts/arenas.txt"],
             2,
         );
-        let head = engine.list(&[(0, home), (pak, 0)]);
+        let head = engine.list(&[(NOTHING, home), (pak, NOTHING)]);
 
         // SAFETY: `head` points at the structures built by `FakeEngine`.
         let (entries, problems) = unsafe { read_search_paths(head) };
@@ -685,7 +698,7 @@ mod tests {
         let mut engine = FakeEngine::new();
         let good = engine.pack("/good.pk3", &["a"], 1);
         let bad = engine.pack("/bad.pk3", &["a", "b"], 5);
-        let head = engine.list(&[(bad, 0), (good, 0)]);
+        let head = engine.list(&[(bad, NOTHING), (good, NOTHING)]);
 
         // SAFETY: `head` points at the structures built by `FakeEngine`.
         let (entries, problems) = unsafe { read_search_paths(head) };
@@ -710,15 +723,15 @@ mod tests {
         let mut code = [0_u8; 0x20];
         code[0x10..0x13].copy_from_slice(&SEARCHPATHS_CHECK_OPCODE);
         code[0x13..0x17].copy_from_slice(&0x480b50_i32.to_le_bytes());
-        let function = code.as_ptr() as usize;
+        let function = code.as_ptr();
 
         // SAFETY: `function` points at the 0x20 readable bytes of `code`.
         let address = unsafe { searchpaths_address(function) };
-        assert_eq!(address, Some(function + 0x18 + 0x480b50));
+        assert_eq!(address, Some(function.wrapping_add(0x18 + 0x480b50)));
 
         code[0x10] = 0x90;
         // SAFETY: as above.
-        let address = unsafe { searchpaths_address(code.as_ptr() as usize) };
+        let address = unsafe { searchpaths_address(code.as_ptr()) };
         assert_eq!(address, None);
     }
 
@@ -778,7 +791,7 @@ mod tests {
 
     fn fake_engine_fs(engine: &mut FakeEngine) -> EngineFileSystem {
         let pak = engine.pack("/base/baseq3/pak00.pk3", &["maps/A.bsp"], 1);
-        let head = engine.list(&[(pak, 0)]);
+        let head = engine.list(&[(pak, NOTHING)]);
         FREED_FILES.store(0, Ordering::Release);
         FREED_LISTS.store(0, Ordering::Release);
         // SAFETY: the functions have the signatures of the type aliases and `head` is built by `FakeEngine`.

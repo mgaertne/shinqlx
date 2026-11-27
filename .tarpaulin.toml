@@ -7,5 +7,15 @@ count = true
 no-fail-fast = true
 include-tests = true
 
+[demo-recording]
+workspace = true
+features = "demo-recording"
+engine = "Llvm"
+line = true
+branch = true
+count = true
+no-fail-fast = true
+include-tests = true
+
 [report]
 out = ["Xml", "Html"]

@@ -331,6 +331,8 @@ jobs:
         with:
           python-version: '3.14'
       - run: cargo miri test
+      - run: cargo miri test -p ql_sqx
+      - run: cargo miri test --features demo-recording --lib demo
 
   publish-pypi:
     name: Publish to PyPI

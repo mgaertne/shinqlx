@@ -20,9 +20,9 @@ pub(crate) struct SpawnVarsError;
 ///
 /// # Safety
 ///
-/// `level` must be the address of the level data of a loaded game module, or of memory with the same layout.
+/// `level` must point to the level data of a loaded game module, or to memory with the same layout.
 pub(crate) unsafe fn write_spawn_vars(
-    level: usize,
+    level: *mut u8,
     vars: &[(String, String)],
 ) -> Result<(), SpawnVarsError> {
     let needed = vars
@@ -38,28 +38,30 @@ pub(crate) unsafe fn write_spawn_vars(
         return Err(SpawnVarsError);
     }
 
-    let chars = level + CHARS_OFFSET;
     let mut used = 0;
     for (index, (key, value)) in vars.iter().enumerate() {
-        let entry = level + VARS_OFFSET + index * VAR_SIZE;
+        let entry = VARS_OFFSET + index * VAR_SIZE;
         for (slot, text) in [(entry, key), (entry + 8, value)] {
             // SAFETY: the text and its NUL byte fit into the character table, which was checked above.
             unsafe {
-                core::ptr::copy_nonoverlapping(
-                    text.as_ptr(),
-                    (chars + used) as *mut u8,
-                    text.len(),
-                );
-                ((chars + used + text.len()) as *mut u8).write(0);
-                (slot as *mut usize).write_unaligned(chars + used);
+                let copy = level.add(CHARS_OFFSET + used);
+                core::ptr::copy_nonoverlapping(text.as_ptr(), copy, text.len());
+                copy.add(text.len()).write(0);
+                level.add(slot).cast::<*mut u8>().write_unaligned(copy);
             }
             used += text.len() + 1;
         }
     }
     // SAFETY: the counters are part of the level data.
     unsafe {
-        ((level + NUM_VARS_OFFSET) as *mut i32).write_unaligned(vars.len() as i32);
-        ((level + NUM_CHARS_OFFSET) as *mut i32).write_unaligned(used as i32);
+        level
+            .add(NUM_VARS_OFFSET)
+            .cast::<i32>()
+            .write_unaligned(vars.len() as i32);
+        level
+            .add(NUM_CHARS_OFFSET)
+            .cast::<i32>()
+            .write_unaligned(used as i32);
     }
     Ok(())
 }
@@ -69,11 +71,11 @@ pub(crate) unsafe fn write_spawn_vars(
 /// # Safety
 ///
 /// As for `write_spawn_vars`.
-pub(crate) unsafe fn clear_spawn_vars(level: usize) {
+pub(crate) unsafe fn clear_spawn_vars(level: *mut u8) {
     // SAFETY: the counters are part of the level data.
     unsafe {
-        ((level + NUM_VARS_OFFSET) as *mut i32).write_unaligned(0);
-        ((level + NUM_CHARS_OFFSET) as *mut i32).write_unaligned(0);
+        level.add(NUM_VARS_OFFSET).cast::<i32>().write_unaligned(0);
+        level.add(NUM_CHARS_OFFSET).cast::<i32>().write_unaligned(0);
     }
 }
 
@@ -100,13 +102,19 @@ mod spawn_vars_tests {
 
     fn read_i32(level: &[u64], offset: usize) -> i32 {
         // SAFETY: the offsets lie inside the vector.
-        unsafe { ((level.as_ptr() as usize + offset) as *const i32).read_unaligned() }
+        unsafe {
+            level
+                .as_ptr()
+                .byte_add(offset)
+                .cast::<i32>()
+                .read_unaligned()
+        }
     }
 
     #[test]
     fn the_pairs_are_written_as_strings_with_their_pointers() {
         let mut level = level();
-        let base = level.as_mut_ptr() as usize;
+        let base = level.as_mut_ptr().cast::<u8>();
 
         // SAFETY: the vector has the size of the level data.
         let result = unsafe {
@@ -128,10 +136,11 @@ mod spawn_vars_tests {
             .map(|offset| {
                 // SAFETY: the pointers were written by write_spawn_vars and point to NUL terminated strings.
                 unsafe {
-                    let pointer = ((base + offset) as *const usize).read_unaligned();
-                    CStr::from_ptr(pointer as *const core::ffi::c_char)
-                        .to_string_lossy()
-                        .into_owned()
+                    let pointer = base
+                        .add(offset)
+                        .cast::<*const core::ffi::c_char>()
+                        .read_unaligned();
+                    CStr::from_ptr(pointer).to_string_lossy().into_owned()
                 }
             })
             .collect::<Vec<_>>();
@@ -141,7 +150,7 @@ mod spawn_vars_tests {
     #[test]
     fn clearing_resets_both_counters() {
         let mut level = level();
-        let base = level.as_mut_ptr() as usize;
+        let base = level.as_mut_ptr().cast::<u8>();
         // SAFETY: the vector has the size of the level data.
         unsafe {
             write_spawn_vars(base, &pairs(&[("classname", "info_null")])).expect("fits");
@@ -155,7 +164,7 @@ mod spawn_vars_tests {
     #[test]
     fn too_many_pairs_too_much_text_and_nul_bytes_are_refused() {
         let mut level = level();
-        let base = level.as_mut_ptr() as usize;
+        let base = level.as_mut_ptr().cast::<u8>();
         let too_many = (0..=MAX_VARS)
             .map(|index| (format!("key{index}"), "v".to_string()))
             .collect::<Vec<_>>();

@@ -153,8 +153,85 @@ impl From<RecordingError> for DemoFileError {
 #[cfg(test)]
 mod demo_files_tests {
     use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
 
     use super::*;
+    use crate::{archive::ArchiveWriter, capture::Frame, state::PlayerState, writer::Event};
+
+    /// A folder with a recording of two players.
+    fn recording() -> (TempDir, PathBuf) {
+        let mut writer = ArchiveWriter::start(Vec::new(), &[], &[]).expect("started");
+        writer
+            .event(&Event::Frame(Frame {
+                server_time: 25,
+                entities: Vec::new(),
+                players: vec![(0, PlayerState::default()), (1, PlayerState::default())],
+            }))
+            .expect("written");
+        let folder = tempfile::tempdir().expect("a folder");
+        let path = folder.path().join("match.dm_sqx");
+        fs::write(&path, writer.finish().expect("finished").1).expect("stored");
+        (folder, path)
+    }
+
+    fn write_all(recording: &Path, directory: &Path) -> Result<DemoFiles, DemoFileError> {
+        write_demo_files(recording, directory, PrivateMessages::Include, |_| true)
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "writes files")]
+    fn the_selected_demos_are_written_once() {
+        let (folder, recording) = recording();
+
+        let first = write_demo_files(&recording, folder.path(), PrivateMessages::Omit, |stay| {
+            stay.client == 1
+        })
+        .expect("written");
+        let second = write_all(&recording, folder.path()).expect("written");
+
+        assert_eq!(first.written.len(), 1);
+        assert_eq!(first.written[0].stay.client, 1);
+        assert_eq!(second.kept, [first.written[0].path.clone()]);
+        assert_eq!(second.written.len(), 1);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "reads files")]
+    fn a_missing_recording_cannot_be_opened() {
+        let folder = tempfile::tempdir().expect("a folder");
+
+        let error =
+            write_all(&folder.path().join("none.dm_sqx"), folder.path()).expect_err("missing");
+
+        assert!(matches!(error, DemoFileError::Open(_)));
+        assert!(error.to_string().starts_with("cannot open the recording: "));
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "reads files")]
+    fn a_demo_that_cannot_be_created_is_named() {
+        let (folder, recording) = recording();
+
+        let error = write_all(&recording, &folder.path().join("nowhere")).expect_err("no folder");
+
+        assert!(error.to_string().contains("cannot create "), "{error}");
+        assert!(error.to_string().contains("client00.dm_91"), "{error}");
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore = "writes files")]
+    fn a_failure_leaves_no_new_demos_behind() {
+        let (folder, recording) = recording();
+        let mut content = fs::read(&recording).expect("readable");
+        // A delta frame of one byte, which is damaged.
+        content.extend_from_slice(&[4, 1, 0, 0, 0, 0xff]);
+        fs::write(&recording, content).expect("stored");
+
+        let error = write_all(&recording, folder.path()).expect_err("damaged");
+
+        assert!(error.to_string().contains("damaged record"), "{error}");
+        assert_eq!(fs::read_dir(folder.path()).expect("listed").count(), 1);
+    }
 
     #[test]
     fn demos_are_named_after_recording_client_and_player() {

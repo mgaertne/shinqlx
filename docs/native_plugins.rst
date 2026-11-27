@@ -262,9 +262,9 @@ demos
 =====
 
 Lets players ask to keep the recording of a match, and admins see what is recorded. The recording itself is part of the
-server (the Cargo feature ``demo-recording``, off by default and still in development, and the cvar
-``qlx_demoRecord``), see :func:`request_demo`; without the feature the commands only say that the server cannot record
-demos. The plugin is not among the default plugins of ``qlx_plugins``, load it with ``r!demos``.
+server, see :ref:`Recording matches <demos>`; in a build without the Cargo feature ``demo-recording`` the commands only
+say that the server cannot record demos. The plugin is not among the default plugins of ``qlx_plugins``, load it with
+``r!demos``.
 
 ========================== ======= ================================================================================
 command                    level   description

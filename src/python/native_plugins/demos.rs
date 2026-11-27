@@ -424,6 +424,60 @@ caller = Caller()
     #[rstest]
     #[cfg_attr(miri, ignore)]
     #[serial]
+    fn the_running_recording_is_shown_and_kept(_pyshinqlx_setup: ()) {
+        use core::borrow::BorrowMut;
+
+        use crate::{
+            demo_capture::{catalog::catalog, sidecar::Sidecar},
+            engine::prelude::{CVar, CVarBuilder, cvar_t},
+        };
+
+        let directory = tempfile::tempdir().expect("a directory");
+        let path = directory.path().join("20260101_100000_aerowalk.dm_sqx");
+        std::fs::write(&path, b"x").expect("written");
+        let mut raw_cvar = CVarBuilder::default()
+            .string(c"7".as_ptr().cast_mut())
+            .integer(7)
+            .build()
+            .expect("a cvar");
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |name| name == "qlx_demoKeepRequestedDays",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                0..,
+            )
+            .run(|| {
+                catalog().configure(directory.path(), true, true);
+                assert!(told(&["demostatus"])[0].starts_with(
+                    "Demo recording is waiting for something to record.\n"
+                ));
+                catalog().configure(directory.path(), true, false);
+                assert!(told(&["demostatus"])[0]
+                    .starts_with("Demo recording is paused, the disk is full.\n"));
+
+                catalog()
+                    .begin(path, Sidecar::default())
+                    .expect("described");
+                let replies = told(&["demostatus", "request demo aim", "demos 1"]);
+                catalog().end(1).expect("ended");
+
+                assert_eq!(
+                    replies,
+                    [
+                        "Recording ^620260101_100000_aerowalk^7 (0.0 MB, 0 players).\n\
+                        Recordings: 1, 0.0 MB in total, 0 requested.",
+                        "The running recording ^620260101_100000_aerowalk^7 will be kept for ^67^7 days.",
+                        "Showing 1 of 1 recordings, the newest first:\n\
+                        ^620260101_100000_aerowalk^7 0.0 MB, running, no match, ^3requested^7: aim^7",
+                    ]
+                );
+            });
+    }
+
+    #[cfg(feature = "demo-recording")]
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
     fn recordings_are_requested_and_listed(_pyshinqlx_setup: ()) {
         use core::borrow::BorrowMut;
 

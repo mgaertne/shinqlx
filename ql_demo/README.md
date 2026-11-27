@@ -49,31 +49,9 @@ Play a demo by copying it into the `demos` folder of the client and entering `de
 
 ## Recording
 
-Recording is part of shinqlx behind the Cargo feature `demo-recording`, which is off by default and still in
-development. The server writes one file per match, holding the warmup and the match, named
-`YYYYMMDD_HHmmSS_mapname.dm_sqx` after its start in UTC.
-
-| cvar | Default | Meaning |
-|---|---|---|
-| `qlx_demoRecord` | `0` | `1` records matches |
-| `qlx_demoDir` | `<fs_homepath>/demos` | where the recordings are stored |
-| `qlx_demoRequireHuman` | `1` | record only while someone other than a bot is connected |
-| `qlx_demoMaxMinutes` | `90` | continue in a new file after this time |
-| `qlx_demoKeepUnrequestedHours` | `24` | delete recordings nobody asked for after this time |
-| `qlx_demoKeepRequestedDays` | `30` | delete requested recordings after this time |
-| `qlx_demoMaxTotalMB` | `5120` | delete the oldest recordings above this size of all together |
-| `qlx_demoMinFreeMB` | `1024` | delete the oldest recordings while the disk has less free space |
-
-Next to each recording the server keeps a file of the same name ending in `.json` with the map, the factory, start and
-end, whether a match was played, who was in the game with their SteamIDs, and the requests to keep the recording.
-Players ask to keep a match with `!request demo [reason]` of the built-in plugin `demos` (load it with `r!demos`), which
-also has `!demos` and `!demostatus` for admins. Python plugins use the functions of `shinqlx`, such as
-`request_demo` and `export_demo`.
-
-A limit of `0` means no limit. The size limit and the free space delete the oldest recordings nobody asked for first,
-requested ones only when no others are left. If the disk runs full, recordings are deleted even when other files fill
-it; if that is not enough, recording pauses until there is room again. Only recordings with the naming scheme above and
-their `.json` files are ever deleted.
+Recording is part of shinqlx behind the Cargo feature `demo-recording`, which is off by default and experimental. The
+documentation page [Recording matches](https://shinqlx.readthedocs.io/en/latest/demos.html) explains how to set it up,
+its cvars, which recordings are kept and for how long, and what to consider for the privacy of the players.
 
 ## Format
 

@@ -1047,9 +1047,9 @@ change.
 
 .. shinqlx-only::
 
-A server built with the Cargo feature ``demo-recording`` (off by default and still in development) records the matches
-into files ending in ``.dm_sqx`` when the cvar ``qlx_demoRecord`` is ``1``; the README of ``ql_demo`` lists the cvars
-and tells what a recording holds. A recording that nobody asked for is deleted after a while, so a plugin that wants
+A server built with the Cargo feature ``demo-recording`` (off by default and experimental) records the matches
+into files ending in ``.dm_sqx`` when the cvar ``qlx_demoRecord`` is ``1``, see :ref:`Recording matches <demos>`.
+A recording that nobody asked for is deleted after a while, so a plugin that wants
 to keep one calls :func:`request_demo`. The names below exist in every build: without the feature the state is
 ``UNAVAILABLE``, there are no recordings and :func:`export_demo` raises. The objects are snapshots, they do not
 change. The event ``demo_finished`` (:class:`DemoFinishedDispatcher`) reports each file that was written.

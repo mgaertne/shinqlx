@@ -397,7 +397,10 @@ impl SpawnEntityFromVars for QuakeLiveEngine {
         };
         // SAFETY: the address is that of the function in the loaded game module, whose code is readable.
         let Some(level) = (unsafe {
-            stats_feed::locate_global_at(spawn as usize + SPAWN_LEVEL_LOAD_OFFSET, SPAWN_LEVEL_LOAD)
+            stats_feed::locate_global_at(
+                (spawn as *const u8).add(SPAWN_LEVEL_LOAD_OFFSET),
+                SPAWN_LEVEL_LOAD,
+            )
         }) else {
             return false;
         };
@@ -448,7 +451,7 @@ impl<T: AsMut<gentity_t>> LinkEntity<T> for QuakeLiveEngine {
         // SAFETY: the address is that of G_FreeEntity in the loaded game module, whose code is readable.
         let Some(link_entity) = (unsafe {
             stats_feed::locate_import_at(
-                free_entity as usize,
+                free_entity as *const u8,
                 FREE_ENTITY_TABLE_LOAD,
                 LINK_ENTITY_SLOT,
             )
@@ -1002,6 +1005,7 @@ mod vm_accessor_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
     fn g_addevent_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -1031,6 +1035,7 @@ mod vm_accessor_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
     fn g_free_entity_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine

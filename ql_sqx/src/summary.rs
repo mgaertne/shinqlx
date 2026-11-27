@@ -101,6 +101,31 @@ mod summary_tests {
     use crate::{archive::ArchiveWriter, capture::Frame, state::PlayerState};
 
     #[test]
+    fn meta_data_and_the_reason_of_the_end_are_reported() {
+        let meta = [("map".to_owned(), "aerowalk".to_owned())];
+        let mut writer = ArchiveWriter::start(Vec::new(), &meta, &[]).expect("started");
+        writer
+            .event(&Event::End {
+                reason: "the map ended".into(),
+            })
+            .expect("written");
+        let mut recording = writer.finish().expect("finished").1;
+        let summary = |recording: &[u8]| {
+            summarize(ArchiveReader::new(recording).expect("a recording")).expect("readable")
+        };
+
+        let complete = summary(&recording);
+        recording.pop();
+        let cut_off = summary(&recording);
+
+        assert_eq!(complete.meta, meta);
+        assert_eq!(complete.end.as_deref(), Some("the map ended"));
+        assert!(!complete.truncated);
+        assert_eq!(cut_off.end, None);
+        assert!(cut_off.truncated);
+    }
+
+    #[test]
     fn every_stay_of_a_client_is_listed() {
         let frame = |server_time, clients: &[u8]| {
             Event::Frame(Frame {

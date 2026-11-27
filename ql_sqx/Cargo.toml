@@ -14,6 +14,7 @@ derive_more = { version = ">=2.1", default-features = false, features = ["displa
 pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
 proptest = { version = ">=1.8", default-features = false, features = ["std"] }
 rstest = { version = ">=0.28", default-features = false }
+tempfile = { version = ">=3.27", default-features = false }
 
 [lints]
 workspace = true

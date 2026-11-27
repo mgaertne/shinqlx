@@ -312,7 +312,7 @@ Changes since 0.8.0.
 * **New tool that converts match recordings to demos:** `ql_demo info <recording>` shows what a recording (`.dm_sqx`)
   contains and who played, `ql_demo export <recording>...` writes a `.dm_91` demo for every player, or for those chosen
   with `--client` and `--player`; `--no-private` leaves out team chat and tells. See [ql_demo/README.md](ql_demo/README.md).
-* **The recordings come from the new Cargo feature `demo-recording`**, which is off by default and still in development:
+* **The recordings come from the new Cargo feature `demo-recording`**, which is off by default and experimental (documentation page "Recording matches"):
   with `qlx_demoRecord 1` the server writes one file per match and deletes old ones as `qlx_demoKeepUnrequestedHours`,
   `qlx_demoMaxTotalMB` and `qlx_demoMinFreeMB` ask. A `.json` file next to each recording lists the players with their
   SteamIDs and the requests to keep it; requested recordings stay `qlx_demoKeepRequestedDays` and are the last to make

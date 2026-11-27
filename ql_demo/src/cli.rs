@@ -207,9 +207,156 @@ fn export(recording: &Path, conversion: &Conversion) -> anyhow::Result<Vec<Strin
 #[cfg(test)]
 mod cli_tests {
     use pretty_assertions::assert_eq;
+    use ql_sqx::{ArchiveWriter, Event, Frame, PlayerState};
     use rstest::rstest;
+    use tempfile::TempDir;
 
     use super::*;
+
+    const NAME: &str = "20260101_100000_aerowalk";
+
+    /// A recording of two seconds with one player.
+    fn recording(end: Option<&str>) -> (TempDir, PathBuf) {
+        let frame = |server_time| {
+            Event::Frame(Frame {
+                server_time,
+                entities: Vec::new(),
+                players: vec![(3, PlayerState::default())],
+            })
+        };
+        let meta = [("map".to_owned(), "aerowalk".to_owned())];
+        let name = [(529 + 3, b"n\\^1Someone".to_vec())];
+        let mut writer = ArchiveWriter::start(Vec::new(), &meta, &name).expect("started");
+        let end = end.map(|reason| Event::End {
+            reason: reason.into(),
+        });
+        for event in [frame(1000), frame(63_000)].into_iter().chain(end) {
+            writer.event(&event).expect("written");
+        }
+        let directory = tempfile::tempdir().expect("a directory");
+        let path = directory.path().join(format!("{NAME}.dm_sqx"));
+        fs::write(&path, writer.finish().expect("finished").1).expect("stored");
+        (directory, path)
+    }
+
+    fn run(arguments: &[&str]) -> (anyhow::Result<()>, String) {
+        let arguments = core::iter::once("ql_demo").chain(arguments.iter().copied());
+        let mut report = Vec::new();
+        let result = Args::try_parse_from(arguments)
+            .expect("valid arguments")
+            .run(&mut report);
+        (result, String::from_utf8(report).expect("text"))
+    }
+
+    fn text(path: &Path) -> &str {
+        path.to_str().expect("utf-8")
+    }
+
+    #[test]
+    fn info_shows_meta_data_length_end_and_players() {
+        let (_directory, path) = recording(Some("the match ended"));
+
+        let (result, report) = run(&["info", text(&path)]);
+
+        result.expect("readable");
+        assert_eq!(
+            report,
+            "map: aerowalk\n\
+             length: 1:02 (2 frames)\n\
+             end: the match ended\n\
+             client    from   until  name\n     \
+             3    0:00    1:02  Someone\n"
+        );
+    }
+
+    #[test]
+    fn info_tells_about_a_recording_that_was_cut_off() {
+        let (_directory, path) = recording(None);
+        let content = fs::read(&path).expect("readable");
+        fs::write(&path, &content[..content.len() - 1]).expect("stored");
+
+        let (result, report) = run(&["info", text(&path)]);
+
+        result.expect("readable");
+        assert!(report.contains("end: incomplete recording\n"), "{report}");
+        assert!(
+            report.contains("the file ends in the middle of a record\n"),
+            "{report}"
+        );
+    }
+
+    #[rstest]
+    #[case::missing(None, "cannot open")]
+    #[case::something_else(Some("text"), "cannot read")]
+    fn info_names_the_file_it_cannot_use(#[case] content: Option<&str>, #[case] problem: &str) {
+        let directory = tempfile::tempdir().expect("a directory");
+        let path = directory.path().join("broken.dm_sqx");
+        if let Some(content) = content {
+            fs::write(&path, content).expect("stored");
+        }
+
+        let (result, _) = run(&["info", text(&path)]);
+
+        let message = format!("{:#}", result.expect_err("unusable"));
+        assert!(
+            message.starts_with(problem) && message.contains("broken.dm_sqx"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn export_writes_demos_next_to_the_recording_and_keeps_existing_ones() {
+        let (directory, path) = recording(None);
+        let demo = directory
+            .path()
+            .join(format!("{NAME}_client03_Someone.dm_91"));
+
+        let (first, written) = run(&["export", "--no-private", text(&path)]);
+        let (second, kept) = run(&["export", text(&path)]);
+
+        first.expect("exported");
+        second.expect("nothing to do");
+        assert_eq!(
+            written,
+            format!("{}: 2 snapshots, 0 commands\n", demo.display())
+        );
+        assert_eq!(kept, format!("{}: exists already, kept\n", demo.display()));
+    }
+
+    #[test]
+    fn export_creates_the_folder_and_converts_the_others_if_one_fails() {
+        let (directory, path) = recording(None);
+        let demos = directory.path().join("some/demos");
+        let missing = directory.path().join("missing.dm_sqx");
+
+        let (result, report) = run(&["export", "-d", text(&demos), text(&missing), text(&path)]);
+
+        assert_eq!(
+            result.expect_err("one failed").to_string(),
+            "1 of 2 recordings could not be converted"
+        );
+        assert!(report.contains("some/demos/"), "{report}");
+    }
+
+    #[test]
+    fn export_fails_if_no_player_matches() {
+        let (_directory, path) = recording(None);
+
+        let (result, report) = run(&["export", "-c", "4", text(&path)]);
+
+        assert!(result.is_err());
+        assert_eq!(report, "");
+    }
+
+    #[test]
+    fn export_names_the_folder_it_cannot_create() {
+        let (_directory, path) = recording(None);
+
+        let (result, _) = run(&["export", "-d", text(&path), text(&path)]);
+
+        let message = format!("{:#}", result.expect_err("a file is in the way"));
+        assert!(message.starts_with("cannot create"), "{message}");
+    }
 
     fn stay(client: u8, number: u32, name: &str) -> Stay {
         Stay {

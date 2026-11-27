@@ -45,16 +45,16 @@ pub(crate) fn socket_message(kind: &str, data: &str) -> String {
 /// Reads an engine function from the import table of the game module: the function that publishes a stats event
 /// (`EVENT_SLOT`) or the one that publishes the report of a match (`REPORT_SLOT`).
 ///
-/// `builder` is the address of the function of the game module that builds the `PLAYER_MEDAL` event. It loads
-/// the pointer to the import table from a global variable, which this follows to the slot of the function.
+/// `builder` points to the function of the game module that builds the `PLAYER_MEDAL` event. It loads the pointer
+/// to the import table from a global variable, which this follows to the slot of the function.
 ///
 /// # Safety
 ///
-/// `builder` must be the address of that function in a loaded game module, so that its code and the memory it
-/// refers to are readable.
-pub(crate) unsafe fn locate_import(builder: usize, slot: usize) -> Option<usize> {
+/// `builder` must point to that function in a loaded game module, so that its code and the memory it refers to are
+/// readable.
+pub(crate) unsafe fn locate_import(builder: *const u8, slot: usize) -> Option<usize> {
     // SAFETY: the caller guarantees that the code of the function is readable.
-    unsafe { locate_import_at(builder + GLOBAL_LOAD_OFFSET, GLOBAL_LOAD_OPCODE, slot) }
+    unsafe { locate_import_at(builder.add(GLOBAL_LOAD_OFFSET), GLOBAL_LOAD_OPCODE, slot) }
 }
 
 /// Reads a slot of the import table of the game module through the instruction at `instruction`, which loads the
@@ -62,45 +62,50 @@ pub(crate) unsafe fn locate_import(builder: usize, slot: usize) -> Option<usize>
 ///
 /// # Safety
 ///
-/// `instruction` must be the address of such an instruction in a loaded game module, so that the code and the
-/// memory it refers to are readable.
+/// `instruction` must point to such an instruction in a loaded game module, so that the code and the memory it
+/// refers to are readable.
 pub(crate) unsafe fn locate_import_at(
-    instruction: usize,
+    instruction: *const u8,
     load_opcode: [u8; 3],
     slot: usize,
 ) -> Option<usize> {
     // SAFETY: the caller guarantees that the code and the memory it refers to are readable.
     let global = unsafe { locate_global_at(instruction, load_opcode) }?;
     // SAFETY: the global variable holds the pointer to the import table once the game module is set up.
-    let table = unsafe { core::ptr::read_unaligned(global as *const usize) };
-    if table == 0 {
+    let table = unsafe { global.cast::<*const u8>().read_unaligned() };
+    if table.is_null() {
         return None;
     }
     // SAFETY: the import table has a slot at this offset.
-    let import = unsafe { core::ptr::read_unaligned((table + slot) as *const usize) };
+    let import = unsafe { table.add(slot).cast::<usize>().read_unaligned() };
     (import != 0).then_some(import)
 }
 
-/// The address of the global variable of the game module that the instruction at `instruction` loads from the offset
-/// table of the module. The instruction starts with `load_opcode`, followed by the displacement of the table entry.
+/// The global variable of the game module that the instruction at `instruction` loads from the offset table of the
+/// module. The instruction starts with `load_opcode`, followed by the displacement of the table entry.
 ///
 /// # Safety
 ///
-/// `instruction` must be the address of such an instruction in a loaded game module, so that the code and the
-/// memory it refers to are readable.
-pub(crate) unsafe fn locate_global_at(instruction: usize, load_opcode: [u8; 3]) -> Option<usize> {
+/// `instruction` must point to such an instruction in a loaded game module, so that the code and the memory it
+/// refers to are readable.
+pub(crate) unsafe fn locate_global_at(
+    instruction: *const u8,
+    load_opcode: [u8; 3],
+) -> Option<*mut u8> {
     // SAFETY: the caller guarantees that the code of the function is readable.
-    let opcode = unsafe { core::ptr::read_unaligned(instruction as *const [u8; 3]) };
+    let opcode = unsafe { instruction.cast::<[u8; 3]>().read_unaligned() };
     if opcode != load_opcode {
         return None;
     }
 
     // SAFETY: as above, the displacement follows the opcode.
-    let displacement = unsafe { core::ptr::read_unaligned((instruction + 3) as *const i32) };
-    let global_slot = (instruction + 7).checked_add_signed(displacement as isize)?;
+    let displacement = unsafe { instruction.add(3).cast::<i32>().read_unaligned() };
+    let global_slot = instruction
+        .wrapping_add(7)
+        .wrapping_offset(displacement as isize);
     // SAFETY: the instruction loads this slot of the offset table of the module, which the loader filled in.
-    let global = unsafe { core::ptr::read_unaligned(global_slot as *const usize) };
-    (global != 0).then_some(global)
+    let global = unsafe { global_slot.cast::<*mut u8>().read_unaligned() };
+    (!global.is_null()).then_some(global)
 }
 
 #[cfg(all(target_os = "linux", not(test)))]
@@ -322,8 +327,9 @@ mod linux {
             return;
         }
 
+        let code = core::ptr::with_exposed_provenance::<u8>(builder);
         // SAFETY: the address comes from a pattern search of the loaded game module.
-        let Some(import) = (unsafe { locate_import(builder, EVENT_SLOT) }) else {
+        let Some(import) = (unsafe { locate_import(code, EVENT_SLOT) }) else {
             cold_path();
             error!(target: "shinqlx", func = "install"; "The stats import of the game module was not found, no stats events are delivered.");
             return;
@@ -331,7 +337,7 @@ mod linux {
         hook_import(import, shinqlx_stats_import as ImportFn, &DETOUR);
 
         // SAFETY: as above.
-        match unsafe { locate_import(builder, REPORT_SLOT) } {
+        match unsafe { locate_import(code, REPORT_SLOT) } {
             Some(report) => hook_import(report, shinqlx_match_report as ReportFn, &REPORT_DETOUR),
             None => {
                 cold_path();
@@ -384,7 +390,7 @@ mod stats_feed_tests {
     }
 
     struct FakeModule {
-        memory: Vec<usize>,
+        memory: Vec<*mut u8>,
     }
 
     impl FakeModule {
@@ -394,19 +400,31 @@ mod stats_feed_tests {
         const WORDS: usize = 0x400;
 
         fn new(import: usize) -> Self {
-            let mut memory = vec![0usize; Self::WORDS];
-            let base = memory.as_ptr() as usize;
-            memory[Self::GLOBAL_SLOT] = base + Self::GLOBAL * 8;
-            memory[Self::GLOBAL] = base + Self::TABLE * 8;
-            memory[Self::TABLE + super::EVENT_SLOT / 8] = import;
-            memory[Self::TABLE + super::REPORT_SLOT / 8] = import + 1;
+            let mut memory = vec![ptr::null_mut::<u8>(); Self::WORDS];
+            let base = memory.as_mut_ptr();
+            let word = |index| base.wrapping_add(index).cast::<u8>();
+            let slots = [
+                (Self::GLOBAL_SLOT, word(Self::GLOBAL)),
+                (Self::GLOBAL, word(Self::TABLE)),
+                (
+                    Self::TABLE + super::EVENT_SLOT / 8,
+                    ptr::without_provenance_mut(import),
+                ),
+                (
+                    Self::TABLE + super::REPORT_SLOT / 8,
+                    ptr::without_provenance_mut(import + 1),
+                ),
+            ];
+            for (index, value) in slots {
+                // SAFETY: every index lies inside the vector.
+                unsafe { base.add(index).write(value) };
+            }
             Self { memory }
         }
 
-        fn write_load(&mut self, opcode: [u8; 3]) -> usize {
-            let base = self.memory.as_ptr() as usize;
-            let next = base + super::GLOBAL_LOAD_OFFSET + 7;
-            let displacement = (base + Self::GLOBAL_SLOT * 8) as isize - next as isize;
+        fn write_load(&mut self, opcode: [u8; 3]) -> *const u8 {
+            let displacement =
+                (Self::GLOBAL_SLOT * 8) as isize - (super::GLOBAL_LOAD_OFFSET + 7) as isize;
             let bytes = self.memory.as_mut_ptr().cast::<u8>();
             // SAFETY: the offsets lie inside the vector.
             unsafe {
@@ -417,7 +435,7 @@ mod stats_feed_tests {
                     .add(super::GLOBAL_LOAD_OFFSET + 3)
                     .copy_from_nonoverlapping((displacement as i32).to_le_bytes().as_ptr(), 4);
             }
-            base
+            bytes
         }
     }
 

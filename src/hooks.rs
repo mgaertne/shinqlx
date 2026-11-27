@@ -1097,25 +1097,25 @@ mod cvar_set2_hook_tests {
             .string(new_value.as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        let old_address = old_cvar.borrow_mut() as *mut cvar_t as usize;
-        let new_address = new_cvar.borrow_mut() as *mut cvar_t as usize;
+        let old_pointer = ptr::from_mut(old_cvar.borrow_mut());
+        let new_pointer = ptr::from_mut(new_cvar.borrow_mut());
 
         MockEngineBuilder::default()
             .with_find_cvar(
                 |name| name == "sv_hostname",
-                move |_| CVar::try_from(old_address as *mut cvar_t).ok(),
+                move |_| CVar::try_from(old_pointer).ok(),
                 1,
             )
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_cvar_undetected()
-                    .returning_st(move |_, _, _| new_address as *mut cvar_t)
+                    .returning_st(move |_, _, _| new_pointer)
                     .times(1);
             })
             .run(|| {
                 let result =
                     shinqlx_cvar_set2(c"sv_hostname".as_ptr(), c"asdf".as_ptr(), qboolean::qfalse);
-                assert_eq!(result as usize, new_address);
+                assert_eq!(result, new_pointer);
             });
     }
 
@@ -1161,14 +1161,14 @@ mod cvar_set2_hook_tests {
             .string(c"new".as_ptr().cast_mut())
             .build()
             .expect("this should not happen");
-        let new_address = new_cvar.borrow_mut() as *mut cvar_t as usize;
+        let new_pointer = ptr::from_mut(new_cvar.borrow_mut());
 
         MockEngineBuilder::default()
             .with_find_cvar(|name| name == "sv_hostname", |_| None, 1)
             .configure(|mock_engine| {
                 mock_engine
                     .expect_set_cvar_undetected()
-                    .returning_st(move |_, _, _| new_address as *mut cvar_t)
+                    .returning_st(move |_, _, _| new_pointer)
                     .times(1);
             })
             .run(|| {
@@ -1564,6 +1564,7 @@ mod hooks_tests {
 
     #[test]
     #[serial]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
     fn sys_setmoduleoffset_vm_init_ok() {
         let module_string = c"qagame";
         MockEngineBuilder::default()

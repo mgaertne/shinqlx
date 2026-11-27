@@ -333,6 +333,7 @@ mod vm_accessor_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
     fn launch_item_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
@@ -362,6 +363,7 @@ mod vm_accessor_tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "turns addresses into function pointers")]
     fn touch_item_orig_when_function_pointer_set() {
         let quake_engine = default_quake_engine();
         quake_engine
