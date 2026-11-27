@@ -152,6 +152,63 @@ mod shutdown_game_quake_live_engine_tests {
     }
 }
 
+/// The entry of the call table that runs one command of a client.
+#[cfg(feature = "demo-recording")]
+pub(crate) trait ClientThinkOriginal {
+    fn client_think(&self, client_num: c_int);
+}
+
+#[cfg(feature = "demo-recording")]
+impl ClientThinkOriginal for QuakeLiveEngine {
+    fn client_think(&self, client_num: c_int) {
+        let address = self
+            .vm_functions
+            .game
+            .g_client_think_orig
+            .load(Ordering::Acquire);
+        if address != 0 {
+            // SAFETY: the address was read from the call table, whose entry has this signature.
+            let original = unsafe { function_at::<extern "C" fn(c_int)>(address) };
+            original(client_num);
+        }
+    }
+}
+
+#[cfg(all(test, feature = "demo-recording"))]
+mod client_think_quake_live_engine_tests {
+    use core::{
+        ffi::c_int,
+        sync::atomic::{AtomicI32, Ordering},
+    };
+
+    use pretty_assertions::assert_eq;
+
+    use super::{ClientThinkOriginal, test_helpers::*};
+
+    static THOUGHT: AtomicI32 = AtomicI32::new(-1);
+
+    extern "C" fn think(client_num: c_int) {
+        THOUGHT.store(client_num, Ordering::Release);
+    }
+
+    #[test]
+    #[cfg_attr(miri, ignore)]
+    fn the_original_function_runs_once_its_address_is_known() {
+        let quake_engine = default_quake_engine();
+        quake_engine.client_think(1);
+        assert_eq!(THOUGHT.load(Ordering::Acquire), -1);
+
+        quake_engine
+            .vm_functions
+            .game
+            .g_client_think_orig
+            .store(think as *const () as usize, Ordering::Release);
+        quake_engine.client_think(7);
+
+        assert_eq!(THOUGHT.load(Ordering::Acquire), 7);
+    }
+}
+
 pub(crate) trait RunFrame<T: Into<c_int>> {
     fn run_frame(&self, time: T);
 }
@@ -384,6 +441,8 @@ pub(in crate::engine) struct GameFunctions {
     pub(in crate::engine) g_init_game_orig: AtomicUsize,
     pub(in crate::engine) g_shutdown_game_orig: AtomicUsize,
     pub(in crate::engine) g_run_frame_orig: AtomicUsize,
+    #[cfg(feature = "demo-recording")]
+    pub(in crate::engine) g_client_think_orig: AtomicUsize,
     #[cfg(feature = "clientkick-fix")]
     pub(in crate::engine) cmd_callvote_f_orig: AtomicUsize,
 
@@ -470,6 +529,8 @@ impl GameFunctions {
             &self.client_spawn_orig,
             &self.g_init_game_orig,
             &self.g_run_frame_orig,
+            #[cfg(feature = "demo-recording")]
+            &self.g_client_think_orig,
             #[cfg(feature = "clientkick-fix")]
             &self.cmd_callvote_f_orig,
         ]

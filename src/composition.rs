@@ -4,6 +4,8 @@
 use crate::fixes::engine_functions_found;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
+#[cfg(feature = "demo-recording")]
+use crate::hooks::shinqlx_g_clientthink;
 #[cfg(not(test))]
 use crate::hooks::shinqlx_set_configstring;
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
@@ -53,6 +55,8 @@ pub(crate) static ENGINE_CALLBACKS: EngineCallbacks = EngineCallbacks {
         g_initgame: shinqlx_g_initgame,
         g_runframe: shinqlx_g_runframe,
         g_shutdowngame: shinqlx_g_shutdowngame,
+        #[cfg(feature = "demo-recording")]
+        g_clientthink: shinqlx_g_clientthink,
     },
     game: GameCallbacks {
         client_connect: shinqlx_client_connect,

@@ -7,24 +7,34 @@ use core::{
 use std::{sync::LazyLock, time::Instant};
 
 use parking_lot::Mutex;
-use ql_sqx::Event;
+use ql_sqx::{Damage, Event, Input};
 
 use super::{
     catalog::{catalog, mark_game_thread},
+    convert::{Vitals, with_losses},
     disk, engine_state,
     lifecycle::{GameState, Lifecycle, Step},
     session::Session,
     settings::Settings,
 };
-use crate::{QuakeLiveEngine, python::demo_finished_dispatcher};
+use crate::{
+    QuakeLiveEngine,
+    engine::{prelude::GameEntity, types::gentity_t},
+    python::demo_finished_dispatcher,
+};
 
 const SETTINGS_INTERVAL: Duration = Duration::from_secs(1);
 const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+/// More commands than a server gets between two frames.
+const MAX_PENDING_INPUTS: usize = 4096;
 
 /// Whether a session exists, so that the hooks cost next to nothing otherwise.
 static RECORDING: AtomicBool = AtomicBool::new(false);
 /// Configstrings are only complete once the map is loaded.
 static MAP_LOADED: AtomicBool = AtomicBool::new(false);
+static RECORDING_INPUTS: AtomicBool = AtomicBool::new(false);
+/// The commands of the clients since the last captured frame.
+static INPUTS: Mutex<Vec<Input>> = Mutex::new(Vec::new());
 static RECORDER: LazyLock<Mutex<Recorder>> = LazyLock::new(Mutex::default);
 
 #[derive(Default)]
@@ -67,6 +77,11 @@ impl Recorder {
             }
             None => {}
         }
+        RECORDING_INPUTS.store(
+            self.session.is_some() && settings.record_inputs,
+            Ordering::Release,
+        );
+        self.send_inputs();
         let Some(session) = self.session.as_mut() else {
             return;
         };
@@ -112,8 +127,21 @@ impl Recorder {
 
     fn end(&mut self, reason: &str, wait_for_file: bool) {
         RECORDING.store(false, Ordering::Release);
+        RECORDING_INPUTS.store(false, Ordering::Release);
+        self.send_inputs();
         if let Some(session) = self.session.take() {
             session.end(reason, wait_for_file);
+        }
+    }
+
+    /// Hands over the commands that were collected, or drops them without a recording.
+    fn send_inputs(&mut self) {
+        let inputs = core::mem::take(&mut *INPUTS.lock());
+        if let Some(session) = self.session.as_ref()
+            && !inputs.is_empty()
+        {
+            // A writer that cannot keep up is noticed with the next frame.
+            session.send(Event::Inputs(inputs));
         }
     }
 
@@ -206,6 +234,70 @@ pub(crate) fn stats(message: &str) {
     if !delivered {
         recorder.give_up();
     }
+}
+
+/// To be called after the game ran a command of a client.
+pub(crate) fn client_thought(client_num: i32) {
+    if RECORDING_INPUTS.load(Ordering::Acquire)
+        && let Some(input) = engine_state::last_command(client_num)
+    {
+        let mut inputs = INPUTS.lock();
+        if inputs.len() < MAX_PENDING_INPUTS {
+            inputs.push(input);
+        }
+    }
+}
+
+/// To be called before the weapon of this entity is fired.
+pub(crate) fn weapon_fired(entity: *mut gentity_t) {
+    if is_recording()
+        && let Some(shot) = engine_state::shot_of(entity)
+    {
+        send(|| Event::Shot(shot));
+    }
+}
+
+/// A player who is about to be damaged.
+pub(crate) struct PendingDamage {
+    target: u8,
+    before: Vitals,
+}
+
+/// To be called before the game damages an entity, `None` unless a living player is about to be hit.
+pub(crate) fn damage_begins(target: *mut gentity_t) -> Option<PendingDamage> {
+    if !is_recording() {
+        return None;
+    }
+    let (target, before) = engine_state::vitals(&GameEntity::try_from(target).ok()?)?;
+    // The stats of the game do not count hits on dead bodies either.
+    (before.health > 0).then_some(PendingDamage { target, before })
+}
+
+/// To be called with what [`damage_begins`] returned once the game has done the damage.
+pub(crate) fn damage_done(
+    pending: PendingDamage,
+    attacker: *mut gentity_t,
+    amount: i32,
+    flags: i32,
+    means_of_death: i32,
+) {
+    let Some((_, after)) = GameEntity::try_from(i32::from(pending.target))
+        .ok()
+        .and_then(|target| engine_state::vitals(&target))
+    else {
+        return;
+    };
+    let damage = Damage {
+        target: pending.target,
+        attacker: GameEntity::try_from(attacker)
+            .ok()
+            .and_then(|attacker| u16::try_from(attacker.get_entity_id()).ok()),
+        amount,
+        flags: flags.cast_unsigned(),
+        means_number: means_of_death.cast_unsigned(),
+        ..Damage::default()
+    };
+    send(|| Event::Damage(with_losses(damage, pending.before, after)));
 }
 
 pub(crate) fn is_recording() -> bool {

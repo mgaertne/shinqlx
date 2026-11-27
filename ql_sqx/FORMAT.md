@@ -32,6 +32,9 @@ Below, *bytes* are a `u32` length followed by that many bytes.
 | 6    | player left   | `u8` client number                                                                        |
 | 7    | end           | why the recording ended, as text                                                          |
 | 8    | stats         | a stats message of the game as the JSON object `{"DATA":{…},"TYPE":"…"}`                  |
+| 9    | inputs        | the commands of the clients since the frame before, a bit stream, see below              |
+| 10   | shot          | `u8` client number, `u32` weapon, `i32` command time, position and view angles as `f32`  |
+| 11   | damage        | `u8` client number of the target, `u8` `1` if it killed, `u16` attacking entity (65535 none), `i32` damage asked for, `u32` damage flags, `u32` means of death, `i32` health lost, `i32` armor lost |
 
 The start record is the first one. Its descriptions are `map`, `factory`, `gametype`, `sv_fps`, `shinqlx` (the
 version of the server) and `started` (seconds since the Unix epoch).
@@ -42,6 +45,22 @@ a frame holds the state after them.
 Key frames are written for the first frame, whenever the server time has advanced by 10 seconds or has gone backwards.
 To start reading in the middle of a file, skip records by their length up to a key frame, apply every configstring
 record before it, and continue from there.
+
+Damage records tell about hits on living players only.
+
+## Inputs
+
+A bit stream coded like frame payloads: `16` bits number of commands, then the commands in the order the server ran
+them. Each is coded as its changes to the command of the same client before, or to an all-zero command:
+
+* `8` bits client number,
+* bit `1` and `8` bits by which the time of the command advanced, or bit `0` and the time in `32` bits,
+* for each of the three view angles and then the buttons one bit whether it changed, followed by `32` bits,
+* one bit whether anything else changed; if so `8` bits each of weapon, primary weapon, field of view, forward, right
+  and up.
+
+Key frames start the coding anew: the commands in the first inputs record after a key frame are coded against all-zero
+commands.
 
 ## Frames
 

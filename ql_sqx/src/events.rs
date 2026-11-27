@@ -4,10 +4,11 @@ use alloc::{collections::BTreeMap, vec::Vec};
 use core::mem::discriminant;
 
 use super::{
+    actions::{Damage, Shot},
     archive::Record,
     capture::Frame,
     state::EntityState,
-    view::{EntityKind, MeansOfDeath, Weapon},
+    view::{EntityKind, MeansOfDeath},
     writer::Event,
 };
 
@@ -21,7 +22,6 @@ const FIRST_PLAYER: u16 = 529;
 const CLIENTS: u16 = 64;
 /// The score of a place nobody holds.
 const NO_SCORE: i32 = -9999;
-const EVENT_FIRE_WEAPON: u32 = 20;
 const EVENT_OBITUARY: u32 = 58;
 
 /// Something that happened, and the server time of the frame that shows it first.
@@ -47,12 +47,9 @@ pub enum Happening {
         means: Option<MeansOfDeath>,
     },
     /// A player fired a weapon; automatic weapons do so for every shot.
-    Shot {
-        /// The client number.
-        client: u8,
-        /// The weapon.
-        weapon: Weapon,
-    },
+    Shot(Shot),
+    /// A player was hit.
+    Damage(Damage),
     /// The warmup changed. The start of a recording tells it as it was.
     Warmup(Warmup),
     /// The next round of a round based game is announced.
@@ -127,8 +124,6 @@ pub struct Timeline {
     teams: BTreeMap<u8, Team>,
     /// The event entities of the last frame, which stay for a while.
     event_entities: Vec<EntityState>,
-    /// The number of the next event of every player.
-    sequences: BTreeMap<u8, u32>,
 }
 
 impl Timeline {
@@ -143,15 +138,21 @@ impl Timeline {
             Record::Event(Event::Configstring { index, value }) => {
                 self.configstring(*index, value);
             }
-            Record::Event(Event::PlayerLeft { client }) => {
-                self.sequences.remove(client);
+            Record::Event(Event::Shot(shot)) => self.pending.push(Happening::Shot(*shot)),
+            Record::Event(Event::Damage(damage)) => {
+                self.pending.push(Happening::Damage(*damage));
             }
             Record::Event(Event::Frame(frame)) => return self.frame(frame),
             Record::Event(Event::End { .. }) => {
                 let pending = core::mem::take(&mut self.pending);
                 return self.stamped(pending);
             }
-            Record::Event(Event::Command { .. } | Event::Stats { .. }) => {}
+            Record::Event(
+                Event::Command { .. }
+                | Event::Stats { .. }
+                | Event::Inputs(_)
+                | Event::PlayerLeft { .. },
+            ) => {}
         }
         Vec::new()
     }
@@ -159,7 +160,6 @@ impl Timeline {
     fn frame(&mut self, frame: &Frame) -> Vec<GameEvent> {
         self.time = frame.server_time;
         let mut happened = core::mem::take(&mut self.pending);
-        self.shots(frame, &mut happened);
         self.kills(frame, &mut happened);
         self.stamped(happened)
     }
@@ -172,32 +172,6 @@ impl Timeline {
                 happening,
             })
             .collect()
-    }
-
-    fn shots(&mut self, frame: &Frame, happened: &mut Vec<Happening>) {
-        for (client, player) in &frame.players {
-            // A spectator carries the state of whom they follow.
-            if player.client_number() != i32::from(*client) {
-                self.sequences.remove(client);
-                continue;
-            }
-            let next = player.event_sequence();
-            let Some(before) = self.sequences.insert(*client, next) else {
-                continue;
-            };
-            let Some(weapon) = player.weapon() else {
-                continue;
-            };
-            happened.extend(
-                player
-                    .events_since(before)
-                    .filter(|&event| event == EVENT_FIRE_WEAPON)
-                    .map(|_| Happening::Shot {
-                        client: *client,
-                        weapon,
-                    }),
-            );
-        }
     }
 
     fn kills(&mut self, frame: &Frame, happened: &mut Vec<Happening>) {
@@ -349,8 +323,7 @@ mod events_tests {
     use super::*;
     use crate::{
         capture::{CapturedEntity, Visibility},
-        fields::{entity_field, player_field},
-        state::PlayerState,
+        fields::entity_field,
     };
 
     fn obituary(number: u16, victim: u32, killer: u32) -> CapturedEntity {
@@ -368,27 +341,11 @@ mod events_tests {
         }
     }
 
-    /// The state of client 2, whose events so far are `events`, the newest last.
-    fn player(sequence: u32, events: [u32; 2]) -> PlayerState {
-        let mut player = PlayerState::default();
-        let mut set = |name, value| player.fields[player_field(name)] = value;
-        set("clientNum", 2);
-        set("weapon", 7);
-        set("eventSequence", sequence);
-        set("events[0]", events[0]);
-        set("events[1]", events[1]);
-        player
-    }
-
-    fn frame(
-        server_time: i32,
-        entities: Vec<CapturedEntity>,
-        players: Vec<(u8, PlayerState)>,
-    ) -> Record {
+    fn frame(server_time: i32, entities: Vec<CapturedEntity>) -> Record {
         Record::Event(Event::Frame(Frame {
             server_time,
             entities,
-            players,
+            players: Vec::new(),
         }))
     }
 
@@ -412,8 +369,8 @@ mod events_tests {
         let mut timeline = Timeline::default();
         let killed = || vec![obituary(100, 3, 2), obituary(101, 4, 1022)];
 
-        let first = timeline.record(&frame(25, killed(), Vec::new()));
-        let again = timeline.record(&frame(50, killed(), Vec::new()));
+        let first = timeline.record(&frame(25, killed()));
+        let again = timeline.record(&frame(50, killed()));
 
         let kill = |victim, killer| GameEvent {
             time: 25,
@@ -428,35 +385,25 @@ mod events_tests {
     }
 
     #[test]
-    fn every_new_event_of_a_player_that_fires_is_a_shot() {
+    fn shots_and_damage_are_told_with_the_next_frame() {
         let mut timeline = Timeline::default();
-        let mut shots = |sequence, events| {
-            happenings(
-                &mut timeline,
-                &frame(25, Vec::new(), vec![(2, player(sequence, events))]),
-            )
-            .len()
+        let shot = Shot {
+            client: 2,
+            weapon_number: 7,
+            ..Shot::default()
         };
-
-        assert_eq!(shots(4, [0, 20]), 0);
-        assert_eq!(shots(5, [20, 20]), 1);
-        assert_eq!(shots(5, [20, 20]), 0);
-        assert_eq!(shots(7, [20, 20]), 2);
-        assert_eq!(shots(8, [20, 1]), 0);
-        assert_eq!(shots(65535, [20, 1]), 1);
-        assert_eq!(shots(0, [20, 20]), 1);
-    }
-
-    #[test]
-    fn the_followed_player_does_not_shoot_twice() {
-        let mut timeline = Timeline::default();
-        for sequence in [1, 2] {
-            let spectator = vec![(5, player(sequence, [20, 20]))];
-
-            let told = timeline.record(&frame(25, Vec::new(), spectator));
-
-            assert_eq!(told, []);
+        let damage = Damage {
+            target: 3,
+            attacker: Some(2),
+            ..Damage::default()
+        };
+        for record in [Event::Shot(shot), Event::Damage(damage)] {
+            assert_eq!(timeline.record(&Record::Event(record)), []);
         }
+
+        let told = happenings(&mut timeline, &frame(25, Vec::new()));
+
+        assert_eq!(told, [Happening::Shot(shot), Happening::Damage(damage)]);
     }
 
     #[test]
@@ -464,7 +411,7 @@ mod events_tests {
         let mut timeline = Timeline::default();
         let mut told = |index, value| {
             timeline.record(&configstring(index, value));
-            happenings(&mut timeline, &frame(25, Vec::new(), Vec::new()))
+            happenings(&mut timeline, &frame(25, Vec::new()))
         };
 
         assert_eq!(
@@ -495,7 +442,7 @@ mod events_tests {
             timeline.record(&record);
         }
 
-        let told = happenings(&mut timeline, &frame(25, Vec::new(), Vec::new()));
+        let told = happenings(&mut timeline, &frame(25, Vec::new()));
 
         assert_eq!(
             told,
@@ -512,7 +459,7 @@ mod events_tests {
         timeline.record(&configstring(WARMUP, "\\time\\-1"));
         timeline.record(&configstring(WARMUP, "\\time\\0"));
 
-        let told = happenings(&mut timeline, &frame(25, Vec::new(), Vec::new()));
+        let told = happenings(&mut timeline, &frame(25, Vec::new()));
 
         assert_eq!(told, [Happening::Warmup(Warmup::Over)]);
     }
@@ -531,7 +478,7 @@ mod events_tests {
             assert_eq!(timeline.record(&record), []);
         }
 
-        let told = happenings(&mut timeline, &frame(25, Vec::new(), Vec::new()));
+        let told = happenings(&mut timeline, &frame(25, Vec::new()));
 
         assert_eq!(
             told,

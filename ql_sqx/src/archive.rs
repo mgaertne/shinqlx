@@ -1,7 +1,7 @@
 //! The recording format `.dm_sqx`: a header followed by records `{u8 kind, u32 length, payload}`.
 
 use alloc::{
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     string::{String, ToString},
     vec::Vec,
 };
@@ -10,6 +10,7 @@ use std::io::{self, Read, Write};
 use derive_more::Display;
 
 use super::{
+    actions::{Damage, Input, Shot, decode_inputs, encode_inputs},
     capture::Frame,
     error::DemoError,
     frame_coding::{Previous, decode_frame, encode_frame},
@@ -31,6 +32,10 @@ const KIND_COMMAND: u8 = 5;
 const KIND_PLAYER_LEFT: u8 = 6;
 const KIND_END: u8 = 7;
 const KIND_STATS: u8 = 8;
+const KIND_INPUTS: u8 = 9;
+const KIND_SHOT: u8 = 10;
+const KIND_DAMAGE: u8 = 11;
+const NO_ATTACKER: u16 = u16::MAX;
 
 /// Why a recording cannot be read or written.
 #[derive(Debug, Display)]
@@ -90,6 +95,7 @@ struct SentCommand {
 pub struct ArchiveWriter<W: Write> {
     output: W,
     previous: Previous,
+    previous_inputs: BTreeMap<u8, Input>,
     unwritten_command: Option<SentCommand>,
     key_frame_time: Option<i32>,
     written: u64,
@@ -105,6 +111,7 @@ impl<W: Write> ArchiveWriter<W> {
         let mut writer = Self {
             output,
             previous: Previous::default(),
+            previous_inputs: BTreeMap::new(),
             unwritten_command: None,
             key_frame_time: None,
             written: 0,
@@ -147,6 +154,12 @@ impl<W: Write> ArchiveWriter<W> {
             Event::PlayerLeft { client } => self.record(KIND_PLAYER_LEFT, &[*client]),
             Event::End { reason } => self.record(KIND_END, reason.as_bytes()),
             Event::Stats { message } => self.record(KIND_STATS, message.as_bytes()),
+            Event::Inputs(inputs) => {
+                let payload = encode_inputs(&mut self.previous_inputs, inputs)?;
+                self.record(KIND_INPUTS, &payload)
+            }
+            Event::Shot(shot) => self.record(KIND_SHOT, &shot_payload(shot)),
+            Event::Damage(damage) => self.record(KIND_DAMAGE, &damage_payload(damage)),
         }
     }
 
@@ -188,6 +201,7 @@ impl<W: Write> ArchiveWriter<W> {
         });
         if is_key_frame {
             self.previous = Previous::default();
+            self.previous_inputs.clear();
             self.key_frame_time = Some(frame.server_time);
         }
         let payload = encode_frame(&mut self.previous, frame)?;
@@ -218,6 +232,7 @@ impl<W: Write> ArchiveWriter<W> {
 pub struct ArchiveReader<R: Read> {
     input: R,
     previous: Previous,
+    previous_inputs: BTreeMap<u8, Input>,
     /// What is left of a record that stands for several events.
     queued: VecDeque<Record>,
     truncated: bool,
@@ -245,6 +260,7 @@ impl<R: Read> ArchiveReader<R> {
         Ok(Self {
             input,
             previous: Previous::default(),
+            previous_inputs: BTreeMap::new(),
             queued: VecDeque::new(),
             truncated: false,
         })
@@ -277,6 +293,7 @@ impl<R: Read> ArchiveReader<R> {
                 KIND_KEY_FRAME | KIND_DELTA_FRAME => {
                     if kind == KIND_KEY_FRAME {
                         self.previous = Previous::default();
+                        self.previous_inputs.clear();
                     }
                     Record::Event(Event::Frame(decode_frame(&mut self.previous, rest)?))
                 }
@@ -294,6 +311,12 @@ impl<R: Read> ArchiveReader<R> {
                 KIND_STATS => Record::Event(Event::Stats {
                     message: String::from_utf8_lossy(rest).to_string(),
                 }),
+                KIND_INPUTS => Record::Event(Event::Inputs(decode_inputs(
+                    &mut self.previous_inputs,
+                    rest,
+                )?)),
+                KIND_SHOT => Record::Event(Event::Shot(read_shot(&mut rest)?)),
+                KIND_DAMAGE => Record::Event(Event::Damage(read_damage(&mut rest)?)),
                 _ => continue,
             };
             return Ok(Some(record));
@@ -356,6 +379,62 @@ fn take_bytes(rest: &mut &[u8]) -> Result<Vec<u8>, DemoError> {
 }
 
 /// One command event for every recipient of the record.
+fn shot_payload(shot: &Shot) -> Vec<u8> {
+    let mut payload = vec![shot.client];
+    payload.extend_from_slice(&shot.weapon_number.to_le_bytes());
+    payload.extend_from_slice(&shot.command_time.to_le_bytes());
+    for bits in shot.origin_bits.iter().chain(&shot.view_angle_bits) {
+        payload.extend_from_slice(&bits.to_le_bytes());
+    }
+    payload
+}
+
+fn read_shot(rest: &mut &[u8]) -> Result<Shot, DemoError> {
+    let [client] = take(rest)?;
+    let weapon = u32::from_le_bytes(take(rest)?);
+    let command_time = i32::from_le_bytes(take(rest)?);
+    let mut vector = || -> Result<[u32; 3], DemoError> {
+        let mut bits = [0; 3];
+        for value in &mut bits {
+            *value = u32::from_le_bytes(take(rest)?);
+        }
+        Ok(bits)
+    };
+    Ok(Shot {
+        client,
+        weapon_number: weapon,
+        command_time,
+        origin_bits: vector()?,
+        view_angle_bits: vector()?,
+    })
+}
+
+fn damage_payload(damage: &Damage) -> Vec<u8> {
+    let mut payload = vec![damage.target, u8::from(damage.fatal)];
+    payload.extend_from_slice(&damage.attacker.unwrap_or(NO_ATTACKER).to_le_bytes());
+    payload.extend_from_slice(&damage.amount.to_le_bytes());
+    payload.extend_from_slice(&damage.flags.to_le_bytes());
+    payload.extend_from_slice(&damage.means_number.to_le_bytes());
+    payload.extend_from_slice(&damage.health_lost.to_le_bytes());
+    payload.extend_from_slice(&damage.armor_lost.to_le_bytes());
+    payload
+}
+
+fn read_damage(rest: &mut &[u8]) -> Result<Damage, DemoError> {
+    let [target, fatal] = take(rest)?;
+    let attacker = u16::from_le_bytes(take(rest)?);
+    Ok(Damage {
+        target,
+        fatal: fatal != 0,
+        attacker: (attacker != NO_ATTACKER).then_some(attacker),
+        amount: i32::from_le_bytes(take(rest)?),
+        flags: u32::from_le_bytes(take(rest)?),
+        means_number: u32::from_le_bytes(take(rest)?),
+        health_lost: i32::from_le_bytes(take(rest)?),
+        armor_lost: i32::from_le_bytes(take(rest)?),
+    })
+}
+
 fn read_commands(rest: &mut &[u8]) -> Result<VecDeque<Record>, DemoError> {
     let [count] = take(rest)?;
     let (recipients, command) = rest
@@ -457,6 +536,28 @@ mod archive_tests {
             Event::Stats {
                 message: r#"{"DATA":{},"TYPE":"ROUND_OVER"}"#.into(),
             },
+            Event::Inputs(vec![input(25, 100), input(33, -200)]),
+            Event::Shot(Shot {
+                client: 1,
+                weapon_number: 7,
+                command_time: 33,
+                origin_bits: [1.5f32.to_bits(), 0, (-8.0f32).to_bits()],
+                view_angle_bits: [0, 90.0f32.to_bits(), 0],
+            }),
+            Event::Damage(Damage {
+                target: 0,
+                attacker: Some(1),
+                amount: 80,
+                flags: 2,
+                means_number: 10,
+                health_lost: 27,
+                armor_lost: 53,
+                fatal: true,
+            }),
+            Event::Damage(Damage {
+                attacker: None,
+                ..Damage::default()
+            }),
             frame(
                 20_000,
                 vec![entity(900, 1, Visibility::Only(0))],
@@ -466,6 +567,19 @@ mod archive_tests {
                 reason: "the map ended".into(),
             },
         ]
+    }
+
+    fn input(server_time: i32, yaw: i32) -> Input {
+        Input {
+            client: 1,
+            server_time,
+            angles: [0, yaw, 0],
+            buttons: 1,
+            weapon: 7,
+            forward: 127,
+            right: -127,
+            ..Input::default()
+        }
     }
 
     fn recording() -> Vec<u8> {

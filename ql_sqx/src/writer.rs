@@ -6,12 +6,13 @@ use std::{
 };
 
 use super::{
+    actions::{Damage, Input, Shot},
     archive::{ArchiveError, ArchiveWriter},
     capture::Frame,
 };
 
 /// Events the game thread may be ahead of the writer, a few seconds of a match.
-const QUEUE_LENGTH: usize = 1024;
+const QUEUE_LENGTH: usize = 4096;
 
 /// Something that happens while a match is recorded.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,6 +39,12 @@ pub enum Event {
         /// The client number.
         client: u8,
     },
+    /// The commands of the clients since the frame before, in the order the server ran them.
+    Inputs(Vec<Input>),
+    /// A weapon was fired.
+    Shot(Shot),
+    /// A player was hit.
+    Damage(Damage),
     /// A stats message of the game.
     Stats {
         /// The JSON object `{"DATA":{…},"TYPE":"…"}`, as the stats socket of the server carries it.

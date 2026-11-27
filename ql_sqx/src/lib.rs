@@ -3,6 +3,7 @@
 
 extern crate alloc;
 
+mod actions;
 mod archive;
 mod bits;
 mod capture;
@@ -27,6 +28,7 @@ mod summary;
 mod view;
 mod writer;
 
+pub use actions::{Damage, Input, Shot};
 pub use archive::{ArchiveError, ArchiveReader, ArchiveWriter, Record};
 pub use capture::{CapturedEntity, Frame, Visibility};
 pub use demo_files::{DemoFile, DemoFileError, DemoFiles, demo_file_name, write_demo_files};

@@ -8,6 +8,8 @@ use core::{
 
 use tap::{Conv, TapFallible, TapOptional, TryConv};
 
+#[cfg(feature = "demo-recording")]
+use crate::engine::ClientThinkOriginal;
 #[cfg(feature = "zmq-rcon-fix")]
 use crate::fixes::zmq_rcon;
 use crate::{
@@ -678,6 +680,9 @@ pub(crate) extern "C" fn shinqlx_g_damage(
     means_of_death: c_int,
 ) {
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
+        #[cfg(all(feature = "demo-recording", not(test)))]
+        let recorded = crate::demo_capture::damage_begins(target);
+
         main_engine.register_damage(
             target,
             inflictor,
@@ -688,6 +693,11 @@ pub(crate) extern "C" fn shinqlx_g_damage(
             dflags,
             means_of_death,
         );
+
+        #[cfg(all(feature = "demo-recording", not(test)))]
+        if let Some(pending) = recorded {
+            crate::demo_capture::damage_done(pending, attacker, damage, dflags, means_of_death);
+        }
 
         let _ = GameEntity::try_from(target).tap_ok(|target_entity| match attacker.is_null() {
             true => {
@@ -735,8 +745,50 @@ pub(crate) extern "C" fn shinqlx_fire_weapon(ent: *mut gentity_t) {
                 );
             });
 
+        #[cfg(all(feature = "demo-recording", not(test)))]
+        crate::demo_capture::weapon_fired(ent);
+
         main_engine.fire_weapon(ent);
     });
+}
+
+/// Records the command of a client once the game has run it.
+#[cfg(feature = "demo-recording")]
+pub(crate) extern "C" fn shinqlx_g_clientthink(client_num: c_int) {
+    MAIN_ENGINE.load().as_ref().tap_some(|main_engine| {
+        main_engine.client_think(client_num);
+
+        #[cfg(not(test))]
+        crate::demo_capture::client_thought(client_num);
+    });
+}
+
+#[cfg(all(test, feature = "demo-recording"))]
+mod client_think_hook_tests {
+    use mockall::predicate;
+
+    use super::shinqlx_g_clientthink;
+    use crate::prelude::*;
+
+    #[test]
+    #[serial]
+    fn client_think_with_no_main_engine() {
+        shinqlx_g_clientthink(3);
+    }
+
+    #[test]
+    #[serial]
+    #[cfg_attr(miri, ignore)]
+    fn client_think_is_forwarded() {
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_client_think()
+                    .with(predicate::eq(3))
+                    .times(1);
+            })
+            .run(|| shinqlx_g_clientthink(3));
+    }
 }
 
 /// Reports every medal the game module awards to the `medal` event, before the game module builds its stats event.

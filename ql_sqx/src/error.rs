@@ -18,6 +18,9 @@ pub enum DemoError {
     /// An entity number is out of range or out of order.
     #[display("invalid entity number: {_0}")]
     EntityNumber(u16),
+    /// A record of inputs holds more commands than it can count.
+    #[display("too many inputs for one record")]
+    TooManyInputs,
     /// A frame has more players than a server holds.
     #[display("too many players in a frame")]
     PlayerCount,

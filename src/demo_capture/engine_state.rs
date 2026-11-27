@@ -3,10 +3,10 @@
 use alloc::vec::Vec;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use ql_sqx::{CapturedEntity, Frame};
+use ql_sqx::{CapturedEntity, Frame, Input, Shot};
 
 use super::{
-    convert::{entity_state, player_state, visibility},
+    convert::{Vitals, entity_state, input, player_state, shot, visibility},
     lifecycle::{GameState, Observation},
     sidecar::PlayerEntry,
 };
@@ -115,6 +115,29 @@ pub(super) fn capture(main_engine: &QuakeLiveEngine, server_time: i32) -> Frame 
         entities,
         players,
     }
+}
+
+/// The command the game ran last for a client.
+pub(super) fn last_command(client_num: i32) -> Option<Input> {
+    let client = u8::try_from(client_num).ok()?;
+    let mut entity = GameEntity::try_from(u32::from(client)).ok()?;
+    // SAFETY: a non-null client pointer of an entity points to a client of the loaded game module.
+    let game_client = unsafe { entity.as_mut().client.as_ref() }?;
+    Some(input(client, &game_client.pers.cmd))
+}
+
+/// The shot the player of this entity is about to fire.
+pub(super) fn shot_of(entity: *mut gentity_t) -> Option<Shot> {
+    let client = u8::try_from(GameEntity::try_from(entity).ok()?.get_entity_id()).ok()?;
+    Some(shot(client, &read_player(client)?))
+}
+
+/// The client number, health and armor of an entity that is a player.
+pub(super) fn vitals(entity: &GameEntity) -> Option<(u8, Vitals)> {
+    let client = u8::try_from(entity.get_entity_id()).ok()?;
+    let armor = entity.get_game_client().ok()?.get_armor();
+    let health = entity.get_health();
+    Some((client, Vitals { health, armor }))
 }
 
 fn read_player(client: u8) -> Option<playerState_t> {

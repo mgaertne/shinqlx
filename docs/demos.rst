@@ -55,8 +55,8 @@ start in UTC. A recording ends
 * when the server cannot write fast enough; the next attempt follows a minute later, as after a failed start.
 
 A recording holds what the server knows in every frame: all players and the other entities of the game, with the
-messages sent to the players. It does not hold the inputs of the players, so the view angles are only known as often as
-the server runs frames (``sv_fps``, 40 by default).
+messages sent to the players. With ``qlx_demoUsercmds`` it also holds the inputs of the players. Without them, the view
+angles are only known as often as the server runs frames (``sv_fps``, 40 by default) and at every shot.
 
 Next to each recording the server keeps a file of the same name ending in ``.json`` with the map, the factory, start
 and end, the game type, whether a match was played, who was in the game with their SteamIDs, and the requests to keep
@@ -82,6 +82,8 @@ cvar                             default                 description
 ``qlx_demoMaxTotalMB``           ``5120``                Delete the oldest recordings once all together are larger.
 ``qlx_demoMinFreeMB``            ``1024``                Delete the oldest recordings while the disk has less free
                                                          space.
+``qlx_demoUsercmds``             ``1``                   Record the commands of the players: pressed keys and view
+                                                         angles, every time the game runs one.
 ``qlx_demoRequestPermission``    ``1``                   Permission level for ``!request demo`` of the plugin
                                                          ``demos``, read when the plugin is loaded. ``0`` lets
                                                          everyone ask.
@@ -107,13 +109,40 @@ directory: copy a recording elsewhere to keep it for good.
 Disk space and server load
 ==========================
 
-In tests with 12 to 16 bots a recording grew by 16 to 20 KB per second, about 40 to 55 MB for 45 minutes. A demo
-exported from it takes about 10 KB per second for each player.
+The state is collected at the end of each game frame on the thread of the server and written by a separate thread, for
+which the machine should have a core to spare. These values were measured with 32 bots in free for all on a laptop,
+with inputs recorded:
 
-The state is collected at the end of each game frame and written by a separate thread. In the same tests, collecting
-took 40 to 100 microseconds per frame on average and a few hundred at most; starting a recording took about 2
-milliseconds. Matches with human players have not been measured. When a recording ends, the log shows these times for
-your server.
+===================================== ==================== ====================
+per frame, unless stated otherwise    ``sv_fps`` 40        ``sv_fps`` 125
+===================================== ==================== ====================
+time of a frame                       25 ms                8 ms
+recording on the server thread, mean  about 0.19 ms (0.8%) about 0.14 ms (1.8%)
+slowest frame of the recording        2.3 ms               1.8 ms
+processor time of the writing thread  2.5% of a core       5% of a core
+growth of a recording                 65 KB per second     152 KB per second
+45 minutes                            about 175 MB         about 410 MB
+45 minutes without inputs             about 139 MB         about 303 MB
+exported demo, for each player        22 KB per second     49 KB per second
+===================================== ==================== ====================
+
+Fewer players need less: with 12 to 16 bots at ``sv_fps`` 40 and without inputs, a recording grew by 14 to 20 KB per
+second. Starting a recording took about 2 milliseconds. Matches with human players have not been measured, and their
+clients may send more inputs than bots do. When a recording ends, the log shows the times of your server.
+
+Recommendations for ``sv_fps`` 125
+----------------------------------
+
+The feature ``fps-patch`` raises the default of ``sv_fps`` to 125. Recording at the full rate is no problem for the
+processor, but plan the disk space:
+
+* The default of ``qlx_demoMaxTotalMB`` holds only about 9 hours of recordings of 32 players, compared to 22 hours at
+  40. Raise it to what you want to keep (20480 holds about 37 hours) or lower ``qlx_demoKeepUnrequestedHours``.
+* Leave ``qlx_demoUsercmds`` on. If space is short, switching it off saves about a quarter; every frame still holds the
+  view angles, but the pressed keys are lost.
+* Compressing recordings you want to archive saves 12% (``zstd -3``) to 19% (``zstd -19``).
+
+Whether demos exported from a server at 125 play back well has not been tested.
 
 Getting demos
 =============
@@ -161,7 +190,7 @@ Privacy
 =======
 
 A recording contains the messages of *all* players, including team chat and tells, and its ``.json`` file their
-SteamIDs. Treat both as confidential, restrict who can read the directory, and tell your players that the server
+SteamIDs. With ``qlx_demoUsercmds 1`` it also holds when every player pressed which keys and where they looked. Treat both as confidential, restrict who can read the directory, and tell your players that the server
 records. ``ql_demo export --no-private`` and ``include_private=False`` leave team chat and tells out of a demo. Other
 messages sent to a single player, such as the answers of server plugins, stay in it, so look at a demo before passing it
 on.

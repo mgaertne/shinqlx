@@ -15,6 +15,8 @@ pub struct Settings {
     pub directory: PathBuf,
     /// How long recordings are kept.
     pub limits: Limits,
+    /// Whether the commands of the clients are recorded.
+    pub record_inputs: bool,
 }
 
 impl Settings {
@@ -51,6 +53,7 @@ impl Settings {
                 max_total_bytes: limit("qlx_demoMaxTotalMB", 5120, MEBIBYTE),
                 min_free_bytes: limit("qlx_demoMinFreeMB", 1024, MEBIBYTE),
             },
+            record_inputs: number("qlx_demoUsercmds", 1) != 0,
         }
     }
 }
@@ -87,6 +90,7 @@ mod settings_tests {
                     max_total_bytes: Some(5120 * MEBIBYTE),
                     min_free_bytes: Some(1024 * MEBIBYTE),
                 },
+                record_inputs: true,
             }
         );
     }
@@ -102,7 +106,10 @@ mod settings_tests {
             ("qlx_demoKeepRequestedDays", "3"),
             ("qlx_demoMaxTotalMB", "0"),
             ("qlx_demoMinFreeMB", "-5"),
+            ("qlx_demoUsercmds", "0"),
         ]);
+
+        assert!(!settings.record_inputs);
 
         assert!(settings.rules.enabled);
         assert!(!settings.rules.require_human);

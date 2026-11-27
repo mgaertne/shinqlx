@@ -2,9 +2,9 @@
 
 use core::ffi::{c_char, c_int};
 
-use ql_sqx::{EntityState, PlayerState, Visibility, float_bits};
+use ql_sqx::{Damage, EntityState, Input, PlayerState, Shot, Visibility, float_bits};
 
-use crate::engine::types::{entityState_t, playerState_t};
+use crate::engine::types::{entityState_t, playerState_t, usercmd_t};
 
 const SVF_NOCLIENT: c_int = 0x1;
 const SVF_SINGLECLIENT: c_int = 0x100;
@@ -29,6 +29,52 @@ fn int(value: c_int) -> u32 {
 
 fn byte(value: c_char) -> u32 {
     u32::from(value.to_ne_bytes()[0])
+}
+
+fn signed(value: c_char) -> i8 {
+    i8::from_ne_bytes(value.to_ne_bytes())
+}
+
+pub(super) fn input(client: u8, command: &usercmd_t) -> Input {
+    Input {
+        client,
+        server_time: command.serverTime,
+        angles: command.angles,
+        buttons: command.buttons,
+        weapon: command.weapon,
+        weapon_primary: command.weaponPrimary,
+        fov: command.fov,
+        forward: signed(command.forwardmove),
+        right: signed(command.rightmove),
+        up: signed(command.upmove),
+    }
+}
+
+pub(super) fn shot(client: u8, state: &playerState_t) -> Shot {
+    Shot {
+        client,
+        weapon_number: int(state.weapon),
+        command_time: state.commandTime,
+        origin_bits: state.origin.map(f32::to_bits),
+        view_angle_bits: state.viewangles.map(f32::to_bits),
+    }
+}
+
+/// What damage takes from a player.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct Vitals {
+    pub(super) health: i32,
+    pub(super) armor: i32,
+}
+
+/// The damage with what the player lost by it, given the vitals around it.
+pub(super) fn with_losses(damage: Damage, before: Vitals, after: Vitals) -> Damage {
+    Damage {
+        health_lost: before.health.saturating_sub(after.health),
+        armor_lost: before.armor.saturating_sub(after.armor),
+        fatal: before.health > 0 && after.health <= 0,
+        ..damage
+    }
 }
 
 /// The fields in the order of the netfield table of the engine.
@@ -173,9 +219,67 @@ pub(super) fn player_state(state: &playerState_t) -> PlayerState {
 #[cfg(test)]
 mod convert_tests {
     use pretty_assertions::assert_eq;
+    use rstest::rstest;
 
     use super::*;
-    use crate::engine::types::{EntityStateBuilder, PlayerStateBuilder};
+    use crate::engine::types::{EntityStateBuilder, PlayerStateBuilder, UserCmdBuilder};
+
+    #[test]
+    fn inputs_keep_the_direction_of_the_movement() {
+        let command = UserCmdBuilder::default()
+            .serverTime(1000)
+            .angles([1, -2, 3])
+            .forwardmove(-127i8 as c_char)
+            .upmove(127 as c_char)
+            .build()
+            .expect("has defaults");
+
+        let converted = input(4, &command);
+
+        assert_eq!(
+            converted,
+            Input {
+                client: 4,
+                server_time: 1000,
+                angles: [1, -2, 3],
+                forward: -127,
+                up: 127,
+                ..Input::default()
+            }
+        );
+    }
+
+    #[test]
+    fn shots_know_where_the_player_looked() {
+        let state = PlayerStateBuilder::default()
+            .weapon(7)
+            .commandTime(500)
+            .origin([1.0, 2.0, 3.0])
+            .viewangles([-10.0, 90.0, 0.0])
+            .build()
+            .expect("has defaults");
+
+        let fired = shot(2, &state);
+
+        assert_eq!(fired.weapon_number, 7);
+        assert_eq!(fired.command_time, 500);
+        assert_eq!(fired.origin(), [1.0, 2.0, 3.0]);
+        assert_eq!(fired.view_angles(), [-10.0, 90.0, 0.0]);
+    }
+
+    #[rstest]
+    #[case::hurt(100, 73, false)]
+    #[case::killed(20, -7, true)]
+    #[case::already_dead(-7, -30, false)]
+    fn damage_tells_what_was_lost(#[case] before: i32, #[case] after: i32, #[case] fatal: bool) {
+        let vitals = |health, armor| Vitals { health, armor };
+
+        let damage = with_losses(Damage::default(), vitals(before, 50), vitals(after, 10));
+
+        assert_eq!(damage.health_lost, before - after);
+        assert_eq!(damage.armor_lost, 40);
+        assert_eq!(damage.fatal, fatal);
+    }
 
     #[test]
     fn entities_are_hidden_from_clients_like_the_game_asks() {

@@ -369,24 +369,6 @@ impl PlayerState {
         self.fields[const { player_field("clientNum") }].cast_signed()
     }
 
-    /// The number of events the player had so far, which wraps around at 65536.
-    pub(super) fn event_sequence(&self) -> u32 {
-        self.fields[const { player_field("eventSequence") }]
-    }
-
-    /// The events after the first `before` ones, of which a state only keeps the last two.
-    pub(super) fn events_since(&self, before: u32) -> impl Iterator<Item = u32> {
-        let next = self.event_sequence();
-        let new = next.wrapping_sub(before) & 0xffff;
-        let kept = [
-            self.fields[const { player_field("events[0]") }],
-            self.fields[const { player_field("events[1]") }],
-        ];
-        (1..=new.min(2))
-            .rev()
-            .map(move |back| kept[(next.wrapping_sub(back) & 1) as usize] & EVENT_NUMBER_MASK)
-    }
-
     /// The position.
     pub fn origin(&self) -> [f32; 3] {
         self.floats([

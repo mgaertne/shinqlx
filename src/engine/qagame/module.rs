@@ -65,6 +65,15 @@ const OFFSET_INITGAME: usize = 0x18;
     )
 )]
 const OFFSET_RUNFRAME: usize = 0x8;
+#[cfg(feature = "demo-recording")]
+#[cfg_attr(
+    any(not(target_os = "linux"), test),
+    allow(
+        dead_code,
+        reason = "stand-ins for engine symbols that not every test calls"
+    )
+)]
+const OFFSET_CLIENTTHINK: usize = 0x30;
 
 impl VmFunctions {
     pub(crate) fn try_initialize_from(
@@ -167,6 +176,17 @@ impl VmFunctions {
         self.game
             .g_run_frame_orig
             .store(g_runframe_orig as usize, Ordering::Release);
+
+        #[cfg(feature = "demo-recording")]
+        {
+            // SAFETY: the call table of the qagame module is readable.
+            let client_think_orig =
+                unsafe { ptr::read((vm_call_table + OFFSET_CLIENTTHINK) as *const usize) };
+            debug!(target: "shinqlx", func = "read_vm_call_table"; "ClientThink: {client_think_orig:#X}");
+            self.game
+                .g_client_think_orig
+                .store(client_think_orig, Ordering::Release);
+        }
     }
 
     /*
@@ -204,6 +224,15 @@ impl VmFunctions {
             ptr::write(
                 vm_call_table as *mut usize,
                 callbacks.vm.g_shutdowngame as *const () as usize,
+            );
+        }
+
+        #[cfg(feature = "demo-recording")]
+        // SAFETY: the call table of the qagame module is writable after the memory protection was lifted.
+        unsafe {
+            ptr::write(
+                (vm_call_table + OFFSET_CLIENTTHINK) as *mut usize,
+                callbacks.vm.g_clientthink as *const () as usize,
             );
         }
 
@@ -266,6 +295,8 @@ mod vm_functions_tests {
     use pretty_assertions::assert_eq;
 
     use super::{QuakeLiveEngineError, VmFunctions};
+    #[cfg(feature = "demo-recording")]
+    use crate::hooks::shinqlx_g_clientthink;
     use crate::{
         composition::ENGINE_CALLBACKS,
         engine::{
@@ -367,7 +398,7 @@ mod vm_functions_tests {
     #[cfg_attr(miri, ignore)]
     #[cfg(target_os = "linux")]
     pub(in crate::engine) fn read_vm_call_table_reads_the_function_pointers() {
-        let memory = [9usize << 24, 0, 0x1111, 0x2222, 0, 0x3333, 0, 0];
+        let memory = [9usize << 24, 0, 0x1111, 0x2222, 0, 0x3333, 0, 0, 0x4444, 0];
         let module_offset = memory.as_ptr() as usize;
         let vm_functions = default_vm_functions();
 
@@ -392,13 +423,21 @@ mod vm_functions_tests {
             vm_functions.game.g_init_game_orig.load(Ordering::Acquire),
             0x3333
         );
+        #[cfg(feature = "demo-recording")]
+        assert_eq!(
+            vm_functions
+                .game
+                .g_client_think_orig
+                .load(Ordering::Acquire),
+            0x4444
+        );
     }
 
     #[test]
     #[serial]
     #[cfg_attr(miri, ignore)]
     pub(in crate::engine) fn hook_replaces_the_vm_calls_and_enables_the_detours() {
-        let mut table = [0usize; 4];
+        let mut table = [0usize; 7];
         let table_pointer = table.as_mut_ptr();
         let table_address = table_pointer.expose_provenance();
         let vm_functions = VmFunctions {
@@ -414,6 +453,8 @@ mod vm_functions_tests {
         assert_eq!(read_entry(0), shinqlx_g_shutdowngame as *const () as usize);
         assert_eq!(read_entry(1), shinqlx_g_runframe as *const () as usize);
         assert_eq!(read_entry(3), shinqlx_g_initgame as *const () as usize);
+        #[cfg(feature = "demo-recording")]
+        assert_eq!(read_entry(6), shinqlx_g_clientthink as *const () as usize);
         assert!(
             vm_functions
                 .game

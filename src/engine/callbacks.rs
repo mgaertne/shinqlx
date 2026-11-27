@@ -65,6 +65,8 @@ pub(crate) struct VmCallbacks {
     pub(crate) g_initgame: extern "C" fn(c_int, c_int, c_int),
     pub(crate) g_runframe: extern "C" fn(c_int),
     pub(crate) g_shutdowngame: extern "C" fn(c_int),
+    #[cfg(feature = "demo-recording")]
+    pub(crate) g_clientthink: extern "C" fn(c_int),
 }
 
 pub(crate) struct GameCallbacks {

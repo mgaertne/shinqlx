@@ -84,6 +84,10 @@ mockall::mock! {
     impl RunFrame<c_int> for QuakeEngine {
         fn run_frame(&self, time: c_int);
     }
+    #[cfg(feature = "demo-recording")]
+    impl ClientThinkOriginal for QuakeEngine {
+        fn client_think(&self, client_num: c_int);
+    }
     impl ClientConnect<c_int, bool, bool> for QuakeEngine {
         fn client_connect(&self, client_num: c_int, first_time: bool, is_bot: bool) -> *const c_char;
     }

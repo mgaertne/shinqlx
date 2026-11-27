@@ -319,8 +319,10 @@ Changes since 0.8.0.
   room. The format of the recordings may still change; [ql_sqx/FORMAT.md](ql_sqx/FORMAT.md) describes it.
   Recordings contain the stats messages of the game, without needing the ZMQ stats socket, and the `.json` file holds
   the game type, the match GUID, the result and the scores.
+  They also contain every shot with the view angles at that moment, every hit on a living player with the health and armor
+  lost, and with the new cvar `qlx_demoUsercmds` (default 1) every command of the players.
   The library `ql_sqx` reads positions, view angles, health and weapons from them, and its `Timeline` tells kills,
-  shots, rounds, scores, teams and the warmup.
+  shots, damage, rounds, scores, teams and the warmup.
 * **New built-in plugin `demos`** (`r!demos`, not among the default plugins): `!request demo [reason]` keeps the
   recording of a match (`qlx_demoRequestPermission`, default 1), `!demos` and `!demostatus` (level 4) show what is
   recorded. The replies go to the caller only and the commands do not show up in the chat.
