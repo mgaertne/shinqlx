@@ -86,7 +86,7 @@ pub fn summarize<R: Read>(mut recording: ArchiveReader<R>) -> Result<Summary, Ar
             }
             Record::Event(Event::PlayerLeft { client }) => presence.leave(client),
             Record::Event(Event::End { reason }) => summary.end = Some(reason),
-            Record::Event(Event::Command { .. }) => {}
+            Record::Event(Event::Command { .. } | Event::Stats { .. }) => {}
         }
     }
     summary.truncated = recording.truncated();

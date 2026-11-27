@@ -31,6 +31,8 @@ pub(super) struct Session {
     frames: u32,
     total: Duration,
     longest: Duration,
+    /// Stats messages the sidecar does not reflect yet, so that it is written at most once a frame.
+    stats: Vec<String>,
 }
 
 impl Session {
@@ -76,6 +78,7 @@ impl Session {
         let sidecar = Sidecar {
             map,
             factory: engine_state::cvar(main_engine, "g_factory").unwrap_or_default(),
+            gametype: engine_state::gametype(main_engine),
             started: seconds_since_epoch(now),
             ..Sidecar::default()
         };
@@ -86,6 +89,7 @@ impl Session {
             frames: 0,
             total: Duration::ZERO,
             longest: Duration::ZERO,
+            stats: Vec::new(),
         };
         let described = catalog().begin(session.path.clone(), sidecar);
         session.report_description(described);
@@ -106,11 +110,21 @@ impl Session {
             self.players_read = Some(now);
             players()
         });
+        let stats = core::mem::take(&mut self.stats);
         let described = catalog().update(|sidecar| {
-            let news = in_match && sidecar.note_match();
-            seen.is_some_and(|seen| sidecar.add_players(seen)) || news
+            let match_began = in_match && sidecar.note_match();
+            let stats_news = note_all(sidecar, &stats);
+            seen.is_some_and(|seen| sidecar.add_players(seen)) || match_began || stats_news
         });
         self.report_description(described);
+    }
+
+    /// Records a stats message of the game, returning `false` if the writer cannot take it.
+    pub(super) fn stats(&mut self, message: &str) -> bool {
+        self.stats.push(message.into());
+        self.send(Event::Stats {
+            message: message.into(),
+        })
     }
 
     fn report_description(&self, described: io::Result<()>) {
@@ -138,7 +152,10 @@ impl Session {
 
     /// Ends the recording. Waiting for the file is only meant for the end of a map, because the
     /// server may quit right after it.
-    pub(super) fn end(self, reason: &str, wait_for_file: bool) {
+    pub(super) fn end(mut self, reason: &str, wait_for_file: bool) {
+        let stats = core::mem::take(&mut self.stats);
+        let described = catalog().update(|sidecar| note_all(sidecar, &stats));
+        self.report_description(described);
         let described = catalog().end(seconds_since_epoch(SystemTime::now()));
         self.report_description(described);
         let ended = self.writer.send(Event::End {
@@ -159,6 +176,14 @@ impl Session {
             }
         }
     }
+}
+
+fn note_all(sidecar: &mut Sidecar, stats: &[String]) -> bool {
+    let mut changed = false;
+    for message in stats {
+        changed |= sidecar.note_stats(message);
+    }
+    changed
 }
 
 fn seconds_since_epoch(time: SystemTime) -> u64 {

@@ -32,5 +32,6 @@ mod storage;
 
 #[cfg(not(test))]
 pub(crate) use live::{
-    client_dropped, configstring, frame, map_ended, map_loaded, map_restarted, server_command,
+    client_dropped, configstring, frame, is_recording, map_ended, map_loaded, map_restarted,
+    server_command, stats,
 };

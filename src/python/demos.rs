@@ -57,6 +57,51 @@ impl DemoRequest {
     }
 }
 
+/// How the match of a recording ended.
+#[pyclass(module = "_shinqlx", name = "DemoResult", frozen, eq, get_all)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DemoResult {
+    aborted: bool,
+    /// Only meaningful in team games.
+    red_score: i32,
+    /// Only meaningful in team games.
+    blue_score: i32,
+}
+
+#[pymethods]
+impl DemoResult {
+    fn __repr__(&self) -> String {
+        format!(
+            "DemoResult(aborted={}, red_score={}, blue_score={})",
+            if self.aborted { "True" } else { "False" },
+            self.red_score,
+            self.blue_score
+        )
+    }
+}
+
+/// What the game reported about a player at the end of the match or when leaving it.
+#[pyclass(module = "_shinqlx", name = "DemoScore", frozen, eq, get_all)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DemoScore {
+    /// `0` for bots.
+    steam_id: u64,
+    name: String,
+    /// `free`, `red`, `blue` or `spectator`.
+    team: String,
+    score: i32,
+}
+
+#[pymethods]
+impl DemoScore {
+    fn __repr__(&self) -> String {
+        format!(
+            "DemoScore(steam_id={}, name={:?}, team={:?}, score={})",
+            self.steam_id, self.name, self.team, self.score
+        )
+    }
+}
+
 /// One recording, as it was when asked for.
 #[pyclass(module = "_shinqlx", name = "Recording", frozen, eq)]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -65,12 +110,16 @@ pub(crate) struct Recording {
     pub(super) path: String,
     pub(super) map: String,
     pub(super) factory: String,
+    pub(super) gametype: String,
     pub(super) started: u64,
     pub(super) ended: Option<u64>,
     pub(super) size: u64,
     pub(super) match_played: bool,
     pub(super) players: Vec<DemoPlayer>,
     pub(super) requests: Vec<DemoRequest>,
+    pub(super) match_guid: Option<String>,
+    pub(super) result: Option<DemoResult>,
+    pub(super) scores: Vec<DemoScore>,
 }
 
 #[pymethods]
@@ -94,6 +143,12 @@ impl Recording {
     #[getter]
     fn factory(&self) -> &str {
         &self.factory
+    }
+
+    /// The short name of the game type like `ca`.
+    #[getter]
+    fn gametype(&self) -> &str {
+        &self.gametype
     }
 
     /// Seconds since the Unix epoch.
@@ -130,6 +185,24 @@ impl Recording {
     #[getter]
     fn requests<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
         tuple_of(py, self.requests.iter().cloned())
+    }
+
+    /// The identifier the stats of the game give the match, `None` without a match.
+    #[getter]
+    fn match_guid(&self) -> Option<&str> {
+        self.match_guid.as_deref()
+    }
+
+    /// `None` until the game has reported the end of the match.
+    #[getter]
+    fn result(&self) -> Option<DemoResult> {
+        self.result
+    }
+
+    /// A tuple of `DemoScore`.
+    #[getter]
+    fn scores<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        tuple_of(py, self.scores.iter().cloned())
     }
 
     fn __repr__(&self) -> String {
@@ -335,7 +408,7 @@ mod library {
     use crate::{
         demo_capture::{
             catalog::{self, ExportFailure, RecorderState, RecordingInfo, catalog},
-            sidecar::{PlayerEntry, Request},
+            sidecar::{MatchResult, PlayerEntry, PlayerScore, Request},
         },
         python::{
             event_dispatcher,
@@ -488,6 +561,27 @@ mod library {
         }
     }
 
+    impl From<MatchResult> for DemoResult {
+        fn from(result: MatchResult) -> Self {
+            Self {
+                aborted: result.aborted,
+                red_score: result.red_score,
+                blue_score: result.blue_score,
+            }
+        }
+    }
+
+    impl From<&PlayerScore> for DemoScore {
+        fn from(score: &PlayerScore) -> Self {
+            Self {
+                steam_id: score.steam_id,
+                name: score.name.clone(),
+                team: score.team.clone(),
+                score: score.score,
+            }
+        }
+    }
+
     impl From<&RecordingInfo> for Recording {
         fn from(recording: &RecordingInfo) -> Self {
             let sidecar = &recording.sidecar;
@@ -496,12 +590,16 @@ mod library {
                 path: recording.path.to_string_lossy().into_owned(),
                 map: sidecar.map.clone(),
                 factory: sidecar.factory.clone(),
+                gametype: sidecar.gametype.clone(),
                 started: sidecar.started,
                 ended: sidecar.ended,
                 size: recording.size,
                 match_played: sidecar.match_played,
                 players: sidecar.players.iter().map(DemoPlayer::from).collect(),
                 requests: sidecar.requests.iter().map(DemoRequest::from).collect(),
+                match_guid: sidecar.match_guid.clone(),
+                result: sidecar.result.map(DemoResult::from),
+                scores: sidecar.scores.iter().map(DemoScore::from).collect(),
             }
         }
     }

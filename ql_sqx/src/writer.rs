@@ -15,6 +15,7 @@ const QUEUE_LENGTH: usize = 1024;
 
 /// Something that happens while a match is recorded.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Event {
     /// The state at the end of a server frame.
     Frame(Frame),
@@ -36,6 +37,11 @@ pub enum Event {
     PlayerLeft {
         /// The client number.
         client: u8,
+    },
+    /// A stats message of the game.
+    Stats {
+        /// The JSON object `{"DATA":{…},"TYPE":"…"}`, as the stats socket of the server carries it.
+        message: String,
     },
     /// The recording was ended on purpose.
     End {

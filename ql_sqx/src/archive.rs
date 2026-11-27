@@ -30,6 +30,7 @@ const KIND_DELTA_FRAME: u8 = 4;
 const KIND_COMMAND: u8 = 5;
 const KIND_PLAYER_LEFT: u8 = 6;
 const KIND_END: u8 = 7;
+const KIND_STATS: u8 = 8;
 
 /// Why a recording cannot be read or written.
 #[derive(Debug, Display)]
@@ -64,6 +65,7 @@ impl From<io::Error> for ArchiveError {
 
 /// One entry of a recording.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Record {
     /// What was valid when the recording started.
     Start {
@@ -144,6 +146,7 @@ impl<W: Write> ArchiveWriter<W> {
             Event::Command { .. } => Ok(()),
             Event::PlayerLeft { client } => self.record(KIND_PLAYER_LEFT, &[*client]),
             Event::End { reason } => self.record(KIND_END, reason.as_bytes()),
+            Event::Stats { message } => self.record(KIND_STATS, message.as_bytes()),
         }
     }
 
@@ -287,6 +290,9 @@ impl<R: Read> ArchiveReader<R> {
                 }
                 KIND_END => Record::Event(Event::End {
                     reason: String::from_utf8_lossy(rest).to_string(),
+                }),
+                KIND_STATS => Record::Event(Event::Stats {
+                    message: String::from_utf8_lossy(rest).to_string(),
                 }),
                 _ => continue,
             };
@@ -448,6 +454,9 @@ mod archive_tests {
                 &[(1, 120)],
             ),
             Event::PlayerLeft { client: 0 },
+            Event::Stats {
+                message: r#"{"DATA":{},"TYPE":"ROUND_OVER"}"#.into(),
+            },
             frame(
                 20_000,
                 vec![entity(900, 1, Visibility::Only(0))],

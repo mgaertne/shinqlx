@@ -1144,6 +1144,11 @@ change. The event ``demo_finished`` (:class:`DemoFinishedDispatcher`) reports ea
    .. attribute:: factory
       :type: str
 
+   .. attribute:: gametype
+      :type: str
+
+      The short name like ``ca``.
+
    .. attribute:: started
       :type: int
 
@@ -1171,6 +1176,21 @@ change. The event ``demo_finished`` (:class:`DemoFinishedDispatcher`) reports ea
 
    .. attribute:: requests
       :type: tuple[DemoRequest, ...]
+
+   .. attribute:: match_guid
+      :type: str | None
+
+      The identifier the stats of the game give the match, ``None`` without a match.
+
+   .. attribute:: result
+      :type: DemoResult | None
+
+      How the match ended, ``None`` until the game has reported it.
+
+   .. attribute:: scores
+      :type: tuple[DemoScore, ...]
+
+      What the game reported about the players at the end of the match, or when they left it.
 
 .. class:: DemoPlayer
 
@@ -1203,6 +1223,41 @@ change. The event ``demo_finished`` (:class:`DemoFinishedDispatcher`) reports ea
       :type: int
 
       Seconds since the Unix epoch.
+
+.. class:: DemoResult
+
+   .. shinqlx-only::
+
+   .. attribute:: aborted
+      :type: bool
+
+   .. attribute:: red_score
+      :type: int
+
+      Only meaningful in team games, like ``blue_score``.
+
+   .. attribute:: blue_score
+      :type: int
+
+.. class:: DemoScore
+
+   .. shinqlx-only::
+
+   .. attribute:: steam_id
+      :type: int
+
+      ``0`` for bots.
+
+   .. attribute:: name
+      :type: str
+
+   .. attribute:: team
+      :type: str
+
+      ``free``, ``red``, ``blue`` or ``spectator``.
+
+   .. attribute:: score
+      :type: int
 
 .. class:: ExportedDemo
 

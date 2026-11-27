@@ -7,6 +7,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 const EXTENSION: &str = "json";
 
@@ -16,6 +17,9 @@ pub(crate) struct Sidecar {
     pub(crate) map: String,
     #[serde(default)]
     pub(crate) factory: String,
+    /// The short name like `ca`.
+    #[serde(default)]
+    pub(crate) gametype: String,
     /// Seconds since the Unix epoch, like all times here.
     pub(crate) started: u64,
     #[serde(default)]
@@ -26,6 +30,32 @@ pub(crate) struct Sidecar {
     pub(crate) players: Vec<PlayerEntry>,
     #[serde(default)]
     pub(crate) requests: Vec<Request>,
+    /// The identifier the stats of the game give the match.
+    #[serde(default)]
+    pub(crate) match_guid: Option<String>,
+    #[serde(default)]
+    pub(crate) result: Option<MatchResult>,
+    /// The latest standing of everyone the game reported on.
+    #[serde(default)]
+    pub(crate) scores: Vec<PlayerScore>,
+}
+
+/// How the match ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct MatchResult {
+    pub(crate) aborted: bool,
+    pub(crate) red_score: i32,
+    pub(crate) blue_score: i32,
+}
+
+/// What the game reported about a player at the end of the match or when leaving it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct PlayerScore {
+    pub(crate) steam_id: u64,
+    pub(crate) name: String,
+    /// `free`, `red`, `blue` or `spectator`.
+    pub(crate) team: String,
+    pub(crate) score: i32,
 }
 
 /// Someone who was in the game during the recording.
@@ -83,6 +113,95 @@ impl Sidecar {
 
     pub(crate) fn is_requested(&self) -> bool {
         !self.requests.is_empty()
+    }
+
+    /// Takes the match, its result and the scores from a stats message of the game, returning
+    /// whether anything changed. What happens in the warmup is not part of the match.
+    pub(crate) fn note_stats(&mut self, message: &str) -> bool {
+        let Ok(message) = serde_json::from_str::<Value>(message) else {
+            return false;
+        };
+        let (kind, data) = (message["TYPE"].as_str(), &message["DATA"]);
+        if data["WARMUP"].as_bool() == Some(true) {
+            return false;
+        }
+        let Some(guid) = data["MATCH_GUID"].as_str().filter(|guid| !guid.is_empty()) else {
+            return false;
+        };
+        let mut changed = false;
+        if kind == Some("MATCH_STARTED") || self.match_guid.is_none() {
+            changed = self.begin_match(guid);
+        }
+        if self.match_guid.as_deref() != Some(guid) {
+            return changed;
+        }
+        match kind {
+            Some("MATCH_REPORT") => self.note_result(data) || changed,
+            Some("PLAYER_STATS") => self.note_score(data) || changed,
+            _ => changed,
+        }
+    }
+
+    fn begin_match(&mut self, guid: &str) -> bool {
+        if self.match_guid.as_deref() == Some(guid) {
+            return false;
+        }
+        self.match_guid = Some(guid.into());
+        self.result = None;
+        self.scores.clear();
+        true
+    }
+
+    fn note_result(&mut self, data: &Value) -> bool {
+        let result = MatchResult {
+            aborted: data["ABORTED"].as_bool().unwrap_or_default(),
+            red_score: number(&data["TSCORE0"]),
+            blue_score: number(&data["TSCORE1"]),
+        };
+        self.result.replace(result) != Some(result)
+    }
+
+    fn note_score(&mut self, data: &Value) -> bool {
+        let score = PlayerScore {
+            steam_id: data["STEAM_ID"]
+                .as_str()
+                .and_then(|steam_id| steam_id.parse().ok())
+                .unwrap_or_default(),
+            name: data["NAME"].as_str().unwrap_or_default().into(),
+            team: team_name(number(&data["TEAM"])).into(),
+            score: number(&data["SCORE"]),
+        };
+        match self
+            .scores
+            .iter_mut()
+            .find(|known| known.steam_id == score.steam_id && known.name == score.name)
+        {
+            Some(known) if *known == score => false,
+            Some(known) => {
+                *known = score;
+                true
+            }
+            None => {
+                self.scores.push(score);
+                true
+            }
+        }
+    }
+}
+
+fn number(value: &Value) -> i32 {
+    value
+        .as_i64()
+        .and_then(|number| i32::try_from(number).ok())
+        .unwrap_or_default()
+}
+
+fn team_name(team: i32) -> &'static str {
+    match team {
+        1 => "red",
+        2 => "blue",
+        3 => "spectator",
+        _ => "free",
     }
 }
 
@@ -177,6 +296,19 @@ mod sidecar_tests {
                 reason: "check".into(),
                 time: 15,
             }],
+            gametype: "duel".into(),
+            match_guid: Some("guid".into()),
+            result: Some(MatchResult {
+                aborted: false,
+                red_score: 3,
+                blue_score: 1,
+            }),
+            scores: vec![PlayerScore {
+                steam_id: 76_561_198_000_000_001,
+                name: "^1Red".into(),
+                team: "red".into(),
+                score: 12,
+            }],
         };
 
         assert_eq!(read(&recording).expect("readable"), None);
@@ -184,6 +316,77 @@ mod sidecar_tests {
 
         assert_eq!(read(&recording).expect("readable"), Some(sidecar));
         assert_eq!(fs::read_dir(directory.path()).expect("readable").count(), 1);
+    }
+
+    fn stats(kind: &str, data: &str) -> String {
+        format!(r#"{{"DATA":{{{data}}},"TYPE":"{kind}"}}"#)
+    }
+
+    #[test]
+    fn the_stats_of_a_match_describe_it() {
+        let mut sidecar = Sidecar::default();
+        let messages = [
+            stats("MATCH_STARTED", r#""MATCH_GUID":"first""#),
+            stats(
+                "MATCH_REPORT",
+                r#""MATCH_GUID":"first","ABORTED":false,"TSCORE0":3,"TSCORE1":1"#,
+            ),
+            stats(
+                "PLAYER_STATS",
+                r#""MATCH_GUID":"first","WARMUP":false,"STEAM_ID":"7","NAME":"Red","TEAM":1,"SCORE":4"#,
+            ),
+            stats(
+                "PLAYER_STATS",
+                r#""MATCH_GUID":"first","WARMUP":false,"STEAM_ID":"7","NAME":"Red","TEAM":1,"SCORE":9"#,
+            ),
+        ];
+
+        assert!(messages.iter().all(|message| sidecar.note_stats(message)));
+        assert!(!sidecar.note_stats(&messages[3]));
+
+        assert_eq!(sidecar.match_guid.as_deref(), Some("first"));
+        assert_eq!(
+            sidecar.result,
+            Some(MatchResult {
+                aborted: false,
+                red_score: 3,
+                blue_score: 1,
+            })
+        );
+        assert_eq!(
+            sidecar.scores,
+            [PlayerScore {
+                steam_id: 7,
+                name: "Red".into(),
+                team: "red".into(),
+                score: 9,
+            }]
+        );
+    }
+
+    #[test]
+    fn the_next_match_replaces_the_one_before() {
+        let mut sidecar = Sidecar::default();
+        sidecar.note_stats(&stats(
+            "MATCH_REPORT",
+            r#""MATCH_GUID":"first","ABORTED":true"#,
+        ));
+
+        assert!(sidecar.note_stats(&stats("MATCH_STARTED", r#""MATCH_GUID":"second""#)));
+
+        assert_eq!(sidecar.match_guid.as_deref(), Some("second"));
+        assert_eq!(sidecar.result, None);
+    }
+
+    #[rstest]
+    #[case::warmup(stats("PLAYER_STATS", r#""MATCH_GUID":"other","WARMUP":true"#))]
+    #[case::without_guid(stats("ROUND_OVER", r#""ROUND":1"#))]
+    #[case::broken("{".into())]
+    fn other_stats_change_nothing(#[case] message: String) {
+        let mut sidecar = Sidecar::default();
+
+        assert!(!sidecar.note_stats(&message));
+        assert_eq!(sidecar, Sidecar::default());
     }
 
     #[rstest]

@@ -170,9 +170,9 @@ pub(crate) mod prelude {
         ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, clean_py_text, clean_text,
         config_string::ConfigString,
         demos::{
-            DemoPlayer, DemoRequest, DemoStatus, ExportedDemo, Recording, pyshinqlx_demo_status,
-            pyshinqlx_export_demo, pyshinqlx_recording, pyshinqlx_recordings,
-            pyshinqlx_request_demo,
+            DemoPlayer, DemoRequest, DemoResult, DemoScore, DemoStatus, ExportedDemo, Recording,
+            pyshinqlx_demo_status, pyshinqlx_export_demo, pyshinqlx_recording,
+            pyshinqlx_recordings, pyshinqlx_request_demo,
         },
         embed::*,
         entity_info::EntityInfo,

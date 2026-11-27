@@ -123,9 +123,13 @@ impl Recorder {
             .as_ref()
             .is_none_or(|session| session.send(event));
         if !delivered {
-            self.end("the writer cannot keep up", false);
-            self.lifecycle.failed(Instant::now());
+            self.give_up();
         }
+    }
+
+    fn give_up(&mut self) {
+        self.end("the writer cannot keep up", false);
+        self.lifecycle.failed(Instant::now());
     }
 }
 
@@ -187,6 +191,25 @@ pub(crate) fn client_dropped(client_id: i32) {
     if let Ok(client) = u8::try_from(client_id) {
         send(|| Event::PlayerLeft { client });
     }
+}
+
+/// Takes a stats message of the game, in the form the stats socket carries it.
+pub(crate) fn stats(message: &str) {
+    if !is_recording() {
+        return;
+    }
+    let mut recorder = RECORDER.lock();
+    let delivered = recorder
+        .session
+        .as_mut()
+        .is_none_or(|session| session.stats(message));
+    if !delivered {
+        recorder.give_up();
+    }
+}
+
+pub(crate) fn is_recording() -> bool {
+    RECORDING.load(Ordering::Acquire)
 }
 
 /// The engine hands the restart command to the clients without passing the send hook.

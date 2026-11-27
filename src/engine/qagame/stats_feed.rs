@@ -264,17 +264,31 @@ mod linux {
         true
     }
 
-    /// Queues the message of the game module, unless the stats socket delivers it.
+    /// Hands the message of the game module to a running recording, and queues it for the plugins unless the
+    /// stats socket delivers it to them.
     fn queue_value(kind: &str, value: *const c_void) {
-        if feed_wanted()
+        let wanted_by_plugins = feed_wanted();
+        if (wanted_by_plugins || recording_wants_stats())
             && !value.is_null()
             && let Some(writer) = WRITER.load().as_ref()
         {
             // SAFETY: the game module passes a live value.
             if let Some(data) = unsafe { writer.to_text(value) } {
-                queue_message(socket_message(kind, &data));
+                let message = socket_message(kind, &data);
+                #[cfg(feature = "demo-recording")]
+                crate::demo_capture::stats(&message);
+                if wanted_by_plugins {
+                    queue_message(message);
+                }
             }
         }
+    }
+
+    fn recording_wants_stats() -> bool {
+        #[cfg(feature = "demo-recording")]
+        return crate::demo_capture::is_recording();
+        #[cfg(not(feature = "demo-recording"))]
+        false
     }
 
     /// Hooks the engine function at `import` once, with `replacement` as the new function.

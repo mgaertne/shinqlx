@@ -316,12 +316,16 @@ Changes since 0.8.0.
   with `qlx_demoRecord 1` the server writes one file per match and deletes old ones as `qlx_demoKeepUnrequestedHours`,
   `qlx_demoMaxTotalMB` and `qlx_demoMinFreeMB` ask. A `.json` file next to each recording lists the players with their
   SteamIDs and the requests to keep it; requested recordings stay `qlx_demoKeepRequestedDays` and are the last to make
-  room. The format of the recordings may still change.
+  room. The format of the recordings may still change; [ql_sqx/FORMAT.md](ql_sqx/FORMAT.md) describes it.
+  Recordings contain the stats messages of the game, without needing the ZMQ stats socket, and the `.json` file holds
+  the game type, the match GUID, the result and the scores.
+  The library `ql_sqx` reads positions, view angles, health and weapons from them, and its `Timeline` tells kills,
+  shots, rounds, scores, teams and the warmup.
 * **New built-in plugin `demos`** (`r!demos`, not among the default plugins): `!request demo [reason]` keeps the
   recording of a match (`qlx_demoRequestPermission`, default 1), `!demos` and `!demostatus` (level 4) show what is
   recorded. The replies go to the caller only and the commands do not show up in the chat.
 * **Python interface for the recordings:** `shinqlx.demo_status`, `recordings`, `recording`, `request_demo` and
-  `export_demo` with the classes `DemoStatus`, `Recording`, `DemoPlayer`, `DemoRequest`, `ExportedDemo` and
+  `export_demo` with the classes `DemoStatus`, `Recording`, `DemoPlayer`, `DemoRequest`, `DemoResult`, `DemoScore`, `ExportedDemo` and
   `DemoStates`, and the new event `demo_finished`. The names exist in builds without the feature too, where there is
   nothing to find. They are in the `shinqlx` namespace only.
 

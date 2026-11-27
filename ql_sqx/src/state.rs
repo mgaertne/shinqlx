@@ -44,15 +44,6 @@ pub struct PlayerState {
     pub powerups: [i32; ARRAY_LENGTH],
 }
 
-impl PlayerState {
-    const CLIENT_NUMBER_FIELD: usize = 40;
-
-    /// The player whose view this is, who differs from the owner of the state while spectating.
-    pub(super) fn client_number(&self) -> i32 {
-        self.fields[Self::CLIENT_NUMBER_FIELD].cast_signed()
-    }
-}
-
 impl Default for PlayerState {
     fn default() -> Self {
         Self {

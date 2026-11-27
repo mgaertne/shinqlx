@@ -55,5 +55,10 @@ its cvars, which recordings are kept and for how long, and what to consider for 
 
 ## Format
 
-The library [`ql_sqx`](../ql_sqx) reads and writes the recordings, for the server as well as for `ql_demo`. The format
+[FORMAT.md](../ql_sqx/FORMAT.md) describes the format of the recordings. The library
+[`ql_sqx`](../ql_sqx) reads and writes the recordings, for the server as well as for `ql_demo`. The format
 is not stable yet: a recording may only be readable by the `ql_demo` of the same build as the server.
+
+To analyze a recording, feed every record of `ArchiveReader` to a `Timeline`. It tells kills, shots, rounds, scores,
+teams and the warmup with their server times; the states in the frames give positions, view angles, health, armor,
+weapons and ammunition.

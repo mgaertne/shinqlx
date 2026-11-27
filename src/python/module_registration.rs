@@ -321,6 +321,8 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<MapSource>()?;
     m.add_class::<DemoPlayer>()?;
     m.add_class::<DemoRequest>()?;
+    m.add_class::<DemoResult>()?;
+    m.add_class::<DemoScore>()?;
     m.add_class::<Recording>()?;
     m.add_class::<DemoStatus>()?;
     m.add_class::<ExportedDemo>()?;

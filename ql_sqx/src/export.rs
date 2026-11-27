@@ -205,6 +205,7 @@ pub fn export_dm91<R: Read, W: Write>(
             Record::Event(Event::Frame(frame)) => exporter.frame(&frame, &mut select)?,
             Record::Event(Event::PlayerLeft { client }) => exporter.player_left(client)?,
             Record::Event(Event::End { .. }) => break,
+            Record::Event(Event::Stats { .. }) => {}
         }
     }
     for (stay, recorder) in core::mem::take(&mut exporter.running).into_values() {

@@ -59,8 +59,10 @@ messages sent to the players. It does not hold the inputs of the players, so the
 the server runs frames (``sv_fps``, 40 by default).
 
 Next to each recording the server keeps a file of the same name ending in ``.json`` with the map, the factory, start
-and end, whether a match was played, who was in the game with their SteamIDs, and the requests to keep the recording.
-Who is in the game is looked up once a second.
+and end, the game type, whether a match was played, who was in the game with their SteamIDs, and the requests to keep
+the recording. Of a match it also holds the identifier the stats of the game give it (``match_guid``), how it ended
+(``result``) and the scores. Who is in the game is looked up once a second. The recording itself contains the stats
+messages of the game, as the ZMQ stats socket carries them, whether that socket is enabled or not.
 
 Cvars
 =====

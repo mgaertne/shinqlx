@@ -12,6 +12,7 @@ use super::{
 };
 use crate::{
     engine::{FindCVar, prelude::*, qagame::game_entity::entity_id_limit},
+    gametypes::GameTypes,
     prelude::*,
 };
 
@@ -35,6 +36,14 @@ fn is_connected_human(client_id: i32) -> bool {
             clientState_t::CS_CONNECTED | clientState_t::CS_PRIMED | clientState_t::CS_ACTIVE
         ) && client.as_ref().netchan.remoteAddress.type_ != netadrtype_t::NA_BOT
     })
+}
+
+/// The short name of the game type like `ca`.
+pub(super) fn gametype(main_engine: &QuakeLiveEngine) -> String {
+    cvar(main_engine, "g_gametype")
+        .and_then(|number| number.parse::<i32>().ok())
+        .map(|number| GameTypes::from(number).type_short().into())
+        .unwrap_or_default()
 }
 
 pub(super) fn map_name(main_engine: &QuakeLiveEngine) -> String {

@@ -136,15 +136,15 @@ pub(crate) extern "C" fn shinqlx_g_initgame(level_time: c_int, random_seed: c_in
 }
 
 pub(crate) extern "C" fn shinqlx_g_shutdowngame(restart: c_int) {
-    #[cfg(all(feature = "demo-recording", not(test)))]
-    if restart == 0 {
-        crate::demo_capture::map_ended();
-    }
-
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.unhook_vm(restart != 0);
         main_engine.shutdown_game(restart);
     });
+
+    #[cfg(all(feature = "demo-recording", not(test)))]
+    if restart == 0 {
+        crate::demo_capture::map_ended();
+    }
 }
 
 pub(crate) extern "C" fn shinqlx_sv_executeclientcommand(
