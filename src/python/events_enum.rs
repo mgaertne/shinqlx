@@ -7,7 +7,8 @@ use pyo3::{
 use super::{
     GameTypes,
     string_enums::{
-        ChatChannel, EntityType, Factories, MapSourceKind, StatsType, VoteType, python_class_source,
+        ChatChannel, DemoStates, EntityType, Factories, MapSourceKind, StatsType, VoteType,
+        python_class_source,
     },
 };
 
@@ -48,6 +49,7 @@ event_names! {
     CvarChanged => "cvar_changed",
     Damage => "damage",
     Death => "death",
+    DemoFinished => "demo_finished",
     FlagStatus => "flag_status",
     Frame => "frame",
     GameCountdown => "game_countdown",
@@ -163,6 +165,13 @@ fn generated_classes_source() -> String {
             "Where a file of the map information comes from, as ``MapSource.kind`` reports it; \
             the members are strings.",
             MapSourceKind::MEMBERS,
+            "",
+        ),
+        python_class_source(
+            "DemoStates",
+            "What the recorder of the matches is doing, as ``DemoStatus.state`` reports it; \
+            the members are strings.",
+            DemoStates::MEMBERS,
             "",
         ),
     ]
@@ -304,6 +313,7 @@ pub(crate) fn register_events_enum(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "EntityTypes",
         "MapSourceKind",
         "Factories",
+        "DemoStates",
     ]
     .into_iter()
     .try_for_each(|name| {

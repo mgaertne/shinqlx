@@ -68,6 +68,8 @@ cfg_if::cfg_if! {
 
 mod commands;
 mod composition;
+#[cfg(feature = "demo-recording")]
+mod demo_capture;
 mod engine;
 mod fixes;
 mod gametypes;

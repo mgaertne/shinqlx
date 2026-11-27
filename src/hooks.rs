@@ -127,12 +127,20 @@ pub(crate) extern "C" fn shinqlx_g_initgame(level_time: c_int, random_seed: c_in
         crate::fixes::race_touch::replace_race_touches();
 
         if restart != 0 {
+            #[cfg(all(feature = "demo-recording", not(test)))]
+            crate::demo_capture::map_restarted();
+
             new_game_dispatcher(true);
         }
     });
 }
 
 pub(crate) extern "C" fn shinqlx_g_shutdowngame(restart: c_int) {
+    #[cfg(all(feature = "demo-recording", not(test)))]
+    if restart == 0 {
+        crate::demo_capture::map_ended();
+    }
+
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.unhook_vm(restart != 0);
         main_engine.shutdown_game(restart);
@@ -254,6 +262,9 @@ where
                 passed_on_cmd_str = Cow::Owned(trimmed);
             }
 
+            #[cfg(all(feature = "demo-recording", not(test)))]
+            crate::demo_capture::server_command(Some(client_id), &passed_on_cmd_str);
+
             if !passed_on_cmd_str.is_empty()
                 && RELIABLE_GUARD.submit(
                     client_id,
@@ -270,6 +281,9 @@ where
                 return;
             };
             passed_on_cmd_str = res;
+
+            #[cfg(all(feature = "demo-recording", not(test)))]
+            crate::demo_capture::server_command(None, &passed_on_cmd_str);
         }
         _ => (),
     }
@@ -330,10 +344,16 @@ where
             // like a 25% increase in CPU usage on an empty server.
             Ok(c_index) if c_index == 16 || (662..670).contains(&c_index) => {
                 main_engine.set_configstring(c_index, value.as_ref());
+
+                #[cfg(all(feature = "demo-recording", not(test)))]
+                crate::demo_capture::configstring(c_index, value);
             }
             Ok(c_index) => {
                 set_configstring_dispatcher(index.conv::<u32>(), value).tap_some(|res| {
                     main_engine.set_configstring(c_index, res);
+
+                    #[cfg(all(feature = "demo-recording", not(test)))]
+                    crate::demo_capture::configstring(c_index, res);
                 });
             }
             _ => (),
@@ -377,6 +397,9 @@ where
     T: AsRef<str>,
 {
     client_disconnect_dispatcher(client.get_client_id(), reason.as_ref());
+
+    #[cfg(all(feature = "demo-recording", not(test)))]
+    crate::demo_capture::client_dropped(client.get_client_id());
 
     client.disconnect(reason.as_ref());
 }
@@ -438,6 +461,9 @@ pub(crate) extern "C" fn shinqlx_sv_spawnserver(server: *mut c_char, kill_bots: 
     MAIN_ENGINE.load().as_ref().tap_some(|&main_engine| {
         main_engine.spawn_server(server_str.as_ref(), kill_bots.conv::<bool>());
 
+        #[cfg(all(feature = "demo-recording", not(test)))]
+        crate::demo_capture::map_loaded();
+
         #[cfg(feature = "zmq-rcon-fix")]
         zmq_rcon::apply_send_timeout(&**main_engine);
 
@@ -466,6 +492,9 @@ pub(crate) extern "C" fn shinqlx_g_runframe(time: c_int) {
         frame_dispatcher();
 
         main_engine.run_frame(time);
+
+        #[cfg(all(feature = "demo-recording", not(test)))]
+        crate::demo_capture::frame(main_engine, time);
     });
 }
 

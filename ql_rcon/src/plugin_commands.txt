@@ -87,3 +87,6 @@ loadall	Loads all plugins of qlx_plugins.
 unloadall	Unloads all plugins.
 reloadall	Reloads all plugins.
 workshop	Adds, removes or lists the workshop items of the server: add <id>, remove <id> [keep|purge], list [all].
+request	Asks to keep the recording of a match: demo [reason].
+demos	Lists the newest recordings of matches.
+demostatus	Shows what the recorder of the matches is doing.

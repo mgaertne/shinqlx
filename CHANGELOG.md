@@ -167,6 +167,13 @@ Changes since 0.8.0.
   calls that handler after it has armed the timer.
 * **Stubs:** `ReplyKwargs` is exported from the stubs of `shinqlx` and `minqlx`. `CvarFlags` and `DamageFlags` return
   flags from the operators and have `__init__`, `__xor__`, `__invert__`, `__contains__` and `__iter__`.
+* **Built-in plugins answer the server console.** A command of a Rust plugin that tells its caller something, such as
+  `qlx !players` or `qlx !id` of `essentials`, failed from the console with `ValueError: client_id needs to be a number`
+  in the log and no reply.
+* **The console has the SteamID of the owner in Rust code too.** `RconDummyPlayer.steam_id` returned `qlx_owner`, but
+  the Rust side read `0`: bans and silences from the console were stored as issued by `0`, the chat log named the console
+  `RconDummyPlayer:0`, and the database took it for a player without permissions, for example in
+  `self.db.has_permission(player, 5)` of a plugin command. The same went for the flags and settings stored per player.
 
 * **`SIGTERM` and `SIGINT` end the server.** The engine only sets two flags on these signals, and with
   `zmq_rcon_enable 1` the server kept running, so a supervisor had to wait for its kill timeout. Now the next frame
@@ -299,6 +306,24 @@ Changes since 0.8.0.
   host of the `[rcon]` table with this port), or `host` as a whole URI, and `password`; options on the command line
   win. `--save-server <name>` writes the table, readable for the owner only, and a warning appears when a server file with
   a password can be read by other users. Without a password `ql_stats` does not ask, as the stats interface often has none.
+
+### ql_demo
+
+* **New tool that converts match recordings to demos:** `ql_demo info <recording>` shows what a recording (`.dm_sqx`)
+  contains and who played, `ql_demo export <recording>...` writes a `.dm_91` demo for every player, or for those chosen
+  with `--client` and `--player`; `--no-private` leaves out team chat and tells. See [ql_demo/README.md](ql_demo/README.md).
+* **The recordings come from the new Cargo feature `demo-recording`**, which is off by default and still in development:
+  with `qlx_demoRecord 1` the server writes one file per match and deletes old ones as `qlx_demoKeepUnrequestedHours`,
+  `qlx_demoMaxTotalMB` and `qlx_demoMinFreeMB` ask. A `.json` file next to each recording lists the players with their
+  SteamIDs and the requests to keep it; requested recordings stay `qlx_demoKeepRequestedDays` and are the last to make
+  room. The format of the recordings may still change.
+* **New built-in plugin `demos`** (`r!demos`, not among the default plugins): `!request demo [reason]` keeps the
+  recording of a match (`qlx_demoRequestPermission`, default 1), `!demos` and `!demostatus` (level 4) show what is
+  recorded. The replies go to the caller only and the commands do not show up in the chat.
+* **Python interface for the recordings:** `shinqlx.demo_status`, `recordings`, `recording`, `request_demo` and
+  `export_demo` with the classes `DemoStatus`, `Recording`, `DemoPlayer`, `DemoRequest`, `ExportedDemo` and
+  `DemoStates`, and the new event `demo_finished`. The names exist in builds without the feature too, where there is
+  nothing to find. They are in the `shinqlx` namespace only.
 
 ### Internal
 

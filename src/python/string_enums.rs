@@ -209,6 +209,17 @@ string_enum! {
 }
 
 string_enum! {
+    /// What the recorder of the matches is doing.
+    closed DemoStates {
+        Unavailable => "unavailable",
+        Disabled => "disabled",
+        Waiting => "waiting",
+        Recording => "recording",
+        DiskFull => "disk_full",
+    }
+}
+
+string_enum! {
     /// The name of a channel of the framework.
     closed ChatChannel {
         Console => "console",

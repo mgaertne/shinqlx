@@ -2,6 +2,7 @@ use crate::python::events_enum::EventName;
 mod ban;
 mod chat_log;
 mod clan;
+mod demos;
 mod essentials;
 mod motd;
 mod names;
@@ -28,9 +29,10 @@ use super::{
 
 type Constructor = for<'py> fn(Python<'py>) -> PyResult<Bound<'py, Plugin>>;
 
-static NATIVE_PLUGINS: [(&str, Constructor); 10] = [
+static NATIVE_PLUGINS: [(&str, Constructor); 11] = [
     ("ban", ban::create),
     ("clan", clan::create),
+    ("demos", demos::create),
     ("essentials", essentials::create),
     ("log", chat_log::create),
     ("motd", motd::create),
@@ -195,6 +197,7 @@ mod native_plugins_tests {
     #[case("motd", true)]
     #[case("names", true)]
     #[case("clan", true)]
+    #[case("demos", true)]
     #[case("silence", true)]
     #[case("permission", true)]
     #[case("balance", false)]

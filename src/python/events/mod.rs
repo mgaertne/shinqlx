@@ -6,6 +6,7 @@ mod console_print_dispatcher;
 mod cvar_changed_dispatcher;
 mod damage_dispatcher;
 mod death_dispatcher;
+mod demo_finished_dispatcher;
 mod flag_status_dispatcher;
 mod frame_event_dispatcher;
 mod game_countdown_dispatcher;
@@ -70,6 +71,11 @@ pub(crate) use damage_dispatcher::{DamageDispatcher, DamageDispatcherMethods};
     reason = "re-exported for the prelude, not every build uses every item"
 )]
 pub(crate) use death_dispatcher::{DeathDispatcher, DeathDispatcherMethods};
+#[allow(
+    unused_imports,
+    reason = "only recording builds dispatch the event from Rust"
+)]
+pub(crate) use demo_finished_dispatcher::{DemoFinishedDispatcher, DemoFinishedDispatcherMethods};
 pub(crate) use flag_status_dispatcher::{FlagStatusDispatcher, FlagStatusDispatcherMethods};
 pub(crate) use frame_event_dispatcher::{FrameEventDispatcher, FrameEventDispatcherMethods};
 pub(crate) use game_countdown_dispatcher::{

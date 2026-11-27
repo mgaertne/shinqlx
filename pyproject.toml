@@ -38,6 +38,7 @@ locked = false
 
 include = [
     { path = "src/**/*", format = "sdist" },
+    { path = "ql_sqx/**/*", format = "sdist" },
     { path = "benches/**/*", format = "sdist" },
     { path = "docs/**/*", format = "sdist" },
     { path = "build.rs", format = "sdist" },

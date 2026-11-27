@@ -17,7 +17,7 @@ use super::{
 use crate::maps::model::{self, SourceKind};
 
 /// A value as Python writes it, `None` for a missing one.
-fn repr_option<T: core::fmt::Debug>(value: Option<&T>) -> String {
+pub(super) fn repr_option<T: core::fmt::Debug>(value: Option<&T>) -> String {
     value.map_or_else(|| "None".to_owned(), |value| format!("{value:?}"))
 }
 
@@ -31,7 +31,11 @@ fn kind_name(kind: SourceKind) -> &'static str {
 }
 
 /// The member of the Python enumeration `class` of the module `shinqlx` for `value`.
-fn enum_member<'py>(py: Python<'py>, class: &str, value: &str) -> PyResult<Bound<'py, PyAny>> {
+pub(super) fn enum_member<'py>(
+    py: Python<'py>,
+    class: &str,
+    value: &str,
+) -> PyResult<Bound<'py, PyAny>> {
     py.import(intern!(py, "shinqlx"))?
         .getattr(class)?
         .call1((value,))
@@ -75,7 +79,7 @@ fn read_only_mapping<'py, 'a>(
         .call1((dict,))
 }
 
-fn tuple_of<'py, T: PyClass + Into<PyClassInitializer<T>>>(
+pub(super) fn tuple_of<'py, T: PyClass + Into<PyClassInitializer<T>>>(
     py: Python<'py>,
     items: impl IntoIterator<Item = T>,
 ) -> PyResult<Bound<'py, PyTuple>> {

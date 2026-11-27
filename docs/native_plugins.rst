@@ -258,6 +258,33 @@ cvar                        default       description
 ``qlx_chatlogsSize``        ``3000000``   Maximum size of a log file in bytes.
 =========================== ============= =====================================
 
+demos
+=====
+
+Lets players ask to keep the recording of a match, and admins see what is recorded. The recording itself is part of the
+server (the Cargo feature ``demo-recording``, off by default and still in development, and the cvar
+``qlx_demoRecord``), see :func:`request_demo`; without the feature the commands only say that the server cannot record
+demos. The plugin is not among the default plugins of ``qlx_plugins``, load it with ``r!demos``.
+
+========================== ======= ================================================================================
+command                    level   description
+========================== ======= ================================================================================
+``!request demo [reason]`` 1       Asks to keep the recording of the running match, or in the warmup after a match
+                                   that of this match.
+``!demos [count]``         4       Lists the newest recordings (10 by default, at most 30) with their size and the
+                                   reasons of the requests.
+``!demostatus``            4       Shows what the recorder is doing and how much is stored.
+========================== ======= ================================================================================
+
+The commands are answered to the caller only and do not show up in the chat, so the others do not learn that a match
+was reported. They can be used from the console with ``qlx !demostatus`` as well.
+
+============================= ========= ==========================================================================
+cvar                          default   description
+============================= ========= ==========================================================================
+``qlx_demoRequestPermission`` ``1``     Permission level for ``!request demo``, read when the plugin is loaded.
+============================= ========= ==========================================================================
+
 workshop
 ========
 

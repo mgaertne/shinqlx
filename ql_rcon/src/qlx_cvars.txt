@@ -49,3 +49,12 @@ qlx_workshopFile	Path of the item list to use instead of the workshop.txt of the
 qlx_workshopPurge	1 deletes the files of an item with every !workshop remove (default 0).
 qlx_workshopWarnPk3	Number of pk3 files above which !workshop warns; 0 does not warn (default 350).
 qlx_workshopPermission	Permission level for !workshop (default 5).
+qlx_demoRecord	1 records matches (default 0, needs the feature demo-recording).
+qlx_demoDir	Directory of the recordings (default demos in fs_homepath).
+qlx_demoRequireHuman	1 records only while someone other than a bot is connected (default 1).
+qlx_demoMaxMinutes	Continue a recording in a new file after this time (default 90, 0 never).
+qlx_demoKeepUnrequestedHours	Delete recordings nobody asked for after this time (default 24, 0 never).
+qlx_demoKeepRequestedDays	Delete requested recordings after this time (default 30, 0 never).
+qlx_demoMaxTotalMB	Delete old recordings above this size of all together (default 5120, 0 no limit).
+qlx_demoMinFreeMB	Delete old recordings while the disk has less free space (default 1024, 0 no limit).
+qlx_demoRequestPermission	Permission level for !request demo (default 1, demos plugin).

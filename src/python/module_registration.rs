@@ -319,6 +319,11 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PlayerInfo>()?;
     m.add_class::<EntityInfo>()?;
     m.add_class::<MapSource>()?;
+    m.add_class::<DemoPlayer>()?;
+    m.add_class::<DemoRequest>()?;
+    m.add_class::<Recording>()?;
+    m.add_class::<DemoStatus>()?;
+    m.add_class::<ExportedDemo>()?;
     m.add_class::<ArenaInfo>()?;
     m.add_class::<MapInfo>()?;
     m.add_class::<FactoryInfo>()?;
@@ -373,6 +378,11 @@ fn register_shinqlx_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pyshinqlx_remove_entity, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_maps, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_map_info, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_demo_status, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_recordings, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_recording, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_request_demo, m)?)?;
+    m.add_function(wrap_pyfunction!(pyshinqlx_export_demo, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_factories, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_factory_info, m)?)?;
     m.add_function(wrap_pyfunction!(pyshinqlx_reload_maps, m)?)?;
@@ -674,6 +684,7 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GameStartDispatcher>()?;
     m.add_class::<GameEndDispatcher>()?;
     m.add_class::<RoundCountdownDispatcher>()?;
+    m.add_class::<DemoFinishedDispatcher>()?;
     m.add_class::<RoundStartDispatcher>()?;
     m.add_class::<RoundEndDispatcher>()?;
     m.add_class::<TeamSwitchDispatcher>()?;
@@ -719,6 +730,7 @@ fn register_events_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     event_dispatchers.add_dispatcher(&m.py().get_type::<GameStartDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<GameEndDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<RoundCountdownDispatcher>())?;
+    event_dispatchers.add_dispatcher(&m.py().get_type::<DemoFinishedDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<RoundStartDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<RoundEndDispatcher>())?;
     event_dispatchers.add_dispatcher(&m.py().get_type::<TeamSwitchDispatcher>())?;

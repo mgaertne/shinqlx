@@ -1,0 +1,20 @@
+[package]
+name = "ql_demo"
+description = "Converts the match recordings of shinqlx to Quake Live demos"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+ql_sqx = { path = "../ql_sqx" }
+anyhow = { version = ">=1.0", default-features = false, features = ["std"] }
+clap = { version = ">=4.6", default-features = false, features = ["std", "derive", "color", "help", "usage", "wrap_help", "string"] }
+
+[dev-dependencies]
+pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
+rstest = { version = ">=0.28", default-features = false }
+
+[lints]
+workspace = true

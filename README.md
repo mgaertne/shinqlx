@@ -20,7 +20,8 @@ Some limitations apply for certain minqlx functions maybe used in plugins.
 
 The documentation is at [shinqlx.readthedocs.io](https://shinqlx.readthedocs.io/). It has a page "Migration from
 minqlx" that lists all deviations. The tool `plugin_migration` (see
-[plugin_migration/README.md](plugin_migration/README.md)) migrates a whole folder of minqlx plugins.
+[plugin_migration/README.md](plugin_migration/README.md)) migrates a whole folder of minqlx plugins. The tool `ql_demo`
+(see [ql_demo/README.md](ql_demo/README.md)) converts the match recordings of shinqlx to Quake Live demos.
 
 # Compilation and installation
 

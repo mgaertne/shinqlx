@@ -23,6 +23,7 @@ from shinqlx import (
     GameStartData,
     KillData,
     Player,
+    Recording,
     RoundEndData,
     StatsData,
     UncancellableEventReturn,
@@ -97,6 +98,8 @@ _KillHookHandler: TypeAlias = Callable[[Player, Player, KillData], CancellableEv
 _KillHookMethod: TypeAlias = Callable[[_PluginT, Player, Player, KillData], CancellableEventReturn]
 _DeathHookHandler: TypeAlias = Callable[[Player, Player | None, DeathData], CancellableEventReturn]
 _DeathHookMethod: TypeAlias = Callable[[_PluginT, Player, Player | None, DeathData], CancellableEventReturn]
+_DemoFinishedHookHandler: TypeAlias = Callable[[Recording], CancellableEventReturn]
+_DemoFinishedHookMethod: TypeAlias = Callable[[_PluginT, Recording], CancellableEventReturn]
 _UserinfoHookHandler: TypeAlias = Callable[[Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
 _UserinfoHookMethod: TypeAlias = Callable[[_PluginT, Player, UserinfoEventInput], UserInfo | CancellableEventReturn]
 _ObjectiveHookHandler: TypeAlias = Callable[[Player, Objective, int], CancellableEventReturn]
@@ -245,6 +248,10 @@ def hook(
 def hook(
     event: Literal["death", Events.DEATH], priority: SupportsIndex | None = ...
 ) -> Callable[[_DeathHookMethod[_PluginT]], _DeathHookMethod[_PluginT]]: ...
+@overload
+def hook(
+    event: Literal["demo_finished", Events.DEMO_FINISHED], priority: SupportsIndex | None = ...
+) -> Callable[[_DemoFinishedHookMethod[_PluginT]], _DemoFinishedHookMethod[_PluginT]]: ...
 @overload
 def hook(
     event: Literal["userinfo", Events.USERINFO], priority: SupportsIndex | None = ...
@@ -836,6 +843,13 @@ class Plugin:
     @overload
     def add_hook(
         self,
+        event: Literal["demo_finished", Events.DEMO_FINISHED],
+        handler: _DemoFinishedHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def add_hook(
+        self,
         event: Literal["userinfo", Events.USERINFO],
         handler: _UserinfoHookHandler,
         priority: SupportsIndex = ...,
@@ -1111,6 +1125,13 @@ class Plugin:
         self,
         event: Literal["death", Events.DEATH],
         handler: _DeathHookHandler,
+        priority: SupportsIndex = ...,
+    ) -> None: ...
+    @overload
+    def remove_hook(
+        self,
+        event: Literal["demo_finished", Events.DEMO_FINISHED],
+        handler: _DemoFinishedHookHandler,
         priority: SupportsIndex = ...,
     ) -> None: ...
     @overload

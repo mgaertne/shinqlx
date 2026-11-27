@@ -1,0 +1,19 @@
+[package]
+name = "ql_sqx"
+description = "Reads and writes the match recordings of shinqlx and turns them into Quake Live demos"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+derive_more = { version = ">=2.1", default-features = false, features = ["display"] }
+
+[dev-dependencies]
+pretty_assertions = { version = ">=1.4", default-features = false, features = ["alloc"] }
+proptest = { version = ">=1.8", default-features = false, features = ["std"] }
+rstest = { version = ">=0.28", default-features = false }
+
+[lints]
+workspace = true

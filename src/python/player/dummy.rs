@@ -29,6 +29,22 @@ static _DUMMY_USERINFO: &str = r#"
 #[pyclass(module = "_player", name = "AbstractDummyPlayer", extends = Player, subclass, frozen)]
 pub(crate) struct AbstractDummyPlayer;
 
+impl AbstractDummyPlayer {
+    fn with_steam_id(name: &str, steam_id: i64) -> PyClassInitializer<Self> {
+        let player_info = PlayerInfo {
+            client_id: -1,
+            name: name.to_string(),
+            connection_state: clientState_t::CS_CONNECTED as i32,
+            userinfo: _DUMMY_USERINFO.to_string(),
+            steam_id,
+            team: team_t::TEAM_SPECTATOR as i32,
+            privileges: privileges_t::PRIV_NONE as i32,
+        };
+        PyClassInitializer::from(Player::from_client_id(-1, Some(player_info)))
+            .add_subclass(Self {})
+    }
+}
+
 #[pymethods]
 impl AbstractDummyPlayer {
     #[new]
@@ -46,17 +62,7 @@ impl AbstractDummyPlayer {
         )]
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
-        let player_info = PlayerInfo {
-            client_id: -1,
-            name: name.to_string(),
-            connection_state: clientState_t::CS_CONNECTED as i32,
-            userinfo: _DUMMY_USERINFO.to_string(),
-            steam_id: 0,
-            team: team_t::TEAM_SPECTATOR as i32,
-            privileges: privileges_t::PRIV_NONE as i32,
-        };
-        PyClassInitializer::from(Player::from_client_id(-1, Some(player_info)))
-            .add_subclass(AbstractDummyPlayer {})
+        Self::with_steam_id(name, 0)
     }
 
     #[pyo3(name = "__init__", signature = (name = "DummyPlayer"))]
@@ -337,8 +343,9 @@ impl RconDummyPlayer {
         )]
         kwargs: Option<&Bound<'_, PyAny>>,
     ) -> PyClassInitializer<Self> {
-        AbstractDummyPlayer::py_new("RconDummyPlayer", py.None().bind(py), None)
-            .add_subclass(Self {})
+        // Rust code reads the field, not the property, so it has to hold the owner too.
+        let owner = py.detach(owner).ok().flatten().unwrap_or_default();
+        AbstractDummyPlayer::with_steam_id("RconDummyPlayer", owner).add_subclass(Self {})
     }
 
     #[pyo3(name = "__init__")]
@@ -425,7 +432,7 @@ mod pyshinqlx_rcon_dummy_player_tests {
         engine::prelude::{CVar, CVarBuilder, cvar_t},
         hooks::mock_hooks::shinqlx_com_printf_context,
         prelude::*,
-        python::{CONSOLE_CHANNEL, prelude::*},
+        python::{CONSOLE_CHANNEL, PlayerMethods, prelude::*},
     };
 
     #[rstest]
@@ -490,6 +497,36 @@ assert(rcon_player.name == "RconDummyPlayer^7")
 
                     let result = rcon_dummy_player.get_steam_id();
                     assert!(result.is_ok_and(|value| value == 1234567890));
+                });
+            });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn the_console_player_seen_as_a_player_has_the_owners_steam_id(_pyshinqlx_setup: ()) {
+        let owner = c"1234567890";
+        let mut raw_cvar = CVarBuilder::default()
+            .string(owner.as_ptr().cast_mut())
+            .build()
+            .expect("this should not happen");
+
+        MockEngineBuilder::default()
+            .with_find_cvar(
+                |cmd| cmd == "qlx_owner",
+                move |_| CVar::try_from(raw_cvar.borrow_mut() as *mut cvar_t).ok(),
+                1..,
+            )
+            .run(|| {
+                Python::attach(|py| {
+                    let player =
+                        Bound::new(py, RconDummyPlayer::py_new(py, py.None().bind(py), None))
+                            .expect("this should not happen")
+                            .into_super()
+                            .into_super();
+
+                    assert_eq!(PlayerMethods::get_steam_id(&player), 1234567890);
+                    assert_eq!(player.get().steam_id, 1234567890);
                 });
             });
     }
@@ -566,6 +603,32 @@ assert(rcon_player.name == "RconDummyPlayer^7")
 
             let result = rcon_dummy_player.tell("asdf", None);
             assert!(result.is_ok());
+        });
+    }
+
+    #[rstest]
+    #[cfg_attr(miri, ignore)]
+    #[serial]
+    fn tell_on_the_console_player_seen_as_a_player_reaches_the_console(_pyshinqlx_setup: ()) {
+        let com_printf_ctx = shinqlx_com_printf_context();
+        com_printf_ctx
+            .expect()
+            .with(predicate::eq("asdf\n"))
+            .times(1);
+
+        Python::attach(|py| {
+            let console_channel =
+                Bound::new(py, ConsoleChannel::py_new(py, py.None().bind(py), None))
+                    .expect("this should not happen");
+            CONSOLE_CHANNEL.store(Some(console_channel.unbind().into()));
+
+            let player = Bound::new(py, RconDummyPlayer::py_new(py, py.None().bind(py), None))
+                .expect("this should not happen")
+                .into_super()
+                .into_super();
+
+            let result = PlayerMethods::tell(&player, "asdf", None);
+            assert!(result.is_ok(), "{result:?}");
         });
     }
 

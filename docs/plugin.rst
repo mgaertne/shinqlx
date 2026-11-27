@@ -231,6 +231,12 @@ Plugins
                                        self,
                                        data: GameEndData
                                      ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
+      ``"demo_finished"``       .. code-block:: python
+
+                                   def handle_demo_finished(
+                                       self,
+                                       recording: Recording
+                                     ) ->  None | RET_NONE | RET_STOP | RET_STOP_EVENT | RET_STOP_ALL
       ``"round_countdown"``     .. code-block:: python
 
                                    def handle_round_countdown(

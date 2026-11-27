@@ -450,6 +450,29 @@ mod spawn_server_quake_live_engine_tests {
     }
 }
 
+#[cfg(all(feature = "demo-recording", not(test)))]
+impl QuakeLiveEngine {
+    /// The unaltered bytes of a configstring, including the long ones like the server info.
+    pub(crate) fn get_configstring_bytes(&self, index: u16) -> Vec<u8> {
+        const BIG_INFO_STRING: usize = 8192;
+
+        self.sv_getconfigstring_orig().map_or_else(
+            |_| Vec::new(),
+            |original_func| {
+                let mut buffer = vec![0u8; BIG_INFO_STRING];
+                original_func(
+                    index.into(),
+                    buffer.as_mut_ptr() as *mut c_char,
+                    BIG_INFO_STRING as c_int,
+                );
+                let length = buffer.iter().position(|&byte| byte == 0).unwrap_or(0);
+                buffer.truncate(length);
+                buffer
+            },
+        )
+    }
+}
+
 pub(crate) trait GetConfigstring<T: Into<c_int>> {
     fn get_configstring(&self, index: T) -> String;
 }

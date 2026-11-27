@@ -415,6 +415,7 @@ jobs:
       - run: cargo build -p ql_rcon --release --verbose
       - run: cargo build -p ql_stats --release --verbose
       - run: cargo build -p plugin_migration --release --verbose
+      - run: cargo build -p ql_demo --release --verbose
       - name: Provide build artifacts
         if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v7
@@ -451,6 +452,18 @@ jobs:
         with:
           name: plugin_migration_${{ matrix.os }}
           path: target/release/plugin_migration.exe
+      - name: Provide build artifacts
+        if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ql_demo_${{ matrix.os }}
+          path: target/release/ql_demo
+      - name: Provide build artifacts
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ql_demo_${{ matrix.os }}
+          path: target/release/ql_demo.exe
 
   publish-github:
     name: Publish GitHub release
@@ -469,7 +482,7 @@ jobs:
       - name: Package the release assets
         run: |
           mkdir assets
-          for tool in ql_rcon ql_stats plugin_migration; do
+          for tool in ql_rcon ql_stats plugin_migration ql_demo; do
             for os in ubuntu-latest macos-latest; do
               chmod +x "artifacts/${tool}_${os}/${tool}"
               tar -czf "assets/${tool}-${GITHUB_REF_NAME}-${os}.tar.gz" -C "artifacts/${tool}_${os}" "${tool}"

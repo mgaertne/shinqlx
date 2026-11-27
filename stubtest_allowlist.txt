@@ -68,4 +68,5 @@ shinqlx._shinqlx.StatsTypes.__new__
 shinqlx._shinqlx.ChatChannels.__new__
 shinqlx._shinqlx.EntityTypes.__new__
 shinqlx._shinqlx.MapSourceKind.__new__
+shinqlx._shinqlx.DemoStates.__new__
 shinqlx._shinqlx.Factories.__new__

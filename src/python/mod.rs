@@ -6,6 +6,7 @@ mod config_string;
 mod database;
 mod decorators;
 mod deferred;
+mod demos;
 mod dispatchers;
 mod embed;
 mod engine_api;
@@ -41,6 +42,9 @@ pub(crate) mod string_enums;
 mod text;
 mod vector3;
 mod weapons;
+
+#[cfg(all(feature = "demo-recording", not(test)))]
+pub(crate) use demos::demo_finished_dispatcher;
 
 pub(crate) mod prelude {
     pub(crate) use pyo3::prelude::*;
@@ -165,6 +169,11 @@ pub(crate) mod prelude {
     pub(crate) use super::{
         ALLOW_FREE_CLIENT, CUSTOM_COMMAND_HANDLER, clean_py_text, clean_text,
         config_string::ConfigString,
+        demos::{
+            DemoPlayer, DemoRequest, DemoStatus, ExportedDemo, Recording, pyshinqlx_demo_status,
+            pyshinqlx_export_demo, pyshinqlx_recording, pyshinqlx_recordings,
+            pyshinqlx_request_demo,
+        },
         embed::*,
         entity_info::EntityInfo,
         events::*,

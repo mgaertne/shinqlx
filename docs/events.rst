@@ -385,6 +385,20 @@ Concrete Event dispatchers
       :param dict data: The raw game end event data received via ZMQ.
       :return: Whether to pass on the event to the engine.
 
+.. class:: DemoFinishedDispatcher
+
+   ``name = "demo_finished"``
+
+   ``need_zmq_stats_enabled = False``
+
+   Event that goes off when the file of a match recording is written, see :func:`request_demo`. A recording that is
+   still open when the server stops is not reported.
+
+   .. method:: dispatch(recording) -> bool
+
+      :param Recording recording: The finished recording.
+      :return: Whether to continue with the event.
+
 .. class:: RoundCountdownDispatcher
 
    ``name = "round_countdown"``

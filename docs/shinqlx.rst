@@ -1043,6 +1043,179 @@ change.
 
       Whether the picture for the map-end vote comes from here.
 
+.. rubric:: Recorded matches
+
+.. shinqlx-only::
+
+A server built with the Cargo feature ``demo-recording`` (off by default and still in development) records the matches
+into files ending in ``.dm_sqx`` when the cvar ``qlx_demoRecord`` is ``1``; the README of ``ql_demo`` lists the cvars
+and tells what a recording holds. A recording that nobody asked for is deleted after a while, so a plugin that wants
+to keep one calls :func:`request_demo`. The names below exist in every build: without the feature the state is
+``UNAVAILABLE``, there are no recordings and :func:`export_demo` raises. The objects are snapshots, they do not
+change. The event ``demo_finished`` (:class:`DemoFinishedDispatcher`) reports each file that was written.
+
+.. function:: demo_status() -> DemoStatus
+
+   .. shinqlx-only::
+
+   What the recorder is doing.
+
+.. function:: recordings() -> tuple[Recording, ...]
+
+   .. shinqlx-only::
+
+   All recordings, the oldest first, the running one included.
+
+   :raises OSError: if the directory of the recordings cannot be read.
+
+.. function:: recording(name) -> Recording | None
+
+   .. shinqlx-only::
+
+   :param str name: The file name without ``.dm_sqx``, as :attr:`Recording.name` returns it.
+   :return: The recording, or ``None`` if there is none of this name.
+
+.. function:: request_demo(name = None, *, requested_by = None, reason = "") -> Recording | None
+
+   .. shinqlx-only::
+
+   Asks to keep a recording. Without a name this is the running recording if a match is counting down, is being played
+   or was played in it, otherwise the last one with a match, so a request in the warmup after a match means that match.
+   If no recording holds a match, it is the running one. Each requester has one request per recording, a new one
+   replaces it.
+
+   :param str name: The name of the recording.
+   :param int requested_by: The SteamID of the player who asks.
+   :param str reason: Why, for whoever looks at the recording.
+   :return: The recording with the request, or ``None`` if there is no such recording.
+   :raises OSError: if the request cannot be stored.
+
+.. function:: export_demo(name, directory, *, steam_ids = None, include_private = True) -> tuple[ExportedDemo, ...]
+
+   .. shinqlx-only::
+
+   Writes demos (``.dm_91``) of a recording into a directory, which is created if needed: one for each stay of each
+   player in the game. This takes seconds, so it raises on the game thread; call it from a function decorated with
+   :func:`thread`. Existing files are never overwritten, and a failure leaves no new files behind. Cleaning up the
+   directory is the task of the plugin.
+
+   :param str name: The name of the recording.
+   :param directory: The folder for the demos.
+   :type directory: str | os.PathLike
+   :param steam_ids: Limits the demos to these players.
+   :type steam_ids: Iterable[int] | None
+   :param bool include_private: Whether the demos contain team chat and tells. Messages that a server plugin sends to a
+      single player stay in them either way.
+   :return: The new demos with the player whose view each one shows.
+   :raises FileNotFoundError: if there is no such recording.
+   :raises FileExistsError: if one of the demos exists already.
+   :raises OSError: if the directory cannot be written.
+   :raises RuntimeError: on the game thread, if the recording cannot be converted, or in a build without the feature.
+
+.. class:: DemoStatus
+
+   .. shinqlx-only::
+
+   .. attribute:: state
+      :type: DemoStates
+
+      What the recorder is doing.
+
+   .. attribute:: current
+      :type: Recording | None
+
+      The running recording, if there is one.
+
+.. class:: Recording
+
+   .. shinqlx-only::
+
+   .. attribute:: name
+      :type: str
+
+      The file name without ``.dm_sqx``, which identifies the recording.
+
+   .. attribute:: path
+      :type: str
+
+   .. attribute:: map
+      :type: str
+
+   .. attribute:: factory
+      :type: str
+
+   .. attribute:: started
+      :type: int
+
+      Seconds since the Unix epoch.
+
+   .. attribute:: ended
+      :type: int | None
+
+      ``None`` while the recording runs, and if the server stopped without ending it.
+
+   .. attribute:: size
+      :type: int
+
+      The size of the file in bytes.
+
+   .. attribute:: match_played
+      :type: bool
+
+      Whether a match was played during the recording, not only the warmup.
+
+   .. attribute:: players
+      :type: tuple[DemoPlayer, ...]
+
+      Everyone who was in the game, spectators included. The list is brought up to date once a second.
+
+   .. attribute:: requests
+      :type: tuple[DemoRequest, ...]
+
+.. class:: DemoPlayer
+
+   .. shinqlx-only::
+
+   .. attribute:: steam_id
+      :type: int
+
+      The engine makes one up for a bot.
+
+   .. attribute:: name
+      :type: str
+
+      The name with its color codes.
+
+   .. attribute:: client_id
+      :type: int
+
+.. class:: DemoRequest
+
+   .. shinqlx-only::
+
+   .. attribute:: requested_by
+      :type: int | None
+
+   .. attribute:: reason
+      :type: str
+
+   .. attribute:: time
+      :type: int
+
+      Seconds since the Unix epoch.
+
+.. class:: ExportedDemo
+
+   .. shinqlx-only::
+
+   .. attribute:: path
+      :type: str
+
+   .. attribute:: player
+      :type: DemoPlayer
+
+      Whose view the demo shows.
+
 .. function:: parse_variables(varstr, ordered = False) -> dict[str, str]
 
    Parses strings of key-value pairs delimited by "\\" and puts them into a dictionary.

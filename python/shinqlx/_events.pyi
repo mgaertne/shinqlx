@@ -20,6 +20,7 @@ from shinqlx import (
     KillData,
     Player,
     Plugin,
+    Recording,
     RoundEndData,
     StatsData,
     UserinfoEventInput,
@@ -116,6 +117,8 @@ class EventDispatcher(Generic[_E]):
     def dispatch(
         self: EventDispatcher[DeathDispatcher], victim: Player, killer: Player | None, data: DeathData
     ) -> bool: ...
+    @overload
+    def dispatch(self: EventDispatcher[DemoFinishedDispatcher], recording: Recording) -> bool: ...
     @overload
     def dispatch(
         self: EventDispatcher[UserinfoDispatcher], player: Player, changed: UserinfoEventInput
@@ -256,6 +259,9 @@ class KillDispatcher(EventDispatcher[KillDispatcher]): ...
 class DeathDispatcher(EventDispatcher[DeathDispatcher]): ...
 
 @final
+class DemoFinishedDispatcher(EventDispatcher[DemoFinishedDispatcher]): ...
+
+@final
 class UserinfoDispatcher(EventDispatcher[UserinfoDispatcher]): ...
 
 @final
@@ -357,6 +363,8 @@ class EventDispatcherManager:
     def __getitem__(self, key: Literal["kill", Events.KILL], /) -> KillDispatcher: ...
     @overload
     def __getitem__(self, key: Literal["death", Events.DEATH], /) -> DeathDispatcher: ...
+    @overload
+    def __getitem__(self, key: Literal["demo_finished", Events.DEMO_FINISHED], /) -> DemoFinishedDispatcher: ...
     @overload
     def __getitem__(self, key: Literal["userinfo", Events.USERINFO], /) -> UserinfoDispatcher: ...
     @overload

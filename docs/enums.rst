@@ -678,6 +678,18 @@ MapSourceKind
    and directories of the game), ``HOME`` (``"home"``, below ``fs_homepath``) and ``WORKSHOP`` (``"workshop"``, a
    workshop item).
 
+DemoStates
+----------
+
+.. class:: DemoStates
+
+   .. shinqlx-only::
+
+   What the recorder of the matches is doing, as :attr:`DemoStatus.state` reports it: ``UNAVAILABLE``
+   (``"unavailable"``, built without the feature), ``DISABLED`` (``"disabled"``), ``WAITING`` (``"waiting"``, switched
+   on, nothing to record), ``RECORDING`` (``"recording"``) and ``DISK_FULL`` (``"disk_full"``, paused until there is
+   room again).
+
 Factories
 ---------
 

@@ -1688,6 +1688,12 @@ impl<'py> PlayerMethods<'py> for Bound<'py, Player> {
     }
 
     fn tell(&self, msg: &str, kwargs: Option<&Bound<'py, PyDict>>) -> PyResult<()> {
+        // Dummy players such as the console bring their own `tell`, which calls from Rust must reach.
+        if self.cast::<AbstractDummyPlayer>().is_ok() {
+            return self
+                .call_method(intern!(self.py(), "tell"), (msg,), kwargs)
+                .map(|_| ());
+        }
         self.get_channel().map_or_else(
             || {
                 cold_path();

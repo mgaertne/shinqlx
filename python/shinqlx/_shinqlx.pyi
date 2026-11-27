@@ -1,6 +1,7 @@
 import builtins
 from collections.abc import Iterable, Iterator, Mapping
 from enum import Enum
+from os import PathLike
 from typing import (
     Callable,
     ClassVar,
@@ -457,6 +458,13 @@ class MapSourceKind(str, Enum):
     HOME = "home"
     WORKSHOP = "workshop"
 
+class DemoStates(str, Enum):
+    UNAVAILABLE = "unavailable"
+    DISABLED = "disabled"
+    WAITING = "waiting"
+    RECORDING = "recording"
+    DISK_FULL = "disk_full"
+
 class Events(str, Enum):
     CHAT = "chat"
     CLIENT_COMMAND = "client_command"
@@ -464,6 +472,7 @@ class Events(str, Enum):
     CONSOLE_PRINT = "console_print"
     DAMAGE = "damage"
     DEATH = "death"
+    DEMO_FINISHED = "demo_finished"
     FRAME = "frame"
     GAME_COUNTDOWN = "game_countdown"
     GAME_END = "game_end"
@@ -665,6 +674,61 @@ class EntityInfo:
     def position(self) -> Vector3: ...
     @property
     def in_use(self) -> bool: ...
+
+@final
+class DemoPlayer:
+    @property
+    def steam_id(self) -> int: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def client_id(self) -> int: ...
+
+@final
+class DemoRequest:
+    @property
+    def requested_by(self) -> int | None: ...
+    @property
+    def reason(self) -> str: ...
+    @property
+    def time(self) -> int: ...
+
+@final
+class Recording:
+    @property
+    def name(self) -> str: ...
+    @property
+    def path(self) -> str: ...
+    @property
+    def map(self) -> str: ...
+    @property
+    def factory(self) -> str: ...
+    @property
+    def started(self) -> int: ...
+    @property
+    def ended(self) -> int | None: ...
+    @property
+    def size(self) -> int: ...
+    @property
+    def match_played(self) -> bool: ...
+    @property
+    def players(self) -> tuple[DemoPlayer, ...]: ...
+    @property
+    def requests(self) -> tuple[DemoRequest, ...]: ...
+
+@final
+class DemoStatus:
+    @property
+    def state(self) -> DemoStates: ...
+    @property
+    def current(self) -> Recording | None: ...
+
+@final
+class ExportedDemo:
+    @property
+    def path(self) -> str: ...
+    @property
+    def player(self) -> DemoPlayer: ...
 
 @final
 class MapSource:
@@ -924,6 +988,17 @@ def map_info(name: str) -> MapInfo | None: ...
 def factories() -> tuple[FactoryInfo, ...]: ...
 def factory_info(factory_id: str | Factories) -> FactoryInfo | None: ...
 def reload_maps() -> bool: ...
+def demo_status() -> DemoStatus: ...
+def recordings() -> tuple[Recording, ...]: ...
+def recording(name: str) -> Recording | None: ...
+def request_demo(name: str | None = None, *, requested_by: int | None = None, reason: str = "") -> Recording | None: ...
+def export_demo(
+    name: str,
+    directory: str | PathLike[str],
+    *,
+    steam_ids: Iterable[int] | None = None,
+    include_private: bool = True,
+) -> tuple[ExportedDemo, ...]: ...
 def move_entity(entity_id: int, x: float, y: float, z: float) -> bool: ...
 
 # BEGIN spawn_entity (generated from entity_classes.rs, see its test)

@@ -1,7 +1,7 @@
 cargo-features = ["profile-rustflags"]
 
 [workspace]
-members = ["ql_rcon", "ql_stats", "ql_zmq", "plugin_migration"]
+members = ["ql_rcon", "ql_stats", "ql_zmq", "plugin_migration", "ql_sqx", "ql_demo"]
 
 [workspace.package]
 rust-version = "1.95"
@@ -59,6 +59,7 @@ rustflags = ["-Zlocation-detail=none"]
 rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
+ql_sqx = { path = "ql_sqx", optional = true }
 serde_json = { workspace = true }
 regex-lite = { version = ">=0.1.9", default-features = false, features = ["std", "string"] }
 arzmq = { workspace = true, features = ["builder", "futures"], optional = true }
@@ -144,6 +145,8 @@ zmq-stats = ["dep:arzmq", "dep:async-io", "dep:futures"]
 race-hooks = []
 # all patches and fixes
 patches = ["clientkick-fix", "fps-patch", "zmq-rcon-fix", "steam-query-limit"]
+# server side recording of demos, in development
+demo-recording = ["dep:ql_sqx"]
 # expose internals to the benchmarks, not meant for production builds
 bench-support = []
 
