@@ -459,9 +459,10 @@ mod commands_tests {
         engine::{PythonInitializationError, prelude::*},
         prelude::*,
         python::{
+            COMMANDS,
             prelude::*,
             pyshinqlx_test_support::{
-                python_function_raising_exception, python_function_returning,
+                ReplacedGlobal, python_function_raising_exception, python_function_returning,
             },
         },
     };
@@ -531,6 +532,8 @@ mod commands_tests {
     #[test]
     #[serial]
     fn cmd_plugin_commands_without_plugins_prints_only_the_count() {
+        let _commands = ReplacedGlobal::new(&COMMANDS, None);
+
         MockEngineBuilder::default()
             .with_args(Some(" ban "), 1)
             .with_find_cvar(|name| name == "qlx_commandPrefix", |_| None, 1)

@@ -24,8 +24,8 @@ use crate::{
         plugin::PluginMethods,
         pyshinqlx_setup_fixture::pyshinqlx_setup,
         pyshinqlx_test_support::{
-            RECORDED_VOTE_STATES, RestoredAttribute, default_test_player_info, engine_with_cvars,
-            recorded_replies, recording_channel, with_connected_teamed_players,
+            RECORDED_VOTE_STATES, ReplacedGlobal, RestoredAttribute, default_test_player_info,
+            engine_with_cvars, recorded_replies, recording_channel, with_connected_teamed_players,
         },
     },
 };
@@ -1697,10 +1697,9 @@ fn teamsize_sets_the_size_and_announces_it(_pyshinqlx_setup: ()) {
             ),
         )
         .expect("could not create the chat channel");
-        CHAT_CHANNEL.store(Some(chat_channel.into()));
+        let _channel = ReplacedGlobal::new(&CHAT_CHANNEL, Some(chat_channel));
 
         let result = fixtures.run("teamsize", &fixtures.caller, &["ts", "6"]);
-        CHAT_CHANNEL.store(None);
 
         assert_eq!(result, Some(Some(STOP_ALL)));
         assert_eq!(

@@ -2413,7 +2413,7 @@ fn msg_for_default_channel(_pyshinqlx_setup: ()) {
             ),
         )
         .expect("creating new chat channel failed.");
-        CHAT_CHANNEL.store(Some(channel.unbind().into()));
+        let _channel = ReplacedGlobal::new(&CHAT_CHANNEL, Some(channel.unbind()));
 
         let result = Plugin::msg(&py.get_type::<Plugin>(), "asdf", None, None);
         assert!(result.is_ok());
@@ -2444,7 +2444,7 @@ fn msg_for_chat_channel_with_kwargs(_pyshinqlx_setup: ()) {
             ),
         )
         .expect("creating new chat channel failed.");
-        CHAT_CHANNEL.store(Some(channel.unbind().into()));
+        let _channel = ReplacedGlobal::new(&CHAT_CHANNEL, Some(channel.unbind()));
 
         let result = Plugin::msg(
             &py.get_type::<Plugin>(),
@@ -2527,7 +2527,7 @@ fn msg_for_red_team_chat_channel(_pyshinqlx_setup: ()) {
                 ),
             )
             .expect("creating new chat channel failed.");
-            RED_TEAM_CHAT_CHANNEL.store(Some(channel.unbind().into()));
+            let _channel = ReplacedGlobal::new(&RED_TEAM_CHAT_CHANNEL, Some(channel.unbind()));
 
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),
@@ -2604,7 +2604,7 @@ fn msg_for_blue_team_chat_channel(_pyshinqlx_setup: ()) {
                 ),
             )
             .expect("creating new chat channel failed.");
-            BLUE_TEAM_CHAT_CHANNEL.store(Some(channel.unbind().into()));
+            let _channel = ReplacedGlobal::new(&BLUE_TEAM_CHAT_CHANNEL, Some(channel.unbind()));
 
             let result = Plugin::msg(
                 &py.get_type::<Plugin>(),

@@ -1002,7 +1002,8 @@ mod handle_client_command_tests {
                                 ),
                             )
                             .expect("could not create TeamChatchannel in python");
-                            CHAT_CHANNEL.store(Some(channel.unbind().into()));
+                            let _channel =
+                                ReplacedGlobal::new(&CHAT_CHANNEL, Some(channel.unbind()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
@@ -1105,7 +1106,8 @@ mod handle_client_command_tests {
                                 ),
                             )
                             .expect("could not create TeamChatchannel in python");
-                            CHAT_CHANNEL.store(Some(channel.unbind().into()));
+                            let _channel =
+                                ReplacedGlobal::new(&CHAT_CHANNEL, Some(channel.unbind()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())
@@ -1195,7 +1197,7 @@ mod handle_client_command_tests {
                         ),
                     )
                     .expect("could not create TeamChatchannel in python");
-                    CHAT_CHANNEL.store(Some(channel.unbind().into()));
+                    let _channel = ReplacedGlobal::new(&CHAT_CHANNEL, Some(channel.unbind()));
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -1236,7 +1238,7 @@ mod handle_client_command_tests {
             .with_privileges(|| privileges_t::PRIV_NONE, 1..)
             .run(predicate::eq(42), || {
                 Python::attach(|py| {
-                    CHAT_CHANNEL.store(None);
+                    let _channel = ReplacedGlobal::new(&CHAT_CHANNEL, None);
 
                     let event_dispatcher = Bound::new(py, EventDispatcherManager::default())
                         .expect("this should not happen");
@@ -1305,7 +1307,8 @@ mod handle_client_command_tests {
                                 ),
                             )
                             .expect("could not create TeamChatchannel in python");
-                            CHAT_CHANNEL.store(Some(channel.unbind().into()));
+                            let _channel =
+                                ReplacedGlobal::new(&CHAT_CHANNEL, Some(channel.unbind()));
 
                             let event_dispatcher =
                                 Bound::new(py, EventDispatcherManager::default())

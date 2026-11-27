@@ -353,7 +353,7 @@ mod command_text_tests {
     use rstest::rstest;
 
     use super::{console_text, console_word, quoted_text};
-    use crate::python::prelude::*;
+    use crate::python::{prelude::*, pyshinqlx_setup_fixture::pyshinqlx_setup};
 
     #[rstest]
     #[case("hello", "hello")]
@@ -378,7 +378,11 @@ mod command_text_tests {
     #[case("a\rquit", false)]
     #[case("a\"b", false)]
     #[cfg_attr(miri, ignore)]
-    fn console_word_refuses_separators(#[case] word: &str, #[case] accepted: bool) {
+    fn console_word_refuses_separators(
+        _pyshinqlx_setup: (),
+        #[case] word: &str,
+        #[case] accepted: bool,
+    ) {
         Python::attach(|py| {
             let result = console_word("new_map", word);
             assert_eq!(result.is_ok(), accepted);

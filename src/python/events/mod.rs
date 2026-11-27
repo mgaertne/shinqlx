@@ -701,12 +701,15 @@ mod event_gate_tests {
         engine::prelude::*,
         prelude::*,
         python::{
-            commands::CommandPriorities, events_enum::EventName, pyshinqlx_setup,
-            pyshinqlx_test_support::python_function_returning,
+            commands::CommandPriorities, events::set_event_listened_to, events_enum::EventName,
+            pyshinqlx_setup, pyshinqlx_test_support::python_function_returning,
         },
     };
 
     fn with_closed_gate(test: impl FnOnce()) {
+        for event in EventName::ALL {
+            set_event_listened_to(*event, false);
+        }
         GATING_ACTIVE_IN_TESTS.store(true, Ordering::Release);
         CONFIGURED_NO_DEBUG.store(None);
         test();

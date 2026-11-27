@@ -1936,9 +1936,10 @@ def __getattr__(name):
 #[cfg(test)]
 #[cfg(not(tarpaulin_include))]
 pub(crate) mod pyshinqlx_test_support {
-    use alloc::ffi::CString;
+    use alloc::{ffi::CString, sync::Arc};
     use core::{borrow::BorrowMut, ffi::CStr, fmt::Debug};
 
+    use arc_swap::ArcSwapOption;
     use mockall::predicate;
     use pyo3::{intern, prelude::*};
 
@@ -2117,6 +2118,25 @@ class RecordingChannel(shinqlx.AbstractChannel):
                 Some(original) => self.owner.setattr(self.name, original),
                 None => self.owner.delattr(self.name),
             };
+        }
+    }
+
+    /// Replaces a process-wide value for a test and puts the previous one back on drop.
+    pub(crate) struct ReplacedGlobal<T: 'static> {
+        global: &'static ArcSwapOption<T>,
+        previous: Option<Arc<T>>,
+    }
+
+    impl<T> ReplacedGlobal<T> {
+        pub(crate) fn new(global: &'static ArcSwapOption<T>, value: Option<T>) -> Self {
+            let previous = global.swap(value.map(Arc::new));
+            Self { global, previous }
+        }
+    }
+
+    impl<T> Drop for ReplacedGlobal<T> {
+        fn drop(&mut self) {
+            self.global.store(self.previous.take());
         }
     }
 

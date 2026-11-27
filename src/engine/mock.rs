@@ -2,10 +2,12 @@ use core::ffi::{c_char, c_int};
 
 use detour::TypedDetour;
 use mockall::predicate;
+use pyo3::{Python, ffi::Py_IsInitialized};
 
 use crate::{
     composition::ENGINE_CALLBACKS,
     engine::{callbacks::EngineCallbacks, prelude::*, *},
+    python::pyshinqlx_test_support::drop_pending_frame_tasks,
 };
 
 #[cfg(not(tarpaulin_include))]
@@ -298,11 +300,20 @@ impl MockEngineBuilder {
     }
 }
 
-/// Removes the mocked engine on the thread that created it, also when the test panics.
+fn drop_leftover_frame_tasks() {
+    // SAFETY: Py_IsInitialized may be called before the interpreter exists.
+    if unsafe { Py_IsInitialized() } != 0 {
+        Python::attach(drop_pending_frame_tasks);
+    }
+}
+
+/// Removes the mocked engine on the thread that created it, also when the test panics, and the frame
+/// tasks that still count on it.
 struct MainEngineReset;
 
 impl Drop for MainEngineReset {
     fn drop(&mut self) {
+        drop_leftover_frame_tasks();
         crate::MAIN_ENGINE.store(None);
     }
 }
