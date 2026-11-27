@@ -375,6 +375,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        miri,
+        ignore = "the virtual clock of Miri can pass the wait before the writer runs"
+    )]
     fn errors_wait_until_they_are_written() {
         let collecting = Collecting {
             delay: Duration::from_millis(10),

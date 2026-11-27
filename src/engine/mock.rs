@@ -308,6 +308,10 @@ impl MockEngineBuilder {
 }
 
 fn drop_leftover_frame_tasks() {
+    // Miri cannot call into Python, and no test that runs there starts it.
+    if cfg!(miri) {
+        return;
+    }
     // SAFETY: Py_IsInitialized may be called before the interpreter exists.
     if unsafe { Py_IsInitialized() } != 0 {
         Python::attach(drop_pending_frame_tasks);
