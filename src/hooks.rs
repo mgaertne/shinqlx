@@ -266,7 +266,7 @@ where
                 passed_on_cmd_str = Cow::Owned(trimmed);
             }
 
-            #[cfg(all(feature = "demo-recording", not(test)))]
+            #[cfg(feature = "demo-recording")]
             crate::demo_capture::server_command(Some(client_id), &passed_on_cmd_str);
 
             if !passed_on_cmd_str.is_empty()
@@ -286,10 +286,17 @@ where
             };
             passed_on_cmd_str = res;
 
-            #[cfg(all(feature = "demo-recording", not(test)))]
+            #[cfg(feature = "demo-recording")]
             crate::demo_capture::server_command(None, &passed_on_cmd_str);
         }
-        _ => (),
+        // While the map restarts, the clients are sent commands before they have an entity again.
+        #[cfg(feature = "demo-recording")]
+        Some(safe_client) => crate::demo_capture::server_command(
+            Some(safe_client.get_client_id()),
+            &passed_on_cmd_str,
+        ),
+        #[cfg(not(feature = "demo-recording"))]
+        Some(_) => (),
     }
 
     if !passed_on_cmd_str.is_empty() {
@@ -2060,12 +2067,35 @@ mod hooks_tests {
             .expect_has_gentity()
             .return_const(false)
             .times(1);
+        #[cfg(feature = "demo-recording")]
+        mock_client.expect_get_client_id().return_const(42).times(1);
 
         MockEngineBuilder::default()
             .with_send_server_command(|client, cmd| client.is_some() && cmd == "cp asdf", 1)
             .run(|| {
                 shinqlx_send_server_command(Some(mock_client), "cp asdf");
             });
+    }
+
+    #[cfg(feature = "demo-recording")]
+    #[test]
+    #[serial]
+    fn send_server_command_records_what_a_client_without_gentity_is_sent() {
+        let mut mock_client = MockClient::new();
+        mock_client.expect_has_gentity().return_const(false);
+        mock_client.expect_get_client_id().return_const(42);
+        crate::demo_capture::recorded_commands::take();
+
+        MockEngineBuilder::default()
+            .with_send_server_command(|_client, _cmd| true, 1)
+            .run(|| {
+                shinqlx_send_server_command(Some(mock_client), "cs 13 \"51300\"\n");
+            });
+
+        assert_eq!(
+            crate::demo_capture::recorded_commands::take(),
+            vec![(Some(42), "cs 13 \"51300\"\n".to_string())]
+        );
     }
 
     #[rstest]
@@ -3248,6 +3278,8 @@ mod hooks_tests {
             .expect_has_gentity()
             .return_const(false)
             .times(1);
+        #[cfg(feature = "demo-recording")]
+        mock_client.expect_get_client_id().return_const(42).times(1);
         let client_try_from_ctx = MockClient::try_from_context();
         client_try_from_ctx
             .expect()

@@ -35,3 +35,25 @@ pub(crate) use live::{
     client_dropped, client_thought, configstring, damage_begins, damage_done, frame, is_recording,
     map_ended, map_loaded, map_restarted, server_command, stats, weapon_fired,
 };
+#[cfg(test)]
+pub(crate) use recorded_commands::server_command;
+
+/// Stands in for the recorder, so that tests see which commands the hooks hand to it.
+#[cfg(test)]
+pub(crate) mod recorded_commands {
+    use alloc::{string::String, vec::Vec};
+    use core::cell::RefCell;
+
+    std::thread_local! {
+        static COMMANDS: RefCell<Vec<(Option<i32>, String)>> = const { RefCell::new(Vec::new()) };
+    }
+
+    pub(crate) fn server_command(recipient: Option<i32>, command: &str) {
+        COMMANDS.with_borrow_mut(|commands| commands.push((recipient, command.into())));
+    }
+
+    /// The commands handed over on this thread since the last call.
+    pub(crate) fn take() -> Vec<(Option<i32>, String)> {
+        COMMANDS.take()
+    }
+}
