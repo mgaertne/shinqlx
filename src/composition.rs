@@ -4,6 +4,8 @@
 use crate::fixes::engine_functions_found;
 #[cfg(test)]
 use crate::hooks::mock_hooks::shinqlx_set_configstring;
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+use crate::hooks::shinqlx_cvar_get;
 #[cfg(feature = "demo-recording")]
 use crate::hooks::shinqlx_g_clientthink;
 #[cfg(not(test))]
@@ -37,6 +39,8 @@ pub(crate) static ENGINE_CALLBACKS: EngineCallbacks = EngineCallbacks {
     },
     cvar: CvarCallbacks {
         cvar_set2: shinqlx_cvar_set2,
+        #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+        cvar_get: shinqlx_cvar_get,
     },
     server: ServerCallbacks {
         sv_executeclientcommand: shinqlx_sv_executeclientcommand,

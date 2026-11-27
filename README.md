@@ -126,7 +126,7 @@ exec $basepath/run_server_shinqlx.sh \
 | `patches`           | no      | enables `clientkick-fix`, `fps-patch`, `zmq-rcon-fix` and `steam-query-limit` |
 | `race-hooks`        | no      | race maps: touching a start point again keeps the run time, `target_init` triggers honour their KEEP* spawnflags, experimental |
 | `clientkick-fix`    | no      | patch for the callvote clientkick lookup in `qagame`, experimental                |
-| `fps-patch`         | no      | `qagame` registers `sv_fps` with 125 instead of the read-only 40      |
+| `fps-patch`         | no      | `sv_fps` is registered with 125 instead of the read-only 40           |
 | `zmq-stats`         | no      | reads the stats from the ZMQ socket (`zmq_stats_enable`) with the `StatsListener`; the stats events work without it, through a hook |
 | `zmq-rcon-fix`      | yes     | protects against dead RCON clients: drops the engine's "zmq RCON client disconnected" report and limits how long the engine waits for a client (`qlx_zmqRconSendTimeout`) |
 | `demo-recording`    | no      | records matches with the view of every player, to be converted to demos with `ql_demo`, experimental, see [Recording matches](https://shinqlx.readthedocs.io/en/latest/demos.html) |

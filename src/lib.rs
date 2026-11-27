@@ -40,7 +40,7 @@
 //!   functions of the engine that the game module passes its stats messages to.
 //! * `clientkick-fix`: patches the callvote clientkick lookup in `qagame`. Experimental, disabled by
 //!   default.
-//! * `fps-patch`: makes `qagame` register `sv_fps` with the default 125 instead of the read-only 40.
+//! * `fps-patch`: registers `sv_fps` with the default 125 instead of the read-only 40, in the engine and the game.
 //!   Experimental, disabled by default.
 //! * `bench-support`: exposes internals to the benchmarks. Not meant for production builds.
 

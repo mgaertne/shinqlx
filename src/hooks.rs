@@ -27,6 +27,8 @@ use crate::{
     prelude::*,
     python::prelude::*,
 };
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+use crate::{engine::GetCvarUndetected, fixes::sv_fps_patch};
 #[cfg(any(all(target_os = "linux", feature = "steam-query-limit"), test))]
 use crate::{engine::HandleSteamPacket, fixes::query_rate_limiter::rejects_steam_packet};
 
@@ -872,6 +874,28 @@ pub(crate) extern "C" fn shinqlx_cvar_set2(
         })
 }
 
+/// Passes every `Cvar_Get` on to the engine, with 125 as the read-only default of `sv_fps`.
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+pub(crate) extern "C" fn shinqlx_cvar_get(
+    name: *const c_char,
+    value: *const c_char,
+    flags: c_int,
+) -> *mut cvar_t {
+    let replacement = (!name.is_null() && !value.is_null())
+        .then(|| {
+            // SAFETY: the engine passes valid, NUL-terminated C strings.
+            unsafe { (CStr::from_ptr(name), CStr::from_ptr(value)) }
+        })
+        .and_then(|(name, value)| sv_fps_patch::replaced_default(name, value, flags));
+
+    MAIN_ENGINE
+        .load()
+        .as_ref()
+        .map_or(ptr::null_mut(), |main_engine| {
+            main_engine.get_cvar_undetected(name, replacement.map_or(value, CStr::as_ptr), flags)
+        })
+}
+
 /// The game calls this for every frame in which a player overlaps an item, also when the player
 /// cannot pick the item up. A handler of `item_touch` that stops the event keeps the touch from
 /// reaching the game module. When the touch takes the item away, `item_pickup` goes off afterwards.
@@ -1225,6 +1249,57 @@ mod cvar_set2_hook_tests {
             })
             .run(|| {
                 shinqlx_cvar_set2(c"sv_hostname".as_ptr(), c"new".as_ptr(), qboolean::qfalse);
+            });
+    }
+}
+
+#[cfg(test)]
+mod cvar_get_hook_tests {
+    use core::{borrow::BorrowMut, ffi::CStr};
+
+    use rstest::*;
+
+    use super::shinqlx_cvar_get;
+    use crate::{engine::prelude::*, prelude::*};
+
+    #[test]
+    #[serial]
+    fn cvar_get_with_no_main_engine_returns_null() {
+        let result = shinqlx_cvar_get(c"sv_fps".as_ptr(), c"40".as_ptr(), 0);
+        assert!(result.is_null());
+    }
+
+    #[rstest]
+    #[case(c"sv_fps", cvar_flags::CVAR_ROM as i32, c"125")]
+    #[case(c"sv_fps", 0, c"40")]
+    #[case(c"sv_maxclients", cvar_flags::CVAR_ROM as i32, c"40")]
+    #[serial]
+    fn cvar_get_passes_the_default_on(
+        #[case] name: &'static CStr,
+        #[case] flags: i32,
+        #[case] expected: &'static CStr,
+    ) {
+        let mut cvar = CVarBuilder::default()
+            .build()
+            .expect("this should not happen");
+        let pointer = ptr::from_mut(cvar.borrow_mut());
+
+        MockEngineBuilder::default()
+            .configure(|mock_engine| {
+                mock_engine
+                    .expect_get_cvar_undetected()
+                    .withf_st(move |&passed_name, &passed_value, &passed_flags| {
+                        passed_name == name.as_ptr()
+                            // SAFETY: the hook passes a valid, NUL-terminated C string.
+                            && unsafe { CStr::from_ptr(passed_value) } == expected
+                            && passed_flags == flags
+                    })
+                    .returning_st(move |_, _, _| pointer)
+                    .times(1);
+            })
+            .run(|| {
+                let result = shinqlx_cvar_get(name.as_ptr(), c"40".as_ptr(), flags);
+                assert_eq!(result, pointer);
             });
     }
 }

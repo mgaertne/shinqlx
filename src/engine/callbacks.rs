@@ -43,6 +43,8 @@ pub(crate) struct ConsoleCallbacks {
 
 pub(crate) struct CvarCallbacks {
     pub(crate) cvar_set2: extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t,
+    #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+    pub(crate) cvar_get: extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
 }
 
 pub(crate) struct ServerCallbacks {

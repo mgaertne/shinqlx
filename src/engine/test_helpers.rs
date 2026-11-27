@@ -80,6 +80,14 @@ pub(crate) fn default_static_detours() -> StaticDetours {
                 )
             }
             .expect("this should not happen"),
+            // SAFETY: the original is a function of the engine and the replacement has the same signature.
+            cvar_get_detour: unsafe {
+                TypedDetour::new(
+                    Cvar_Get as extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t,
+                    detoured_Cvar_Get,
+                )
+            }
+            .expect("this should not happen"),
         },
         server: ServerDetours {
             // SAFETY: the original is a function of the engine and the replacement has the same signature.

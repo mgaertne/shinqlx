@@ -135,8 +135,8 @@ alloc = ["dep:tikv-jemallocator", "dep:mimalloc"]
 steam-query-limit = []
 # patch the callvote clientkick lookup in qagame, experimental
 clientkick-fix = ["dep:region"]
-# let qagame register sv_fps with 125 instead of the read-only default 40, experimental
-fps-patch = ["dep:region"]
+# register sv_fps with 125 instead of the read-only default 40, experimental
+fps-patch = []
 # drop the engine's report about a disconnected ZMQ RCON client, which crashes the server when several clients die at once
 zmq-rcon-fix = []
 # read the stats from the ZMQ socket of the server (`zmq_stats_enable`), as the StatsListener did; the events work without it through a hook

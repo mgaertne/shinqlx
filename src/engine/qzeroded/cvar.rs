@@ -262,6 +262,33 @@ mod get_cvar_quake_live_engine_tests {
     }
 }
 
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+pub(crate) trait GetCvarUndetected {
+    /// Runs the original `Cvar_Get` of the engine, past the hook that changes defaults.
+    fn get_cvar_undetected(
+        &self,
+        name: *const c_char,
+        value: *const c_char,
+        flags: c_int,
+    ) -> *mut cvar_t;
+}
+
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+impl GetCvarUndetected for QuakeLiveEngine {
+    fn get_cvar_undetected(
+        &self,
+        name: *const c_char,
+        value: *const c_char,
+        flags: c_int,
+    ) -> *mut cvar_t {
+        self.static_detours
+            .get()
+            .map_or(ptr::null_mut(), |static_detours| {
+                static_detours.cvar.cvar_get_detour.call(name, value, flags)
+            })
+    }
+}
+
 pub(crate) trait SetCvarUndetected {
     /// Runs the original `Cvar_Set2` of the engine, past the hook that reports changed cvars.
     fn set_cvar_undetected(
@@ -524,6 +551,10 @@ mod set_cvar_limit_quake_live_engine_tests {
 pub(in crate::engine) type CvarSet2DetourType =
     TypedDetour<extern "C" fn(*const c_char, *const c_char, qboolean) -> *mut cvar_t>;
 
+#[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+pub(in crate::engine) type CvarGetDetourType =
+    TypedDetour<extern "C" fn(*const c_char, *const c_char, c_int) -> *mut cvar_t>;
+
 #[derive(Debug)]
 pub(in crate::engine) struct CvarFunctions {
     pub(in crate::engine) cvar_findvar_orig: extern "C" fn(*const c_char) -> *mut cvar_t,
@@ -579,6 +610,8 @@ impl CvarFunctions {
 #[derive(Debug)]
 pub(in crate::engine) struct CvarDetours {
     pub(in crate::engine) cvar_set2_detour: CvarSet2DetourType,
+    #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+    pub(in crate::engine) cvar_get_detour: CvarGetDetourType,
 }
 
 impl CvarDetours {
@@ -595,7 +628,17 @@ impl CvarDetours {
             engine.callbacks().cvar.cvar_set2,
         )?;
 
-        Ok(Self { cvar_set2_detour })
+        #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+        let cvar_get_detour = QuakeLiveFunction::Cvar_Get.create_and_enable_generic_detour(
+            engine.cvar_get_orig()?,
+            engine.callbacks().cvar.cvar_get,
+        )?;
+
+        Ok(Self {
+            cvar_set2_detour,
+            #[cfg(any(all(target_os = "linux", feature = "fps-patch"), test))]
+            cvar_get_detour,
+        })
     }
 }
 

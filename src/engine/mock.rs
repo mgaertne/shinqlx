@@ -94,6 +94,9 @@ mockall::mock! {
     impl ClientSpawn<&mut GameEntity> for QuakeEngine {
         fn client_spawn(&self, ent: &mut GameEntity);
     }
+    impl GetCvarUndetected for QuakeEngine {
+        fn get_cvar_undetected(&self, name: *const c_char, value: *const c_char, flags: c_int) -> *mut cvar_t;
+    }
     impl SetCvarUndetected for QuakeEngine {
         fn set_cvar_undetected(&self, name: *const c_char, value: *const c_char, force: qboolean) -> *mut cvar_t;
     }
@@ -672,6 +675,20 @@ pub(crate) mod quake_functions {
     )]
     #[cfg(not(tarpaulin_include))]
     pub(crate) extern "C" fn SV_SpawnServer(_server: *mut c_char, _killBots: qboolean) {}
+
+    #[allow(
+        unused_attributes,
+        non_snake_case,
+        reason = "mock stand-in for the engine function of the same C name"
+    )]
+    #[cfg(not(tarpaulin_include))]
+    pub(crate) extern "C" fn detoured_Cvar_Get(
+        _var_name: *const c_char,
+        _var_value: *const c_char,
+        _flags: c_int,
+    ) -> *mut cvar_t {
+        ptr::null_mut()
+    }
 
     #[allow(
         unused_attributes,
