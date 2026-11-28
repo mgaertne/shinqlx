@@ -57,4 +57,5 @@ qlx_demoKeepUnrequestedHours	Delete recordings nobody asked for after this time 
 qlx_demoKeepRequestedDays	Delete requested recordings after this time (default 30, 0 never).
 qlx_demoMaxTotalMB	Delete old recordings above this size of all together (default 5120, 0 no limit).
 qlx_demoMinFreeMB	Delete old recordings while the disk has less free space (default 1024, 0 no limit).
+qlx_demoUsercmds	1 records the inputs of the players, pressed keys and view angles (default 1).
 qlx_demoRequestPermission	Permission level for !request demo (default 1, demos plugin).
