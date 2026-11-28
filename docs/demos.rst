@@ -45,11 +45,11 @@ What is recorded
 ================
 
 One file holds the warmup and the match that follows it. Its name is ``YYYYMMDD_HHmmSS_mapname.dm_sqx``, after its
-start in UTC. A recording ends
+start in UTC. An empty server is not recorded. A recording ends
 
 * when the game returns to the warmup after a match, finished or aborted,
 * when the map ends,
-* when the last human leaves (see ``qlx_demoRequireHuman``),
+* when the last player leaves, bots included, or the last human (see ``qlx_demoRequireHuman``),
 * after ``qlx_demoMaxMinutes``, continuing in a new file,
 * when recording is switched off or there is no disk space left,
 * when the server cannot write fast enough; the next attempt follows a minute later, as after a failed start.

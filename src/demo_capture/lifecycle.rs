@@ -49,6 +49,8 @@ pub struct Observation {
     pub now: Instant,
     /// The state of the game, if known.
     pub game_state: Option<GameState>,
+    /// Whether anyone is connected, bots included.
+    pub player_connected: bool,
     /// Whether someone other than a bot is connected.
     pub human_connected: bool,
     /// Whether there is disk space left for recordings.
@@ -61,9 +63,9 @@ pub enum EndReason {
     /// Recording was switched off.
     #[display("recording was disabled")]
     Disabled,
-    /// The last human left.
+    /// The server is empty, or the last human left where one is required.
     #[display("no player is left")]
-    NoHuman,
+    NoPlayer,
     /// The game started over after a match, finished or aborted.
     #[display("the match ended")]
     MatchEnded,
@@ -111,8 +113,8 @@ impl Lifecycle {
     pub fn observe(&mut self, rules: &Rules, seen: &Observation) -> Option<Step> {
         let obstacle = if !rules.enabled {
             Some(EndReason::Disabled)
-        } else if rules.require_human && !seen.human_connected {
-            Some(EndReason::NoHuman)
+        } else if !seen.player_connected || (rules.require_human && !seen.human_connected) {
+            Some(EndReason::NoPlayer)
         } else if !seen.has_room {
             Some(EndReason::DiskFull)
         } else {
@@ -184,6 +186,7 @@ mod lifecycle_tests {
         Observation {
             now: start + Duration::from_secs(seconds),
             game_state: Some(state),
+            player_connected: true,
             human_connected: true,
             has_room: true,
         }
@@ -240,7 +243,7 @@ mod lifecycle_tests {
 
     #[rstest]
     #[case::disabled(Rules { enabled: false, ..RULES }, true, true, EndReason::Disabled)]
-    #[case::empty(RULES, false, true, EndReason::NoHuman)]
+    #[case::empty(RULES, false, true, EndReason::NoPlayer)]
     #[case::full(RULES, true, false, EndReason::DiskFull)]
     fn obstacles_end_and_prevent_recordings(
         #[case] rules: Rules,
@@ -277,6 +280,32 @@ mod lifecycle_tests {
         assert_eq!(
             Lifecycle::default().observe(&rules, &observation),
             Some(Step::Start)
+        );
+    }
+
+    #[rstest]
+    #[case::a_human_required(true)]
+    #[case::bots_allowed(false)]
+    fn an_empty_server_is_not_recorded(#[case] require_human: bool) {
+        let rules = Rules {
+            require_human,
+            ..RULES
+        };
+        let (mut lifecycle, start) = (Lifecycle::default(), Instant::now());
+        let empty = Observation {
+            player_connected: false,
+            human_connected: false,
+            ..seen(start, 1, GameState::Warmup)
+        };
+
+        assert_eq!(lifecycle.observe(&rules, &empty), None);
+        assert_eq!(
+            lifecycle.observe(&rules, &seen(start, 2, GameState::Warmup)),
+            Some(Step::Start)
+        );
+        assert_eq!(
+            lifecycle.observe(&rules, &empty),
+            Some(Step::Finish(EndReason::NoPlayer))
         );
     }
 

@@ -323,7 +323,8 @@ Changes since 0.8.0.
   with `qlx_demoRecord 1` the server writes one file per match and deletes old ones as `qlx_demoKeepUnrequestedHours`,
   `qlx_demoMaxTotalMB` and `qlx_demoMinFreeMB` ask. A `.json` file next to each recording lists the players with their
   SteamIDs and the requests to keep it; requested recordings stay `qlx_demoKeepRequestedDays` and are the last to make
-  room. The format of the recordings may still change; [ql_sqx/FORMAT.md](ql_sqx/FORMAT.md) describes it.
+  room. An empty server is not recorded. The format of the recordings may still change;
+  [ql_sqx/FORMAT.md](ql_sqx/FORMAT.md) describes it.
   Recordings contain the stats messages of the game, without needing the ZMQ stats socket, and the `.json` file holds
   the game type, the match GUID, the result and the scores.
   They also contain every shot with the view angles at that moment, every hit on a living player with the health and armor

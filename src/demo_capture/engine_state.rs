@@ -21,21 +21,28 @@ pub(super) fn cvar(main_engine: &QuakeLiveEngine, name: &str) -> Option<String> 
 }
 
 pub(super) fn observe(main_engine: &QuakeLiveEngine, has_room: bool) -> Observation {
+    let connected: Vec<netadrtype_t> = (0..main_engine.get_max_clients())
+        .filter_map(connected_address)
+        .collect();
     Observation {
         now: Instant::now(),
         game_state: cvar(main_engine, "g_gameState").and_then(|state| GameState::from_cvar(&state)),
-        human_connected: (0..main_engine.get_max_clients()).any(is_connected_human),
+        player_connected: !connected.is_empty(),
+        human_connected: connected
+            .iter()
+            .any(|&address| address != netadrtype_t::NA_BOT),
         has_room,
     }
 }
 
-fn is_connected_human(client_id: i32) -> bool {
-    Client::try_from(client_id).is_ok_and(|client| {
-        matches!(
-            client.get_state(),
-            clientState_t::CS_CONNECTED | clientState_t::CS_PRIMED | clientState_t::CS_ACTIVE
-        ) && client.as_ref().netchan.remoteAddress.type_ != netadrtype_t::NA_BOT
-    })
+/// The kind of address of a client, `None` for a free or disconnected slot.
+fn connected_address(client_id: i32) -> Option<netadrtype_t> {
+    let client = Client::try_from(client_id).ok()?;
+    matches!(
+        client.get_state(),
+        clientState_t::CS_CONNECTED | clientState_t::CS_PRIMED | clientState_t::CS_ACTIVE
+    )
+    .then(|| client.as_ref().netchan.remoteAddress.type_)
 }
 
 /// The short name of the game type like `ca`.
